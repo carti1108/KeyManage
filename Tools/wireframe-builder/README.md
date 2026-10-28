@@ -8,7 +8,7 @@ Figma 파일에 **플랫폼별(iOS · Android · Web · macOS) 저충실도 와�
 
 ## 1. 생성되는 내용
 
-플랫폼마다 페이지 하나(`📐 iOS`, `📐 Android`, `📐 Web`, `📐 macOS`)가 만들어지고, 각 화면 아래에 **그 요소가 어느 정책에서 나왔는지** 메모가 붙습니다.
+`📐 Wireframes` 페이지 하나에 플랫폼 보드 네 개(iOS · Android · Web · macOS)가 위아래로 그려지고, 각 화면 아래에 **그 요소가 어느 정책에서 나왔는지** 메모가 붙습니다. Figma 무료(Starter) 요금제는 페이지가 3개까지라 페이지 하나만 씁니다.
 
 | 화면 | iOS | Android | Web | macOS | 근거 |
 | :--- | :---: | :---: | :---: | :---: | :--- |
@@ -35,9 +35,10 @@ Figma 파일에 **플랫폼별(iOS · Android · Web · macOS) 저충실도 와�
 1. **Figma 데스크톱 앱**에서 디자인 파일을 엽니다(빈 파일 권장).
 2. `Ctrl + /` (Mac: `Cmd + /`) → **`Import plugin from manifest...`** 실행.
 3. 이 폴더의 **`Tools/wireframe-builder/manifest.json`**을 선택합니다.
-4. 이후 `Ctrl + /` → **`KeyManage Wireframe Builder`** 를 실행하면 네 페이지가 만들어집니다.
+4. 이후 `Ctrl + /` → **`KeyManage Wireframe Builder`** 를 실행하면 `📐 Wireframes` 페이지가 만들어집니다.
 
-같은 이름의 페이지가 이미 있으면 내용을 지우고 다시 그립니다.
+- `📐 Wireframes` 페이지가 이미 있으면 그 내용을 지우고 다시 그립니다.
+- 페이지가 이미 3개라 새 페이지를 만들 수 없으면, **현재 페이지가 비어 있을 때만** 그 페이지에 그립니다. 내용이 있는 페이지는 지우지 않고 오류 알림만 띄웁니다.
 
 ---
 
