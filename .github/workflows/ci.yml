@@ -1,0 +1,61 @@
+# 검증 위임 체계의 기계 판정 단계 (ADR-0009)
+# PR과 main 푸시마다 백엔드 빌드·테스트·격리 검사·뮤테이션 테스트와 문서 검사를 돌린다
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# PR 브랜치에 새로 푸시하면 이전 실행은 취소한다. main 커밋은 하나하나 결과를 남기도록 취소하지 않는다
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Back
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Gradle을 한 번만 띄우도록 검증과 뮤테이션 테스트를 한 호출로 돌린다
+      - name: 빌드·테스트·격리 검사·뮤테이션 테스트
+        run: ./gradlew check :domain:pitest --console=plain
+
+      - name: 뮤테이션 점수 요약
+        if: always()
+        run: |
+          if [ -f domain/build/reports/pitest/mutations.xml ]; then
+            python3 ../Scripts/mutation-score.py domain/build/reports/pitest/mutations.xml >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: 리포트 보관
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-reports
+          path: |
+            Back/*/build/reports/tests
+            Back/domain/build/reports/pitest
+          if-no-files-found: ignore
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 문서 검사
+        run: bash Scripts/check-docs.sh

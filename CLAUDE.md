@@ -22,6 +22,9 @@
 - AI 활용 내용은 `docs/ai-usage/log/`에 항목당 새 파일로 추가한다. 기존 항목 파일은 고치지 않고 `log/README.md` 목록 표에 한 줄을 추가한다. 형식은 `docs/ai-usage/README.md`를 따른다.
 - 기록 절차는 `project-docs:ai-usage` 스킬을 따른다.
 
+### 검증 위임
+- PR 전 독립 리뷰와 CI·뮤테이션 테스트 규칙은 [ADR-0009](docs/adr/ADR-0009-verification-delegation-pipeline.md)를 따른다.
+
 ### 문서 검사
 - 문서를 고치면 `bash Scripts/check-docs.sh`를 실행해 링크, 정책·ADR·로그 목록 표, 정책·ADR 번호 참조가 맞는지 확인한다. 위반이 있으면 고친 뒤에 커밋한다.
 - 루트 `CLAUDE.md`·`AGENTS.md`는 매 턴 컨텍스트에 포함되므로 작게 유지한다. 세부 도메인 규칙·릴리스 절차·아키텍처 결정은 `docs/README.md` 및 하위 문서에 두고 루트에는 링크만 남긴다.

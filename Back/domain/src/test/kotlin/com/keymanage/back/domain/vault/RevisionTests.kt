@@ -17,6 +17,11 @@ class RevisionTests {
     }
 
     @Test
+    fun `0은 revision으로 허용한다`() {
+        assertEquals(0L, Revision(0).value)
+    }
+
+    @Test
     fun `음수 revision은 만들 수 없다`() {
         assertFailsWith<IllegalArgumentException> { Revision(-1) }
     }

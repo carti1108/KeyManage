@@ -2,6 +2,7 @@
 // Spring, Jackson 등 프레임워크와 외부 라이브러리를 의존하지 않는다 (순수 Kotlin + JUnit 5만 허용)
 plugins {
     kotlin("jvm")
+    id("info.solidsoft.pitest")
 }
 
 dependencies {
@@ -44,4 +45,17 @@ val verifyFrameworkIsolation by tasks.registering {
 
 tasks.named("check") {
     dependsOn(verifyFrameworkIsolation)
+}
+
+// 코드에 작은 결함을 심어 테스트가 잡아내는 비율(뮤테이션 점수)을 잰다 (ADR-0009).
+// ADR-0009대로 처음에는 점수를 기록만 하고, 여러 PR에서 기준선이 안정되면 하한선(mutationThreshold)을 정한다.
+// 첫 측정 88%. 리포트: build/reports/pitest
+pitest {
+    junit5PluginVersion.set("1.2.3")
+    targetClasses.set(listOf("com.keymanage.back.domain.*"))
+    // Kotlin 컴파일러가 넣는 null 검사 호출은 지워도 동작이 같아 의미 없는 결함이므로 제외한다
+    avoidCallsTo.set(setOf("kotlin.jvm.internal"))
+    threads.set(4)
+    outputFormats.set(listOf("HTML", "XML"))
+    timestampedReports.set(false)
 }

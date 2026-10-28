@@ -20,3 +20,4 @@
 | 012 | 2026-10-28 | [볼트 조회·저장 REST API 구현 및 오류 응답 매핑](012-vault-rest-api-controller.md) |
 | 013 | 2026-10-28 | [계정 인증 설계: 인증 해시 분리와 서버 세션 (ADR-0008, SEC-002)](013-account-auth-design.md) |
 | 014 | 2026-10-28 | [계정 인증 도메인·저장소 TDD 구현 (Argon2id, 서버 비밀키)](014-auth-domain-and-repository.md) |
+| 015 | 2026-10-28 | [검증 위임 체계 구축: CI, 뮤테이션 테스트, 독립 리뷰 (ADR-0009)](015-verification-delegation-pipeline.md) |

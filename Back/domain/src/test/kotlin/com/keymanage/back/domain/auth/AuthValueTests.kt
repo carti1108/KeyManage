@@ -52,7 +52,16 @@ class AuthValueTests {
     @Test
     fun `KDF 값은 내용으로 비교한다`() {
         assertEquals(kdfOf(1), kdfOf(1))
+        assertEquals(kdfOf(1).hashCode(), kdfOf(1).hashCode())
         assertNotEquals(kdfOf(1), kdfOf(2))
+    }
+
+    @Test
+    fun `비밀 값은 문자열로 바꿔도 내용이 드러나지 않는다`() {
+        // 로그나 예외 메시지에 실수로 찍혀도 원문이 남지 않아야 한다 (SEC-002)
+        assertEquals("AuthHash(****)", authHashOf(7).toString())
+        assertEquals("ServerSecret(****)", ServerSecret(ByteArray(32) { 7 }).toString())
+        assertEquals("KdfParams(iterations=600000)", kdfOf(7).toString())
     }
 
     @Test
