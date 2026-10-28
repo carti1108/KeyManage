@@ -4,6 +4,7 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.keymanage.back.api.error.ApiExceptionHandler
 import com.keymanage.back.api.error.RequestBodyLimitFilter
 import com.keymanage.back.domain.vault.GetVaultUseCase
+import com.keymanage.back.domain.vault.InMemoryVaultRepository
 import com.keymanage.back.domain.vault.SaveVaultUseCase
 import com.keymanage.back.domain.vault.VaultId
 import org.springframework.http.MediaType

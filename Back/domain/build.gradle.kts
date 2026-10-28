@@ -2,6 +2,8 @@
 // Spring, Jackson 등 프레임워크와 외부 라이브러리를 의존하지 않는다 (순수 Kotlin + JUnit 5만 허용)
 plugins {
     kotlin("jvm")
+    // 테스트용 가짜 저장소·해셔·시계를 다른 모듈 테스트와 공유한다
+    `java-test-fixtures`
     id("info.solidsoft.pitest")
 }
 
