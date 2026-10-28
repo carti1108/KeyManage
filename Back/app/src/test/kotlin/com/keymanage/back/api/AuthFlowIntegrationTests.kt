@@ -15,9 +15,11 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Base64
 import kotlin.test.Test
+import kotlin.test.assertTrue
 
 /** 실제 파일 저장소·Argon2·필터까지 조립된 상태로 가입 -> 볼트 저장·조회 -> 로그아웃 흐름을 확인한다 (SEC-002) */
 @SpringBootTest
@@ -64,6 +66,18 @@ class AuthFlowIntegrationTests {
 
         mockMvc.perform(post("/api/v1/auth/logout").header("Authorization", "Bearer $token")).andExpect(status().isNoContent)
         mockMvc.perform(get("/api/v1/vault").header("Authorization", "Bearer $token")).andExpect(status().isUnauthorized)
+    }
+
+    @Test
+    fun `볼트가 파일로 남고 오래된 revision으로 저장하면 409와 현재 revision을 돌려준다`() {
+        val token = register("conflict@example.com")
+        postJson("/api/v1/vault", """{"expectedRevision":0,"payload":$payload}""", token).andExpect(status().isOk)
+
+        postJson("/api/v1/vault", """{"expectedRevision":0,"payload":$payload}""", token)
+            .andExpect(status().isConflict)
+            .andExpect(jsonPath("$.code").value("VAULT_CONFLICT"))
+            .andExpect(jsonPath("$.currentRevision").value(1))
+        assertTrue(Files.list(dataDir.resolve("vaults")).use { files -> files.anyMatch { it.fileName.toString().endsWith(".json") } })
     }
 
     @Test
