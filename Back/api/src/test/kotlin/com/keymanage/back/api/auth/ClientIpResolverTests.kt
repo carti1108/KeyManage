@@ -25,6 +25,25 @@ class ClientIpResolverTests {
     }
 
     @Test
+    fun `X-Forwarded-For가 여러 줄로 오면 모든 줄을 이어서 본다`() {
+        val request = MockHttpServletRequest().apply {
+            remoteAddr = "10.0.0.1"
+            // 클라이언트가 넣은 줄 뒤에 프록시가 따로 한 줄을 덧붙인 경우
+            addHeader("X-Forwarded-For", "1.2.3.4")
+            addHeader("X-Forwarded-For", "203.0.113.9")
+        }
+
+        assertEquals("203.0.113.9", ClientIpResolver(setOf("10.0.0.1")).resolve(request))
+    }
+
+    @Test
+    fun `IPv6 주소는 표기가 달라도 같은 주소로 본다`() {
+        val resolver = ClientIpResolver(setOf("::1"))
+
+        assertEquals("203.0.113.9", resolver.resolve(request("0:0:0:0:0:0:0:1", "203.0.113.9")))
+    }
+
+    @Test
     fun `신뢰 프록시인데 X-Forwarded-For가 없거나 모두 신뢰 IP면 접속 IP를 쓴다`() {
         val resolver = ClientIpResolver(setOf("10.0.0.1"))
 
