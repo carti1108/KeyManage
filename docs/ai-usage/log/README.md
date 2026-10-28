@@ -23,3 +23,4 @@
 | 015 | 2026-10-28 | [검증 위임 체계 구축: CI, 뮤테이션 테스트, 독립 리뷰 (ADR-0009)](015-verification-delegation-pipeline.md) |
 | 016 | 2026-10-28 | [인증 API 구현과 볼트 API 토큰 전환 (#19, #10 해결)](016-auth-api-and-token-vault.md) |
 | 017 | 2026-10-28 | [플랫폼별 와이어프레임 Figma 빌더 제작](017-platform-wireframe-builder.md) |
+| 018 | 2026-10-28 | [와이어프레임 빌더의 실제 Figma 실행 실패 정정](018-wireframe-builder-figma-run-fix.md) |
