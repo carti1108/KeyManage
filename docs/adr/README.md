@@ -26,6 +26,7 @@
 | [ADR-0007](ADR-0007-file-vault-atomic-write-single-instance.md) | 파일 볼트 저장소의 원자적 쓰기와 단일 인스턴스 제약 | 채택 | 2026-10-28 |
 | [ADR-0008](ADR-0008-auth-hash-and-server-session.md) | 마스터 키 분리 기반 인증 해시와 서버 저장형 세션 채택 | 채택 | 2026-10-28 |
 | [ADR-0009](ADR-0009-verification-delegation-pipeline.md) | AI 작업의 검증 위임 체계 (CI·뮤테이션 테스트·독립 리뷰) | 채택 | 2026-10-28 |
+| [ADR-0010](ADR-0010-client-composition-ios-and-shared-web.md) | 클라이언트 구성: iOS 네이티브와 웹 코드 공유(브라우저·데스크톱) 우선 | 채택 | 2026-10-28 |
 
 ---
 
