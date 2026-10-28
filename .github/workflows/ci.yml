@@ -35,6 +35,11 @@ jobs:
       - name: 빌드·테스트·격리 검사·뮤테이션 테스트
         run: ./gradlew check :domain:pitest --console=plain
 
+      # 위에서 설치한 JDK 21로 암호 테스트 벡터를 교차 검증한다 (AES-GCM 포함)
+      - name: 암호 테스트 벡터 JDK 교차 검증
+        working-directory: .
+        run: java Tools/crypto-vectors/CrossCheck.java
+
       - name: 뮤테이션 점수 요약
         if: always()
         run: |
@@ -59,3 +64,9 @@ jobs:
 
       - name: 문서 검사
         run: bash Scripts/check-docs.sh
+
+      # 암호 테스트 벡터: 생성기 재계산과 Python 독립 구현 교차 검증 (JDK 검증은 backend 작업)
+      - name: 암호 테스트 벡터 검사
+        run: |
+          node Tools/crypto-vectors/vectors.mjs --check
+          python3 Tools/crypto-vectors/crosscheck.py
