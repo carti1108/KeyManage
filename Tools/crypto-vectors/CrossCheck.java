@@ -11,7 +11,10 @@ import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.crypto.AEADBadTagException;
@@ -27,60 +30,99 @@ public class CrossCheck {
     private static final String TRIMMED = " \u0009\n\r 　";
     private static final int ITERATIONS = 600_000;
 
+
     public static void main(String[] args) throws Exception {
-        String json = Files.readString(Path.of("docs/crypto-test-vectors.json"), StandardCharsets.UTF_8);
+        String json = Files.readString(findVectors(), StandardCharsets.UTF_8);
         List<String> failures = new ArrayList<>();
 
-        String keySection = section(json, "keyDerivationCases", "encryptionCases");
-        int keyCases = 0;
-        byte[] asciiEncryptionKey = null;
-        for (String c : objects(keySection)) {
-            keyCases++;
+        // 규격 값은 파일에서 읽지 않고 고정해 두고, 파일의 기록이 규격과 같은지만 본다
+        if (!json.contains("\"iterations\": 600000") || !json.contains("\"encryptionInfo\": \"keymanage-enc\"")
+                || !json.contains("\"authInfo\": \"keymanage-auth\"")) {
+            failures.add("kdf·hkdf 파라미터가 규격과 다름");
+        }
+
+        Map<String, String> keyCases = new LinkedHashMap<>();
+        Map<String, byte[]> encryptionKeys = new HashMap<>();
+        for (String c : topLevelObjects(section(json, "keyDerivationCases", "encryptionCases"))) {
             String name = field(c, "name");
+            keyCases.put(name, c);
             byte[] normalized = normalize(unescape(field(c, "password"))).getBytes(StandardCharsets.UTF_8);
             byte[] master = pbkdf2(normalized, b64(field(c, "salt")));
             byte[] enc = hkdf(master, "keymanage-enc");
-            byte[] auth = hkdf(master, "keymanage-auth");
             check(failures, name + ".normalizedPasswordUtf8", normalized, b64(field(c, "normalizedPasswordUtf8")));
             check(failures, name + ".masterKey", master, b64(field(c, "masterKey")));
             check(failures, name + ".encryptionKey", enc, b64(field(c, "encryptionKey")));
-            check(failures, name + ".authHash", auth, b64(field(c, "authHash")));
-            if (name.equals("ascii-passphrase")) asciiEncryptionKey = enc;
+            check(failures, name + ".authHash", hkdf(master, "keymanage-auth"), b64(field(c, "authHash")));
+            encryptionKeys.put(name, enc);
         }
 
-        String encryption = section(json, "encryptionCases", null);
-        String plaintext = unescape(field(encryption, "plaintext"));
-        byte[] iv = b64(field(encryption, "iv"));
-        byte[] ciphertext = b64(field(encryption, "ciphertext"));
-        byte[] tag = b64(field(encryption, "tag"));
-
-        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-        cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(asciiEncryptionKey, "AES"), new GCMParameterSpec(128, iv));
-        byte[] sealed = cipher.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));
-        check(failures, "vault.ciphertext", Arrays.copyOf(sealed, sealed.length - 16), ciphertext);
-        check(failures, "vault.tag", Arrays.copyOfRange(sealed, sealed.length - 16, sealed.length), tag);
-
-        try {
-            byte[] opened = decrypt(asciiEncryptionKey, iv, ciphertext, tag);
-            if (!new String(opened, StandardCharsets.UTF_8).equals(plaintext)) failures.add("vault.decrypt");
-        } catch (AEADBadTagException e) {
-            failures.add("vault.decrypt(태그 불일치)");
+        // 전처리 후 같은 비밀번호가 되는 케이스는 기준 케이스와 모든 값이 같아야 한다
+        for (Map.Entry<String, String> e : keyCases.entrySet()) {
+            String sameAs = optionalField(e.getValue(), "sameAs");
+            if (sameAs == null) continue;
+            String base = keyCases.get(sameAs);
+            for (String f : List.of("normalizedPasswordUtf8", "masterKey", "encryptionKey", "authHash")) {
+                if (base == null || !field(base, f).equals(field(e.getValue(), f))) failures.add(e.getKey() + " != " + sameAs);
+            }
         }
 
-        byte[] wrongKey = asciiEncryptionKey.clone();
-        wrongKey[0] ^= 1;
-        try {
-            decrypt(wrongKey, iv, ciphertext, tag);
-            failures.add("vault.wrongKeyAccepted");
-        } catch (AEADBadTagException expected) {
-            // 틀린 키는 인증 태그 검증에서 거절돼야 한다 (vault-spec 3장)
+        int encryptionCases = 0;
+        for (String c : topLevelObjects(section(json, "encryptionCases", null))) {
+            encryptionCases++;
+            String name = field(c, "name");
+            byte[] key = encryptionKeys.get(field(c, "keyFrom"));
+            if (key == null) {
+                failures.add(name + ": keyFrom 케이스가 없음");
+                continue;
+            }
+            checkEncryption(failures, name, key, c);
         }
+        if (encryptionCases == 0) failures.add("암호화 케이스가 없음");
 
         if (!failures.isEmpty()) {
             System.out.println("불일치: " + String.join(", ", failures));
             System.exit(1);
         }
-        System.out.println("JDK 교차 검증 통과: 키 유도 " + keyCases + "건, AES-256-GCM 암호화·복호화, 틀린 키 거절");
+        System.out.println("JDK 교차 검증 통과: 키 유도 " + keyCases.size() + "건, 암호화 " + encryptionCases
+                + "건(AES-256-GCM 암호화·복호화, 틀린 키 거절), 같은 결과 케이스 확인");
+    }
+
+    static void checkEncryption(List<String> failures, String name, byte[] key, String c) throws Exception {
+        String plaintext = unescape(field(c, "plaintext"));
+        byte[] iv = b64(field(c, "iv"));
+        byte[] ciphertext = b64(field(c, "ciphertext"));
+        byte[] tag = b64(field(c, "tag"));
+
+        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+        cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, "AES"), new GCMParameterSpec(128, iv));
+        byte[] sealed = cipher.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));
+        check(failures, name + ".ciphertext", Arrays.copyOf(sealed, sealed.length - 16), ciphertext);
+        check(failures, name + ".tag", Arrays.copyOfRange(sealed, sealed.length - 16, sealed.length), tag);
+
+        try {
+            byte[] opened = decrypt(key, iv, ciphertext, tag);
+            if (!new String(opened, StandardCharsets.UTF_8).equals(plaintext)) failures.add(name + ".decrypt");
+        } catch (AEADBadTagException e) {
+            failures.add(name + ".decrypt(태그 불일치)");
+        }
+
+        byte[] wrongKey = key.clone();
+        wrongKey[0] ^= 1;
+        try {
+            decrypt(wrongKey, iv, ciphertext, tag);
+            failures.add(name + ".wrongKeyAccepted");
+        } catch (AEADBadTagException expected) {
+            // 틀린 키는 인증 태그 검증에서 거절돼야 한다 (vault-spec 3장)
+        }
+    }
+
+    // 실행 위치와 상관없이 위쪽 폴더로 올라가며 벡터 파일을 찾는다
+    static Path findVectors() {
+        for (Path dir = Path.of("").toAbsolutePath(); dir != null; dir = dir.getParent()) {
+            Path candidate = dir.resolve("docs/crypto-test-vectors.json");
+            if (Files.exists(candidate)) return candidate;
+        }
+        throw new IllegalStateException("docs/crypto-test-vectors.json을 찾을 수 없음");
     }
 
     static String normalize(String password) {
@@ -139,11 +181,33 @@ public class CrossCheck {
         return json.substring(start, end);
     }
 
-    static List<String> objects(String section) {
+    // 배열 안의 최상위 객체만 꺼낸다. 문자열 안의 중괄호는 세지 않는다
+    static List<String> topLevelObjects(String section) {
         List<String> result = new ArrayList<>();
-        Matcher m = Pattern.compile("\\{[^{}]*\\}").matcher(section);
-        while (m.find()) result.add(m.group());
+        int depth = 0;
+        int start = -1;
+        boolean inString = false;
+        for (int i = section.indexOf('['); i < section.length(); i++) {
+            char ch = section.charAt(i);
+            if (inString) {
+                if (ch == '\\') i++;
+                else if (ch == '"') inString = false;
+                continue;
+            }
+            if (ch == '"') inString = true;
+            else if (ch == '{' && depth++ == 0) start = i;
+            else if (ch == '}' && --depth == 0) result.add(section.substring(start, i + 1));
+            else if (ch == ']' && depth == 0) break;
+        }
         return result;
+    }
+
+    static String optionalField(String object, String key) {
+        try {
+            return field(object, key);
+        } catch (IllegalStateException e) {
+            return null;
+        }
     }
 
     static String field(String object, String key) {

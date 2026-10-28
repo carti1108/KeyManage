@@ -18,7 +18,7 @@ const HKDF = { hash: 'SHA-256', salt: '', encryptionInfo: 'keymanage-enc', authI
 // 앞뒤에서 자르는 공백 문자. 플랫폼마다 trim의 범위가 달라 문자를 고정한다 (vault-spec 2장)
 const TRIMMED = [' ', '\u0009', '\u000A', '\u000D', ' ', '　'];
 
-export function normalizePassword(password) {
+function normalizePassword(password) {
   let s = password.normalize('NFC');
   let start = 0;
   let end = s.length;
@@ -135,7 +135,9 @@ async function build() {
 const vectors = await build();
 for (const c of vectors.keyDerivationCases.filter((k) => k.sameAs)) {
   const base = vectors.keyDerivationCases.find((k) => k.name === c.sameAs);
-  if (base.masterKey !== c.masterKey || base.authHash !== c.authHash) throw new Error(`${c.name}이 ${c.sameAs}와 다름: 전처리 규칙 위반`);
+  for (const field of ['normalizedPasswordUtf8', 'masterKey', 'encryptionKey', 'authHash']) {
+    if (base[field] !== c[field]) throw new Error(`${c.name}.${field}이 ${c.sameAs}와 다름: 전처리 규칙 위반`);
+  }
 }
 const json = `${JSON.stringify(vectors, null, 2)}\n`;
 
