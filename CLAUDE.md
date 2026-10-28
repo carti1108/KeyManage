@@ -22,8 +22,8 @@
 - AI 활용 내용은 `docs/ai-usage/log/`에 항목당 새 파일로 추가한다. 기존 항목 파일은 고치지 않고 `log/README.md` 목록 표에 한 줄을 추가한다. 형식은 `docs/ai-usage/README.md`를 따른다.
 - 기록 절차는 `project-docs:ai-usage` 스킬을 따른다.
 
-### 검증 위임 (ADR-0009)
-- 코드 PR을 열기 전 작성 맥락과 분리된 `/code-review`를 실행하고(인증·암호·저장소 변경은 `/security-review` 추가), 결과 요약을 PR 본문의 "독립 리뷰"에 남긴다.
+### 검증 위임
+- PR 전 독립 리뷰와 CI·뮤테이션 테스트 규칙은 [ADR-0009](docs/adr/ADR-0009-verification-delegation-pipeline.md)를 따른다.
 
 ### 문서 검사
 - 문서를 고치면 `bash Scripts/check-docs.sh`를 실행해 링크, 정책·ADR·로그 목록 표, 정책·ADR 번호 참조가 맞는지 확인한다. 위반이 있으면 고친 뒤에 커밋한다.
