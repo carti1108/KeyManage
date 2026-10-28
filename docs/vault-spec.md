@@ -57,6 +57,7 @@
 ```
 
 * 모든 바이너리 필드(`salt`, `iv`, `ciphertext`, `tag`)는 **Standard Base64 (RFC 4648)** 로 인코딩됩니다.
+* `version`은 스키마 버전이다. 동기화 충돌 감지용 `revision`은 페이로드 안이 아니라 API 응답·요청 최상위에 둔다 ([api-spec](api-spec.md) 2.3·2.4, ADR-0006).
 * 마스터 키 불일치 등으로 인증 태그(`tag`) 검증에 실패할 경우, 플랫폼 클라이언트는 즉시 복호화를 중단하고 사용자에게 마스터 키 오류를 알립니다.
 
 ---
@@ -96,6 +97,7 @@
   * `notes` (String, Optional): 사용자 메모.
   * `createdAt` (String): 등록 일시 (ISO 8601).
   * `updatedAt` (String): 최종 수정 일시 (ISO 8601).
+  * `deletedAt` (String, Optional): 삭제 일시 (ISO 8601). 값이 있으면 삭제된 항목으로 보고 화면에 표시하지 않는다. 기기 간 병합 시 삭제가 되살아나지 않도록 항목을 목록에서 빼지 않고 이 값만 기록한다 (VLT-001, ADR-0006).
 
 ---
 
