@@ -15,3 +15,4 @@
 | 007 | 2026-10-28 | [백엔드 헥사고날 4모듈 스캐폴딩 및 domain 프레임워크 격리 검사 구축](007-backend-multimodule-scaffolding.md) |
 | 008 | 2026-10-28 | [영지식 충돌 발견에 따른 비밀번호 생성·진단 클라이언트 전용 전환](008-client-only-password-generation-and-audit.md) |
 | 009 | 2026-10-28 | [볼트 동기화 충돌 해결을 낙관적 잠금으로 전환](009-vault-optimistic-locking.md) |
+| 010 | 2026-10-28 | [볼트 동기화 도메인 모델 및 낙관적 잠금 저장 유스케이스 TDD 구현](010-domain-vault-sync-optimistic-locking.md) |
