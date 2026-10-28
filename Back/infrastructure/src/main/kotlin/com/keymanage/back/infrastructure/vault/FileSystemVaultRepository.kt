@@ -8,12 +8,9 @@ import com.keymanage.back.domain.vault.Revision
 import com.keymanage.back.domain.vault.StoredVault
 import com.keymanage.back.domain.vault.VaultId
 import com.keymanage.back.domain.vault.VaultRepository
-import java.nio.ByteBuffer
-import java.nio.channels.FileChannel
+import com.keymanage.back.infrastructure.storage.AtomicFiles
 import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.StandardCopyOption
-import java.nio.file.StandardOpenOption
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -47,19 +44,7 @@ class FileSystemVaultRepository(
         }
 
     private fun write(vault: StoredVault) {
-        Files.createDirectories(storageDir)
-        val temp = Files.createTempFile(storageDir, vault.id.value, ".tmp")
-        try {
-            val bytes = objectMapper.writeValueAsBytes(VaultFile(vault.revision.value, vault.vault.payload))
-            FileChannel.open(temp, StandardOpenOption.WRITE).use { channel ->
-                channel.write(ByteBuffer.wrap(bytes))
-                // 이름을 바꾸기 전에 디스크에 내려 둬야 정전 뒤에 빈 파일로 교체되지 않는다
-                channel.force(true)
-            }
-            Files.move(temp, fileOf(vault.id), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
-        } finally {
-            Files.deleteIfExists(temp)
-        }
+        AtomicFiles.write(fileOf(vault.id), objectMapper.writeValueAsBytes(VaultFile(vault.revision.value, vault.vault.payload)))
     }
 
     private fun fileOf(id: VaultId): Path = storageDir.resolve("${id.value}.json")
