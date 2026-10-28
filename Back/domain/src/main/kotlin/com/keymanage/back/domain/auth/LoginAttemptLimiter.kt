@@ -25,6 +25,8 @@ class LoginAttemptLimiter(private val clock: Clock) {
         synchronized(state) {
             val lockedUntil = state.lockedUntil ?: return
             if (now.isBefore(lockedUntil)) throw TooManyAttemptsException(Duration.between(now, lockedUntil))
+            // 잠금이 끝난 항목은 실패 기록도 비어 있으므로 통째로 지워 메모리에 남기지 않는다
+            states.remove(email, state)
         }
     }
 
