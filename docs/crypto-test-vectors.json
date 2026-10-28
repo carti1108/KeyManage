@@ -1,0 +1,106 @@
+{
+  "description": "KeyManage 플랫폼 간 암호 테스트 벡터. 모든 바이너리 값은 Standard Base64. 생성: Tools/crypto-vectors/vectors.mjs",
+  "passwordPreprocessing": {
+    "steps": [
+      "NFC 정규화",
+      "앞뒤의 지정 공백 문자 제거 (중간 공백은 유지)",
+      "UTF-8 인코딩"
+    ],
+    "trimmedCodePoints": [
+      "U+0020",
+      "U+0009",
+      "U+000A",
+      "U+000D",
+      "U+00A0",
+      "U+3000"
+    ]
+  },
+  "kdf": {
+    "algorithm": "PBKDF2-HMAC-SHA256",
+    "iterations": 600000,
+    "keyLength": 32
+  },
+  "hkdf": {
+    "hash": "SHA-256",
+    "salt": "",
+    "encryptionInfo": "keymanage-enc",
+    "authInfo": "keymanage-auth",
+    "length": 32
+  },
+  "aead": {
+    "algorithm": "AES-256-GCM",
+    "ivLength": 12,
+    "tagLength": 16,
+    "aad": null
+  },
+  "keyDerivationCases": [
+    {
+      "name": "ascii-passphrase",
+      "description": "공백이 들어간 ASCII 패스프레이즈",
+      "password": "correct horse battery staple",
+      "normalizedPasswordUtf8": "Y29ycmVjdCBob3JzZSBiYXR0ZXJ5IHN0YXBsZQ==",
+      "salt": "AAECAwQFBgcICQoLDA0ODw==",
+      "masterKey": "7xdxRO7JQgy8EJPSqLNEqSvFBtDU7JwCjdGfgyTYweY=",
+      "encryptionKey": "fMgSdigbsNMdevy2GjTgQTVdaKTKwzfbVXVgmg3ouF0=",
+      "authHash": "cp+w6ZfEyRIoVXtIAS8F9OVsq1zq0sxWMFcD02t0bgA="
+    },
+    {
+      "name": "korean-emoji",
+      "description": "한글과 이모지(4바이트 UTF-8)",
+      "password": "한글 비밀번호 🔑 2026",
+      "normalizedPasswordUtf8": "7ZWc6riAIOu5hOuwgOuyiO2YuCDwn5SRIDIwMjY=",
+      "salt": "EBESExQVFhcYGRobHB0eHw==",
+      "masterKey": "dZ/lajwXROENmpBKiQcY8UXnXdzb1DBoPILJdeFywko=",
+      "encryptionKey": "FhWJTMF6BTQGljYtmyTZIK7aEn5AAAiwDCdJGwp5RzI=",
+      "authHash": "QlniXMhrwerwT1oIwVv2CTL3Nlk9NNHNtE4hQsiTMFE="
+    },
+    {
+      "name": "nfc-composed",
+      "description": "é를 한 글자(U+00E9)로 입력",
+      "password": "Café au lait",
+      "normalizedPasswordUtf8": "Q2Fmw6kgYXUgbGFpdA==",
+      "salt": "ICEiIyQlJicoKSorLC0uLw==",
+      "masterKey": "f0Byn9WCX4A/tL/CgoCIGrCBXqpzNklvQlZW5p2NPTY=",
+      "encryptionKey": "yxK4B1Fw+Cfv6UAx5I/9CcBT5Rc5KQG3hd6lQ41J3eU=",
+      "authHash": "lBnwg63aiCTtrlC8OYr0C4vykJ0JXJE8JKO5EDjImlE="
+    },
+    {
+      "name": "nfd-decomposed",
+      "description": "é를 e + U+0301로 입력해도 NFC 정규화로 같은 결과",
+      "password": "Café au lait",
+      "normalizedPasswordUtf8": "Q2Fmw6kgYXUgbGFpdA==",
+      "salt": "ICEiIyQlJicoKSorLC0uLw==",
+      "masterKey": "f0Byn9WCX4A/tL/CgoCIGrCBXqpzNklvQlZW5p2NPTY=",
+      "encryptionKey": "yxK4B1Fw+Cfv6UAx5I/9CcBT5Rc5KQG3hd6lQ41J3eU=",
+      "authHash": "lBnwg63aiCTtrlC8OYr0C4vykJ0JXJE8JKO5EDjImlE=",
+      "sameAs": "nfc-composed"
+    },
+    {
+      "name": "surrounding-whitespace",
+      "description": "앞뒤 공백·탭·줄바꿈·전각 공백은 잘리고 중간 공백은 유지",
+      "password": " \t correct horse battery staple　\n",
+      "normalizedPasswordUtf8": "Y29ycmVjdCBob3JzZSBiYXR0ZXJ5IHN0YXBsZQ==",
+      "salt": "AAECAwQFBgcICQoLDA0ODw==",
+      "masterKey": "7xdxRO7JQgy8EJPSqLNEqSvFBtDU7JwCjdGfgyTYweY=",
+      "encryptionKey": "fMgSdigbsNMdevy2GjTgQTVdaKTKwzfbVXVgmg3ouF0=",
+      "authHash": "cp+w6ZfEyRIoVXtIAS8F9OVsq1zq0sxWMFcD02t0bgA=",
+      "sameAs": "ascii-passphrase"
+    }
+  ],
+  "encryptionCases": [
+    {
+      "name": "vault-ascii-passphrase",
+      "description": "ascii-passphrase의 암호화 키로 vault-spec 4장 예시 볼트를 암호화. 고정 IV는 테스트 전용이며 실제로는 매번 새로 만든다",
+      "keyFrom": "ascii-passphrase",
+      "plaintext": "{\"version\":1,\"updatedAt\":\"2026-10-27T11:20:00Z\",\"items\":[{\"id\":\"550e8400-e29b-41d4-a716-446655440000\",\"serviceName\":\"GitHub\",\"username\":\"octocat@github.com\",\"password\":\"SuperSecurePassword123!\",\"url\":\"https://github.com/login\",\"notes\":\"개인 개발용 서브 계정\",\"createdAt\":\"2026-10-27T10:00:00Z\",\"updatedAt\":\"2026-10-27T11:20:00Z\"}]}",
+      "payload": {
+        "version": 1,
+        "cipher": "AES-256-GCM",
+        "iv": "AAECAwQFBgcICQoL",
+        "ciphertext": "/cHDi35Q88F8cMoQE46t7S9mMLsgOB3avqLDYMKZvDgWGAJa6g+TR4TpsMHHKoDmQl++IBrrIXer/CmwrVRfC5ZzzeV63nD6AzacBUM5hL9ARTMCNiixw9H21EtxABVirdXlnlzUCtJfldn2BKFBhiIRgkO/x+L96VZxkZk5hslRUs1f4eD0T35YUnEk4tAldgzGSbHwRAQmtAj5MGizxXc7k4+OmdDYWLZlR9BGj6licdpuIqTl4SUZM2iLLEZlo9YXErfuwvVA46M9yLCU7+Xt5MtYvB3NT9S6jD6WFpPOiNfdpdqtIAtMfVf4XFl22HBYsyB0EfqJ1Q1ZMmj1rZsvkoyX7LN+9jwKw9cNYK66UjS69Xq3RShDVyXdRfOLWb66QTeZAacRfv95w7UMnIu467OWZjJ0bCRN0N2m6gJ4bfxeW+frYBN9qKsem4QmbnHe6w==",
+        "tag": "uAON9CDo8++l3/slSkFRBg==",
+        "updatedAt": "2026-10-27T11:20:00Z"
+      }
+    }
+  ]
+}
