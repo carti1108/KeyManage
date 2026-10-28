@@ -20,6 +20,7 @@
 | 번호 | 제목 | 상태 | 영역 |
 |---|---|---|---|
 | [SEC-001](SEC/SEC-001-client-side-zero-knowledge-encryption.md) | 클라이언트 영지식 암복호화 규격 | 확정 | 보안 및 마스터키 |
+| [SEC-002](SEC/SEC-002-account-auth-and-session.md) | 계정 인증 및 세션 정책 | 확정 | 보안 및 마스터키 |
 | [GEN-001](GEN/GEN-001-password-generation-and-entropy-scoring.md) | 무작위 암호 생성 및 엔트로피 점수 산출 규칙 | 확정 | 비밀번호 생성 및 진단 |
 | [VLT-001](VLT/VLT-001-cross-platform-vault-sync.md) | 크로스 플랫폼 볼트 동기화 및 충돌 해결 정책 | 확정 | 볼트 저장 및 동기화 |
 | [COM-001](COM/COM-001-clipboard-auto-burn-and-graceful-fallback.md) | 클립보드 30초 자동 소각 및 오류 방어 정책 | 확정 | 공통 예외 및 클립보드 |
