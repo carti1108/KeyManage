@@ -16,3 +16,4 @@
 | 008 | 2026-10-28 | [영지식 충돌 발견에 따른 비밀번호 생성·진단 클라이언트 전용 전환](008-client-only-password-generation-and-audit.md) |
 | 009 | 2026-10-28 | [볼트 동기화 충돌 해결을 낙관적 잠금으로 전환](009-vault-optimistic-locking.md) |
 | 010 | 2026-10-28 | [볼트 동기화 도메인 모델 및 낙관적 잠금 저장 유스케이스 TDD 구현](010-domain-vault-sync-optimistic-locking.md) |
+| 011 | 2026-10-28 | [파일 기반 볼트 저장소 어댑터 TDD 구현 및 원자성 검증](011-file-vault-repository-adapter.md) |
