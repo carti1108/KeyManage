@@ -50,5 +50,6 @@ Figma 파일에 **플랫폼별(iOS · Android · Web · macOS) 저충실도 와�
   node Tools/wireframe-builder/verify.js
   ```
 
-  Figma API의 대표적인 오류 규칙(오토레이아웃 밖 FILL, 글꼴을 불러오지 않은 텍스트 수정, dynamic-page에서 `currentPage` 대입 등)을 흉내 낸 모의 환경에서 실행합니다. CI에서도 같은 검사를 돌립니다(ADR-0009).
+  Figma API의 대표적인 오류 규칙(오토레이아웃 밖 FILL, 글꼴을 불러오지 않은 텍스트 수정, dynamic-page에서 `currentPage` 대입 등)을 흉내 낸 모의 환경에서 실행합니다. 두 번 실행해 "지우고 다시 그리기"를 확인하고, 플랫폼별 화면 개수와 남은 노드가 없는지, 글꼴이 없을 때 페이지를 만들지 않고 멈추는지도 봅니다. CI에서도 같은 검사를 돌립니다(ADR-0009).
 - 모의 검증은 오류 여부만 봅니다. 화면이 보기에 맞는지는 Figma에서 직접 확인해야 합니다.
+- 화면 문구는 정책의 사용자 문구 원문을 씁니다. 정책에 없는 기능이나 값은 넣지 않습니다(정책 SSOT는 `docs/policies/`).
