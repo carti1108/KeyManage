@@ -1,0 +1,14 @@
+{
+  "enabledPlugins": {
+    "adr-manager@carti-marketplace": true,
+    "code-reviewer@carti-marketplace": true,
+    "ios-architect@carti-marketplace": true,
+    "issue-worktree@carti-marketplace": true,
+    "policy-manager@carti-marketplace": true,
+    "project-docs@carti-marketplace": true,
+    "qa-tester@carti-marketplace": true,
+    "tech-writer@carti-marketplace": true,
+    "token-optimizer@carti-marketplace": true,
+    "ui-ux-pro-max@ui-ux-pro-max-skill": true
+  }
+}

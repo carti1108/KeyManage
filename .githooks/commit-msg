@@ -1,0 +1,33 @@
+#!/bin/sh
+# 커밋 메시지 형식 검사: "종류: 요약" (scope 미사용, 요약은 한국어, 50자 이내, 마침표 없음)
+
+MSG_FILE="$1"
+SUBJECT=$(head -n 1 "$MSG_FILE")
+
+# git이 자동으로 만드는 메시지(merge, revert, fixup/squash)는 검사하지 않는다
+case "$SUBJECT" in
+  Merge\ *|Revert\ *|fixup!\ *|squash!\ *) exit 0 ;;
+esac
+
+TYPES="feat|fix|docs|style|refactor|test|chore"
+PATTERN="^($TYPES): .+$"
+
+if ! printf '%s\n' "$SUBJECT" | grep -Eq "$PATTERN"; then
+  echo "커밋 메시지 형식 오류: \"$SUBJECT\"" >&2
+  echo "형식: 종류: 요약   (예: feat: 로그인 화면 추가)" >&2
+  echo "허용 종류: feat, fix, docs, style, refactor, test, chore" >&2
+  exit 1
+fi
+
+SUMMARY=$(printf '%s\n' "$SUBJECT" | sed -E 's/^[a-z]+: //')
+
+if [ "$(printf '%s' "$SUMMARY" | wc -m | tr -d ' ')" -gt 50 ]; then
+  echo "요약이 50자를 넘습니다: $(printf '%s' "$SUMMARY" | wc -m | tr -d ' ')자" >&2
+  exit 1
+fi
+
+case "$SUMMARY" in
+  *.) echo "요약 끝에 마침표를 붙이지 마세요." >&2; exit 1 ;;
+esac
+
+exit 0
