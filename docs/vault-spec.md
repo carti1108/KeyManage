@@ -7,20 +7,23 @@
 ## 1. 암호화 아키텍처 개요 (Zero-Knowledge)
 
 ```
-[ Master Password (Plaintext) ] + [ Salt (16 Bytes, CSPRNG) ]
+[ Master Password (Plaintext) ] + [ Account Salt (16 Bytes, prelogin으로 조회) ]
                        │
-                       ▼  PBKDF2-HMAC-SHA256 (100,000 Iterations)
-            [ Derived Key (256-bit) ]
+                       ▼  PBKDF2-HMAC-SHA256 (600,000 Iterations)
+             [ Master Key (256-bit) ]  ── 기기 밖으로 나가지 않음
                        │
-                       ▼  AES-256-GCM (IV 12 Bytes)
-   [ Vault Plaintext JSON ] ───► [ Ciphertext ] + [ Auth Tag (16 Bytes) ]
-                       │
-                       ▼
-       [ EncryptedVaultPayload (JSON or Base64 Container) ]
-                       │
-                       ▼  HTTPS
-             [ Backend Storage ]
+          ┌────────────┴─────────────┐
+          ▼ HKDF "keymanage-enc"     ▼ HKDF "keymanage-auth"
+ [ Encryption Key (256-bit) ]   [ Auth Hash (256-bit) ] ──► HTTPS ──► 서버 로그인 (SEC-002)
+          │
+          ▼  AES-256-GCM (IV 12 Bytes)
+ [ Vault Plaintext JSON ] ───► [ Ciphertext ] + [ Auth Tag (16 Bytes) ]
+          │
+          ▼
+ [ EncryptedVaultPayload ] ──► HTTPS ──► [ Backend Storage ]
 ```
+
+* 서버는 인증 해시만 받는다. 인증 해시와 암호화 키는 HKDF의 서로 다른 info로 만들므로, 인증 해시로 암호화 키를 계산할 수 없다 (ADR-0008).
 
 ---
 
@@ -29,9 +32,10 @@
 | 파라미터 | 규격 | 비고 |
 | :--- | :--- | :--- |
 | **Key Derivation** | PBKDF2-HMAC-SHA256 | 모던 표준 KDF |
-| **Salt** | 16 바이트 (128비트) | 볼트 생성 시 암호학적 난수(CSPRNG)로 생성 |
-| **Iteration Count** | 100,000 회 | 무차별 대입 공격(Brute-force) 방어 |
-| **Key Size** | 32 바이트 (256비트) | AES-256 대칭키 |
+| **Account Salt** | 16 바이트 (128비트) | 가입 시 클라이언트가 CSPRNG로 1회 생성해 서버에 등록. 다른 기기는 prelogin으로 조회 ([api-spec](api-spec.md) 2.5) |
+| **Iteration Count** | 600,000 회 | 무차별 대입 공격(Brute-force) 방어 (OWASP 권장값) |
+| **Master Key Size** | 32 바이트 (256비트) | 기기 밖으로 보내지 않음 |
+| **Key Separation** | HKDF-SHA256 (salt 없음, info `keymanage-enc` / `keymanage-auth`, 출력 32바이트) | 암호화 키와 인증 해시 분리 |
 | **Cipher Algorithm** | AES-256-GCM | 기밀성 및 무결성(AEAD) 동시 보장 |
 | **IV / Nonce** | 12 바이트 (96비트) | 암호화할 때마다 매번 새로 생성 |
 | **Auth Tag** | 16 바이트 (128비트) | 변조 방지 인증 태그 |
@@ -45,9 +49,6 @@
 ```json
 {
   "version": 1,
-  "kdf": "PBKDF2-HMAC-SHA256",
-  "iterations": 100000,
-  "salt": "dGhpcyBpcyBhIHNhbHQxNg==",
   "cipher": "AES-256-GCM",
   "iv": "MDEyMzQ1Njc4OWFi",
   "ciphertext": "k7Z9X...base64...",
@@ -56,7 +57,8 @@
 }
 ```
 
-* 모든 바이너리 필드(`salt`, `iv`, `ciphertext`, `tag`)는 **Standard Base64 (RFC 4648)** 로 인코딩됩니다.
+* 모든 바이너리 필드(`iv`, `ciphertext`, `tag`)는 **Standard Base64 (RFC 4648)** 로 인코딩됩니다.
+* KDF 이름·반복 횟수·salt는 계정 정보로 관리하므로 페이로드에 넣지 않는다. 같은 값이 두 곳에 있으면 어긋날 수 있기 때문이다 (ADR-0008).
 * `version`은 스키마 버전이다. 동기화 충돌 감지용 `revision`은 페이로드 안이 아니라 API 응답·요청 최상위에 둔다 ([api-spec](api-spec.md) 2.3·2.4, ADR-0006).
 * 마스터 키 불일치 등으로 인증 태그(`tag`) 검증에 실패할 경우, 플랫폼 클라이언트는 즉시 복호화를 중단하고 사용자에게 마스터 키 오류를 알립니다.
 
