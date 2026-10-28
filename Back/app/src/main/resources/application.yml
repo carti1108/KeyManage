@@ -9,3 +9,8 @@ keymanage:
   vault:
     # 볼트 파일 저장 폴더 (ADR-0007). 실행 위치 기준 상대 경로이며 첫 저장 때 만들어진다
     storage-dir: ./data/vaults
+  auth:
+    # 계정·세션·서버 비밀키 저장 폴더 (SEC-002). 서버 비밀키는 환경 변수 KEYMANAGE_SERVER_SECRET이 없으면 여기에 만들어진다
+    storage-dir: ./data/auth
+    # 내 계정을 만든 뒤 false로 바꾸면 새 가입을 막는다 (SEC-002)
+    registration-enabled: true
