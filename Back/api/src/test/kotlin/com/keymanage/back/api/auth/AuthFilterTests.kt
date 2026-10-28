@@ -1,6 +1,12 @@
 package com.keymanage.back.api.auth
 
 import com.keymanage.back.api.ApiTestFixture
+import com.keymanage.back.domain.auth.AuthenticateUseCase
+import com.keymanage.back.domain.auth.Session
+import com.keymanage.back.domain.auth.SessionRepository
+import org.springframework.mock.web.MockFilterChain
+import org.springframework.mock.web.MockHttpServletRequest
+import org.springframework.mock.web.MockHttpServletResponse
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.header
@@ -8,6 +14,8 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPat
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.time.Duration
 import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /** Bearer 토큰 필터와 IP 시도 제한 (SEC-002) */
 class AuthFilterTests {
@@ -26,6 +34,32 @@ class AuthFilterTests {
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
                 .andExpect(jsonPath("$.message").value("로그인이 만료되었습니다. 다시 로그인해 주세요."))
         }
+    }
+
+    @Test
+    fun `경로 표기를 바꿔도 인증 API가 아니면 토큰을 요구한다`() {
+        listOf("/api/v1;x=1/vault", "/api/v1//vault", "/api/v1/auth/../vault", "/api/v1/auth/..;/vault", "/unknown").forEach { path ->
+            fixture.mockMvc.perform(get(path))
+                .andExpect(status().isUnauthorized)
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
+        }
+    }
+
+    @Test
+    fun `토큰 확인 중 예상하지 못한 오류가 나면 표준 형식의 500을 돌려준다`() {
+        val broken = object : SessionRepository {
+            override fun save(session: Session) = Unit
+            override fun find(tokenHash: String): Session? = throw IllegalStateException("저장소 손상")
+            override fun delete(tokenHash: String) = Unit
+        }
+        val filter = AuthTokenFilter(AuthenticateUseCase(broken, fixture.accounts, fixture.clock))
+        val request = MockHttpServletRequest("GET", "/api/v1/vault").apply { addHeader("Authorization", "Bearer x") }
+        val response = MockHttpServletResponse()
+
+        filter.doFilter(request, response, MockFilterChain())
+
+        assertEquals(500, response.status)
+        assertTrue(response.contentAsString.contains("\"code\":\"INTERNAL_ERROR\""))
     }
 
     @Test
@@ -64,6 +98,16 @@ class AuthFilterTests {
 
         fixture.clock.advance(Duration.ofSeconds(40))
         fixture.postJson("/api/v1/auth/prelogin", """{"email":"a@example.com"}""").andExpect(status().isOk)
+    }
+
+    @Test
+    fun `경로 표기를 바꿔도 인증 API는 같은 IP 제한을 받는다`() {
+        val variants = listOf("/api/v1/auth/prelogin;x=1", "/api/v1//auth/prelogin", "/api/v1/auth/./prelogin")
+        repeat(30) { i ->
+            fixture.mockMvc.perform(post(variants[i % variants.size]).contentType("application/json").content("""{"email":"a@example.com"}"""))
+        }
+
+        fixture.postJson("/api/v1/auth/prelogin", """{"email":"a@example.com"}""").andExpect(status().isTooManyRequests)
     }
 
     @Test
