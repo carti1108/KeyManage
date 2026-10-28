@@ -22,3 +22,4 @@
 | 014 | 2026-10-28 | [계정 인증 도메인·저장소 TDD 구현 (Argon2id, 서버 비밀키)](014-auth-domain-and-repository.md) |
 | 015 | 2026-10-28 | [검증 위임 체계 구축: CI, 뮤테이션 테스트, 독립 리뷰 (ADR-0009)](015-verification-delegation-pipeline.md) |
 | 016 | 2026-10-28 | [인증 API 구현과 볼트 API 토큰 전환 (#19, #10 해결)](016-auth-api-and-token-vault.md) |
+| 017 | 2026-10-28 | [클라이언트 구성 결정: iOS 네이티브와 웹 코드 공유 (ADR-0010)](017-client-composition-adr.md) |
