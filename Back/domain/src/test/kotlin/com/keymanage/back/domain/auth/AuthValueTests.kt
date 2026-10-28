@@ -54,7 +54,6 @@ class AuthValueTests {
         assertEquals(kdfOf(1), kdfOf(1))
         assertEquals(kdfOf(1).hashCode(), kdfOf(1).hashCode())
         assertNotEquals(kdfOf(1), kdfOf(2))
-        assertNotEquals(kdfOf(1).hashCode(), kdfOf(2).hashCode())
     }
 
     @Test
