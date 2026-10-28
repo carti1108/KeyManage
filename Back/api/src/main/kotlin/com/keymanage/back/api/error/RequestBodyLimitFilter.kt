@@ -1,14 +1,11 @@
 package com.keymanage.back.api.error
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import jakarta.servlet.FilterChain
 import jakarta.servlet.ReadListener
 import jakarta.servlet.ServletInputStream
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletRequestWrapper
 import jakarta.servlet.http.HttpServletResponse
-import org.springframework.http.MediaType
-import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
 import java.io.BufferedReader
 import java.io.IOException
@@ -18,21 +15,12 @@ import java.io.InputStreamReader
  * 요청 본문이 [MAX_BODY_BYTES]를 넘으면 해석하기 전에 413으로 거절한다 (api-spec 1장).
  *
  * Content-Length를 알면 바로 거절하고, 모르면(chunked) 읽는 도중 상한을 넘는 순간 [RequestBodyTooLargeException]으로 끊는다.
- * 필터는 컨트롤러 밖에서 동작하므로 오류 본문을 직접 쓴다.
+ * 필터는 컨트롤러 밖에서 동작하므로 오류 본문을 직접 쓴다. 등록 순서는 app 모듈이 정한다.
  */
-@Component
 class RequestBodyLimitFilter : OncePerRequestFilter() {
 
-    private val objectMapper = jacksonObjectMapper()
-
     override fun doFilterInternal(request: HttpServletRequest, response: HttpServletResponse, filterChain: FilterChain) {
-        if (request.contentLengthLong > MAX_BODY_BYTES) {
-            response.status = ApiError.VAULT_TOO_LARGE.status.value()
-            response.contentType = MediaType.APPLICATION_JSON_VALUE
-            response.characterEncoding = Charsets.UTF_8.name()
-            objectMapper.writeValue(response.outputStream, ErrorBody.of(ApiError.VAULT_TOO_LARGE))
-            return
-        }
+        if (request.contentLengthLong > MAX_BODY_BYTES) return ErrorResponses.write(response, ApiError.VAULT_TOO_LARGE)
         filterChain.doFilter(LimitedBodyRequest(request), response)
     }
 
