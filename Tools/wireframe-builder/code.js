@@ -223,18 +223,33 @@ function banner(P, message) {
   return b;
 }
 
-// GEN-001 점수 게이지: 60 미만 위험, 60~79 보통, 80 이상 안전
+// 값의 비율만큼 채운 막대. 막대 길이는 부모를 따라 늘어나므로 채운 부분은 SCALE 제약으로 비율을 유지한다
+function ratioBar(ratio, height) {
+  const track = figma.createFrame();
+  track.name = 'track';
+  track.layoutMode = 'NONE';
+  track.resize(100, height);
+  track.cornerRadius = height / 2;
+  track.fills = solid(C.fill);
+  const filled = figma.createRectangle();
+  filled.name = 'value';
+  filled.resize(Math.max(1, Math.round(100 * ratio)), height);
+  filled.cornerRadius = height / 2;
+  filled.fills = solid(C.accent);
+  track.appendChild(filled);
+  filled.constraints = { horizontal: 'SCALE', vertical: 'TOP_BOTTOM' };
+  return track;
+}
+
+// GEN-001 점수 게이지: 60 미만 취약, 60~79 보통, 80 이상 안전
 function gauge(P, score) {
-  const level = score >= 80 ? '안전' : score >= 60 ? '보통' : '위험';
+  const level = score >= 80 ? '안전' : score >= 60 ? '보통' : '취약';
   const g = box('KMGaugeBar', { gap: 6 });
   const head = box('head', { dir: 'HORIZONTAL' });
   place(head, text('안전 점수', { size: P.fs - 3, color: C.sub }), { fillW: true });
   place(head, text(`${score}점 · ${level}`, { size: P.fs - 3, bold: true }));
   place(g, head, { fillW: true });
-  const track = box('track', { dir: 'HORIZONTAL', h: 8, radius: 4, fill: C.fill });
-  place(g, track, { fillW: true });
-  const bar = box('value', { h: 8, w: Math.max(8, Math.round(score * 2.4)), radius: 4, fill: C.accent });
-  place(track, bar);
+  place(g, ratioBar(score / 100, 8), { fillW: true });
   return g;
 }
 
@@ -256,21 +271,17 @@ function slider(P, label, value, min, max) {
   place(head, text(label, { size: P.fs }), { fillW: true });
   place(head, text(`${value}자 (${min}~${max})`, { size: P.fs, bold: true }));
   place(s, head, { fillW: true });
-  const track = box('track', { dir: 'HORIZONTAL', h: 20, cross: 'CENTER', gap: 0 });
-  const filled = box('filled', { h: 4, w: 90, fill: C.accent, radius: 2 });
-  place(track, filled);
-  place(track, circle(20, C.accent));
-  const rest = box('rest', { h: 4, fill: C.line, radius: 2 });
-  place(track, rest, { fillW: true });
-  place(s, track, { fillW: true });
+  place(s, ratioBar((value - min) / (max - min), 6), { fillW: true });
   return s;
 }
 
-// COM-001: 복사 후 30초 뒤 클립보드를 비운다
+// COM-001: 복사 후 30초 뒤 클립보드를 비운다. 문구는 정책 원문을 쓰고 남은 초를 함께 보여 준다
 function burnBadge(P, seconds = 29) {
-  const b = box('KMBurnBadge', { dir: 'HORIZONTAL', pad: [8, 12, 8, 12], gap: 8, radius: 999, fill: C.fill, cross: 'CENTER' });
-  place(b, circle(10, C.accent));
-  place(b, text(`복사됨 · ${seconds}초 뒤 클립보드에서 지워집니다`, { size: P.fs - 3 }));
+  const b = box('KMBurnBadge', { dir: 'HORIZONTAL', pad: [8, 12, 8, 12], gap: 8, radius: 12, fill: C.fill, cross: 'CENTER' });
+  const count = box('count', { w: 28, h: 28, radius: 14, fill: C.accent, main: 'CENTER', cross: 'CENTER' });
+  place(count, text(String(seconds), { size: 12, bold: true, color: C.accentText }));
+  place(b, count);
+  place(b, text('보안을 위해 복사된 비밀번호가 30초 후 클립보드에서 자동 삭제됩니다.', { size: P.fs - 3 }), { fillW: true });
   return b;
 }
 
@@ -308,7 +319,8 @@ function registerContent(c, P) {
   place(c, field(P, '마스터 비밀번호', '••••••••••••••••', { trailing: ['보기'] }), { fillW: true });
   place(c, gauge(P, 84), { fillW: true });
   place(c, field(P, '마스터 비밀번호 확인', '••••••••••••••••'), { fillW: true });
-  place(c, banner(P, '마스터 비밀번호를 잊으면 복구할 수 없습니다. 안전한 곳에 따로 기록해 두세요.'), { fillW: true });
+  // SEC-001 사용자 문구 원문
+  place(c, banner(P, '마스터 키를 분실하면 복구할 수 없습니다.'), { fillW: true });
   place(c, button(P, '계정 만들기'), { fillW: true });
 }
 
@@ -330,7 +342,7 @@ function detailContent(c, P) {
   place(c, head, { fillW: true });
   place(c, field(P, '아이디', 'octocat@github.com', { trailing: ['복사'] }), { fillW: true });
   place(c, field(P, '비밀번호', '••••••••••••••••', { trailing: ['보기', '복사'] }), { fillW: true });
-  place(c, burnBadge(P));
+  place(c, burnBadge(P), { fillW: true });
   place(c, gauge(P, 100), { fillW: true });
   place(c, field(P, '메모', '개인 개발용 서브 계정', { tall: true }), { fillW: true });
   place(c, text('수정 2026-10-27 · 생성 2026-10-20', { size: P.fs - 4, color: C.sub }), { fillW: true });
@@ -377,7 +389,8 @@ function settingsContent(c, P) {
     place(c, g, { fillW: true });
   };
   group('계정', [['이메일', 'you@example.com'], ['마지막 동기화', '방금 전']]);
-  group('보안', [['자동 잠금', '5분'], ['클립보드 자동 삭제', '30초']]);
+  // 정책에 있는 값만 보여 준다. 클립보드 30초는 COM-001의 고정값이라 바꿀 수 없다
+  group('보안', [['클립보드 자동 삭제', '30초 (고정)']]);
   group('서버', [['서버 주소', 'keymanage.example.com']]);
   place(c, button(P, '로그아웃', 'danger'), { fillW: true });
 }
@@ -456,15 +469,14 @@ function androidNavBar(P, active) {
   return n;
 }
 
-function androidFab(P, bottomOffset) {
+function androidFab() {
   const f = box('FAB', { w: 56, h: 56, radius: 16, fill: C.accent, main: 'CENTER', cross: 'CENTER' });
   place(f, text('+', { size: 26, color: C.accentText }));
-  f.setPluginData('bottomOffset', String(bottomOffset));
   return f;
 }
 
-// 모바일 화면: 상태 표시줄 · 머리 · 내용 · 하단 막대 (· FAB)
-function mobileScreen(P, name, { header, body, bottom, fab, pad = [8, 16, 16, 16] }) {
+// 모바일 화면: 상태 표시줄 · 머리 · 내용 · 하단 막대 (· FAB, fabBottom은 화면 아래에서 FAB까지 거리)
+function mobileScreen(P, name, { header, body, bottom, fab, fabBottom = 0, pad = [8, 16, 16, 16] }) {
   const s = device(P, name);
   place(s, statusBar(P), { fillW: true });
   if (header) place(s, header, { fillW: true });
@@ -476,7 +488,7 @@ function mobileScreen(P, name, { header, body, bottom, fab, pad = [8, 16, 16, 16
     s.appendChild(fab);
     fab.layoutPositioning = 'ABSOLUTE';
     fab.x = P.w - 16 - 56;
-    fab.y = P.h - Number(fab.getPluginData('bottomOffset')) - 56;
+    fab.y = P.h - fabBottom - 56;
   }
   return s;
 }
@@ -601,29 +613,36 @@ const SCREENS = {
   android: (P) => [
     ['01 로그인', NOTES.login, () => mobileScreen(P, 'Android/로그인', { body: (c) => { spacer(c); loginContent(c, P); spacer(c); } })],
     ['02 가입', NOTES.register, () => mobileScreen(P, 'Android/가입', { header: androidTopBar(P, '계정 만들기', { back: true }), body: (c) => registerContent(c, P) })],
-    ['03 볼트 목록 (오프라인)', NOTES.list, () => mobileScreen(P, 'Android/볼트', { header: androidTopBar(P, '볼트'), body: (c) => vaultListContent(c, P, { offline: true }), bottom: androidNavBar(P, 0), fab: androidFab(P, 108) })],
+    ['03 볼트 목록 (오프라인)', NOTES.list, () => mobileScreen(P, 'Android/볼트', { header: androidTopBar(P, '볼트'), body: (c) => vaultListContent(c, P, { offline: true }), bottom: androidNavBar(P, 0), fab: androidFab(), fabBottom: 108 })],
     ['04 항목 상세 (복사 직후)', NOTES.detail, () => mobileScreen(P, 'Android/상세', { header: androidTopBar(P, 'GitHub', { back: true, actions: ['수정'] }), body: (c) => detailContent(c, P), bottom: androidNavBar(P, 0) })],
     ['05 항목 편집', NOTES.edit, () => mobileScreen(P, 'Android/편집', { header: androidTopBar(P, '항목 편집', { back: true, actions: ['저장'] }), body: (c) => editContent(c, P) })],
     ['06 생성기', NOTES.generator, () => mobileScreen(P, 'Android/생성기', { header: androidTopBar(P, '생성기'), body: (c) => generatorContent(c, P), bottom: androidNavBar(P, 1) })],
     ['07 설정', NOTES.settings, () => mobileScreen(P, 'Android/설정', { header: androidTopBar(P, '설정'), body: (c) => settingsContent(c, P), bottom: androidNavBar(P, 2) })],
   ],
-  web: (P) => [
-    ['01 로그인', NOTES.login, () => desktopAuthScreen(P, 'Web/로그인', (c) => loginContent(c, P))],
-    ['02 가입', NOTES.register, () => desktopAuthScreen(P, 'Web/가입', (c) => registerContent(c, P))],
-    ['03 볼트 (목록 + 상세, 복사 직후)', `${NOTES.list} ${NOTES.detail}`, () => desktopScreen(P, 'Web/볼트', { active: 0, list: listPane(P), detail: (d) => detailContent(d, P) })],
-    ['04 항목 편집 (상세 패널)', NOTES.edit, () => desktopScreen(P, 'Web/편집', { active: 0, list: listPane(P), detail: (d) => { place(d, text('항목 편집', { size: 22, bold: true }), { fillW: true }); editContent(d, P); const a = row('Actions'); place(a, button(P, '취소', 'secondary')); place(a, button(P, '저장')); place(d, a); } })],
-    ['05 생성기', NOTES.generator, () => desktopScreen(P, 'Web/생성기', { active: 1, center: (card) => { place(card, text('비밀번호 생성기', { size: 22, bold: true }), { fillW: true }); generatorContent(card, P); } })],
-    ['06 설정', NOTES.settings, () => desktopScreen(P, 'Web/설정', { active: 2, center: (card) => { place(card, text('설정', { size: 22, bold: true }), { fillW: true }); settingsContent(card, P); } })],
-  ],
-  macos: (P) => [
-    ['01 로그인', NOTES.login, () => desktopAuthScreen(P, 'macOS/로그인', (c) => loginContent(c, P))],
-    ['02 가입', NOTES.register, () => desktopAuthScreen(P, 'macOS/가입', (c) => registerContent(c, P))],
-    ['03 볼트 (목록 + 상세, 복사 직후)', `${NOTES.list} ${NOTES.detail}`, () => desktopScreen(P, 'macOS/볼트', { active: 0, list: listPane(P), detail: (d) => detailContent(d, P) })],
-    ['04 항목 편집', NOTES.edit, () => desktopScreen(P, 'macOS/편집', { active: 0, list: listPane(P), detail: (d) => { place(d, text('항목 편집', { size: 20, bold: true }), { fillW: true }); editContent(d, P); const a = row('Actions'); place(a, button(P, '취소', 'secondary')); place(a, button(P, '저장')); place(d, a); } })],
-    ['05 생성기', NOTES.generator, () => desktopScreen(P, 'macOS/생성기', { active: 1, center: (card) => { place(card, text('비밀번호 생성기', { size: 20, bold: true }), { fillW: true }); generatorContent(card, P); } })],
-    ['06 설정', NOTES.settings, () => desktopScreen(P, 'macOS/설정', { active: 2, center: (card) => { place(card, text('설정', { size: 20, bold: true }), { fillW: true }); settingsContent(card, P); } })],
-  ],
+  web: (P) => desktopScreens(P),
+  macos: (P) => desktopScreens(P),
 };
+
+// Web과 macOS는 같은 3분할 구성을 쓰고, 틀(사이드바 폭, 창 제목 막대 등)만 desktopScreen이 플랫폼에 맞춘다
+function desktopScreens(P) {
+  const heading = (parent, title) => place(parent, text(title, { size: P.fs + 7, bold: true }), { fillW: true });
+  const editPanel = (d) => {
+    heading(d, '항목 편집');
+    editContent(d, P);
+    const actions = row('Actions');
+    place(actions, button(P, '취소', 'secondary'));
+    place(actions, button(P, '저장'));
+    place(d, actions);
+  };
+  return [
+    ['01 로그인', NOTES.login, () => desktopAuthScreen(P, `${P.label}/로그인`, (c) => loginContent(c, P))],
+    ['02 가입', NOTES.register, () => desktopAuthScreen(P, `${P.label}/가입`, (c) => registerContent(c, P))],
+    ['03 볼트 (목록 + 상세, 복사 직후)', `${NOTES.list} ${NOTES.detail}`, () => desktopScreen(P, `${P.label}/볼트`, { active: 0, list: listPane(P), detail: (d) => detailContent(d, P) })],
+    ['04 항목 편집 (상세 패널)', NOTES.edit, () => desktopScreen(P, `${P.label}/편집`, { active: 0, list: listPane(P), detail: editPanel })],
+    ['05 생성기', NOTES.generator, () => desktopScreen(P, `${P.label}/생성기`, { active: 1, center: (card) => { heading(card, '비밀번호 생성기'); generatorContent(card, P); } })],
+    ['06 설정', NOTES.settings, () => desktopScreen(P, `${P.label}/설정`, { active: 2, center: (card) => { heading(card, '설정'); settingsContent(card, P); } })],
+  ];
+}
 
 const OVERVIEW = {
   ios: 'iOS: 하단 탭 3개(볼트·생성기·설정), NavigationStack 큰 제목, 편집은 시트로 띄운다. 클립보드 만료와 Keychain 토큰 보관은 OS 기능을 쓴다.',
@@ -668,19 +687,32 @@ async function buildPlatformPage(P) {
   place(board, intro);
 
   for (const [caption, memo, build] of SCREENS[P.key](P)) {
-    await step(`${P.label} ${caption}`, async () => {
+    // 새 노드는 만들자마자 현재 페이지에 붙으므로, 화면 하나가 중간에 실패하면 그사이 생긴 노드를 지운다
+    const before = new Set(page.children);
+    const built = await step(`${P.label} ${caption}`, async () => {
       const column = box(`Column/${caption}`, { gap: 16 });
+      place(board, column);
       place(column, text(caption, { size: 20, bold: true }));
       place(column, build());
       place(column, note(memo, Math.min(P.w, 420)));
-      place(board, column);
+      return column;
     });
+    if (!built) {
+      for (const child of [...page.children]) if (!before.has(child)) child.remove();
+      for (const child of [...board.children]) if (child.name === `Column/${caption}`) child.remove();
+    }
   }
   figma.viewport.scrollAndZoomIntoView([board]);
 }
 
 async function main() {
-  await step('글꼴 불러오기', loadFonts);
+  // 글꼴이 없으면 모든 텍스트가 실패하므로 페이지를 만들지 않고 멈춘다
+  const fontsLoaded = await step('글꼴 불러오기', async () => { await loadFonts(); return true; });
+  if (!fontsLoaded) {
+    figma.notify(`❌ 글꼴을 불러오지 못해 중단했습니다: ${LOG.join('; ')}`, { error: true, timeout: 8000 });
+    figma.closePlugin();
+    return;
+  }
   for (const P of Object.values(PLATFORMS)) {
     await step(`${P.label} 페이지`, () => buildPlatformPage(P));
   }
