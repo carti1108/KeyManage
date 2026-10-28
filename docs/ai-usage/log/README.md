@@ -18,3 +18,4 @@
 | 010 | 2026-10-28 | [볼트 동기화 도메인 모델 및 낙관적 잠금 저장 유스케이스 TDD 구현](010-domain-vault-sync-optimistic-locking.md) |
 | 011 | 2026-10-28 | [파일 기반 볼트 저장소 어댑터 TDD 구현 및 원자성 검증](011-file-vault-repository-adapter.md) |
 | 012 | 2026-10-28 | [볼트 조회·저장 REST API 구현 및 오류 응답 매핑](012-vault-rest-api-controller.md) |
+| 013 | 2026-10-28 | [계정 인증 설계: 인증 해시 분리와 서버 세션 (ADR-0008, SEC-002)](013-account-auth-design.md) |
