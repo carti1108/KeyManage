@@ -13,10 +13,14 @@
   ```json
   {
     "code": "INVALID_PARAMETER",
-    "message": "비밀번호 길이는 최소 8자 이상 64자 이하이어야 합니다.",
+    "message": "요청 형식이 올바르지 않습니다.",
     "timestamp": "2026-10-27T11:20:00Z"
   }
   ```
+* **공통 오류 코드**: 엔드포인트별 코드(`VAULT_CONFLICT` 등)는 각 절에 적는다.
+  * `400 INVALID_PARAMETER` / "요청 형식이 올바르지 않습니다.": 볼트 ID가 UUID 형식이 아니거나, 필수 필드·헤더가 없거나, JSON이 깨진 경우.
+  * `500 INTERNAL_ERROR` / "일시적인 서버 오류입니다. 잠시 후 다시 시도해 주세요.": 예상하지 못한 오류. 상세 내용은 서버 로그에만 남기며 페이로드는 로그에 남기지 않는다.
+* **요청 본문 상한**: 6MB(6,291,456바이트, 볼트 페이로드 5MB + 여유). 넘으면 본문을 해석하기 전에 `413 VAULT_TOO_LARGE`로 거절한다.
 
 ---
 
@@ -54,7 +58,17 @@
 }
 ```
 * `revision` (Int): 서버가 발급한 볼트 revision. 다음 저장 요청의 `expectedRevision`으로 그대로 보낸다 (VLT-001, ADR-0006).
-*(저장된 볼트가 없을 경우 404 Not Found 반환)*
+* `payload`는 저장 요청에서 받은 JSON 객체를 서버가 해석하지 않고 그대로 돌려준다.
+
+#### Response (404 Not Found)
+저장된 볼트가 없을 때.
+```json
+{
+  "code": "VAULT_NOT_FOUND",
+  "message": "저장된 볼트가 없습니다.",
+  "timestamp": "2026-10-27T11:20:00Z"
+}
+```
 
 ---
 
@@ -87,10 +101,10 @@
 #### Response (200 OK)
 ```json
 {
-  "revision": 8,
-  "updatedAt": "2026-10-27T11:20:00Z"
+  "revision": 8
 }
 ```
+* 서버는 저장 시각을 관리하지 않는다. 동기화 판단은 `revision`으로만 한다 (ADR-0006).
 
 #### Response (409 Conflict)
 `expectedRevision`이 서버의 현재 revision과 다를 때. 클라이언트는 최신 볼트를 조회해 항목별로 병합한 뒤 다시 저장한다 (VLT-001, ADR-0006).
