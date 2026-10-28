@@ -39,6 +39,7 @@
 ```json
 {
   "vaultId": "550e8400-e29b-41d4-a716-446655440000",
+  "revision": 7,
   "payload": {
     "version": 1,
     "kdf": "PBKDF2-HMAC-SHA256",
@@ -52,7 +53,8 @@
   }
 }
 ```
-*(저장된 볼트가 없을 경우 404 Not Found 또는 빈 페이로드 반환)*
+* `revision` (Int): 서버가 발급한 볼트 revision. 다음 저장 요청의 `expectedRevision`으로 그대로 보낸다 (VLT-001, ADR-0006).
+*(저장된 볼트가 없을 경우 404 Not Found 반환)*
 
 ---
 
@@ -64,6 +66,7 @@
 ```json
 {
   "vaultId": "550e8400-e29b-41d4-a716-446655440000",
+  "expectedRevision": 7,
   "payload": {
     "version": 1,
     "kdf": "PBKDF2-HMAC-SHA256",
@@ -78,10 +81,33 @@
 }
 ```
 
+* `expectedRevision` (Int): 클라이언트가 마지막으로 받은 revision. 볼트를 처음 저장할 때는 `0`.
+* 요청 페이로드 JSON이 5,242,880바이트(5MB)를 넘으면 저장하지 않는다 (VLT-001).
+
 #### Response (200 OK)
 ```json
 {
-  "success": true,
+  "revision": 8,
   "updatedAt": "2026-10-27T11:20:00Z"
+}
+```
+
+#### Response (409 Conflict)
+`expectedRevision`이 서버의 현재 revision과 다를 때. 클라이언트는 최신 볼트를 조회해 항목별로 병합한 뒤 다시 저장한다 (VLT-001, ADR-0006).
+```json
+{
+  "code": "VAULT_CONFLICT",
+  "message": "다른 기기에서 볼트가 먼저 변경되었습니다.",
+  "currentRevision": 9,
+  "timestamp": "2026-10-27T11:20:00Z"
+}
+```
+
+#### Response (413 Payload Too Large)
+```json
+{
+  "code": "VAULT_TOO_LARGE",
+  "message": "볼트 허용 용량(5MB)을 초과했습니다.",
+  "timestamp": "2026-10-27T11:20:00Z"
 }
 ```

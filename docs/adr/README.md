@@ -22,6 +22,7 @@
 | [ADR-0003](ADR-0003-file-based-vault-storage-adapter.md) | 파일 기반 단일 암호화 볼트 저장소 어댑터 채택 | 채택 | 2026-10-27 |
 | [ADR-0004](ADR-0004-complete-boundary-isolation-and-dependency-inversion.md) | 영역 간 완전 격리 및 백엔드 교체형 DIP 아키텍처 채택 | 채택 | 2026-10-28 |
 | [ADR-0005](ADR-0005-client-only-password-generation-and-audit.md) | 비밀번호 생성·진단의 클라이언트 전용 수행 | 채택 | 2026-10-28 |
+| [ADR-0006](ADR-0006-optimistic-locking-vault-sync.md) | 볼트 동기화 충돌 해결을 낙관적 잠금과 클라이언트 병합으로 전환 | 채택 | 2026-10-28 |
 
 ---
 
