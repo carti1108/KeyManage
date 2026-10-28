@@ -14,3 +14,6 @@ keymanage:
     storage-dir: ./data/auth
     # 내 계정을 만든 뒤 false로 바꾸면 새 가입을 막는다 (SEC-002)
     registration-enabled: true
+  http:
+    # 리버스 프록시 뒤에서 운영할 때 그 프록시 IP를 쉼표로 적는다. 비어 있으면 X-Forwarded-For를 무시한다 (SEC-002)
+    trusted-proxies: ""
