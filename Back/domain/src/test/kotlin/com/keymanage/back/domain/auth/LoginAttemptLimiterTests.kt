@@ -37,6 +37,18 @@ class LoginAttemptLimiterTests {
     }
 
     @Test
+    fun `잠금이 풀린 뒤의 실패는 잠금 확인을 거쳐도 사라지지 않는다`() {
+        repeat(5) { limiter.recordFailure(email(0)) }
+        clock.advance(Duration.ofMinutes(15))
+        repeat(4) { limiter.recordFailure(email(0)) }
+
+        limiter.checkAllowed(email(0))
+        limiter.recordFailure(email(0))
+
+        assertFailsWith<TooManyAttemptsException> { limiter.checkAllowed(email(0)) }
+    }
+
+    @Test
     fun `상한 이하에서는 정리하지 않는다`() {
         limiter.recordFailure(email(0))
         clock.advance(Duration.ofMinutes(16))
