@@ -25,7 +25,6 @@ class LoginAttemptLimiter(private val clock: Clock) {
         synchronized(state) {
             val lockedUntil = state.lockedUntil ?: return
             if (now.isBefore(lockedUntil)) throw TooManyAttemptsException(Duration.between(now, lockedUntil))
-            state.lockedUntil = null
         }
     }
 
