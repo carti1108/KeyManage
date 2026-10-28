@@ -8,8 +8,10 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * 계정 단위 로그인 시도 제한 (SEC-002): 15분 안에 5번 실패하면 15분 동안 잠그고, 성공하면 초기화한다.
  * 없는 이메일도 같은 방식으로 세어 계정 존재 여부가 드러나지 않게 한다. 상태는 메모리에만 두므로 단일 인스턴스 전제다 (ADR-0007)
+ *
+ * 없는 이메일로 실패를 쌓아 메모리를 채우지 못하도록, 추적 항목이 [maxTracked]를 넘으면 잠기지 않았고 최근 실패도 없는 항목을 지운다.
  */
-class LoginAttemptLimiter(private val clock: Clock) {
+class LoginAttemptLimiter(private val clock: Clock, private val maxTracked: Int = 10_000) {
 
     private class State {
         val failures = ArrayDeque<Instant>()
@@ -41,6 +43,20 @@ class LoginAttemptLimiter(private val clock: Clock) {
                 state.failures.clear()
             }
         }
+        if (states.size > maxTracked) sweep(now)
+    }
+
+    internal fun trackedCount(): Int = states.size
+
+    private fun sweep(now: Instant) {
+        states.entries.removeIf { (_, state) -> synchronized(state) { isStale(state, now) } }
+    }
+
+    private fun isStale(state: State, now: Instant): Boolean {
+        val lockedUntil = state.lockedUntil
+        if (lockedUntil != null && now.isBefore(lockedUntil)) return false
+        val lastFailure = state.failures.lastOrNull() ?: return true
+        return !lastFailure.isAfter(now.minus(WINDOW))
     }
 
     fun recordSuccess(email: Email) {
