@@ -237,7 +237,7 @@ function ratioBar(ratio, height) {
   filled.cornerRadius = height / 2;
   filled.fills = solid(C.accent);
   track.appendChild(filled);
-  filled.constraints = { horizontal: 'SCALE', vertical: 'TOP_BOTTOM' };
+  filled.constraints = { horizontal: 'SCALE', vertical: 'STRETCH' };
   return track;
 }
 
@@ -661,23 +661,35 @@ function note(message, width) {
   return n;
 }
 
-async function getOrCreatePage(name) {
-  let page = figma.root.children.find((p) => p.name === name);
-  if (!page) {
-    page = figma.createPage();
-    page.name = name;
+const PAGE_NAME = '📐 Wireframes';
+
+// 네 플랫폼을 페이지 하나에 그린다. Figma 무료(Starter) 요금제는 페이지가 3개까지라 플랫폼마다 페이지를 만들 수 없다.
+// 이미 있는 와이어프레임 페이지는 지우고 다시 그린다. 새 페이지를 못 만들면 비어 있는 현재 페이지만 쓰고,
+// 내용이 있는 페이지는 절대 지우지 않는다.
+async function getWireframePage() {
+  const existing = figma.root.children.find((p) => p.name === PAGE_NAME);
+  if (existing) {
+    await existing.loadAsync();
+    for (const child of [...existing.children]) child.remove();
+    return existing;
   }
-  await page.loadAsync();
-  for (const child of [...page.children]) child.remove();
-  return page;
+  try {
+    const page = figma.createPage();
+    page.name = PAGE_NAME;
+    return page;
+  } catch (error) {
+    const current = figma.currentPage;
+    if (current.children.length > 0) {
+      throw new Error('새 페이지를 만들 수 없습니다(Figma 무료 요금제는 페이지 3개까지). 빈 페이지를 열고 다시 실행하거나 쓰지 않는 페이지를 지워 주세요.');
+    }
+    current.name = PAGE_NAME;
+    return current;
+  }
 }
 
-async function buildPlatformPage(P) {
-  const page = await getOrCreatePage(`📐 ${P.label}`);
-  await figma.setCurrentPageAsync(page);
-
+async function buildPlatformBoard(P, page, root) {
   const board = box(`${P.label} Wireframes`, { dir: 'HORIZONTAL', pad: 80, gap: 80, fill: C.canvas });
-  page.appendChild(board);
+  place(root, board);
 
   const intro = box('Intro', { w: 360, gap: 12 });
   place(intro, text(`${P.label} 와이어프레임`, { size: 32, bold: true }), { fillW: true });
@@ -702,7 +714,6 @@ async function buildPlatformPage(P) {
       for (const child of [...board.children]) if (child.name === `Column/${caption}`) child.remove();
     }
   }
-  figma.viewport.scrollAndZoomIntoView([board]);
 }
 
 async function main() {
@@ -713,9 +724,21 @@ async function main() {
     figma.closePlugin();
     return;
   }
-  for (const P of Object.values(PLATFORMS)) {
-    await step(`${P.label} 페이지`, () => buildPlatformPage(P));
+  const page = await step('페이지 준비', getWireframePage);
+  if (!page) {
+    figma.notify(`❌ ${LOG.join('; ')}`, { error: true, timeout: 10000 });
+    figma.closePlugin();
+    return;
   }
+  await figma.setCurrentPageAsync(page);
+
+  // 플랫폼 보드를 위아래로 쌓는다
+  const root = box('KeyManage Wireframes', { gap: 200 });
+  page.appendChild(root);
+  for (const P of Object.values(PLATFORMS)) {
+    await step(`${P.label} 보드`, () => buildPlatformBoard(P, page, root));
+  }
+  figma.viewport.scrollAndZoomIntoView([root]);
   if (LOG.length > 0) {
     figma.notify(`⚠️ 일부 경고: ${LOG.join('; ')}`, { timeout: 8000 });
   } else {
