@@ -10,10 +10,10 @@ on:
 permissions:
   contents: read
 
-# 같은 브랜치에 새로 푸시하면 이전 실행은 취소한다
+# PR 브랜치에 새로 푸시하면 이전 실행은 취소한다. main 커밋은 하나하나 결과를 남기도록 취소하지 않는다
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   backend:
@@ -31,11 +31,9 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: 빌드·테스트·격리 검사
-        run: ./gradlew check --console=plain
-
-      - name: 뮤테이션 테스트 (domain, 하한선 80%)
-        run: ./gradlew :domain:pitest --console=plain
+      # Gradle을 한 번만 띄우도록 검증과 뮤테이션 테스트를 한 호출로 돌린다
+      - name: 빌드·테스트·격리 검사·뮤테이션 테스트
+        run: ./gradlew check :domain:pitest --console=plain
 
       - name: 뮤테이션 점수 요약
         if: always()
