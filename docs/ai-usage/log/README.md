@@ -19,3 +19,4 @@
 | 011 | 2026-10-28 | [파일 기반 볼트 저장소 어댑터 TDD 구현 및 원자성 검증](011-file-vault-repository-adapter.md) |
 | 012 | 2026-10-28 | [볼트 조회·저장 REST API 구현 및 오류 응답 매핑](012-vault-rest-api-controller.md) |
 | 013 | 2026-10-28 | [계정 인증 설계: 인증 해시 분리와 서버 세션 (ADR-0008, SEC-002)](013-account-auth-design.md) |
+| 014 | 2026-10-28 | [계정 인증 도메인·저장소 TDD 구현 (Argon2id, 서버 비밀키)](014-auth-domain-and-repository.md) |
