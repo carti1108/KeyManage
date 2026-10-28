@@ -4,3 +4,8 @@ server:
 spring:
   application:
     name: keymanage-back
+
+keymanage:
+  vault:
+    # 볼트 파일 저장 폴더 (ADR-0007). 실행 위치 기준 상대 경로이며 첫 저장 때 만들어진다
+    storage-dir: ./data/vaults

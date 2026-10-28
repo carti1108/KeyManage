@@ -10,7 +10,7 @@ import kotlin.test.assertNull
 
 class SaveVaultUseCaseTests {
 
-    private val id = VaultId("550e8400-e29b-41d4-a716-446655440000")
+    private val id = VaultId.of("550e8400-e29b-41d4-a716-446655440000")
     private val repository = InMemoryVaultRepository()
     private val useCase = SaveVaultUseCase(repository)
 
