@@ -1,0 +1,8 @@
+# 쉘 스크립트는 항상 LF (Mac/Linux에서 실행되므로)
+/gradlew text eol=lf
+
+# Windows 배치 파일은 항상 CRLF
+*.bat text eol=crlf
+
+# jar는 바이너리로 취급 (줄바꿈 변환 금지)
+*.jar binary

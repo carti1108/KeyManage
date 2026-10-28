@@ -1,0 +1,54 @@
+# OS
+.DS_Store
+Thumbs.db
+*.tmp
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Backend (Java / Kotlin / Gradle)
+.gradle/
+build/
+!src/**/build/
+*.class
+*.jar
+!**/gradle/wrapper/gradle-wrapper.jar
+*.war
+out/
+
+# iOS / macOS (Xcode / Swift / Tuist)
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+.build/
+
+# Android
+.cxx/
+local.properties
+captures/
+*.apk
+*.aab
+
+# Web / Frontend (Node / Next.js)
+node_modules/
+.next/
+dist/
+coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Figma Builder
+Tools/figma-builder/node_modules/
