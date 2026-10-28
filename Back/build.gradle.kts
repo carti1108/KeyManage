@@ -9,6 +9,8 @@ plugins {
     kotlin("plugin.spring") version "1.9.25" apply false
     id("org.springframework.boot") version "3.4.13" apply false
     id("io.spring.dependency-management") version "1.1.7" apply false
+    // 뮤테이션 테스트 (ADR-0009)
+    id("info.solidsoft.pitest") version "1.19.0" apply false
 }
 
 // 모든 모듈 공통 설정
