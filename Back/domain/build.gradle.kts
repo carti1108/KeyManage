@@ -48,7 +48,8 @@ tasks.named("check") {
 }
 
 // 코드에 작은 결함을 심어 테스트가 잡아내는 비율(뮤테이션 점수)을 잰다 (ADR-0009).
-// 첫 기준선은 87%였고, Kotlin이 만드는 getter 등 의미 없는 결함을 감안해 하한선을 80%로 둔다. 리포트: build/reports/pitest
+// ADR-0009대로 처음에는 점수를 기록만 하고, 여러 PR에서 기준선이 안정되면 하한선(mutationThreshold)을 정한다.
+// 첫 측정 88%. 리포트: build/reports/pitest
 pitest {
     junit5PluginVersion.set("1.2.3")
     targetClasses.set(listOf("com.keymanage.back.domain.*"))
@@ -57,5 +58,4 @@ pitest {
     threads.set(4)
     outputFormats.set(listOf("HTML", "XML"))
     timestampedReports.set(false)
-    mutationThreshold.set(80)
 }
