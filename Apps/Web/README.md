@@ -31,3 +31,17 @@ npm run build    # 정적 파일 빌드 (dist/)
 ```
 
 백엔드는 `Back/`에서 `./gradlew :app:bootRun`으로 띄웁니다. 개발 중에는 같은 출처 프록시를 쓰므로 CORS 설정이 필요 없습니다.
+
+## 데스크톱 앱 (Tauri v2)
+
+`src-tauri/`가 같은 화면을 데스크톱 창으로 감쌉니다. Rust와 플랫폼 빌드 도구(Windows는 Visual Studio C++ 빌드 도구)가 필요합니다.
+
+```bash
+npm run tauri dev                          # 개발 서버를 띄우고 데스크톱 창으로 연다
+npm run tauri build -- --debug --no-bundle # 디버그 실행 파일만 빌드 (src-tauri/target/debug)
+npm run tauri build                        # 설치 파일까지 빌드
+```
+
+- **CSP**: 스크립트·스타일은 앱 자체에서만 불러오고, 네트워크는 HTTPS와 `localhost`·`127.0.0.1`만 허용한다(SEC-002). 인라인 스크립트·스타일을 쓰면 데스크톱에서 막히므로 Tailwind 클래스를 쓴다.
+- **권한**: 현재는 `core:default`만 연다. 클립보드 등 플랫폼 기능은 그 기능을 만드는 작업에서 필요한 권한만 추가한다.
+- 데스크톱 앱은 상대 경로 `/api`를 쓸 수 없으므로(개발 프록시가 없음) 서버 주소 설정이 필요하다. API 클라이언트 작업에서 다룬다.
