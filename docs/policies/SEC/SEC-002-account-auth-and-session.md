@@ -1,7 +1,7 @@
 # SEC-002 계정 인증 및 세션 정책
 - 상태: 확정
 - 규칙: 클라이언트는 마스터 키에서 HKDF로 분리한 인증 해시만 서버로 보내며, 서버는 이를 Argon2id로 다시 해시해 저장한다. 로그인 성공 시 서버 저장형 세션 토큰을 발급하고, 볼트 API는 유효한 토큰의 계정 볼트에만 접근을 허용한다. 로그인 실패 시 이메일 존재 여부를 응답 내용·시간으로 드러내지 않으며, 계정·IP 단위 시도 제한을 둔다. 클라이언트는 `localhost`·`127.0.0.1`이 아닌 서버에는 HTTPS로만 접속한다. 인증 해시와 토큰 원문은 로그에 남기지 않는다.
-- 값: KDF PBKDF2-HMAC-SHA256 600,000회(가입 시 600,000 이상 허용), 계정 salt 16바이트; HKDF-SHA256 info "keymanage-enc"·"keymanage-auth", 출력 32바이트; 서버 Argon2id(메모리 19MiB, 반복 2, 병렬도 1); 세션 토큰 256비트, 유효 30일(연장 없음), 서버에는 SHA-256 해시만 저장; 로그인 실패 계정당 15분 내 5회 시 15분 잠금(성공 시 초기화), IP당 1분 30회 초과 시 거절(가입·로그인·prelogin 합산); 이메일은 앞뒤 공백 제거·소문자, 최대 254자; 서버 비밀키(가짜 salt용 HMAC 키) 32바이트는 환경 변수 `KEYMANAGE_SERVER_SECRET`이 있으면 그 값, 없으면 첫 실행 시 생성해 데이터 폴더에 보관; 가입 허용 설정 `keymanage.auth.registration-enabled`(기본 true); 신뢰 프록시 설정 `keymanage.http.trusted-proxies`(기본 비어 있음, 비어 있으면 `X-Forwarded-For`를 무시하고 접속 IP를 쓴다)
+- 값: KDF PBKDF2-HMAC-SHA256 600,000회(가입 시 600,000 이상 허용, 클라이언트는 10,000,000 초과 값을 거절해 기기가 오래 멈추지 않게 한다), 계정 salt 16바이트; HKDF-SHA256 info "keymanage-enc"·"keymanage-auth", 출력 32바이트; 서버 Argon2id(메모리 19MiB, 반복 2, 병렬도 1); 세션 토큰 256비트, 유효 30일(연장 없음), 서버에는 SHA-256 해시만 저장; 로그인 실패 계정당 15분 내 5회 시 15분 잠금(성공 시 초기화), IP당 1분 30회 초과 시 거절(가입·로그인·prelogin 합산); 이메일은 앞뒤 공백 제거·소문자, 최대 254자; 서버 비밀키(가짜 salt용 HMAC 키) 32바이트는 환경 변수 `KEYMANAGE_SERVER_SECRET`이 있으면 그 값, 없으면 첫 실행 시 생성해 데이터 폴더에 보관; 가입 허용 설정 `keymanage.auth.registration-enabled`(기본 true); 신뢰 프록시 설정 `keymanage.http.trusted-proxies`(기본 비어 있음, 비어 있으면 `X-Forwarded-For`를 무시하고 접속 IP를 쓴다)
 - 적용 범위: 모든 클라이언트(iOS/macOS, Android, Web)의 키 유도·로그인 화면, 백엔드 인증 API와 볼트 API 접근 제어
 - 예외: prelogin·가입·로그인 요청만 토큰 없이 호출할 수 있다
 - 사용자 문구:
@@ -13,4 +13,4 @@
 - 근거: docs/adr/ADR-0008-auth-hash-and-server-session.md; docs/api-spec.md; docs/vault-spec.md
 - 검증 방법: 단위 테스트(없는 이메일 prelogin이 같은 이메일에 항상 같은 salt 반환, 틀린 인증 해시와 없는 이메일이 같은 401, 5회 실패 후 잠금·성공 시 초기화, 동시 가입 1건만 성공, 만료·폐기 토큰 401, 로그아웃 멱등, 다른 계정 볼트 접근 불가, 가입 꺼짐 시 403, 신뢰하지 않는 프록시의 `X-Forwarded-For` 무시), 로그에 인증 해시·토큰 원문이 없음 확인
 - 비고: SEC-001, ADR-0001, ADR-0008
-- 이력: 2026-10-28 초기 등록
+- 이력: 2026-10-28 초기 등록; 2026-10-29 반복 횟수 상한 10,000,000 추가
