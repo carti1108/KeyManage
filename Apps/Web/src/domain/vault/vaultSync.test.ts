@@ -2,8 +2,8 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { keysOf } from '../crypto/testVectors'
 import { openVault, sealVault, type EncryptedVaultPayload } from '../crypto/vaultCipher'
-import { ServerError } from '../server/serverErrors'
-import { addItem, emptyVault, parseVaultData, type VaultData } from './vaultData'
+import { ServerError, UnexpectedResponseError } from '../server/serverErrors'
+import { InvalidVaultDataError, addItem, emptyVault, parseVaultData, type VaultData } from './vaultData'
 import type { RemoteVault, VaultApi } from './vaultApi'
 import {
   MAX_PAYLOAD_BYTES,
@@ -12,6 +12,7 @@ import {
   VaultSyncConflictError,
   VaultTooLargeError,
   assertWithinLimit,
+  createRevisionMemory,
   createVaultSync,
 } from './vaultSync'
 
@@ -58,7 +59,8 @@ class FakeVaultApi implements VaultApi {
   }
 }
 
-const syncWith = (api: VaultApi) => createVaultSync({ api, encryptionKey: key, now: () => NOW })
+const syncWith = (api: VaultApi, revisionMemory = createRevisionMemory()) =>
+  createVaultSync({ api, encryptionKey: key, now: () => NOW, revisionMemory })
 
 describe('볼트 불러오기 (api-spec 2.3)', () => {
   it('서버에 볼트가 없으면 revision 0의 빈 볼트로 시작한다', async () => {
@@ -132,9 +134,37 @@ describe('볼트 저장과 충돌 병합 (VLT-001)', () => {
     expect(api.saves).toBe(1)
   })
 
+  it('규격에 맞지 않는 볼트는 서버에 보내지 않는다 (다른 기기가 열 수 없게 되므로)', async () => {
+    const api = new FakeVaultApi()
+    const sync = syncWith(api)
+    const loaded = await sync.load()
+    const broken = { ...loaded.data, items: [{ id: 'a', serviceName: 'S', username: 'u', createdAt: NOW.toISOString(), updatedAt: NOW.toISOString() }] }
+
+    await expect(sync.save(loaded, broken)).rejects.toBeInstanceOf(InvalidVaultDataError)
+    expect(api.saves).toBe(0)
+  })
+
+  it('저장 응답의 revision이 기대 값보다 정확히 1 크지 않으면 믿지 않는다', async () => {
+    const api = new FakeVaultApi()
+    api.save = async () => 5
+    const sync = syncWith(api)
+
+    await expect(sync.save(await sync.load(), emptyVault(NOW))).rejects.toBeInstanceOf(UnexpectedResponseError)
+  })
+
+  it('충돌 뒤 받아 온 서버 볼트가 높은 스키마 버전이면 병합한 볼트도 저장하지 않는다', async () => {
+    const api = new FakeVaultApi()
+    const sync = syncWith(api)
+    const loaded = await sync.load()
+    await api.storeAsOtherDevice({ version: 2, updatedAt: '2026-10-29T00:00:00Z', items: [] })
+
+    await expect(sync.save(loaded, emptyVault(NOW))).rejects.toBeInstanceOf(ReadOnlyVaultError)
+    expect(api.saves).toBe(1)
+  })
+
   it('높은 스키마 버전의 볼트는 저장하지 않는다', async () => {
     const api = new FakeVaultApi()
-    await api.storeAsOtherDevice({ version: 2, updatedAt: 'x', items: [] })
+    await api.storeAsOtherDevice({ version: 2, updatedAt: '2026-10-29T00:00:00Z', items: [] })
     const sync = syncWith(api)
     const loaded = await sync.load()
 
@@ -156,6 +186,38 @@ describe('revision 되돌림 감지 (VLT-001)', () => {
 
     await expect(sync.load()).rejects.toMatchObject(new RevisionRollbackError(2, 1))
     await expect(sync.load({ acceptRollback: true })).resolves.toMatchObject({ revision: 1 })
+  })
+
+  it('잠금 해제·재로그인으로 새로 만든 동기화도 이 기기가 본 revision을 기억한다', async () => {
+    const api = new FakeVaultApi()
+    await api.storeAsOtherDevice(emptyVault(NOW))
+    await api.storeAsOtherDevice(emptyVault(NOW))
+    const memory = createRevisionMemory()
+    await syncWith(api, memory).load()
+    api.revision = 1
+
+    await expect(syncWith(api, memory).load()).rejects.toBeInstanceOf(RevisionRollbackError)
+  })
+
+  it('불러오기 응답보다 저장이 먼저 끝나도 되돌림으로 오해하지 않는다', async () => {
+    const api = new FakeVaultApi()
+    await api.storeAsOtherDevice(emptyVault(NOW))
+    const sync = syncWith(api)
+    const loaded = await sync.load()
+    // 불러오기 요청을 보낸 시점의 서버 상태(revision 1)를 늦게 돌려준다
+    const stale = await api.get()
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    api.get = async () => {
+      await gate
+      return stale
+    }
+
+    const slowLoad = sync.load()
+    await sync.save(loaded, emptyVault(NOW))
+    release()
+
+    await expect(slowLoad).resolves.toMatchObject({ revision: 1 })
   })
 
   it('서버 볼트가 사라진 것도 되돌림으로 본다', async () => {

@@ -3,7 +3,7 @@ import { createApiClient, resolveBaseUrl } from '../adapters/http/apiClient'
 import { createHttpAuthApi } from '../adapters/http/httpAuthApi'
 import { createHttpVaultApi } from '../adapters/http/httpVaultApi'
 import { createAuthService, type AuthService } from '../domain/auth/authService'
-import { createVaultSync, type VaultSync } from '../domain/vault/vaultSync'
+import { createRevisionMemory, createVaultSync, type VaultSync } from '../domain/vault/vaultSync'
 
 export interface Services {
   readonly auth: AuthService
@@ -14,9 +14,11 @@ export interface Services {
 /** @throws InvalidBaseUrlError 빌드할 때 넣은 서버 주소가 규칙에 맞지 않을 때 */
 export function createServices(apiBaseUrl: string | undefined = import.meta.env.VITE_API_BASE_URL): Services {
   const client = createApiClient({ baseUrl: resolveBaseUrl(apiBaseUrl), fetch: globalThis.fetch.bind(globalThis) })
+  // 잠금 해제·재로그인으로 동기화를 새로 만들어도 되돌림 감지 기준을 이어 간다
+  const revisionMemory = createRevisionMemory()
   return {
     auth: createAuthService(createHttpAuthApi(client)),
     vaultSync: (accessToken, encryptionKey) =>
-      createVaultSync({ api: createHttpVaultApi(client, accessToken), encryptionKey, now: () => new Date() }),
+      createVaultSync({ api: createHttpVaultApi(client, accessToken), encryptionKey, now: () => new Date(), revisionMemory }),
   }
 }
