@@ -1,4 +1,4 @@
-import { fromBase64, toBase64 } from './base64'
+import { InvalidBase64Error, fromBase64, toBase64 } from './base64'
 
 // 볼트 평문 JSON ↔ 암호화 페이로드 (vault-spec 3장, ADR-0011)
 
@@ -35,12 +35,17 @@ export class UnsupportedPayloadError extends Error {
 const encoder = new TextEncoder()
 const aadOf = (version: number, cipher: string) => encoder.encode(`keymanage-vault|${version}|${cipher}`)
 
-/** iv는 테스트에서만 넘긴다. 실제로는 암호화할 때마다 새 IV를 만든다 */
-export async function sealVault(
-  key: CryptoKey,
-  plaintext: string,
-  iv: Uint8Array<ArrayBuffer> = globalThis.crypto.getRandomValues(new Uint8Array(IV_BYTES)),
-): Promise<EncryptedVaultPayload> {
+/** 암호화할 때마다 새 무작위 IV를 쓴다. 같은 키로 IV를 다시 쓰면 GCM의 기밀성과 무결성이 모두 깨진다 */
+export function sealVault(key: CryptoKey, plaintext: string): Promise<EncryptedVaultPayload> {
+  return seal(key, plaintext, globalThis.crypto.getRandomValues(new Uint8Array(IV_BYTES)))
+}
+
+/** 테스트 벡터 재현 전용. 실제 코드에서 쓰면 IV 재사용으로 볼트가 노출된다 */
+export function sealVaultWithFixedIvForTest(key: CryptoKey, plaintext: string, iv: Uint8Array<ArrayBuffer>): Promise<EncryptedVaultPayload> {
+  return seal(key, plaintext, iv)
+}
+
+async function seal(key: CryptoKey, plaintext: string, iv: Uint8Array<ArrayBuffer>): Promise<EncryptedVaultPayload> {
   if (iv.length !== IV_BYTES) throw new RangeError(`IV는 ${IV_BYTES}바이트여야 함`)
   const sealed = new Uint8Array(
     await globalThis.crypto.subtle.encrypt(
@@ -60,26 +65,20 @@ export async function sealVault(
 }
 
 /**
- * @throws UnsupportedPayloadError 모르는 version·cipher일 때
- * @throws VaultDecryptError 키가 다르거나, 헤더·암호문이 변조됐거나, IV·태그 형식이 틀릴 때
+ * @throws UnsupportedPayloadError 모르는 version·cipher이거나 필드 형식(문자열, 표준 Base64)이 틀릴 때. 키 문제가 아니다
+ * @throws VaultDecryptError 키가 다르거나, 헤더·암호문이 변조됐거나, IV·태그 길이가 틀릴 때
  */
 export async function openVault(key: CryptoKey, payload: EncryptedVaultPayload): Promise<string> {
   if (payload.version !== VERSION || payload.cipher !== CIPHER) {
     throw new UnsupportedPayloadError(`지원하지 않는 볼트 형식: version ${payload.version}, ${payload.cipher}`)
   }
-  let iv: Uint8Array<ArrayBuffer>
-  let sealed: Uint8Array<ArrayBuffer>
-  try {
-    iv = fromBase64(payload.iv)
-    const ciphertext = fromBase64(payload.ciphertext)
-    const tag = fromBase64(payload.tag)
-    if (iv.length !== IV_BYTES || tag.length !== TAG_BYTES) throw new VaultDecryptError('IV 또는 태그 길이가 틀림')
-    sealed = new Uint8Array(ciphertext.length + TAG_BYTES)
-    sealed.set(ciphertext)
-    sealed.set(tag, ciphertext.length)
-  } catch (error) {
-    throw error instanceof VaultDecryptError ? error : new VaultDecryptError('Base64 형식이 틀림')
-  }
+  const iv = decodeField(payload.iv, 'iv')
+  const ciphertext = decodeField(payload.ciphertext, 'ciphertext')
+  const tag = decodeField(payload.tag, 'tag')
+  if (iv.length !== IV_BYTES || tag.length !== TAG_BYTES) throw new VaultDecryptError('IV 또는 태그 길이가 틀림')
+  const sealed = new Uint8Array(ciphertext.length + TAG_BYTES)
+  sealed.set(ciphertext)
+  sealed.set(tag, ciphertext.length)
 
   let plaintext: ArrayBuffer
   try {
@@ -92,4 +91,15 @@ export async function openVault(key: CryptoKey, payload: EncryptedVaultPayload):
     throw new VaultDecryptError()
   }
   return new TextDecoder().decode(plaintext)
+}
+
+// 서버나 저장소에서 온 값은 타입을 믿지 않는다. 형식이 틀리면 키 문제(VaultDecryptError)와 구분해 알린다
+function decodeField(value: unknown, name: string): Uint8Array<ArrayBuffer> {
+  if (typeof value !== 'string') throw new UnsupportedPayloadError(`${name}은 문자열이어야 함`)
+  try {
+    return fromBase64(value)
+  } catch (error) {
+    if (error instanceof InvalidBase64Error) throw new UnsupportedPayloadError(`${name}이 표준 Base64가 아님`)
+    throw error
+  }
 }
