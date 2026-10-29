@@ -2,6 +2,8 @@
 // 브라우저·Node·데스크톱 웹뷰에 모두 있는 WebCrypto(globalThis.crypto)만 쓴다
 
 export const MIN_ITERATIONS = 600_000
+// 서버가 지나치게 큰 값을 내려줘 기기를 오래 멈추게 하는 것도 막는다 (SEC-002)
+export const MAX_ITERATIONS = 10_000_000
 export const SALT_BYTES = 16
 
 const KEY_BITS = 256
@@ -19,6 +21,16 @@ export class InvalidKdfParamsError extends Error {
   }
 }
 
+/** 짝이 맞지 않는 서로게이트가 있어 플랫폼마다 UTF-8 변환 결과가 달라질 수 있는 비밀번호 */
+export class InvalidPasswordError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'InvalidPasswordError'
+  }
+}
+
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/
+
 export interface DerivedKeys {
   /** 볼트 암·복호화용 AES-256-GCM 키. 밖으로 꺼낼 수 없다 */
   readonly encryptionKey: CryptoKey
@@ -26,8 +38,12 @@ export interface DerivedKeys {
   readonly authHash: Uint8Array
 }
 
-/** NFC 정규화 → 지정 공백 문자만 앞뒤에서 제거. 중간 공백은 유지한다 (ADR-0011) */
+/**
+ * NFC 정규화 → 지정 공백 문자만 앞뒤에서 제거. 중간 공백은 유지한다 (ADR-0011)
+ * @throws InvalidPasswordError 짝이 맞지 않는 서로게이트가 있을 때. UTF-8로 바꾸면 U+FFFD로 뭉개져 다른 비밀번호와 같아질 수 있다
+ */
 export function preprocessPassword(password: string): string {
+  if (LONE_SURROGATE.test(password)) throw new InvalidPasswordError('비밀번호에 깨진 유니코드 문자가 있음')
   const s = password.normalize('NFC')
   let start = 0
   let end = s.length
@@ -37,19 +53,23 @@ export function preprocessPassword(password: string): string {
 }
 
 /**
- * @throws InvalidKdfParamsError 반복 횟수가 600,000보다 적거나 salt가 16바이트가 아닐 때.
- *   서버가 prelogin으로 약한 값을 내려줘 키를 약하게 만드는 것을 막는다
+ * @throws InvalidKdfParamsError 반복 횟수가 600,000~10,000,000 밖이거나 salt가 16바이트가 아닐 때.
+ *   서버가 prelogin으로 약하거나 지나치게 큰 값을 내려주는 것을 막는다
+ * @throws InvalidPasswordError 비밀번호에 짝이 맞지 않는 서로게이트가 있을 때
  */
 export async function deriveKeys(password: string, salt: Uint8Array<ArrayBuffer>, iterations: number): Promise<DerivedKeys> {
-  if (!Number.isInteger(iterations) || iterations < MIN_ITERATIONS) {
-    throw new InvalidKdfParamsError(`반복 횟수는 ${MIN_ITERATIONS} 이상이어야 함`)
+  if (!Number.isInteger(iterations) || iterations < MIN_ITERATIONS || iterations > MAX_ITERATIONS) {
+    throw new InvalidKdfParamsError(`반복 횟수는 ${MIN_ITERATIONS} 이상 ${MAX_ITERATIONS} 이하여야 함`)
   }
   if (salt.length !== SALT_BYTES) throw new InvalidKdfParamsError(`salt는 ${SALT_BYTES}바이트여야 함`)
 
   const subtle = globalThis.crypto.subtle
   const encode = (text: string) => new TextEncoder().encode(text)
 
-  const passwordKey = await subtle.importKey('raw', encode(preprocessPassword(password)), 'PBKDF2', false, ['deriveBits'])
+  const passwordBytes = encode(preprocessPassword(password))
+  const passwordKey = await subtle.importKey('raw', passwordBytes, 'PBKDF2', false, ['deriveBits'])
+  // 비밀번호 바이트도 키로 넘긴 뒤 지운다. JS 문자열 원본은 지울 수 없으므로 화면 쪽에서 오래 들고 있지 않는다
+  passwordBytes.fill(0)
   const masterKey = new Uint8Array(
     await subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations }, passwordKey, KEY_BITS),
   )
