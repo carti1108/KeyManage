@@ -1,0 +1,21 @@
+[package]
+name = "keymanage-desktop"
+version = "0.1.0"
+description = "KeyManage 데스크톱 앱 (웹 클라이언트를 감싼 Tauri v2 틀, ADR-0012)"
+authors = []
+license = ""
+repository = ""
+edition = "2024"
+rust-version = "1.90"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.4", features = [] }
+
+[dependencies]
+tauri = { version = "2.12.5", features = [] }

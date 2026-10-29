@@ -31,3 +31,17 @@ npm run build    # 정적 파일 빌드 (dist/)
 ```
 
 백엔드는 `Back/`에서 `./gradlew :app:bootRun`으로 띄웁니다. 개발 중에는 같은 출처 프록시를 쓰므로 CORS 설정이 필요 없습니다.
+
+## 데스크톱 앱 (Tauri v2)
+
+`src-tauri/`가 같은 화면을 데스크톱 창으로 감쌉니다. Rust와 플랫폼 빌드 도구(Windows는 Visual Studio C++ 빌드 도구)가 필요합니다.
+
+```bash
+npm run tauri dev                          # 개발 서버를 띄우고 데스크톱 창으로 연다
+npm run tauri build -- --debug --no-bundle # 디버그 실행 파일만 빌드 (src-tauri/target/debug)
+npm run tauri build                        # 설치 파일까지 빌드
+```
+
+- **CSP**: 스크립트·스타일은 앱 자체에서만 불러오고, 네트워크는 앱 자신과 Rust(IPC)로만 허용한다. 악성 코드가 들어와도 복호화된 데이터를 외부로 보내지 못하게 하기 위해서다. 서버 통신 경로는 API 클라이언트 작업에서 정한다. 개발(`tauri dev`)에서는 Vite의 인라인 스타일·스크립트와 HMR 웹소켓을 위해 `devCsp`를 따로 쓴다.
+- **권한**: 현재는 `core:default`만 연다. 클립보드 등 플랫폼 기능은 그 기능을 만드는 작업에서 필요한 권한만 추가한다.
+- `tauri dev`에서는 창이 Vite 개발 서버를 열므로 `/api` 프록시가 그대로 동작한다. **빌드된 앱**에는 프록시가 없어 서버 주소 설정이 필요하며, API 클라이언트 작업에서 다룬다.
