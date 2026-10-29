@@ -77,6 +77,28 @@ jobs:
       - name: 빌드
         run: npx vite build
 
+  # 데스크톱 틀(Tauri v2)이 컴파일되는지 확인한다 (ADR-0012)
+  desktop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Tauri가 Linux에서 쓰는 웹뷰(WebKitGTK)와 빌드 도구
+      - name: 시스템 의존성
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: Apps/Web/src-tauri
+
+      - name: 컴파일 검사
+        working-directory: Apps/Web/src-tauri
+        run: cargo check --locked
+
   docs:
     runs-on: ubuntu-latest
     steps:
