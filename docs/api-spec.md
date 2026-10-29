@@ -52,8 +52,7 @@
     "cipher": "AES-256-GCM",
     "iv": "MDEyMzQ1Njc4OWFi",
     "ciphertext": "k7Z9X...base64...",
-    "tag": "YWJjZGVmZ2hpamtsbW5vcA==",
-    "updatedAt": "2026-10-27T11:20:00Z"
+    "tag": "YWJjZGVmZ2hpamtsbW5vcA=="
   }
 }
 ```
@@ -88,8 +87,7 @@
     "cipher": "AES-256-GCM",
     "iv": "MDEyMzQ1Njc4OWFi",
     "ciphertext": "k7Z9X...base64...",
-    "tag": "YWJjZGVmZ2hpamtsbW5vcA==",
-    "updatedAt": "2026-10-27T11:20:00Z"
+    "tag": "YWJjZGVmZ2hpamtsbW5vcA=="
   }
 }
 ```

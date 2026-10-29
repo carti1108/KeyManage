@@ -40,7 +40,7 @@
 | **Cipher Algorithm** | AES-256-GCM | 기밀성 및 무결성(AEAD) 동시 보장 |
 | **IV / Nonce** | 12 바이트 (96비트) | 암호화할 때마다 매번 새로 생성 |
 | **Auth Tag** | 16 바이트 (128비트) | 변조 방지 인증 태그. 암호문과 나눠 `tag` 필드에 담는다 |
-| **AAD** | 없음 | 볼트를 다른 계정 것으로 바꿔치기해도 키가 달라 복호화할 수 없으므로 묶지 않는다 |
+| **AAD** | `keymanage-vault\|{version}\|{cipher}` (UTF-8, 예: `keymanage-vault\|1\|AES-256-GCM`) | 페이로드의 평문 헤더를 암호문에 묶어, 헤더를 바꾸면 복호화에서 태그 오류로 거절된다 (ADR-0011) |
 
 **플랫폼 간 테스트 벡터:** 모든 클라이언트는 [`crypto-test-vectors.json`](crypto-test-vectors.json)의 값을 그대로 재현하는 단위 테스트를 둔다. 이 파일은 [`Tools/crypto-vectors`](../Tools/crypto-vectors/README.md)의 생성기로 만들고(직접 고치지 않는다), Python·JDK 독립 구현으로 교차 검증한다.
 
@@ -56,13 +56,13 @@
   "cipher": "AES-256-GCM",
   "iv": "MDEyMzQ1Njc4OWFi",
   "ciphertext": "k7Z9X...base64...",
-  "tag": "YWJjZGVmZ2hpamtsbW5vcA==",
-  "updatedAt": "2026-10-27T11:20:00Z"
+  "tag": "YWJjZGVmZ2hpamtsbW5vcA=="
 }
 ```
 
 * 모든 바이너리 필드(`iv`, `ciphertext`, `tag`)는 **Standard Base64 (RFC 4648)** 로 인코딩됩니다.
 * KDF 이름·반복 횟수·salt는 계정 정보로 관리하므로 페이로드에 넣지 않는다. 같은 값이 두 곳에 있으면 어긋날 수 있기 때문이다 (ADR-0008).
+* 평문 헤더는 `version`과 `cipher`뿐이며 둘 다 AAD로 인증된다. 수정 시각은 암호문 안의 볼트 데이터(4장 `updatedAt`)에만 둔다 (ADR-0011).
 * `version`은 스키마 버전이다. 동기화 충돌 감지용 `revision`은 페이로드 안이 아니라 API 응답·요청 최상위에 둔다 ([api-spec](api-spec.md) 2.3·2.4, ADR-0006).
 * 마스터 키 불일치 등으로 인증 태그(`tag`) 검증에 실패할 경우, 플랫폼 클라이언트는 즉시 복호화를 중단하고 사용자에게 마스터 키 오류를 알립니다.
 
