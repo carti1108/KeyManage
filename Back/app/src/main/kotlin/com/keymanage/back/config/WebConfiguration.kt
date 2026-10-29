@@ -4,13 +4,18 @@ import com.keymanage.back.api.auth.AuthRateLimitFilter
 import com.keymanage.back.api.auth.AuthTokenFilter
 import com.keymanage.back.api.auth.ClientIpResolver
 import com.keymanage.back.api.auth.IpRateLimiter
+import com.keymanage.back.api.error.ApiError
+import com.keymanage.back.api.error.ErrorResponses
 import com.keymanage.back.api.error.RequestBodyLimitFilter
 import com.keymanage.back.domain.auth.AuthenticateUseCase
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.web.servlet.FilterRegistrationBean
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.http.server.ServerHttpResponse
+import org.springframework.http.server.ServletServerHttpResponse
 import org.springframework.web.cors.CorsConfiguration
+import org.springframework.web.cors.DefaultCorsProcessor
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 import org.springframework.web.filter.CorsFilter
 import java.time.Clock
@@ -39,7 +44,8 @@ class WebConfiguration {
             maxAge = 600
         }
         val source = UrlBasedCorsConfigurationSource().apply { registerCorsConfiguration("/api/**", config) }
-        return FilterRegistrationBean(CorsFilter(source)).apply { order = 0 }
+        val filter = CorsFilter(source).apply { setCorsProcessor(StandardErrorCorsProcessor()) }
+        return FilterRegistrationBean(filter).apply { order = 0 }
     }
 
     @Bean
@@ -52,4 +58,11 @@ class WebConfiguration {
     @Bean
     fun authTokenFilter(authenticate: AuthenticateUseCase) =
         FilterRegistrationBean(AuthTokenFilter(authenticate)).apply { order = 3 }
+}
+
+// 거절 응답도 다른 4xx처럼 표준 오류 본문으로 보낸다 (api-spec 1장). 기본 구현은 일반 텍스트를 쓴다
+private class StandardErrorCorsProcessor : DefaultCorsProcessor() {
+    override fun rejectRequest(response: ServerHttpResponse) {
+        ErrorResponses.write((response as ServletServerHttpResponse).servletResponse, ApiError.ORIGIN_NOT_ALLOWED)
+    }
 }

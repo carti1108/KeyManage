@@ -11,11 +11,16 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.header
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.nio.file.Path
+import java.util.Base64
 import kotlin.test.Test
 
 private const val DESKTOP_ORIGIN = "http://tauri.localhost"
+
+// SEC-002: 인증 API는 IP당 1분 30회
+private const val IP_LIMIT = 30
 
 /** 설정한 출처(데스크톱 앱)만 브라우저 교차 출처 요청을 허용한다 (ADR-0013) */
 @SpringBootTest(properties = ["keymanage.http.allowed-origins=$DESKTOP_ORIGIN"])
@@ -40,10 +45,39 @@ class CorsIntegrationTests {
     }
 
     @Test
-    fun `허용하지 않은 출처의 사전 요청은 거절한다`() {
+    fun `허용하지 않은 출처의 사전 요청은 표준 오류 본문으로 거절한다`() {
         preflight("https://evil.example").andExpect(status().isForbidden)
             .andExpect(header().doesNotExist("Access-Control-Allow-Origin"))
+            .andExpect(jsonPath("$.code").value("ORIGIN_NOT_ALLOWED"))
     }
+
+    @Test
+    fun `허용하지 않은 출처의 실제 요청은 컨트롤러에 닿기 전에 거절한다`() {
+        val body = """{"email":"cors@example.com","authHash":"${b64(1, 32)}","kdfSalt":"${b64(2, 16)}","kdfIterations":600000}"""
+
+        mockMvc.perform(post("/api/v1/auth/register").header("Origin", "https://evil.example").contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(status().isForbidden)
+            .andExpect(jsonPath("$.code").value("ORIGIN_NOT_ALLOWED"))
+        // 거절된 요청으로 계정이 만들어지지 않았으므로 같은 이메일로 다시 가입할 수 있다
+        mockMvc.perform(post("/api/v1/auth/register").header("Origin", DESKTOP_ORIGIN).contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(status().isCreated)
+    }
+
+    @Test
+    fun `인증 API 사전 요청은 IP 시도 제한 횟수를 쓰지 않는다`() {
+        repeat(IP_LIMIT + 1) {
+            mockMvc.perform(
+                options("/api/v1/auth/login").header("Origin", DESKTOP_ORIGIN).header("Access-Control-Request-Method", "POST"),
+            ).andExpect(status().isOk)
+        }
+
+        mockMvc.perform(
+            post("/api/v1/auth/prelogin").header("Origin", DESKTOP_ORIGIN).contentType(MediaType.APPLICATION_JSON)
+                .content("""{"email":"limit@example.com"}"""),
+        ).andExpect(status().isOk)
+    }
+
+    private fun b64(fill: Int, size: Int) = Base64.getEncoder().encodeToString(ByteArray(size) { fill.toByte() })
 
     @Test
     fun `API에서 쓰지 않는 메서드는 사전 요청에서 거절한다`() {
