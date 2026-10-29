@@ -1,0 +1,49 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "oxc"],
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }]
+  },
+  "overrides": [
+    {
+      "files": ["src/domain/**"],
+      "rules": {
+        "no-restricted-imports": ["error", {
+          "patterns": [
+            { "group": ["react", "react-dom", "react/*", "react-dom/*"], "message": "domain은 순수 TypeScript여야 합니다" },
+            { "group": ["**/adapters", "**/adapters/**", "**/ui", "**/ui/**", "**/app", "**/app/**"], "message": "domain은 adapters·ui·app을 알면 안 됩니다" }
+          ]
+        }],
+        "no-restricted-globals": ["error",
+          { "name": "window", "message": "domain은 브라우저 API를 모릅니다. 포트로 받으세요" },
+          { "name": "document", "message": "domain은 브라우저 API를 모릅니다. 포트로 받으세요" },
+          { "name": "navigator", "message": "domain은 브라우저 API를 모릅니다. 포트로 받으세요" },
+          { "name": "localStorage", "message": "저장소는 포트로 받으세요" },
+          { "name": "sessionStorage", "message": "저장소는 포트로 받으세요" },
+          { "name": "fetch", "message": "네트워크는 adapters가 맡습니다" }
+        ]
+      }
+    },
+    {
+      "files": ["src/ui/**"],
+      "rules": {
+        "no-restricted-imports": ["error", {
+          "patterns": [
+            { "group": ["**/adapters", "**/adapters/**", "**/app", "**/app/**"], "message": "ui는 adapters·app을 직접 쓰지 말고 app이 넘겨준 포트를 써야 합니다 (ADR-0004)" }
+          ]
+        }]
+      }
+    },
+    {
+      "files": ["src/adapters/**"],
+      "rules": {
+        "no-restricted-imports": ["error", {
+          "patterns": [
+            { "group": ["**/ui", "**/ui/**", "**/app", "**/app/**"], "message": "adapters는 ui·app을 알면 안 됩니다" }
+          ]
+        }]
+      }
+    }
+  ]
+}

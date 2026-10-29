@@ -25,3 +25,4 @@
 | 017 | 2026-10-28 | [클라이언트 구성 결정: iOS 네이티브와 웹 코드 공유 (ADR-0010)](017-client-composition-adr.md) |
 | 018 | 2026-10-28 | [결정 확인 기준 조정과 잠금 해제 정책(SEC-003)](018-decision-reversibility-and-unlock-policy.md) |
 | 019 | 2026-10-29 | [플랫폼 간 암호 테스트 벡터 작성 (#26)](019-crypto-test-vectors.md) |
+| 020 | 2026-10-29 | [웹 클라이언트 골격과 데스크톱 틀 결정 (ADR-0012, #28)](020-web-client-scaffold.md) |
