@@ -46,7 +46,7 @@ describe('이메일 정규화 (api-spec 2.5)', () => {
   })
 
   it('비어 있거나 254자를 넘거나 @가 없으면 거절한다', () => {
-    for (const bad of ['', '   ', 'no-at-sign', `${'a'.repeat(250)}@b.cd`]) {
+    for (const bad of ['', '   ', 'no-at-sign', 'a@b', '@', 'a b@c.d', 'a@@b.cd', `${'a'.repeat(250)}@b.cd`]) {
       expect(() => normalizeEmail(bad), bad).toThrow(InvalidEmailError)
     }
     expect(normalizeEmail(`${'a'.repeat(249)}@b.cd`)).toHaveLength(254)

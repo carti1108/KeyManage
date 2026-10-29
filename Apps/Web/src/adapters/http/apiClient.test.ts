@@ -36,6 +36,10 @@ describe('서버 주소 (ADR-0013, SEC-002)', () => {
     expect(resolveBaseUrl('http://127.0.0.1:8080')).toBe('http://127.0.0.1:8080')
   })
 
+  it('거절할 때 오류 메시지에 주소 원문(비밀번호가 섞였을 수 있음)을 넣지 않는다', () => {
+    expect(() => resolveBaseUrl('https://user:secret@a.example')).toThrow(expect.objectContaining({ message: expect.not.stringContaining('secret') }))
+  })
+
   it('localhost가 아닌 HTTP, 경로·쿼리가 붙은 주소, 깨진 주소는 거절한다', () => {
     for (const bad of ['http://vault.example.com', 'https://vault.example.com/api', 'https://a.example?x=1', 'https://*.example.com', 'https://user:pw@a.example', 'ftp://a.example', 'not a url']) {
       expect(() => resolveBaseUrl(bad), bad).toThrow(InvalidBaseUrlError)
@@ -57,10 +61,14 @@ describe('API 클라이언트 (api-spec 1장)', () => {
     expect(new Headers(calls[0].init.headers).get('Content-Type')).toBe('application/json; charset=UTF-8')
     // 쿠키 같은 자격 증명은 보내지 않는다. 인증은 Bearer 토큰만 쓴다
     expect(calls[0].init.credentials).toBe('omit')
+    // 리다이렉트로 인증 해시가 다른 곳에 가지 않게 따라가지 않는다
+    expect(calls[0].init.redirect).toBe('error')
+    // 응답이 없을 때 무한정 기다리지 않는다
+    expect(calls[0].init.signal).toBeInstanceOf(AbortSignal)
   })
 
   it('오류 응답은 코드와 상태를 담은 ServerError로 바꾼다', async () => {
-    for (const [status, code] of [[401, 'AUTH_FAILED'], [409, 'EMAIL_ALREADY_REGISTERED'], [403, 'REGISTRATION_DISABLED'], [500, 'INTERNAL_ERROR']] as const) {
+    for (const [status, code] of [[401, 'AUTH_FAILED'], [409, 'EMAIL_ALREADY_REGISTERED'], [403, 'REGISTRATION_DISABLED'], [403, 'ORIGIN_NOT_ALLOWED'], [500, 'INTERNAL_ERROR']] as const) {
       const { fetch } = fakeFetch(() => json(status, errorBody(code)))
 
       const error = await createApiClient({ baseUrl: '', fetch }).request('POST', '/auth/login').catch((e: unknown) => e)
@@ -89,6 +97,16 @@ describe('API 클라이언트 (api-spec 1장)', () => {
 
   it('서버에 닿지 못하면 NetworkError로 바꾼다', async () => {
     const { fetch } = fakeFetch(() => Promise.reject(new TypeError('Failed to fetch')))
+
+    await expect(createApiClient({ baseUrl: '', fetch }).request('GET', '/vault')).rejects.toBeInstanceOf(NetworkError)
+  })
+
+  it('본문을 받는 중에 시간이 다 되면 NetworkError로 바꾼다', async () => {
+    const { fetch } = fakeFetch(() => {
+      const response = new Response('{}', { status: 200 })
+      response.json = () => Promise.reject(new DOMException('시간 초과', 'TimeoutError'))
+      return response
+    })
 
     await expect(createApiClient({ baseUrl: '', fetch }).request('GET', '/vault')).rejects.toBeInstanceOf(NetworkError)
   })

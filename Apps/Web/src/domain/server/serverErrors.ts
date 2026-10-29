@@ -12,6 +12,7 @@ export const SERVER_ERROR_CODES = [
   'AUTH_FAILED',
   'EMAIL_ALREADY_REGISTERED',
   'REGISTRATION_DISABLED',
+  'ORIGIN_NOT_ALLOWED',
 ] as const
 
 export type ServerErrorCode = (typeof SERVER_ERROR_CODES)[number] | 'UNKNOWN'

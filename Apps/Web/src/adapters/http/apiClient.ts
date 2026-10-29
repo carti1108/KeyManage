@@ -35,6 +35,8 @@ export function createApiClient({ baseUrl, fetch }: ApiClientConfig) {
           headers,
           body: options.body === undefined ? undefined : JSON.stringify(options.body),
           credentials: 'omit',
+          // 리다이렉트를 따라가면 인증 해시가 담긴 본문이 다른 주소로 갈 수 있다
+          redirect: 'error',
           signal: AbortSignal.timeout(TIMEOUT_MS),
         })
       } catch {
@@ -45,7 +47,9 @@ export function createApiClient({ baseUrl, fetch }: ApiClientConfig) {
       if (response.status === 204) return undefined
       try {
         return await response.json()
-      } catch {
+      } catch (error) {
+        // 제한 시간은 본문을 받는 동안에도 적용된다. 느린 회선을 형식 오류로 오해하지 않게 구분한다
+        if (isAbort(error)) throw new NetworkError('응답을 받는 중 시간이 초과됨')
         throw new UnexpectedResponseError(`JSON이 아닌 성공 응답: ${response.status}`)
       }
     },
@@ -64,6 +68,10 @@ async function toServerError(response: Response): Promise<ServerError> {
     // 프록시가 만든 HTML 오류 페이지 등. 코드 없이 상태만 알린다
   }
   return new ServerError(response.status, code, parseRetryAfter(response.headers.get('Retry-After')))
+}
+
+function isAbort(error: unknown): boolean {
+  return error instanceof DOMException && (error.name === 'TimeoutError' || error.name === 'AbortError')
 }
 
 function isKnownCode(value: unknown): value is ServerErrorCode {

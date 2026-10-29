@@ -6,6 +6,8 @@ import type { AuthApi, KdfParams, Session } from './authApi'
 
 const SUPPORTED_KDF: KdfParams['kdf'] = 'PBKDF2-HMAC-SHA256'
 const MAX_EMAIL_LENGTH = 254
+// 서버(Email)와 같은 형식 검사. 틀린 이메일로 60만 회 키 유도를 하지 않도록 먼저 거른다
+const EMAIL_FORMAT = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 
 export class InvalidEmailError extends Error {
   constructor() {
@@ -23,7 +25,7 @@ export interface AuthResult {
 /** 앞뒤 공백 제거·소문자. 서버도 같은 규칙으로 비교한다 (api-spec 2.5) */
 export function normalizeEmail(email: string): string {
   const normalized = email.trim().toLowerCase()
-  if (normalized.length === 0 || normalized.length > MAX_EMAIL_LENGTH || !normalized.includes('@')) {
+  if (normalized.length === 0 || normalized.length > MAX_EMAIL_LENGTH || !EMAIL_FORMAT.test(normalized)) {
     throw new InvalidEmailError()
   }
   return normalized

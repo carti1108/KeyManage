@@ -5,8 +5,9 @@ const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1'])
 const HOSTNAME = /^(?:[a-z0-9-]+(?:\.[a-z0-9-]+)*|\[[0-9a-f:.]+\])$/
 
 export class InvalidBaseUrlError extends Error {
-  constructor(value: string) {
-    super(`서버 주소가 올바르지 않음: ${value}`)
+  // 주소 원문은 메시지에 넣지 않는다. 사용자 정보(비밀번호)가 섞여 있을 수 있다
+  constructor() {
+    super('서버 주소가 올바르지 않음: localhost가 아니면 HTTPS 출처(scheme://host[:port])만 쓸 수 있음')
     this.name = 'InvalidBaseUrlError'
   }
 }
@@ -22,11 +23,11 @@ export function resolveBaseUrl(raw: string | undefined): string {
   try {
     url = new URL(raw)
   } catch {
-    throw new InvalidBaseUrlError(raw)
+    throw new InvalidBaseUrlError()
   }
   const secure = url.protocol === 'https:' || (url.protocol === 'http:' && LOOPBACK_HOSTS.has(url.hostname))
   // CSP에는 출처 하나만 열기 때문에 경로·쿼리가 붙은 주소는 받지 않는다 (ADR-0013)
   const originOnly = url.pathname === '/' && url.search === '' && url.hash === '' && url.username === '' && url.password === ''
-  if (!secure || !originOnly || !HOSTNAME.test(url.hostname)) throw new InvalidBaseUrlError(raw)
+  if (!secure || !originOnly || !HOSTNAME.test(url.hostname)) throw new InvalidBaseUrlError()
   return url.origin
 }
