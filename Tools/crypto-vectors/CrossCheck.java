@@ -1,6 +1,6 @@
 // 암호 테스트 벡터 교차 검증 (JDK 표준 라이브러리, 의존성 없음).
 // Node WebCrypto로 만든 docs/crypto-test-vectors.json을 JDK 구현으로 다시 계산한다.
-// 전처리·PBKDF2·HKDF에 더해 AES-256-GCM 암호화와 복호화(틀린 키 거절 포함)까지 확인한다.
+// 전처리·PBKDF2·HKDF에 더해 AES-256-GCM(AAD) 암호화와 복호화, 틀린 키·헤더 변조 거절까지 확인한다.
 //
 // 사용법 (저장소 루트에서): java Tools/crypto-vectors/CrossCheck.java
 
@@ -84,23 +84,29 @@ public class CrossCheck {
             System.exit(1);
         }
         System.out.println("JDK 교차 검증 통과: 키 유도 " + keyCases.size() + "건, 암호화 " + encryptionCases
-                + "건(AES-256-GCM 암호화·복호화, 틀린 키 거절), 같은 결과 케이스 확인");
+                + "건(AES-256-GCM·AAD 암호화·복호화, 틀린 키·헤더 변조 거절), 같은 결과 케이스 확인");
     }
 
     static void checkEncryption(List<String> failures, String name, byte[] key, String c) throws Exception {
         String plaintext = unescape(field(c, "plaintext"));
+        // AAD는 파일 기록을 믿지 않고 페이로드 헤더(version, cipher)에서 규격대로 만든다 (ADR-0011)
+        Matcher version = Pattern.compile("\"version\":\\s*(\\d+)").matcher(c);
+        if (!version.find()) throw new IllegalStateException(name + ": version 없음");
+        byte[] aad = aadOf(version.group(1), field(c, "cipher"));
+        if (!new String(aad, StandardCharsets.UTF_8).equals(field(c, "aad"))) failures.add(name + ".aad");
         byte[] iv = b64(field(c, "iv"));
         byte[] ciphertext = b64(field(c, "ciphertext"));
         byte[] tag = b64(field(c, "tag"));
 
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
         cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, "AES"), new GCMParameterSpec(128, iv));
+        cipher.updateAAD(aad);
         byte[] sealed = cipher.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));
         check(failures, name + ".ciphertext", Arrays.copyOf(sealed, sealed.length - 16), ciphertext);
         check(failures, name + ".tag", Arrays.copyOfRange(sealed, sealed.length - 16, sealed.length), tag);
 
         try {
-            byte[] opened = decrypt(key, iv, ciphertext, tag);
+            byte[] opened = decrypt(key, iv, aad, ciphertext, tag);
             if (!new String(opened, StandardCharsets.UTF_8).equals(plaintext)) failures.add(name + ".decrypt");
         } catch (AEADBadTagException e) {
             failures.add(name + ".decrypt(태그 불일치)");
@@ -109,10 +115,17 @@ public class CrossCheck {
         byte[] wrongKey = key.clone();
         wrongKey[0] ^= 1;
         try {
-            decrypt(wrongKey, iv, ciphertext, tag);
+            decrypt(wrongKey, iv, aad, ciphertext, tag);
             failures.add(name + ".wrongKeyAccepted");
         } catch (AEADBadTagException expected) {
             // 틀린 키는 인증 태그 검증에서 거절돼야 한다 (vault-spec 3장)
+        }
+
+        try {
+            decrypt(key, iv, aadOf("2", field(c, "cipher")), ciphertext, tag);
+            failures.add(name + ".tamperedHeaderAccepted");
+        } catch (AEADBadTagException expected) {
+            // 헤더(version)를 바꾸면 AAD가 달라져 거절돼야 한다 (ADR-0011)
         }
     }
 
@@ -159,9 +172,14 @@ public class CrossCheck {
         return mac.doFinal();
     }
 
-    static byte[] decrypt(byte[] key, byte[] iv, byte[] ciphertext, byte[] tag) throws Exception {
+    static byte[] aadOf(String version, String cipherName) {
+        return ("keymanage-vault|" + version + "|" + cipherName).getBytes(StandardCharsets.UTF_8);
+    }
+
+    static byte[] decrypt(byte[] key, byte[] iv, byte[] aad, byte[] ciphertext, byte[] tag) throws Exception {
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
         cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(key, "AES"), new GCMParameterSpec(128, iv));
+        cipher.updateAAD(aad);
         cipher.update(ciphertext);
         return cipher.doFinal(tag);
     }

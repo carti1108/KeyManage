@@ -49,10 +49,13 @@ async function deriveKeys(password, salt) {
   };
 }
 
-async function encrypt(encryptionKey, iv, plaintext) {
+// 페이로드의 평문 헤더를 암호문에 묶는 AAD (vault-spec 2장, ADR-0011)
+const aadOf = (version, cipher) => `keymanage-vault|${version}|${cipher}`;
+
+async function encrypt(encryptionKey, iv, plaintext, aad) {
   const key = await globalThis.crypto.subtle.importKey('raw', encryptionKey, 'AES-GCM', false, ['encrypt']);
   const sealed = new Uint8Array(await globalThis.crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv, tagLength: 128 }, key, new TextEncoder().encode(plaintext),
+    { name: 'AES-GCM', iv, tagLength: 128, additionalData: new TextEncoder().encode(aad) }, key, new TextEncoder().encode(plaintext),
   ));
   // WebCrypto는 암호문 뒤에 16바이트 인증 태그를 붙여 돌려준다. vault-spec 3장은 둘을 나눠 담는다
   return { ciphertext: sealed.slice(0, sealed.length - 16), tag: sealed.slice(sealed.length - 16) };
@@ -102,19 +105,20 @@ async function build() {
   }
 
   const iv = range(0x00, 12);
-  const sealed = await encrypt(byName['ascii-passphrase'].encryptionKey, iv, VAULT_PLAINTEXT);
+  const header = { version: 1, cipher: 'AES-256-GCM' };
+  const aad = aadOf(header.version, header.cipher);
+  const sealed = await encrypt(byName['ascii-passphrase'].encryptionKey, iv, VAULT_PLAINTEXT, aad);
   const encryptionCases = [{
     name: 'vault-ascii-passphrase',
     description: 'ascii-passphrase의 암호화 키로 vault-spec 4장 예시 볼트를 암호화. 고정 IV는 테스트 전용이며 실제로는 매번 새로 만든다',
     keyFrom: 'ascii-passphrase',
     plaintext: VAULT_PLAINTEXT,
+    aad,
     payload: {
-      version: 1,
-      cipher: 'AES-256-GCM',
+      ...header,
       iv: b64(iv),
       ciphertext: b64(sealed.ciphertext),
       tag: b64(sealed.tag),
-      updatedAt: '2026-10-27T11:20:00Z',
     },
   }];
 
@@ -126,7 +130,7 @@ async function build() {
     },
     kdf: KDF,
     hkdf: HKDF,
-    aead: { algorithm: 'AES-256-GCM', ivLength: 12, tagLength: 16, aad: null },
+    aead: { algorithm: 'AES-256-GCM', ivLength: 12, tagLength: 16, aad: 'keymanage-vault|{version}|{cipher} (UTF-8)' },
     keyDerivationCases: keyCases,
     encryptionCases,
   };

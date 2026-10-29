@@ -31,7 +31,7 @@
     "algorithm": "AES-256-GCM",
     "ivLength": 12,
     "tagLength": 16,
-    "aad": null
+    "aad": "keymanage-vault|{version}|{cipher} (UTF-8)"
   },
   "keyDerivationCases": [
     {
@@ -93,13 +93,13 @@
       "description": "ascii-passphrase의 암호화 키로 vault-spec 4장 예시 볼트를 암호화. 고정 IV는 테스트 전용이며 실제로는 매번 새로 만든다",
       "keyFrom": "ascii-passphrase",
       "plaintext": "{\"version\":1,\"updatedAt\":\"2026-10-27T11:20:00Z\",\"items\":[{\"id\":\"550e8400-e29b-41d4-a716-446655440000\",\"serviceName\":\"GitHub\",\"username\":\"octocat@github.com\",\"password\":\"SuperSecurePassword123!\",\"url\":\"https://github.com/login\",\"notes\":\"개인 개발용 서브 계정\",\"createdAt\":\"2026-10-27T10:00:00Z\",\"updatedAt\":\"2026-10-27T11:20:00Z\"}]}",
+      "aad": "keymanage-vault|1|AES-256-GCM",
       "payload": {
         "version": 1,
         "cipher": "AES-256-GCM",
         "iv": "AAECAwQFBgcICQoL",
         "ciphertext": "/cHDi35Q88F8cMoQE46t7S9mMLsgOB3avqLDYMKZvDgWGAJa6g+TR4TpsMHHKoDmQl++IBrrIXer/CmwrVRfC5ZzzeV63nD6AzacBUM5hL9ARTMCNiixw9H21EtxABVirdXlnlzUCtJfldn2BKFBhiIRgkO/x+L96VZxkZk5hslRUs1f4eD0T35YUnEk4tAldgzGSbHwRAQmtAj5MGizxXc7k4+OmdDYWLZlR9BGj6licdpuIqTl4SUZM2iLLEZlo9YXErfuwvVA46M9yLCU7+Xt5MtYvB3NT9S6jD6WFpPOiNfdpdqtIAtMfVf4XFl22HBYsyB0EfqJ1Q1ZMmj1rZsvkoyX7LN+9jwKw9cNYK66UjS69Xq3RShDVyXdRfOLWb66QTeZAacRfv95w7UMnIu467OWZjJ0bCRN0N2m6gJ4bfxeW+frYBN9qKsem4QmbnHe6w==",
-        "tag": "uAON9CDo8++l3/slSkFRBg==",
-        "updatedAt": "2026-10-27T11:20:00Z"
+        "tag": "m/pAKudvkC23PuTKF+nTcw=="
       }
     }
   ]
