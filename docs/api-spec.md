@@ -9,6 +9,7 @@
 * **Base URL**: `http://localhost:8080/api/v1` (로컬) 또는 `https://<domain>/api/v1` (배포)
 * **전송 보안**: 클라이언트는 `localhost`·`127.0.0.1`이 아닌 서버에는 HTTPS로만 접속한다. 인증 해시와 세션 토큰이 오가기 때문이다 (SEC-002).
 * **Content-Type**: `application/json; charset=UTF-8`
+* **교차 출처(CORS)**: 서버 설정 `keymanage.http.allowed-origins`에 적은 출처(데스크톱 앱)만 허용한다. 기본값은 비어 있어 모두 거절한다. 허용 메서드는 `GET`·`POST`, 요청 헤더는 `Authorization`·`Content-Type`이며 `Retry-After`를 노출한다 (ADR-0013).
 * **인증**: 2.5의 prelogin·가입·로그인을 제외한 모든 요청은 `Authorization: Bearer <accessToken>` 헤더가 필요하다 (SEC-002).
 * **표준 에러 응답 형식 (Standard Error Response)**:
   모든 4xx, 5xx 응답은 아래 포맷을 따릅니다:
