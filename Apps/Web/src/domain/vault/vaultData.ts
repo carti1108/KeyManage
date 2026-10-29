@@ -41,6 +41,14 @@ export class InvalidVaultDataError extends Error {
   }
 }
 
+/** 이미 있는 id로 항목을 추가하려 함 */
+export class DuplicateItemIdError extends Error {
+  constructor(id: string) {
+    super(`이미 있는 항목 id: ${id}`)
+    this.name = 'DuplicateItemIdError'
+  }
+}
+
 /** 수정하려는 항목이 없거나 이미 삭제됨 */
 export class VaultItemNotFoundError extends Error {
   constructor(id: string) {
@@ -52,6 +60,11 @@ export class VaultItemNotFoundError extends Error {
 const REQUIRED_ITEM_TEXT = ['serviceName', 'username', 'password'] as const
 const OPTIONAL_ITEM_TEXT = ['url', 'notes'] as const
 const TIMESTAMPS = ['createdAt', 'updatedAt'] as const
+// 다른 플랫폼이 null로 쓴 선택 필드는 없는 것으로 본다
+const NULLABLE_ITEM_FIELDS = ['url', 'notes', 'deletedAt'] as const
+// UTC 표기(Z 또는 오프셋)가 없는 시각은 기기 시간대마다 다르게 해석되므로 받지 않는다
+const UTC_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/
+const SECOND_MS = 1000
 
 /** @throws InvalidVaultDataError */
 export function parseVaultData(json: string): VaultData {
@@ -63,16 +76,18 @@ export function parseVaultData(json: string): VaultData {
   }
   if (!isRecord(raw)) throw new InvalidVaultDataError('볼트가 객체가 아님')
   if (!Number.isInteger(raw.version) || (raw.version as number) < 1) throw new InvalidVaultDataError('version이 1 이상의 정수가 아님')
-  if (typeof raw.updatedAt !== 'string') throw new InvalidVaultDataError('updatedAt이 문자열이 아님')
+  if (!isUtcTime(raw.updatedAt)) throw new InvalidVaultDataError('updatedAt 형식이 틀림')
   if (!Array.isArray(raw.items)) throw new InvalidVaultDataError('items가 배열이 아님')
 
   const ids = new Set<string>()
-  for (const item of raw.items) {
+  const items = raw.items.map((rawItem: unknown) => {
+    const item = withoutNullFields(rawItem)
     validateItem(item)
     if (ids.has(item.id)) throw new InvalidVaultDataError(`같은 id가 두 번 나옴: ${item.id}`)
     ids.add(item.id)
-  }
-  return raw as VaultData
+    return item
+  })
+  return { ...raw, items } as unknown as VaultData
 }
 
 export function isReadOnly(data: VaultData): boolean {
@@ -88,21 +103,23 @@ export function activeItems(data: VaultData): VaultItem[] {
   return data.items.filter((item) => item.deletedAt === undefined)
 }
 
+/** @throws DuplicateItemIdError */
 export function addItem(data: VaultData, fields: ItemFields, now: Date, id: string = globalThis.crypto.randomUUID()): VaultData {
+  if (data.items.some((item) => item.id === id)) throw new DuplicateItemIdError(id)
   const time = formatTime(now)
   return { ...data, updatedAt: time, items: [...data.items, { id, ...fields, createdAt: time, updatedAt: time }] }
 }
 
 /** @throws VaultItemNotFoundError */
 export function updateItem(data: VaultData, id: string, changes: Partial<ItemFields>, now: Date): VaultData {
-  const time = formatTime(now)
-  return replaceItem(data, id, time, (item) => ({ ...item, ...changes, updatedAt: time }))
+  // undefined 값을 펼치면 필수 필드가 사라져 다른 기기가 볼트를 못 열게 되므로 거른다
+  const defined = Object.fromEntries(Object.entries(changes).filter(([, value]) => value !== undefined))
+  return replaceItem(data, id, now, (item, time) => ({ ...item, ...defined, updatedAt: time }))
 }
 
 /** 내용을 지우고 삭제 표시만 남긴다. 다른 기기와 병합할 때 삭제가 되살아나지 않게 하기 위해서다 (VLT-001) */
 export function deleteItem(data: VaultData, id: string, now: Date): VaultData {
-  const time = formatTime(now)
-  return replaceItem(data, id, time, (item) => ({ id: item.id, createdAt: item.createdAt, updatedAt: time, deletedAt: time }))
+  return replaceItem(data, id, now, (item, time) => ({ id: item.id, createdAt: item.createdAt, updatedAt: time, deletedAt: time }))
 }
 
 /** vault-spec의 시각 형식 YYYY-MM-DDTHH:mm:ssZ */
@@ -110,18 +127,37 @@ export function formatTime(date: Date): string {
   return date.toISOString().replace(/\.\d{3}Z$/, 'Z')
 }
 
-function replaceItem(data: VaultData, id: string, time: string, change: (item: VaultItem) => VaultItem): VaultData {
+function replaceItem(data: VaultData, id: string, now: Date, change: (item: VaultItem, time: string) => VaultItem): VaultData {
   const index = data.items.findIndex((item) => item.id === id && item.deletedAt === undefined)
   if (index === -1) throw new VaultItemNotFoundError(id)
-  return { ...data, updatedAt: time, items: data.items.map((item, i) => (i === index ? change(item) : item)) }
+  const time = nextChangeTime(data.items[index], now)
+  return { ...data, updatedAt: time, items: data.items.map((item, i) => (i === index ? change(item, time) : item)) }
+}
+
+// 같은 항목의 변경 시각은 늘 이전보다 커야 병합에서 이긴다. 같은 초 안에 다시 고치거나
+// 다른 기기 시계가 앞서 있어도 최소 1초 뒤로 잡는다 (VLT-001)
+function nextChangeTime(item: VaultItem, now: Date): string {
+  const previous = Date.parse(item.updatedAt)
+  return formatTime(new Date(Math.max(now.getTime(), previous + SECOND_MS)))
+}
+
+function isUtcTime(value: unknown): value is string {
+  return typeof value === 'string' && UTC_TIME.test(value) && !Number.isNaN(Date.parse(value))
+}
+
+function withoutNullFields(item: unknown): unknown {
+  if (!isRecord(item)) return item
+  const copy: Record<string, unknown> = { ...item }
+  for (const field of NULLABLE_ITEM_FIELDS) if (copy[field] === null) delete copy[field]
+  return copy
 }
 
 function validateItem(item: unknown): asserts item is VaultItem {
   if (!isRecord(item) || typeof item.id !== 'string') throw new InvalidVaultDataError('항목 id가 문자열이 아님')
   const fail = (field: string) => new InvalidVaultDataError(`항목 ${item.id}의 ${field} 형식이 틀림`)
-  for (const field of TIMESTAMPS) if (typeof item[field] !== 'string') throw fail(field)
+  for (const field of TIMESTAMPS) if (!isUtcTime(item[field])) throw fail(field)
   if (item.deletedAt !== undefined) {
-    if (typeof item.deletedAt !== 'string') throw fail('deletedAt')
+    if (!isUtcTime(item.deletedAt)) throw fail('deletedAt')
     // 삭제된 항목은 내용이 지워져 있으므로 나머지 필드를 요구하지 않는다
     return
   }
