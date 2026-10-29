@@ -17,3 +17,5 @@ keymanage:
   http:
     # 리버스 프록시 뒤에서 운영할 때 그 프록시 IP를 쉼표로 적는다. 비어 있으면 X-Forwarded-For를 무시한다 (SEC-002)
     trusted-proxies: ""
+    # 브라우저 교차 출처 요청을 허용할 출처를 쉼표로 적는다. 데스크톱 앱(Windows)은 http://tauri.localhost. 비어 있으면 모두 거절한다 (ADR-0013)
+    allowed-origins: ""

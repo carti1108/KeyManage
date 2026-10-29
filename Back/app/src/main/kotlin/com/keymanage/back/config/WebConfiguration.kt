@@ -10,9 +10,12 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.web.servlet.FilterRegistrationBean
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.web.cors.CorsConfiguration
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource
+import org.springframework.web.filter.CorsFilter
 import java.time.Clock
 
-// 요청 필터를 순서대로 조립한다: 본문 크기 -> 인증 API IP 제한 -> Bearer 토큰 (api-spec 1장, SEC-002)
+// 요청 필터를 순서대로 조립한다: CORS -> 본문 크기 -> 인증 API IP 제한 -> Bearer 토큰 (api-spec 1장, SEC-002, ADR-0013)
 @Configuration
 class WebConfiguration {
 
@@ -23,6 +26,21 @@ class WebConfiguration {
     @Bean
     fun clientIpResolver(@Value("\${keymanage.http.trusted-proxies:}") trustedProxies: String) =
         ClientIpResolver(trustedProxies.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet())
+
+    // 쉼표로 구분한 허용 출처(데스크톱 앱). 비어 있으면 교차 출처 요청을 모두 거절한다.
+    // 사전 요청(OPTIONS)에는 토큰이 없으므로 토큰 필터보다 앞에서 처리한다
+    @Bean
+    fun corsFilter(@Value("\${keymanage.http.allowed-origins:}") allowedOrigins: String): FilterRegistrationBean<CorsFilter> {
+        val config = CorsConfiguration().apply {
+            this.allowedOrigins = allowedOrigins.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            allowedMethods = listOf("GET", "POST")
+            allowedHeaders = listOf("Authorization", "Content-Type")
+            exposedHeaders = listOf("Retry-After")
+            maxAge = 600
+        }
+        val source = UrlBasedCorsConfigurationSource().apply { registerCorsConfiguration("/api/**", config) }
+        return FilterRegistrationBean(CorsFilter(source)).apply { order = 0 }
+    }
 
     @Bean
     fun requestBodyLimitFilter() = FilterRegistrationBean(RequestBodyLimitFilter()).apply { order = 1 }
