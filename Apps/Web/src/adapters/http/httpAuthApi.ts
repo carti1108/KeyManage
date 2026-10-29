@@ -2,6 +2,7 @@
 import type { AuthApi, KdfParams, Session } from '../../domain/auth/authApi'
 import { UnexpectedResponseError } from '../../domain/server/serverErrors'
 import type { ApiClient } from './apiClient'
+import { asRecord } from './responseBody'
 
 export function createHttpAuthApi(client: ApiClient): AuthApi {
   return {
@@ -20,7 +21,6 @@ export function createHttpAuthApi(client: ApiClient): AuthApi {
   }
 }
 
-// 서버 응답도 믿지 않고 필요한 필드의 타입만 확인해 꺼낸다. 값의 규격 검사는 domain이 한다
 function toKdfParams(body: unknown): KdfParams {
   const { kdf, iterations, salt } = asRecord(body)
   if (typeof kdf !== 'string' || typeof iterations !== 'number' || typeof salt !== 'string') {
@@ -35,9 +35,4 @@ function toSession(body: unknown): Session {
     throw new UnexpectedResponseError('세션 응답 형식이 틀림')
   }
   return { accessToken, expiresAt }
-}
-
-function asRecord(body: unknown): Record<string, unknown> {
-  if (typeof body !== 'object' || body === null) throw new UnexpectedResponseError('응답 본문이 객체가 아님')
-  return body as Record<string, unknown>
 }
