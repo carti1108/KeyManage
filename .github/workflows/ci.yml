@@ -52,6 +52,29 @@ jobs:
             Back/domain/build/reports/pitest
           if-no-files-found: ignore
 
+  # 웹·데스크톱 클라이언트 (ADR-0010, ADR-0012)
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Apps/Web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: Apps/Web/package-lock.json
+
+      - run: npm ci
+
+      - name: 타입 검사·lint(계층 격리 포함)·테스트
+        run: npm run check
+
+      - name: 빌드
+        run: npm run build
+
   docs:
     runs-on: ubuntu-latest
     steps:
