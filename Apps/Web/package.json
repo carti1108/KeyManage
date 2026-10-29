@@ -10,7 +10,8 @@
     "test": "vitest",
     "check": "tsc -b && oxlint --deny-warnings && vitest run",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "tauri:build": "node scripts/tauriReleaseConfig.ts && tauri build --config src-tauri/tauri.release.conf.json"
   },
   "dependencies": {
     "react": "^19.3.1",
