@@ -1,6 +1,6 @@
 # [Design] shadcn/ui 기반 크로스 플랫폼 디자인 시스템 (Design System)
 
-이 문서는 `KeyManage`의 모든 클라이언트(Web Next.js, iOS SwiftUI/UIKit, Android Compose)가 **shadcn/ui**의 디자인 철학(소유, 시멘틱 토큰, 미니멀리즘)과 접근성을 동일하게 공유하기 위해 정의된 통합 디자인 시스템 명세입니다.
+이 문서는 `KeyManage`의 모든 클라이언트(Web·데스크톱 Vite + React, iOS SwiftUI/UIKit, Android Compose)가 **shadcn/ui**의 디자인 철학(소유, 시멘틱 토큰, 미니멀리즘)과 접근성을 동일하게 공유하기 위해 정의된 통합 디자인 시스템 명세입니다.
 
 ---
 
@@ -38,7 +38,7 @@
 
 ## 3. 플랫폼별 토큰 바인딩 규격
 
-### 3.1. Web (Next.js + Tailwind CSS)
+### 3.1. Web·데스크톱 (Vite + React + Tailwind CSS, ADR-0012)
 * shadcn/ui 공식 `globals.css` 및 `tailwind.config.ts`의 CSS 변수(`var(--card)`, `var(--primary)`)와 100% 일치.
 
 ### 3.2. iOS (SwiftUI & UIKit 공용)
