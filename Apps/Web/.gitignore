@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# 릴리스 빌드 때 만들어지는 Tauri 설정 (scripts/tauriReleaseConfig.ts)
+src-tauri/tauri.release.conf.json

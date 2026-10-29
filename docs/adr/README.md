@@ -29,6 +29,7 @@
 | [ADR-0010](ADR-0010-client-composition-ios-and-shared-web.md) | 클라이언트 구성: iOS 네이티브와 웹 코드 공유(브라우저·데스크톱) 우선 | 채택 | 2026-10-28 |
 | [ADR-0011](ADR-0011-password-preprocessing-and-header-aad.md) | 마스터 비밀번호 전처리와 볼트 암호문 헤더 인증 | 채택 | 2026-10-29 |
 | [ADR-0012](ADR-0012-desktop-shell-tauri.md) | 데스크톱 앱 틀로 Tauri v2, 웹 클라이언트는 Vite + React 정적 앱 채택 | 채택 | 2026-10-29 |
+| [ADR-0013](ADR-0013-desktop-network-csp.md) | 데스크톱 앱의 서버 요청은 웹뷰 fetch로 보내고, CSP에는 빌드할 때 정한 서버 주소 하나만 연다 | 채택 | 2026-10-29 |
 
 ---
 
