@@ -16,8 +16,10 @@ src/
 ```
 
 의존 방향은 백엔드와 같습니다: `adapters`·`ui` → `domain`, `app` → 전부. `.oxlintrc.json`이 이를 검사합니다.
-- `domain`이 React나 `adapters`·`ui`·`app`을 import하면 lint 실패
-- `ui`가 `adapters`를 직접 import하면 lint 실패 (ADR-0004)
+- `domain`이 React나 `adapters`·`ui`·`app`을 import하거나 브라우저 전역(`window`, `document`, `navigator`, `localStorage`, `sessionStorage`, `fetch`)을 쓰면 lint 실패. 암호는 브라우저·Node·데스크톱 웹뷰에 모두 있는 `globalThis.crypto`를 쓴다
+- `ui`가 `adapters`나 `app`을 import하면 lint 실패 (ADR-0004)
+- `adapters`가 `ui`나 `app`을 import하면 lint 실패
+- 폴더 자체를 가리키는 import(`../adapters`)도 하위 경로(`../adapters/http`)와 똑같이 막는다
 
 ## 명령
 
