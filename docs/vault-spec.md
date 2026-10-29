@@ -31,10 +31,10 @@
 
 | 파라미터 | 규격 | 비고 |
 | :--- | :--- | :--- |
-| **Password Preprocessing** | NFC 정규화 → 앞뒤 공백 제거 → UTF-8 | 제거 대상은 U+0020, U+0009, U+000A, U+000D, U+00A0, U+3000만이며 중간 공백은 유지. 플랫폼마다 trim 범위가 달라 문자를 고정한다 |
+| **Password Preprocessing** | NFC 정규화 → 앞뒤 공백 제거 → UTF-8 | 제거 대상은 U+0020, U+0009, U+000A, U+000D, U+00A0, U+3000만이며 중간 공백은 유지. 플랫폼마다 trim 범위가 달라 문자를 고정한다. 짝이 맞지 않는 서로게이트(U+D800~U+DFFF 단독)가 있으면 UTF-8 변환이 플랫폼마다 달라지므로 키를 유도하지 않고 거절한다 |
 | **Key Derivation** | PBKDF2-HMAC-SHA256 | 모던 표준 KDF |
 | **Account Salt** | 16 바이트 (128비트) | 가입 시 클라이언트가 CSPRNG로 1회 생성해 서버에 등록. 다른 기기는 prelogin으로 조회 ([api-spec](api-spec.md) 2.5) |
-| **Iteration Count** | 600,000 회 | 무차별 대입 공격(Brute-force) 방어 (OWASP 권장값) |
+| **Iteration Count** | 600,000 회 | 무차별 대입 공격(Brute-force) 방어 (OWASP 권장값). 클라이언트는 600,000~10,000,000 밖의 값을 거절한다 (SEC-002) |
 | **Master Key Size** | 32 바이트 (256비트) | 기기 밖으로 보내지 않음 |
 | **Key Separation** | HKDF-SHA256 (salt 빈 값 = RFC 5869에 따라 32바이트 0, info `keymanage-enc` / `keymanage-auth` UTF-8, 출력 32바이트) | 암호화 키와 인증 해시 분리 |
 | **Cipher Algorithm** | AES-256-GCM | 기밀성 및 무결성(AEAD) 동시 보장 |
