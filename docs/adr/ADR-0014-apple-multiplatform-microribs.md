@@ -1,0 +1,8 @@
+### ADR-0014 microRIBs 기반 Apple 멀티플랫폼(iOS·macOS) 아키텍처 및 형제 계층 구조 채택
+- 상태: 채택
+- 날짜: 2026-10-30
+- 배경: ADR-0010에서는 iOS 네이티브 구현을 확정하고 macOS 구현 방식(웹 코드 공유 vs 네이티브)의 결정을 보류하였다. 그러나 패스워드 매니저의 핵심 사용자 경험인 상단 메뉴바 상주(Status Item), 글로벌 단축키, 네이티브 키체인 연동, 클립보드 30초 자동 소각(COM-001)을 데스크톱 환경에서 완벽히 보장하고 iOS 네이티브 코드와의 시너지를 극대화하기 위해 macOS 역시 Swift 네이티브로 구현하기로 결정하였다. 또한 기존 모바일 중심 RIBs를 macOS 다중 윈도우 환경에 결합할 때 발생하는 윈도우 수명주기 및 UI 렌더링 충돌 문제를 체계적으로 해결해야 한다.
+- 결정: (1) iOS와 macOS를 하나의 Swift 멀티플랫폼 모듈(`Apps/Apple`)로 통합하여 비즈니스 로직(Domain, Data, Interactor)을 100% 공유한다. (2) 비즈니스 결정 및 화면 상태 제어 엔진으로 Swift 6 Strict Concurrency 기반의 `microRIBs`를 채택한다. (3) macOS 데스크톱 환경의 특수성을 고려하여 `LoggedInRIB` 하위에 `MenuBarRIB`(상단 메뉴바 상주)과 `MainWindowRIB`(3단 메인 창)을 동등한 형제(Sibling) 관계로 분리 배치한다. 메인 창을 닫아도 메뉴바 팝오버는 유지되나, SEC-003(5분 자동 잠금, 화면 잠금/절전 진입) 격발 시에는 `LoggedInRIB` 트리가 detach되며 메모리 내 볼트 암호화 키를 즉시 제로화(Zeroize)하고 잠금 상태로 복귀한다. (4) 화면 렌더링은 SwiftUI를 채택하며, `NSHostingController` 및 `UIHostingController`를 래핑하는 `SwiftUIViewControllable` 어댑터를 통해 RIBs 라우터에 바인딩한다. (5) 타이머 기반 비동기 워커(AutoLock, ClipboardBurn)에는 태스크 교체형 캔슬레이션 패턴을 적용하여 좀비 타이머로 인한 데이터 레이스를 차단한다.
+- 고려했던 대안: (1) Tauri v2 기반 웹 코드 공유 — 데스크톱 패키징은 용이하나 메뉴바 팝오버, 키체인 직접 접근 등 네이티브 OS 통합 비용이 증가하고 iOS 네이티브와의 아키텍처 파편화가 발생하여 기각. (2) TCA(The Composable Architecture) 전면 도입 — 선언형 상태 관리에 유리하나 대형 외부 의존성이 추가되고 기존의 정교한 Concurrency 기반 microRIBs 엔진 자산을 활용하지 못하므로 기각. (3) 단일 Window에 종속된 수직형 RIBs 트리 — macOS에서 메인 윈도우 종료 시 메뉴바 로직까지 동반 해제되는 치명적 라이프사이클 결함이 있어 기각.
+- 결과: iOS와 macOS 간 비즈니스 로직 및 테스트 코드의 80% 이상을 단일 소스로 공유하면서도, 각 플랫폼 고유의 윈도우 라이프사이클을 완벽하게 지원한다. 반면 macOS Router와 Builder를 모바일과 분리 관리해야 하는 초기 구조화 비용이 수반된다.
+- 관련: SEC-001, SEC-003, COM-001, ADR-0010, 이슈 #38
