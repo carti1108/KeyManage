@@ -26,7 +26,7 @@ build/
 *.war
 out/
 # 로컬 볼트 저장 폴더 (ADR-0007)
-data/
+/data/
 
 # iOS / macOS (Xcode / Swift / Tuist)
 DerivedData/
