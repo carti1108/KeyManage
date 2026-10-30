@@ -36,4 +36,7 @@
   2. **비교의 한계와 통제**:
      - 주 실행 에이전트(Claude Code vs Gemini Antigravity)의 역량 차이 및 플랫폼 언어/프레임워크(TypeScript/React vs Swift 6/Tuist)의 생태계 특성이 정량적 지표에 혼입될 수 있는 본질적 한계가 존재함.
      - 스펙 문서 열람 통제 및 공통 테스트 벡터(100% 비트 일치)를 기준으로 기능적 등가성을 엄격히 통제하여 협업 프로세스 차이에 따른 순효과를 분리 관측함.
+  3. **스펙의 객관성 및 SSOT(Single Source of Truth) 실증 (핵심 가치)**:
+     - 웹 구현 코드(`Apps/Web/`)를 일체 열람하지 않고 오직 스펙 문서(`vault-spec.md`, `api-spec.md`)와 공통 테스트 벡터(`crypto-test-vectors.json`)만으로 구현을 완성함으로써, 완전히 다른 AI(Gemini)와 다른 언어(Swift) 환경에서도 비트 단위 동일한 영지식 암호 결과가 재현되는지 검증한다.
+     - 재현 성공 시, 본 프로젝트의 스펙과 거버넌스가 특정 사람이나 특정 AI(Claude)에 종속되지 않은 **'플랫폼·에이전트 독립적인 진정한 SSOT(Single Source of Truth)'**임을 객관적으로 입증하는 결정적 성과를 확보한다.
 - 관련: SEC-001, SEC-002, VLT-001, ADR-0001, ADR-0009, ADR-0011, ADR-0014, ADR-0015, 이슈 #40
