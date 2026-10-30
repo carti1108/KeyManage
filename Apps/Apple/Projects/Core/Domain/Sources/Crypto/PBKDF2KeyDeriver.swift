@@ -1,4 +1,5 @@
 import Foundation
+import CommonCrypto
 
 public enum KeyDerivationError: Error, Equatable, Sendable {
 	case invalidSaltLength(Int)
@@ -18,6 +19,37 @@ public struct PBKDF2KeyDeriver: Sendable {
 		salt: Data,
 		iterations: Int = defaultIterations
 	) throws -> Data {
-		throw KeyDerivationError.derivationFailed(-1)
+		guard salt.count == expectedSaltLength else {
+			throw KeyDerivationError.invalidSaltLength(salt.count)
+		}
+		guard iterations >= minIterations && iterations <= maxIterations else {
+			throw KeyDerivationError.invalidIterationCount(iterations)
+		}
+
+		var derivedKey = Data(count: derivedKeyLength)
+
+		let status = derivedKey.withUnsafeMutableBytes { derivedKeyBytes in
+			salt.withUnsafeBytes { saltBytes in
+				password.withUnsafeBytes { passwordBytes in
+					CCKeyDerivationPBKDF(
+						CCPBKDFAlgorithm(kCCPBKDF2),
+						passwordBytes.baseAddress?.assumingMemoryBound(to: Int8.self),
+						password.count,
+						saltBytes.baseAddress?.assumingMemoryBound(to: UInt8.self),
+						salt.count,
+						CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA256),
+						UInt32(iterations),
+						derivedKeyBytes.baseAddress?.assumingMemoryBound(to: UInt8.self),
+						derivedKeyLength
+					)
+				}
+			}
+		}
+
+		guard status == kCCSuccess else {
+			throw KeyDerivationError.derivationFailed(status)
+		}
+
+		return derivedKey
 	}
 }
