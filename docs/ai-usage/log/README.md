@@ -30,3 +30,4 @@
 | 022 | 2026-10-29 | [웹 클라이언트 암호 모듈 구현 (#32)](022-web-crypto-module.md) |
 | 023 | 2026-10-29 | [API 클라이언트와 계정 인증 구현 (ADR-0013, #34)](023-web-auth-api.md) |
 | 024 | 2026-10-29 | [볼트 모델·항목 병합·동기화 구현 (#36)](024-web-vault-sync.md) |
+| 025 | 2026-10-30 | [Apple 멀티플랫폼 모듈 스캐폴딩 및 microRIBs 로컬 연동 (#38)](025-apple-client-scaffold-and-governance.md) |

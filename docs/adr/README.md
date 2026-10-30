@@ -30,6 +30,8 @@
 | [ADR-0011](ADR-0011-password-preprocessing-and-header-aad.md) | 마스터 비밀번호 전처리와 볼트 암호문 헤더 인증 | 채택 | 2026-10-29 |
 | [ADR-0012](ADR-0012-desktop-shell-tauri.md) | 데스크톱 앱 틀로 Tauri v2, 웹 클라이언트는 Vite + React 정적 앱 채택 | 채택 | 2026-10-29 |
 | [ADR-0013](ADR-0013-desktop-network-csp.md) | 데스크톱 앱의 서버 요청은 웹뷰 fetch로 보내고, CSP에는 빌드할 때 정한 서버 주소 하나만 연다 | 채택 | 2026-10-29 |
+| [ADR-0014](ADR-0014-apple-multiplatform-microribs.md) | microRIBs 기반 Apple 멀티플랫폼(iOS·macOS) 아키텍처 및 형제 계층 구조 채택 | 채택 | 2026-10-30 |
+| [ADR-0015](ADR-0015-tuist-micro-features-modularization.md) | Tuist 기반 Micro-Features 5계층 모듈화 아키텍처 채택 | 채택 | 2026-10-30 |
 
 ---
 
