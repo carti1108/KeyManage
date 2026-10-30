@@ -29,6 +29,16 @@ xcodebuild -workspace KeyManageApple.xcworkspace \
 # 4. 단위 테스트 전수 검증
 echo ">> [4/4] Apple 타깃 단위 테스트 실행..."
 xcodebuild -workspace KeyManageApple.xcworkspace \
+  -scheme KeyManageDomain \
+  -destination 'platform=macOS' \
+  test CODE_SIGNING_ALLOWED=NO -quiet
+
+xcodebuild -workspace KeyManageApple.xcworkspace \
+  -scheme KeyManageData \
+  -destination 'platform=macOS' \
+  test CODE_SIGNING_ALLOWED=NO -quiet
+
+xcodebuild -workspace KeyManageApple.xcworkspace \
   -scheme UnlockFeature \
   -destination 'platform=macOS' \
   test CODE_SIGNING_ALLOWED=NO -quiet
