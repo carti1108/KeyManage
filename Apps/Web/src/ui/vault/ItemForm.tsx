@@ -1,7 +1,7 @@
 // 항목 추가·수정 폼 (VLT-001)
 import { Wand2 } from 'lucide-react'
 import { useId, useRef, useState, type KeyboardEvent } from 'react'
-import { isWeak, scorePassword } from '../../domain/generator/passwordStrength'
+import { hasSequentialDigits, isWeak, scorePassword } from '../../domain/generator/passwordStrength'
 import { checkItemFields } from '../../domain/vault/itemList'
 import type { ItemFields, VaultItem } from '../../domain/vault/vaultData'
 import { Alert } from '../components/Alert'
@@ -83,6 +83,10 @@ export function ItemForm({ item, onSubmit, onCancel }: ItemFormProps) {
             <Alert variant="info" title="취약한 비밀번호 경고" live={false}>
               현재 비밀번호는 보안에 취약합니다. 80점 이상의 강력한 비밀번호로 재생성하세요.
             </Alert>
+          )}
+          {/* 점수와 별개로 안내만 한다. 점수가 높아도 보인다 (GEN-001) */}
+          {hasSequentialDigits(password) && (
+            <p className="mt-1 text-sm text-muted-foreground">123처럼 이어지는 숫자가 들어 있어 추측하기 쉽습니다.</p>
           )}
         </div>
         {generating ? (
