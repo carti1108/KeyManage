@@ -12,10 +12,15 @@ export function bindClipboardRetry(burner: Pick<ClipboardBurner, 'retry'>): () =
   const onVisibility = () => {
     if (document.visibilityState === 'visible') retry()
   }
+  // Safari 등은 사용자 조작이 있어야 클립보드에 쓸 수 있어 누르거나 키를 칠 때도 다시 시도한다. 비울 것이 없으면 아무것도 하지 않는다
+  const userEvents = ['pointerdown', 'keydown'] as const
+  const options = { capture: true, passive: true }
   window.addEventListener('focus', retry)
   document.addEventListener('visibilitychange', onVisibility)
+  for (const type of userEvents) window.addEventListener(type, retry, options)
   return () => {
     window.removeEventListener('focus', retry)
     document.removeEventListener('visibilitychange', onVisibility)
+    for (const type of userEvents) window.removeEventListener(type, retry, options)
   }
 }

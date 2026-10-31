@@ -37,11 +37,21 @@ describe('클립보드 소각을 세션과 브라우저에 연결 (COM-001)', ()
     stop()
   })
 
+  it('Safari처럼 사용자 조작이 있어야 쓸 수 있는 브라우저를 위해 누르거나 키를 칠 때도 다시 비운다', () => {
+    const { burner, stop } = setup()
+
+    window.dispatchEvent(new Event('pointerdown'))
+    window.dispatchEvent(new Event('keydown'))
+
+    expect(burner.retry).toHaveBeenCalledTimes(2)
+    stop()
+  })
+
   it('연결을 끊으면 더는 반응하지 않는다', () => {
     const { burner, stop, lockListeners } = setup()
 
     stop()
-    window.dispatchEvent(new Event('focus'))
+    for (const type of ['focus', 'pointerdown', 'keydown']) window.dispatchEvent(new Event(type))
 
     expect(burner.retry).not.toHaveBeenCalled()
     expect(lockListeners.size).toBe(0)
