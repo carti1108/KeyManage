@@ -45,19 +45,25 @@ function uniformIndex(n: number, random: RandomSource): number {
   }
 }
 
+/** 생성을 막을 문제가 있으면 그 이유. 길이 문제를 먼저 알린다 */
+export function checkGeneratorOptions(options: GeneratorOptions): InvalidGeneratorOptionsError['reason'] | null {
+  const { length } = options
+  if (!Number.isInteger(length) || length < MIN_GENERATED_LENGTH || length > MAX_GENERATED_LENGTH) return 'length'
+  if (!options.uppercase && !options.lowercase && !options.digits && !options.symbols) return 'noCharset'
+  return null
+}
+
 /** @throws InvalidGeneratorOptionsError */
 export function generatePassword(options: GeneratorOptions, random: RandomSource = cryptoRandom): string {
+  const problem = checkGeneratorOptions(options)
+  if (problem) throw new InvalidGeneratorOptionsError(problem)
   const { length } = options
-  if (!Number.isInteger(length) || length < MIN_GENERATED_LENGTH || length > MAX_GENERATED_LENGTH) {
-    throw new InvalidGeneratorOptionsError('length')
-  }
   const charsets = [
     options.uppercase && UPPERCASE,
     options.lowercase && LOWERCASE,
     options.digits && DIGITS,
     options.symbols && SYMBOLS,
   ].filter((set): set is string => typeof set === 'string')
-  if (charsets.length === 0) throw new InvalidGeneratorOptionsError('noCharset')
 
   // 문자군마다 한 글자씩 강제로 넣으면 위치가 예측되므로, 전체 풀에서 균등하게 뽑고 빠진 문자군이 있으면 통째로 다시 뽑는다
   const pool = charsets.join('')
