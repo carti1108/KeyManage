@@ -4,7 +4,7 @@ import { PENDING_SYNC_RETRY_MS, startPendingSync } from './pendingSyncWiring'
 function setup(pending = true) {
   const session = {
     retryPendingSync: vi.fn(async () => {}),
-    state: () => ({ status: 'unlocked', pendingSync: pending }),
+    hasPendingSync: () => pending,
   }
   const stop = startPendingSync(session)
   return { session, stop }
@@ -41,7 +41,7 @@ describe('동기화 대기 재전송을 브라우저에 연결 (VLT-001)', () =>
     stop()
   })
 
-  it('대기 중이면 탭을 닫거나 새로고침할 때 브라우저 떠남 확인을 띄운다', () => {
+  it('대기 중이면(잠겼거나 세션 만료 뒤 남은 것 포함) 탭을 닫거나 새로고침할 때 브라우저 떠남 확인을 띄운다', () => {
     const { stop } = setup(true)
 
     expect(leavePage().defaultPrevented).toBe(true)

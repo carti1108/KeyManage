@@ -39,7 +39,11 @@ export function SessionRoot({ session, clipboard, pageHidden }: SessionRootProps
       setSyncError(null)
       refresh()
     })
-    const offUnlock = session.onUnlock(refresh)
+    const offUnlock = session.onUnlock(() => {
+      // 잠금 화면에서 띄운 로그아웃 확인이 볼트 화면에 남지 않게 한다
+      setConfirmingLogout(false)
+      refresh()
+    })
     const offSync = session.onSyncChange((error) => {
       refresh()
       if (error === null) {
@@ -70,6 +74,26 @@ export function SessionRoot({ session, clipboard, pageHidden }: SessionRootProps
     } catch {
       // 서버 토큰 폐기만 실패했다. 이 기기는 이미 로그아웃됐고 서버 토큰은 만료(30일)를 기다린다 (SEC-002)
     }
+  }
+
+  /** 올리지 못한 변경 사항이 있으면 사라진다고 먼저 알린다 (VLT-001) */
+  function requestLogout(pendingSync: boolean) {
+    if (pendingSync) setConfirmingLogout(true)
+    else void logout()
+  }
+
+  function logoutConfirm() {
+    if (!confirmingLogout) return null
+    return (
+      <ConfirmPrompt
+        title={PENDING_LOGOUT_CONFIRM.title}
+        body={PENDING_LOGOUT_CONFIRM.body}
+        confirmLabel={PENDING_LOGOUT_CONFIRM.confirm}
+        cancelLabel={PENDING_LOGOUT_CONFIRM.cancel}
+        onConfirm={() => void logout()}
+        onCancel={() => setConfirmingLogout(false)}
+      />
+    )
   }
 
   return (
@@ -119,7 +143,8 @@ export function SessionRoot({ session, clipboard, pageHidden }: SessionRootProps
             }
             refresh()
           }}
-          onLogout={logout}
+          onLogout={async () => requestLogout(state.pendingSync)}
+          logoutConfirm={logoutConfirm()}
         />
       )
     }
@@ -130,29 +155,22 @@ export function SessionRoot({ session, clipboard, pageHidden }: SessionRootProps
         readOnly={state.vault.readOnly}
         offline={offline || state.pendingSync}
         onLock={() => session.lock()}
-        // 올리지 못한 변경 사항이 있으면 사라진다고 먼저 알린다 (VLT-001)
-        onLogout={() => (state.pendingSync ? setConfirmingLogout(true) : void logout())}
+        onLogout={() => requestLogout(state.pendingSync)}
       >
-        {confirmingLogout && (
-          <ConfirmPrompt
-            title={PENDING_LOGOUT_CONFIRM.title}
-            body={PENDING_LOGOUT_CONFIRM.body}
-            confirmLabel={PENDING_LOGOUT_CONFIRM.confirm}
-            cancelLabel={PENDING_LOGOUT_CONFIRM.cancel}
-            onConfirm={() => void logout()}
-            onCancel={() => setConfirmingLogout(false)}
-          />
-        )}
+        {logoutConfirm()}
         {syncError && <Alert title={syncError.title}>{syncError.body}</Alert>}
         <ClipboardNotice clipboard={clipboard} />
         <VaultScreen
           vault={state.vault}
           clipboard={clipboard}
           onSave={async (data) => {
-            await session.save(data)
-            setSyncError(null)
-            // 저장은 잠금 알림을 보내지 않으므로 직접 다시 읽는다
-            refresh()
+            try {
+              await session.save(data)
+              setSyncError(null)
+            } finally {
+              // 저장은 잠금 알림을 보내지 않으므로 직접 다시 읽는다. 거절돼도 변경 사항은 먼저 반영돼 있다
+              refresh()
+            }
           }}
         />
       </VaultHomeScreen>

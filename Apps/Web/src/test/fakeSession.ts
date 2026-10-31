@@ -24,12 +24,16 @@ export function createFakeSession(initial: SessionState = { status: 'signedOut' 
     },
     closeVault() {
       if (current.status !== 'unlocked') return
-      current = { status: 'locked', email: current.email }
+      current = { status: 'locked', email: current.email, pendingSync: current.pendingSync }
       for (const listener of lockListeners) listener()
     },
     /** 동기화 대기 표시를 바꾼다. 실제 세션처럼 알림은 보내지 않는다 */
     setPending(pendingSync: boolean) {
-      if (current.status === 'unlocked') current = { ...current, pendingSync }
+      if (current.status !== 'signedOut') current = { ...current, pendingSync }
+    },
+    /** 실제 세션처럼 저장 내용을 먼저 반영하고 대기로 둔다. 그 뒤 분명한 거절을 던지는 저장을 흉내 낼 때 쓴다 */
+    commitPending(data: VaultData) {
+      if (current.status === 'unlocked') current = { ...current, vault: { ...current.vault, data }, pendingSync: true }
     },
     /** 대기 내용 재전송 결과를 알린다. null이면 모두 올렸다 */
     emitSync(error: unknown) {

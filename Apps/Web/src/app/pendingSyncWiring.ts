@@ -4,17 +4,15 @@ import type { VaultSession } from '../domain/session/vaultSession'
 /** 대기 내용 재전송 간격 (VLT-001) */
 export const PENDING_SYNC_RETRY_MS = 30_000
 
-export type PendingSyncSession = Pick<VaultSession, 'retryPendingSync'> & {
-  state(): { readonly status: string; readonly pendingSync?: boolean }
-}
+export type PendingSyncSession = Pick<VaultSession, 'retryPendingSync' | 'hasPendingSync'>
 
 /** @returns 연결 해제 함수 */
 export function startPendingSync(session: PendingSyncSession): () => void {
-  // 세션이 대기가 없거나 되돌림 확인 전이면 요청 없이 끝내고, 결과는 onSyncChange로 알린다
+  // 대기가 없거나 분명한 거절 뒤 멈춘 상태면 세션이 요청 없이 끝낸다. 결과는 onSyncChange로 알린다
   const retry = () => void session.retryPendingSync()
   const onBeforeUnload = (event: BeforeUnloadEvent) => {
-    const state = session.state()
-    if (state.status !== 'unlocked' || state.pendingSync !== true) return
+    // 잠겼거나 세션 만료로 로그아웃된 뒤 남은 대기 내용도 탭을 닫으면 사라진다
+    if (!session.hasPendingSync()) return
     // 브라우저 기본 떠남 확인을 띄운다. 문구는 브라우저가 정한다
     event.preventDefault()
     event.returnValue = ''
