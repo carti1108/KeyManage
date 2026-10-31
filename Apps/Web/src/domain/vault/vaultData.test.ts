@@ -138,6 +138,16 @@ describe('항목 추가·수정·삭제', () => {
     expect(updateItem(data, 'a', { password: undefined, notes: 'n' }, T1).items[0]).toMatchObject({ password: 'pw-1', notes: 'n' })
   })
 
+  it('선택 필드에 null을 주면 필드를 없앤다. 빈 문자열로 남기지 않는다 (vault-spec 4장)', () => {
+    const data = vaultWith({ id: 'a', ...fields, createdAt: TS, updatedAt: TS, totp: 'KEEP' })
+
+    const item = updateItem(data, 'a', { url: null, notes: null }, T1).items[0]
+
+    expect(item).not.toHaveProperty('url')
+    expect(item).not.toHaveProperty('notes')
+    expect(item).toMatchObject({ serviceName: 'GitHub', totp: 'KEEP' })
+  })
+
   it('이미 있는 id로는 추가하지 않는다', () => {
     const data = addItem(emptyVault(T0), fields, T0, 'a')
 
