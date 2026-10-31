@@ -207,7 +207,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            Apps/Apple/.build
+            Apps/Apple/Tuist/.build
             ~/.cache/tuist
           key: tuist-${{ runner.os }}-${{ hashFiles('Apps/Apple/Tuist/Package.resolved', 'Apps/Apple/Tuist/Package.swift') }}
 

@@ -36,8 +36,18 @@ bash "${ROOT_DIR}/Scripts/verify-tdd-integrity.sh"
 # 4. Tuist 외부 의존성 설치 및 프로젝트 생성
 echo ">> [4/6] Tuist 의존성 확인 및 프로젝트 생성..."
 cd "${APPLE_DIR}"
-if [ ! -d ".build/checkouts" ]; then
+if [ ! -d "Tuist/.build/checkouts" ]; then
   "${TUIST_BIN}" install
+fi
+# Xcode 16.4(Swift 6.1 프로덕션 컴파일러)에서 거부되는 미사용 실험 플래그(IsolatedDeinit) 제거
+if [ -f "Tuist/.build/checkouts/MicroRIBs/Package.swift" ]; then
+  chmod u+w "Tuist/.build/checkouts/MicroRIBs/Package.swift"
+  python3 -c '
+p = "Tuist/.build/checkouts/MicroRIBs/Package.swift"
+with open(p, encoding="utf-8") as f: c = f.read()
+c = c.replace(".enableExperimentalFeature(\"IsolatedDeinit\")", "")
+with open(p, "w", encoding="utf-8") as f: f.write(c)
+'
 fi
 "${TUIST_BIN}" generate --no-open
 
