@@ -14,20 +14,24 @@ const PASSWORD = 'integration-master-password'
 // 기기마다 따로 만든다. 되돌림 감지 기준도 기기마다 따로 둔다
 const device = (): VaultSession => createServices(API).session
 
-function unlockedVault(session: VaultSession): VaultData {
+function unlocked(session: VaultSession) {
   const state = session.state()
   if (state.status !== 'unlocked') throw new Error(`볼트가 열려 있지 않음: ${state.status}`)
-  return state.vault.data
+  return state.vault
 }
+
+const unlockedVault = (session: VaultSession): VaultData => unlocked(session).data
 
 const names = (session: VaultSession) => activeItems(unlockedVault(session)).map((item) => item.serviceName).sort()
 
 const item = (serviceName: string) => ({ serviceName, username: `${serviceName.toLowerCase()}@me`, password: `${serviceName}-pw` })
 
-// 다른 기기의 변경은 잠금 해제할 때 서버에서 다시 받아 온다
+// 다른 기기의 변경은 잠금 해제할 때 서버에서 다시 받아 온다.
+// 받아 오지 못하면 저장해 둔 볼트로 조용히 열리므로, 서버에서 받았는지 확인한다
 async function reopen(session: VaultSession) {
   session.lock()
-  return session.unlock(PASSWORD)
+  const { offline } = await session.unlock(PASSWORD)
+  expect(offline).toBe(false)
 }
 
 describe('웹 클라이언트 ↔ 백엔드 통합', () => {
@@ -41,6 +45,7 @@ describe('웹 클라이언트 ↔ 백엔드 통합', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: 'probe@example.com' }),
     }).catch(() => null)
+    if (response?.status === 429) throw new Error('인증 API 시도 제한(IP당 1분 30회)에 걸림. 1분 뒤 다시 돌린다')
     if (!response?.ok) throw new Error(`백엔드(${API})에 연결할 수 없음. Back에서 ./gradlew :app:bootRun으로 먼저 띄운다`)
   })
 
@@ -65,10 +70,13 @@ describe('웹 클라이언트 ↔ 백엔드 통합', () => {
     const laptopEdit = addItem(unlockedVault(laptop), item('Apple'), new Date())
     const phoneEdit = addItem(unlockedVault(phone), item('Naver'), new Date())
 
+    const before = unlocked(phone).revision
     await laptop.save(laptopEdit)
     // 휴대폰은 서버 revision이 앞서 409를 받고, 최신 볼트와 병합해 다시 저장한다
     await phone.save(phoneEdit)
 
+    // 충돌 없이 저장됐다면 before + 1이다. 노트북 저장 뒤에 병합해 저장했으므로 before + 2다
+    expect(unlocked(phone).revision).toBe(before + 2)
     expect(names(phone)).toEqual(['Apple', 'GitHub', 'Naver'])
     await reopen(laptop)
     expect(names(laptop)).toEqual(['Apple', 'GitHub', 'Naver'])
@@ -81,7 +89,7 @@ describe('웹 클라이언트 ↔ 백엔드 통합', () => {
     await reopen(phone)
 
     expect(names(phone)).toEqual(['Apple', 'Naver'])
-    // 삭제 표시만 남아 병합해도 되살아나지 않는다
+    // 항목을 지우지 않고 삭제 표시를 남겨 서버를 거쳐 전달한다
     expect(unlockedVault(phone).items.find((entry) => entry.id === github.id)).toMatchObject({ deletedAt: expect.any(String) })
   })
 
