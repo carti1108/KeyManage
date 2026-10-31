@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isWeak, scorePassword } from './passwordStrength'
+import { hasSequentialDigits, isWeak, scorePassword } from './passwordStrength'
 
 describe('scorePassword (GEN-001)', () => {
   it.each([
@@ -25,8 +25,22 @@ describe('scorePassword (GEN-001)', () => {
     expect(scorePassword('🔑🔑🔑🔑')).toBe(11)
   })
 
+  it('이어지는 숫자가 있어도 점수는 바꾸지 않는다', () => {
+    expect(scorePassword('123456')).toBe(19)
+  })
+
   it('60점 미만이면 취약하다', () => {
     expect(isWeak(59)).toBe(true)
     expect(isWeak(60)).toBe(false)
+  })
+})
+
+describe('hasSequentialDigits (GEN-001)', () => {
+  it.each(['123', 'a123b', '456', '9876', '3210', 'xx0123', 'pw789!'])('%s는 이어지는 숫자가 있다', (password) => {
+    expect(hasSequentialDigits(password)).toBe(true)
+  })
+
+  it.each(['', '12', '890', '901', '1a2b3', '135', '1122', '121', 'abc'])('%s는 이어지는 숫자가 없다', (password) => {
+    expect(hasSequentialDigits(password)).toBe(false)
   })
 })
