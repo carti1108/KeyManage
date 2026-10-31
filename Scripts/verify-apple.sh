@@ -11,10 +11,8 @@ APPLE_DIR="${ROOT_DIR}/Apps/Apple"
 
 if [ -n "${TUIST_BIN:-}" ] && [ -x "${TUIST_BIN}" ]; then
   :
-elif command -v mise >/dev/null 2>&1 && mise which tuist >/dev/null 2>&1; then
-  TUIST_BIN="$(mise which tuist)"
-elif [ -x "/Users/carti/.local/share/mise/installs/tuist/4.191.5/tuist" ]; then
-  TUIST_BIN="/Users/carti/.local/share/mise/installs/tuist/4.191.5/tuist"
+elif [ -x "${HOME}/.local/share/mise/installs/tuist/4.191.5/tuist" ]; then
+  TUIST_BIN="${HOME}/.local/share/mise/installs/tuist/4.191.5/tuist"
 elif command -v tuist >/dev/null 2>&1; then
   TUIST_BIN="$(command -v tuist)"
 else
@@ -38,7 +36,6 @@ bash "${ROOT_DIR}/Scripts/verify-tdd-integrity.sh"
 # 4. Tuist 프로젝트 생성
 echo ">> [4/6] Tuist 프로젝트 생성..."
 cd "${APPLE_DIR}"
-"${TUIST_BIN}" install
 "${TUIST_BIN}" generate --no-open
 
 # 5. macOS 빌드 검증 (Swift 6 Strict Concurrency 포함)
