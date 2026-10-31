@@ -1,6 +1,15 @@
 {
-  "originHash" : "175fb2b81c19bcaaaa7c06c1b36e4f8f054ef10461432f63689e8bce5d736c0e",
+  "originHash" : "7891a505d3c58127224b42da27f665f00c1fdbb8443294473c941fc684eea842",
   "pins" : [
+    {
+      "identity" : "microribs",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/carti1108/MicroRIBs.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "ac3d8c7290fa5b598f5d05add97a0d06477d0c7d"
+      }
+    },
     {
       "identity" : "swift-async-algorithms",
       "kind" : "remoteSourceControl",
