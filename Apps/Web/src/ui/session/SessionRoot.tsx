@@ -6,16 +6,20 @@ import { AuthScreen } from '../screens/AuthScreen'
 import { PrivacyCover } from '../screens/PrivacyCover'
 import { UnlockScreen } from '../screens/UnlockScreen'
 import { VaultHomeScreen } from '../screens/VaultHomeScreen'
+import type { ClipboardPort } from '../clipboard/clipboardPort'
+import { ClipboardNotice } from '../clipboard/ClipboardNotice'
 import { VaultScreen } from '../vault/VaultScreen'
 import type { RollbackOption, SessionPort } from './sessionPort'
 
 export interface SessionRootProps {
   session: SessionPort
+  /** 복사하고 30초 뒤 비우는 클립보드 (COM-001) */
+  clipboard: ClipboardPort
   /** 탭이 백그라운드로 감 */
   pageHidden: boolean
 }
 
-export function SessionRoot({ session, pageHidden }: SessionRootProps) {
+export function SessionRoot({ session, clipboard, pageHidden }: SessionRootProps) {
   // 잠기면 새 상태로 바꿔 평문 볼트를 들고 있던 이전 상태를 놓는다
   const [state, setState] = useState(() => session.state())
   const [notice, setNotice] = useState<string | null>(null)
@@ -103,8 +107,10 @@ export function SessionRoot({ session, pageHidden }: SessionRootProps) {
         onLock={() => session.lock()}
         onLogout={() => void logout()}
       >
+        <ClipboardNotice clipboard={clipboard} />
         <VaultScreen
           vault={state.vault}
+          clipboard={clipboard}
           onSave={async (data) => {
             await session.save(data)
             // 저장은 잠금 알림을 보내지 않으므로 직접 다시 읽는다

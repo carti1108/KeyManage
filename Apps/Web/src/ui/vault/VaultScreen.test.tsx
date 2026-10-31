@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { addItem, deleteItem, emptyVault, type VaultData } from '../../domain/vault/vaultData'
 import { VaultTooLargeError, type SyncedVault } from '../../domain/vault/vaultSync'
+import { createFakeClipboard } from '../../test/fakeClipboard'
 import { VaultScreen } from './VaultScreen'
 
 const NOW = new Date('2026-10-31T00:00:00Z')
@@ -16,11 +17,22 @@ function sampleData(): VaultData {
 }
 
 // 실제 화면처럼 저장이 끝나면 새 볼트를 내려 주는 부모
-function Harness({ initial, readOnly = false, onSave }: { initial: VaultData; readOnly?: boolean; onSave: (data: VaultData) => Promise<void> }) {
+function Harness({
+  initial,
+  readOnly = false,
+  onSave,
+  clipboard,
+}: {
+  initial: VaultData
+  readOnly?: boolean
+  onSave: (data: VaultData) => Promise<void>
+  clipboard: ReturnType<typeof createFakeClipboard>['clipboard']
+}) {
   const [vault, setVault] = useState<SyncedVault>({ revision: 1, data: initial, readOnly, payload: null })
   return (
     <VaultScreen
       vault={vault}
+      clipboard={clipboard}
       now={() => NOW}
       onSave={async (data) => {
         await onSave(data)
@@ -32,16 +44,20 @@ function Harness({ initial, readOnly = false, onSave }: { initial: VaultData; re
 
 function setup(options: { initial?: VaultData; readOnly?: boolean } = {}) {
   const onSave = vi.fn(async (_data: VaultData) => {})
-  render(<Harness initial={options.initial ?? sampleData()} readOnly={options.readOnly} onSave={onSave} />)
-  return { onSave, savedData: () => onSave.mock.lastCall![0] }
+  const fake = createFakeClipboard()
+  render(<Harness initial={options.initial ?? sampleData()} readOnly={options.readOnly} onSave={onSave} clipboard={fake.clipboard} />)
+  return { onSave, savedData: () => onSave.mock.lastCall![0], fake }
 }
 
 function type(label: string, value: string) {
   fireEvent.change(screen.getByLabelText(label), { target: { value } })
 }
 
+// 목록의 항목 카드. 옆의 "… 비밀번호 복사" 버튼과 구분한다
+const cardName = (name: string) => (accessibleName: string) => accessibleName.startsWith(name) && !accessibleName.endsWith('복사')
+
 function openItem(name: string) {
-  fireEvent.click(screen.getByRole('button', { name: new RegExp(name) }))
+  fireEvent.click(screen.getByRole('button', { name: cardName(name) }))
 }
 
 describe('VaultScreen', () => {
@@ -64,8 +80,8 @@ describe('VaultScreen', () => {
 
       type('항목 검색', 'git')
 
-      expect(screen.queryByRole('button', { name: /Apple/ })).not.toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /GitHub/ })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: cardName('Apple') })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: cardName('GitHub') })).toBeInTheDocument()
     })
 
     it('항목이 없으면 안내한다', () => {
@@ -105,7 +121,43 @@ describe('VaultScreen', () => {
       fireEvent.click(screen.getByRole('button', { name: '목록으로' }))
 
       expect(screen.getByRole('list', { name: '항목 목록' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /GitHub/ })).toHaveFocus()
+      expect(screen.getByRole('button', { name: cardName('GitHub') })).toHaveFocus()
+    })
+  })
+
+  describe('복사 (COM-001)', () => {
+    it('상세에서 아이디와 비밀번호를 복사한다', async () => {
+      const { fake } = setup()
+      openItem('GitHub')
+
+      fireEvent.click(screen.getByRole('button', { name: '아이디 복사' }))
+      fireEvent.click(screen.getByRole('button', { name: '비밀번호 복사' }))
+
+      await vi.waitFor(() => expect(fake.writes).toEqual(['octo', 'gh-secret']))
+    })
+
+    it('목록에서 상세를 열지 않고 비밀번호를 복사한다', async () => {
+      const { fake } = setup()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Apple 비밀번호 복사' }))
+
+      await vi.waitFor(() => expect(fake.writes).toEqual(['apple-secret']))
+      expect(screen.getByRole('list', { name: '항목 목록' })).toBeInTheDocument()
+    })
+
+    it('비밀번호가 없는 항목은 목록에 복사 버튼이 없다', () => {
+      setup({ initial: addItem(emptyVault(NOW), { serviceName: 'Wifi', username: '', password: '' }, NOW, 'w') })
+
+      expect(screen.queryByRole('button', { name: 'Wifi 비밀번호 복사' })).not.toBeInTheDocument()
+    })
+
+    it('복사하지 못하면 정책 문구를 보인다', async () => {
+      const { fake } = setup()
+      fake.writer.write.mockRejectedValueOnce(new Error('문서에 포커스가 없음'))
+
+      fireEvent.click(screen.getByRole('button', { name: 'Apple 비밀번호 복사' }))
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('클립보드에 복사하지 못했습니다.')
     })
   })
 
@@ -362,7 +414,7 @@ describe('VaultScreen', () => {
       fireEvent.click(within(dialog).getByRole('button', { name: '삭제' }))
 
       expect(await screen.findByRole('list', { name: '항목 목록' })).toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: /GitHub/ })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: cardName('GitHub') })).not.toBeInTheDocument()
       expect(savedData().items.find((item) => item.id === 'gh')?.deletedAt).toBeDefined()
     })
 
@@ -407,12 +459,12 @@ describe('VaultScreen', () => {
 
   it('보고 있던 항목이 다른 기기에서 지워지면 목록으로 돌아간다', () => {
     const initial = sampleData()
-    const { rerender } = render(<VaultScreen vault={{ revision: 1, data: initial, readOnly: false, payload: null }} onSave={vi.fn()} />)
+    const { rerender } = render(<VaultScreen vault={{ revision: 1, data: initial, readOnly: false, payload: null }} onSave={vi.fn()} clipboard={createFakeClipboard().clipboard} />)
     openItem('GitHub')
 
     // 동기화는 항목을 빼지 않고 삭제 표시만 남긴다
     const synced = deleteItem(initial, 'gh', NOW)
-    rerender(<VaultScreen vault={{ revision: 2, data: synced, readOnly: false, payload: null }} onSave={vi.fn()} />)
+    rerender(<VaultScreen vault={{ revision: 2, data: synced, readOnly: false, payload: null }} onSave={vi.fn()} clipboard={createFakeClipboard().clipboard} />)
 
     expect(screen.getByRole('list', { name: '항목 목록' })).toBeInTheDocument()
   })

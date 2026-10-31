@@ -1,5 +1,5 @@
 // 항목 목록과 검색
-import { Plus } from 'lucide-react'
+import { Copy, Plus } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { listItems } from '../../domain/vault/itemList'
 import type { VaultData } from '../../domain/vault/vaultData'
@@ -14,9 +14,10 @@ export interface ItemListProps {
   focusId?: string | null
   onOpen: (id: string) => void
   onAdd: () => void
+  onCopy: (text: string) => void
 }
 
-export function ItemList({ data, readOnly, focusId = null, onOpen, onAdd }: ItemListProps) {
+export function ItemList({ data, readOnly, focusId = null, onOpen, onAdd, onCopy }: ItemListProps) {
   const [query, setQuery] = useState('')
   const returnTarget = useRef<HTMLButtonElement>(null)
 
@@ -48,11 +49,27 @@ export function ItemList({ data, readOnly, focusId = null, onOpen, onAdd }: Item
       ) : (
         <ul aria-label="항목 목록" className="flex flex-col gap-2">
           {items.map((item) => (
-            <li key={item.id}>
-              <Card interactive padding="sm" onClick={() => onOpen(item.id)} ref={item.id === focusId ? returnTarget : undefined}>
+            // 누를 수 있는 카드(button) 안에는 버튼을 둘 수 없어 복사 버튼은 카드 옆에 둔다
+            <li key={item.id} className="flex items-center gap-2">
+              <Card
+                interactive
+                padding="sm"
+                className="min-w-0 flex-1"
+                onClick={() => onOpen(item.id)}
+                ref={item.id === focusId ? returnTarget : undefined}
+              >
                 <span className="block font-medium">{item.serviceName}</span>
                 {item.username && <span className="block truncate text-sm text-muted-foreground">{item.username}</span>}
               </Card>
+              {item.password && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`${item.serviceName} 비밀번호 복사`}
+                  icon={<Copy aria-hidden className="size-4" />}
+                  onClick={() => onCopy(item.password!)}
+                />
+              )}
             </li>
           ))}
         </ul>
