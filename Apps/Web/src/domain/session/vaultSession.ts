@@ -4,9 +4,9 @@ import { normalizeEmail, type AuthResult, type AuthService, type UnlockKdf } fro
 import { fromBase64 } from '../crypto/base64'
 import { deriveKeys } from '../crypto/keys'
 import { VaultDecryptError, openVault, type EncryptedVaultPayload } from '../crypto/vaultCipher'
-import { NetworkError } from '../server/serverErrors'
+import { ServerError } from '../server/serverErrors'
 import { isReadOnly, parseVaultData, type VaultData } from '../vault/vaultData'
-import type { SyncedVault, VaultSync } from '../vault/vaultSync'
+import { RevisionRollbackError, type RevisionMemory, type SyncedVault, type VaultSync } from '../vault/vaultSync'
 
 /** 마스터 비밀번호가 틀려 저장해 둔 볼트를 열 수 없음 */
 export class WrongMasterPasswordError extends Error {
@@ -16,11 +16,27 @@ export class WrongMasterPasswordError extends Error {
   }
 }
 
-/** 지금 상태에서는 할 수 없는 동작 (예: 잠긴 상태에서 저장) */
+/** 지금 상태에서는 할 수 없는 동작이거나, 기다리는 사이 잠금·로그아웃으로 취소된 작업 */
 export class SessionStateError extends Error {
   constructor(message: string) {
     super(message)
     this.name = 'SessionStateError'
+  }
+}
+
+/** 세션 토큰이 만료·폐기됨. 로그아웃 상태로 바뀌었으니 다시 로그인해야 한다 (SEC-002) */
+export class SessionExpiredError extends Error {
+  constructor() {
+    super('세션이 만료됨')
+    this.name = 'SessionExpiredError'
+  }
+}
+
+/** 가입은 됐지만 빈 볼트를 저장하지 못함. 다시 가입하지 말고 로그인하면 그때 볼트를 만든다 (SEC-003) */
+export class VaultSetupError extends Error {
+  constructor(cause: unknown) {
+    super('가입 뒤 볼트 준비 실패', { cause })
+    this.name = 'VaultSetupError'
   }
 }
 
@@ -32,6 +48,8 @@ export type SessionState =
 export interface VaultSessionDeps {
   readonly auth: AuthService
   readonly vaultSyncFor: (accessToken: string, encryptionKey: CryptoKey) => VaultSync
+  /** vaultSyncFor가 쓰는 것과 같은 기억. 로그아웃·계정 전환 때 지운다 */
+  readonly revisionMemory: RevisionMemory
 }
 
 // 잠겨도 남는 값. 비밀이 아니거나(KDF 값) 암호화돼 있다(볼트)
@@ -49,14 +67,26 @@ interface Unlocked {
   readonly vault: SyncedVault
 }
 
-export function createVaultSession({ auth, vaultSyncFor }: VaultSessionDeps) {
+interface RollbackOption {
+  /** 서버 볼트 되돌림 경고를 사용자가 확인했을 때만 true (VLT-001) */
+  readonly acceptRollback?: boolean
+}
+
+export function createVaultSession({ auth, vaultSyncFor, revisionMemory }: VaultSessionDeps) {
   let account: Account | null = null
   let unlocked: Unlocked | null = null
+  let lastEmail: string | null = null
+  // 잠금·로그아웃·새 로그인마다 올린다. 기다리는 사이 값이 바뀐 작업은 결과를 버린다
+  let epoch = 0
   const lockListeners = new Set<() => void>()
   const unlockListeners = new Set<() => void>()
 
   function notify(listeners: Set<() => void>) {
     for (const listener of listeners) listener()
+  }
+
+  function ensureCurrent(startedAt: number) {
+    if (epoch !== startedAt) throw new SessionStateError('기다리는 사이 잠금 또는 로그아웃되어 작업을 취소함')
   }
 
   function open(email: string, accessToken: string, kdf: UnlockKdf, sync: VaultSync, vault: SyncedVault) {
@@ -68,17 +98,34 @@ export function createVaultSession({ auth, vaultSyncFor }: VaultSessionDeps) {
     if (wasLocked) notify(unlockListeners)
   }
 
-  async function signIn(email: string, result: AuthResult) {
-    const sync = vaultSyncFor(result.session.accessToken, result.encryptionKey)
-    let vault = await sync.load()
+  function clear() {
+    const wasUnlocked = unlocked !== null
+    epoch += 1
+    account = null
+    unlocked = null
+    if (wasUnlocked) notify(lockListeners)
+  }
+
+  async function prepareVault(sync: VaultSync, options: RollbackOption): Promise<SyncedVault> {
+    const vault = await sync.load(options)
     // 볼트가 없으면(가입 직후, 가입 때 저장 실패) 열기 전에 빈 볼트를 저장한다. 잠금 해제 확인에 필요하다 (SEC-003)
-    if (vault.payload === null) vault = await sync.save(vault, vault.data)
+    return vault.payload === null ? sync.save(vault, vault.data) : vault
+  }
+
+  async function signIn(email: string, startedAt: number, result: AuthResult, options: RollbackOption) {
+    ensureCurrent(startedAt)
+    const sync = vaultSyncFor(result.session.accessToken, result.encryptionKey)
+    const vault = await prepareVault(sync, options)
+    ensureCurrent(startedAt)
     open(email, result.session.accessToken, result.kdf, sync, vault)
   }
 
-  function requireUnlocked(): { account: Account; unlocked: Unlocked } {
-    if (account === null || unlocked === null) throw new SessionStateError('잠금 해제 상태가 아님')
-    return { account, unlocked }
+  function beginSignIn(email: string): number {
+    clear()
+    // 다른 계정의 revision을 기준으로 되돌림을 판정하지 않도록 계정이 바뀌면 지운다
+    if (lastEmail !== email) revisionMemory.reset(0)
+    lastEmail = email
+    return epoch
   }
 
   return {
@@ -88,16 +135,29 @@ export function createVaultSession({ auth, vaultSyncFor }: VaultSessionDeps) {
       return { status: 'unlocked', email: account.email, vault: unlocked.vault }
     },
 
+    /** @throws VaultSetupError 가입은 됐지만 빈 볼트를 저장하지 못했을 때 */
     async register(email: string, password: string): Promise<void> {
-      await signIn(normalizeEmail(email), await auth.register(email, password))
+      const normalized = normalizeEmail(email)
+      const startedAt = beginSignIn(normalized)
+      const result = await auth.register(email, password)
+      try {
+        await signIn(normalized, startedAt, result, {})
+      } catch (error) {
+        if (error instanceof SessionStateError) throw error
+        throw new VaultSetupError(error)
+      }
     },
 
-    async login(email: string, password: string): Promise<void> {
-      await signIn(normalizeEmail(email), await auth.login(email, password))
+    /** @throws RevisionRollbackError 서버 볼트가 되돌아감. 사용자가 확인하면 acceptRollback으로 다시 부른다 */
+    async login(email: string, password: string, options: RollbackOption = {}): Promise<void> {
+      const normalized = normalizeEmail(email)
+      const startedAt = beginSignIn(normalized)
+      await signIn(normalized, startedAt, await auth.login(email, password), options)
     },
 
-    /** 키와 평문 볼트를 버린다. 잠금 해제 상태일 때만 알림을 보낸다 */
+    /** 키와 평문 볼트를 버린다. 진행 중인 잠금 해제·저장도 취소한다 */
     lock(): void {
+      epoch += 1
       if (unlocked === null) return
       unlocked = null
       notify(lockListeners)
@@ -105,15 +165,15 @@ export function createVaultSession({ auth, vaultSyncFor }: VaultSessionDeps) {
 
     /**
      * 저장해 둔 암호화 볼트를 복호화해 비밀번호를 확인하므로 오프라인에서도 동작한다.
-     * 확인 뒤에는 바로 서버 볼트를 받아 오고, 서버에 닿지 못하면 저장해 둔 볼트로 연다
-     * @param options.acceptRollback 서버 볼트 되돌림 경고를 사용자가 확인했을 때만 true (VLT-001)
+     * 확인 뒤 바로 서버 볼트를 받아 오며, 받아 오지 못하면(네트워크·서버 오류) 저장해 둔 볼트로 연다
      * @returns offline: 서버 볼트를 받아 오지 못했는지
-     * @throws WrongMasterPasswordError, SessionStateError, RevisionRollbackError(잠긴 상태 유지)
+     * @throws WrongMasterPasswordError, SessionExpiredError(로그아웃됨), RevisionRollbackError(잠긴 상태 유지), SessionStateError
      */
-    async unlock(password: string, options: { acceptRollback?: boolean } = {}): Promise<{ offline: boolean }> {
+    async unlock(password: string, options: RollbackOption = {}): Promise<{ offline: boolean }> {
       if (account === null) throw new SessionStateError('로그인 전에는 잠금을 해제할 수 없음')
       if (unlocked !== null) return { offline: false }
       const locked = account
+      const startedAt = epoch
 
       const keys = await deriveKeys(password, fromBase64(locked.kdf.salt), locked.kdf.iterations)
       // 잠금 해제에는 인증 해시가 필요 없다. 메모리에 남기지 않는다
@@ -125,33 +185,48 @@ export function createVaultSession({ auth, vaultSyncFor }: VaultSessionDeps) {
         if (error instanceof VaultDecryptError) throw new WrongMasterPasswordError()
         throw error
       }
+      ensureCurrent(startedAt)
 
       const sync = vaultSyncFor(locked.accessToken, keys.encryptionKey)
       const cached: SyncedVault = { revision: locked.revision, data, readOnly: isReadOnly(data), payload: locked.payload }
+      let fresh: SyncedVault | null = null
       try {
-        open(locked.email, locked.accessToken, locked.kdf, sync, await sync.load(options))
-        return { offline: false }
+        fresh = await sync.load(options)
+        // 되돌림을 받아들였는데 서버 볼트가 없으면(유실) 이 기기의 볼트를 다시 올린다
+        if (fresh.payload === null) fresh = await sync.save(fresh, cached.data)
       } catch (error) {
-        if (!(error instanceof NetworkError)) throw error
-        open(locked.email, locked.accessToken, locked.kdf, sync, cached)
-        return { offline: true }
+        if (error instanceof RevisionRollbackError) throw error
+        if (error instanceof ServerError && error.code === 'UNAUTHORIZED') {
+          clear()
+          throw new SessionExpiredError()
+        }
+        // 그 밖의 실패(오프라인, 서버 오류, 응답 형식 오류)는 저장해 둔 볼트로 연다
       }
+      ensureCurrent(startedAt)
+      open(locked.email, locked.accessToken, locked.kdf, sync, fresh ?? cached)
+      return { offline: fresh === null }
     },
 
-    /** @throws SessionStateError, 그 밖에 VaultSync.save의 오류 */
+    /** @throws SessionStateError(잠김·취소), 그 밖에 VaultSync.save의 오류 */
     async save(data: VaultData): Promise<void> {
-      const current = requireUnlocked()
-      const saved = await current.unlocked.sync.save(current.unlocked.vault, data)
-      open(current.account.email, current.account.accessToken, current.account.kdf, current.unlocked.sync, saved)
+      if (account === null || unlocked === null) throw new SessionStateError('잠금 해제 상태가 아님')
+      const { email, accessToken, kdf } = account
+      const { sync, vault } = unlocked
+      const startedAt = epoch
+      const saved = await sync.save(vault, data)
+      ensureCurrent(startedAt)
+      open(email, accessToken, kdf, sync, saved)
     },
 
-    /** 서버 요청이 실패해도 이 기기에서는 로그아웃한다. 볼트가 열려 있었으면 잠금 알림도 보낸다 */
+    /**
+     * 이 기기의 세션을 먼저 지우고(볼트가 열려 있었으면 잠금 알림), 서버에 토큰 폐기를 요청한다.
+     * 서버 요청이 실패하면 오류를 그대로 알린다. 이 기기는 이미 로그아웃된 상태다
+     */
     async logout(): Promise<void> {
       const token = account?.accessToken
-      const wasUnlocked = unlocked !== null
-      account = null
-      unlocked = null
-      if (wasUnlocked) notify(lockListeners)
+      clear()
+      revisionMemory.reset(0)
+      lastEmail = null
       if (token !== undefined) await auth.logout(token)
     },
 

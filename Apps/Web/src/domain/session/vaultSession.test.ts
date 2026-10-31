@@ -4,11 +4,11 @@ import type { AuthApi, KdfParams, LoginRequest, RegisterRequest, Session } from 
 import { createAuthService } from '../auth/authService'
 import type { EncryptedVaultPayload } from '../crypto/vaultCipher'
 import { vectors } from '../crypto/testVectors'
-import { NetworkError, ServerError } from '../server/serverErrors'
+import { NetworkError, ServerError, UnexpectedResponseError } from '../server/serverErrors'
 import type { RemoteVault, VaultApi } from '../vault/vaultApi'
 import { addItem, activeItems } from '../vault/vaultData'
 import { RevisionRollbackError, createRevisionMemory, createVaultSync } from '../vault/vaultSync'
-import { WrongMasterPasswordError, createVaultSession } from './vaultSession'
+import { SessionExpiredError, SessionStateError, VaultSetupError, WrongMasterPasswordError, createVaultSession } from './vaultSession'
 
 const NOW = new Date('2026-10-31T00:00:00Z')
 const vector = vectors.keyDerivationCases[0]
@@ -41,6 +41,8 @@ class FakeVaultApi implements VaultApi {
   payload: EncryptedVaultPayload | null = null
   saves = 0
   offline = false
+  /** 설정하면 저장 요청이 이 약속이 풀릴 때까지 기다린다 */
+  gate: Promise<void> | null = null
 
   async get(): Promise<RemoteVault | null> {
     if (this.offline) throw new NetworkError()
@@ -48,6 +50,7 @@ class FakeVaultApi implements VaultApi {
   }
   async save(expectedRevision: number, payload: EncryptedVaultPayload): Promise<number> {
     if (this.offline) throw new NetworkError()
+    if (this.gate) await this.gate
     this.saves += 1
     if (expectedRevision !== this.revision) throw new ServerError(409, 'VAULT_CONFLICT')
     this.payload = payload
@@ -65,10 +68,11 @@ function setup() {
   const session = createVaultSession({
     auth: createAuthService(authApi),
     vaultSyncFor: (_token, encryptionKey) => createVaultSync({ api: vaultApi, encryptionKey, now: () => NOW, revisionMemory }),
+    revisionMemory,
   })
   session.onLock(() => locks++)
   session.onUnlock(() => unlocks++)
-  return { session, authApi, vaultApi, locks: () => locks, unlocks: () => unlocks }
+  return { session, authApi, vaultApi, revisionMemory, locks: () => locks, unlocks: () => unlocks }
 }
 
 async function unlockedWithItem() {
@@ -101,9 +105,11 @@ describe('모든 계정은 볼트를 가진다 (SEC-003)', () => {
 
   it('볼트가 있으면 그대로 연다', async () => {
     const { vaultApi } = await unlockedWithItem()
+    const memory = createRevisionMemory()
     const other = createVaultSession({
       auth: createAuthService(new FakeAuthApi()),
-      vaultSyncFor: (_t, encryptionKey) => createVaultSync({ api: vaultApi, encryptionKey, now: () => NOW, revisionMemory: createRevisionMemory() }),
+      vaultSyncFor: (_t, encryptionKey) => createVaultSync({ api: vaultApi, encryptionKey, now: () => NOW, revisionMemory: memory }),
+      revisionMemory: memory,
     })
 
     await other.login('user@example.com', PASSWORD)
@@ -239,6 +245,134 @@ describe('로그아웃', () => {
     }
 
     await expect(session.logout()).rejects.toBeInstanceOf(NetworkError)
+    expect(session.state()).toEqual({ status: 'signedOut' })
+  })
+})
+
+function gateSaves(vaultApi: FakeVaultApi) {
+  let release!: () => void
+  vaultApi.gate = new Promise<void>((resolve) => (release = resolve))
+  return () => {
+    vaultApi.gate = null
+    release()
+  }
+}
+
+describe('진행 중인 작업과 잠금·로그아웃이 겹칠 때', () => {
+  it('저장을 기다리는 동안 잠그면, 저장이 끝나도 다시 열리지 않는다', async () => {
+    const { session, vaultApi, unlocks } = await unlockedWithItem()
+    const state = session.state()
+    if (state.status !== 'unlocked') throw new Error('잠금 해제 상태가 아님')
+    const release = gateSaves(vaultApi)
+
+    const saving = session.save(addItem(state.vault.data, fields, NOW, 'b'))
+    session.lock()
+    release()
+
+    await expect(saving).rejects.toBeInstanceOf(SessionStateError)
+    expect(session.state().status).toBe('locked')
+    expect(unlocks()).toBe(1)
+  })
+
+  it('잠금 해제를 기다리는 동안 잠그거나 로그아웃하면, 끝나도 열리지 않는다', async () => {
+    const locked = await unlockedWithItem()
+    locked.session.lock()
+    const unlocking = locked.session.unlock(PASSWORD)
+    locked.session.lock()
+    await expect(unlocking).rejects.toBeInstanceOf(SessionStateError)
+    expect(locked.session.state().status).toBe('locked')
+
+    const out = await unlockedWithItem()
+    out.session.lock()
+    const unlocking2 = out.session.unlock(PASSWORD)
+    await out.session.logout()
+    await expect(unlocking2).rejects.toBeInstanceOf(SessionStateError)
+    expect(out.session.state()).toEqual({ status: 'signedOut' })
+  })
+
+  it('로그인을 기다리는 동안 로그아웃하면, 끝나도 계정이 되살아나지 않는다', async () => {
+    const { session, vaultApi } = setup()
+    const release = gateSaves(vaultApi)
+
+    const loggingIn = session.login('user@example.com', PASSWORD)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await session.logout()
+    release()
+
+    await expect(loggingIn).rejects.toBeInstanceOf(SessionStateError)
+    expect(session.state()).toEqual({ status: 'signedOut' })
+  })
+})
+
+describe('계정 전환과 로그인 시 되돌림', () => {
+  it('로그아웃하면 되돌림 감지 기준을 지워, 다른 계정(낮은 revision)으로 로그인할 수 있다', async () => {
+    const { session, revisionMemory } = await unlockedWithItem()
+    expect(revisionMemory.get()).toBe(2)
+
+    await session.logout()
+
+    expect(revisionMemory.get()).toBe(0)
+  })
+
+  it('로그인 때 되돌림이 감지되면 알리고, 사용자가 받아들이면 로그인한다', async () => {
+    const { session, vaultApi, revisionMemory } = await unlockedWithItem()
+    session.lock()
+    revisionMemory.raise(5)
+
+    await expect(session.login('user@example.com', PASSWORD)).rejects.toBeInstanceOf(RevisionRollbackError)
+    await session.login('user@example.com', PASSWORD, { acceptRollback: true })
+
+    expect(session.state()).toMatchObject({ status: 'unlocked', vault: { revision: vaultApi.revision } })
+  })
+})
+
+describe('잠금 해제 직후 동기화가 네트워크 외 이유로 실패할 때', () => {
+  it('세션이 만료됐으면(401) 로그아웃 상태로 바꾸고 다시 로그인하게 한다', async () => {
+    const { session, vaultApi } = await unlockedWithItem()
+    session.lock()
+    vaultApi.get = async () => {
+      throw new ServerError(401, 'UNAUTHORIZED')
+    }
+
+    await expect(session.unlock(PASSWORD)).rejects.toBeInstanceOf(SessionExpiredError)
+    expect(session.state()).toEqual({ status: 'signedOut' })
+  })
+
+  it('서버 오류나 알 수 없는 응답이면 저장해 둔 볼트로 열고 동기화 실패를 알린다', async () => {
+    for (const failure of [new ServerError(503, 'UNKNOWN'), new UnexpectedResponseError('형식 오류')]) {
+      const { session, vaultApi } = await unlockedWithItem()
+      session.lock()
+      vaultApi.get = async () => {
+        throw failure
+      }
+
+      expect(await session.unlock(PASSWORD)).toEqual({ offline: true })
+      expect(session.state().status).toBe('unlocked')
+    }
+  })
+
+  it('되돌림을 받아들였는데 서버에 볼트가 없으면 저장해 둔 볼트를 다시 올리고 연다', async () => {
+    const { session, vaultApi } = await unlockedWithItem()
+    session.lock()
+    vaultApi.payload = null
+    vaultApi.revision = 0
+
+    await expect(session.unlock(PASSWORD)).rejects.toBeInstanceOf(RevisionRollbackError)
+    await session.unlock(PASSWORD, { acceptRollback: true })
+
+    const state = session.state()
+    expect(state.status === 'unlocked' && activeItems(state.vault.data).map((i) => i.id)).toEqual(['a'])
+    expect(vaultApi.revision).toBe(1)
+  })
+})
+
+describe('가입 직후 빈 볼트 저장 실패', () => {
+  it('가입은 됐지만 볼트를 준비하지 못했다고 구분해 알린다 (다시 가입하지 말고 로그인하도록)', async () => {
+    const { session, vaultApi, authApi } = setup()
+    vaultApi.offline = true
+
+    await expect(session.register('new@example.com', PASSWORD)).rejects.toBeInstanceOf(VaultSetupError)
+    expect(authApi.registered).toHaveLength(1)
     expect(session.state()).toEqual({ status: 'signedOut' })
   })
 })
