@@ -605,4 +605,167 @@ final class VaultModuleTests: XCTestCase {
 		// 병합 결과에 두 아이템이 모두 포함되어 있는지 확인
 		XCTAssertEqual(result.savedVault.items.count, 2)
 	}
+
+	// MARK: - 13. 보안 리뷰 결함 검증 (Security Review Fix Verification)
+
+	/// [P1-1] 톰스톤 인코딩 시 소거 불완전 및 개인정보 노출 검증
+	/// deletedAt != nil인 VaultItem을 JSON으로 인코딩했을 때 오직 id, createdAt, updatedAt, deletedAt 4개 키만 존재해야 함
+	func testTombstoneEncodingContainsOnlyFourKeysAndNoSensitiveData() throws {
+		let tombstoneItem = VaultItem(
+			id: "item-tombstone-scrub-1",
+			serviceName: "SensitiveServiceName",
+			username: "sensitive-username@example.com",
+			password: "SuperSecretPassword123!",
+			url: "https://vault.example.com/login",
+			notes: "Top secret notes that should not leak",
+			createdAt: "2026-10-27T10:00:00Z",
+			updatedAt: "2026-10-27T12:00:00Z",
+			deletedAt: "2026-10-27T12:00:00Z",
+			unknownFields: ["leakField": .string("leakValue")]
+		)
+
+		let encoder = JSONEncoder()
+		let data = try encoder.encode(tombstoneItem)
+		let jsonObject = try XCTUnwrap(
+			JSONSerialization.jsonObject(with: data) as? [String: Any]
+		)
+
+		let expectedKeys: Set<String> = ["id", "createdAt", "updatedAt", "deletedAt"]
+		XCTAssertEqual(
+			Set(jsonObject.keys),
+			expectedKeys,
+			"톰스톤 인코딩 시 오직 id, createdAt, updatedAt, deletedAt 4개 키만 존재해야 합니다."
+		)
+		XCTAssertEqual(jsonObject["id"] as? String, "item-tombstone-scrub-1")
+		XCTAssertEqual(jsonObject["createdAt"] as? String, "2026-10-27T10:00:00Z")
+		XCTAssertEqual(jsonObject["updatedAt"] as? String, "2026-10-27T12:00:00Z")
+		XCTAssertEqual(jsonObject["deletedAt"] as? String, "2026-10-27T12:00:00Z")
+
+		XCTAssertNil(jsonObject["serviceName"], "톰스톤에 serviceName 키가 포함되어서는 안 됩니다.")
+		XCTAssertNil(jsonObject["username"], "톰스톤에 username 키가 포함되어서는 안 됩니다.")
+		XCTAssertNil(jsonObject["password"], "톰스톤에 password 키가 포함되어서는 안 됩니다.")
+		XCTAssertNil(jsonObject["url"], "톰스톤에 url 키가 포함되어서는 안 됩니다.")
+		XCTAssertNil(jsonObject["notes"], "톰스톤에 notes 키가 포함되어서는 안 됩니다.")
+		XCTAssertNil(jsonObject["leakField"], "톰스톤에 unknownFields 키가 포함되어서는 안 됩니다.")
+	}
+
+	/// [P2-1] VaultSyncCoordinator의 읽기 전용(isReadOnly) 볼트 동기화 시도 방어 검증
+	/// currentVault.isReadOnly == true인 경우 saveOperation 호출 전 즉시 VaultError.vaultIsReadOnly 에러를 던져야 함
+	func testSyncCoordinatorThrowsWhenVaultIsReadOnly() async throws {
+		let coordinator = VaultSyncCoordinator()
+
+		// 1) 초기 local 볼트가 isReadOnly == true인 경우
+		let readOnlyLocalVault = VaultData(
+			version: 2,
+			updatedAt: "2026-10-27T12:00:00Z",
+			items: [],
+			isReadOnly: true
+		)
+
+		let localSaveTracker = RetryAttemptTracker()
+		do {
+			_ = try await coordinator.syncWithRetry(
+				local: readOnlyLocalVault,
+				lastSeenRevision: 1,
+				saveOperation: { _, _ in
+					_ = localSaveTracker.record()
+					return 2
+				},
+				fetchOperation: {
+					return (readOnlyLocalVault, 2)
+				}
+			)
+			XCTFail("읽기 전용 볼트는 saveOperation 호출 전 즉시 VaultError.vaultIsReadOnly를 던져야 합니다.")
+		} catch let error as VaultError {
+			XCTAssertEqual(error, .vaultIsReadOnly, "발생한 에러는 vaultIsReadOnly여야 합니다.")
+			XCTAssertEqual(localSaveTracker.count, 0, "읽기 전용 볼트는 saveOperation을 호출하지 않아야 합니다.")
+		} catch {
+			XCTFail("VaultError.vaultIsReadOnly가 발생해야 합니다. 실제: \(error)")
+		}
+
+		// 2) 409 병합 결과 상위 버전 볼트로 갱신되어 isReadOnly == true가 된 경우
+		let normalLocalVault = VaultData(
+			version: 1,
+			updatedAt: "2026-10-27T12:00:00Z",
+			items: []
+		)
+		let futureServerVault = VaultData(
+			version: 2,
+			updatedAt: "2026-10-27T12:05:00Z",
+			items: [],
+			isReadOnly: true
+		)
+
+		let conflictSaveTracker = RetryAttemptTracker()
+		do {
+			_ = try await coordinator.syncWithRetry(
+				local: normalLocalVault,
+				lastSeenRevision: 1,
+				saveOperation: { _, _ in
+					let attempt = conflictSaveTracker.record()
+					if attempt == 1 {
+						// 첫 번째 시도에서 409 반환
+						throw VaultSyncError.syncFailed("409 Conflict")
+					} else {
+						// 병합 후 두 번째 시도는 호출되어서는 안 됨
+						XCTFail("상위 버전 병합으로 isReadOnly가 된 경우 두 번째 saveOperation이 호출되면 안 됩니다.")
+						return 2
+					}
+				},
+				fetchOperation: {
+					return (futureServerVault, 2)
+				}
+			)
+			XCTFail("병합 결과가 isReadOnly 볼트인 경우 재시도 saveOperation 호출 전 VaultError.vaultIsReadOnly를 던져야 합니다.")
+		} catch let error as VaultError {
+			XCTAssertEqual(error, .vaultIsReadOnly, "발생한 에러는 vaultIsReadOnly여야 합니다.")
+			XCTAssertEqual(conflictSaveTracker.count, 1, "초기 1회 시도 후 병합 결과가 read-only이므로 2번째 saveOperation은 호출되지 않아야 합니다.")
+		} catch {
+			XCTFail("VaultError.vaultIsReadOnly가 발생해야 합니다. 실제: \(error)")
+		}
+	}
+
+	/// [P2-2] VaultSyncCoordinator 내 5MB 페이로드 한계 사전 검증 누락 검증
+	/// 볼트 인코딩 크기가 5,242,880바이트를 초과하는 경우 saveOperation 호출 전 즉시 VaultSyncError.payloadTooLarge 에러를 던져야 함
+	func testSyncCoordinatorThrowsWhenPayloadExceeds5MBBeforeSave() async throws {
+		let coordinator = VaultSyncCoordinator()
+
+		// 볼트 인코딩 크기가 5,242,880바이트를 초과하도록 페이로드 구성
+		let largePayload = String(repeating: "A", count: 5_242_881)
+		let largeItem = VaultItem(
+			id: "large-item-1",
+			serviceName: "BigService",
+			username: "bigUser",
+			password: "bigPassword",
+			notes: largePayload,
+			createdAt: "2026-10-27T10:00:00Z",
+			updatedAt: "2026-10-27T12:00:00Z"
+		)
+		let largeVault = VaultData(
+			version: 1,
+			updatedAt: "2026-10-27T12:00:00Z",
+			items: [largeItem]
+		)
+
+		let saveTracker = RetryAttemptTracker()
+		do {
+			_ = try await coordinator.syncWithRetry(
+				local: largeVault,
+				lastSeenRevision: 1,
+				saveOperation: { _, _ in
+					_ = saveTracker.record()
+					return 2
+				},
+				fetchOperation: {
+					return (largeVault, 2)
+				}
+			)
+			XCTFail("5MB 초과 볼트는 saveOperation 호출 전에 VaultSyncError.payloadTooLarge를 던져야 합니다.")
+		} catch let VaultSyncError.payloadTooLarge(size) {
+			XCTAssertGreaterThan(size, 5_242_880, "에러에 보고된 크기는 5MB(5,242,880바이트) 초과여야 합니다.")
+			XCTAssertEqual(saveTracker.count, 0, "5MB 초과 시 saveOperation이 호출되지 않아야 합니다.")
+		} catch {
+			XCTFail("VaultSyncError.payloadTooLarge 에러가 발생해야 합니다. 실제: \(error)")
+		}
+	}
 }
