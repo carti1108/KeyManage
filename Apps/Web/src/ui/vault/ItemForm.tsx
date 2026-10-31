@@ -53,7 +53,14 @@ export function ItemForm({ item, onSubmit, onCancel }: ItemFormProps) {
         </h2>
         <TextField label="서비스 이름" value={serviceName} onChange={(e) => setServiceName(e.target.value)} required autoFocus />
         <TextField label="아이디" value={username} onChange={(e) => setUsername(e.target.value)} {...PRIVATE_TEXT} />
-        <PasswordField label="비밀번호" value={password} onTextChange={setPassword} autoComplete="off" {...IGNORE_PASSWORD_MANAGERS} />
+        <PasswordField
+          label="비밀번호"
+          value={password}
+          onTextChange={setPassword}
+          autoComplete="off"
+          concealment="css"
+          {...IGNORE_PASSWORD_MANAGERS}
+        />
         <TextField label="URL" type="url" value={url} onChange={(e) => setUrl(e.target.value)} {...PRIVATE_TEXT} />
         <div className="flex flex-col gap-1.5">
           <label htmlFor={notesId} className="text-sm font-medium">

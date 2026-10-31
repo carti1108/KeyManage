@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { useState } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { addItem, deleteItem, emptyVault, type VaultData } from '../../domain/vault/vaultData'
 import { VaultTooLargeError, type SyncedVault } from '../../domain/vault/vaultSync'
 import { VaultScreen } from './VaultScreen'
@@ -45,6 +45,9 @@ function openItem(name: string) {
 }
 
 describe('VaultScreen', () => {
+  beforeEach(() => vi.stubGlobal('CSS', { supports: (property: string) => property === '-webkit-text-security' }))
+  afterEach(() => vi.unstubAllGlobals())
+
   describe('목록', () => {
     it('항목을 이름순으로 보여 준다', () => {
       setup()
@@ -162,6 +165,8 @@ describe('VaultScreen', () => {
 
       const password = screen.getByLabelText('비밀번호')
       expect(password.closest('form')).toBeNull()
+      // 비밀번호 칸(type=password)이 있으면 Chrome이 저장을 제안하므로 CSS로 가린다
+      expect(password).toHaveAttribute('type', 'text')
       expect(password).toHaveAttribute('autocomplete', 'off')
       expect(password).toHaveAttribute('data-1p-ignore')
       expect(password).toHaveAttribute('data-lpignore', 'true')
