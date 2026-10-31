@@ -33,3 +33,4 @@
 | 025 | 2026-10-30 | [Apple 멀티플랫폼 모듈 스캐폴딩 및 microRIBs 로컬 연동 (#38)](025-apple-client-scaffold-and-governance.md) |
 | 026 | 2026-10-30 | [Apple 멀티플랫폼 암호 모듈 단일 에이전트 TDD 구현 (#40)](026-apple-crypto-module-single-agent.md) |
 | 027 | 2026-10-31 | [볼트 잠금·잠금 해제와 자동 잠금 구현 (SEC-003, #44)](027-web-auto-lock.md) |
+| 028 | 2026-10-31 | [웹 디자인 토큰과 핵심 컴포넌트 5종 구현 (#46)](028-web-design-system.md) |
