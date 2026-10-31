@@ -23,6 +23,7 @@ export function PasswordField({
   showCopyAction = true,
   onCopy,
   placeholder = '비밀번호 입력',
+  autoComplete,
   id,
   className,
   ...props
@@ -30,14 +31,13 @@ export function PasswordField({
   const fallbackId = useId()
   const inputId = id ?? fallbackId
   const [revealed, setRevealed] = useState(false)
-  // 입력할 때마다 바뀌어 다시 가리기 타이머를 처음부터 다시 잰다
-  const [lastInteraction, setLastInteraction] = useState(0)
 
+  // 입력이나 생성기 재생성으로 값이 바뀌면 다시 가리기 타이머를 처음부터 다시 잰다
   useEffect(() => {
     if (!revealed) return
-    const id = window.setTimeout(() => setRevealed(false), REMASK_AFTER_MS)
-    return () => window.clearTimeout(id)
-  }, [revealed, lastInteraction])
+    const timerId = window.setTimeout(() => setRevealed(false), REMASK_AFTER_MS)
+    return () => window.clearTimeout(timerId)
+  }, [revealed, value])
 
   const iconButton =
     'inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
@@ -52,16 +52,16 @@ export function PasswordField({
           id={inputId}
           type={revealed ? 'text' : 'password'}
           value={value}
-          onChange={(e) => {
-            setLastInteraction((n) => n + 1)
-            onTextChange(e.target.value)
-          }}
+          onChange={(e) => onTextChange(e.target.value)}
           placeholder={placeholder}
+          className="h-full min-w-0 flex-1 bg-transparent px-3 font-mono text-sm outline-none placeholder:font-sans placeholder:text-muted-foreground"
+          {...props}
+          // 평문(type=text)일 때 제출하면 브라우저 입력 기록에 남으므로 자동완성을 끈다
+          autoComplete={revealed ? 'off' : autoComplete}
+          // 맞춤법 검사·자동 고침은 입력값을 외부 서비스로 보낼 수 있어 호출하는 쪽이 켜지 못하게 마지막에 둔다
           spellCheck={false}
           autoCapitalize="off"
           autoCorrect="off"
-          className="h-full min-w-0 flex-1 bg-transparent px-3 font-mono text-sm outline-none placeholder:font-sans placeholder:text-muted-foreground"
-          {...props}
         />
         <button
           type="button"
@@ -72,7 +72,7 @@ export function PasswordField({
         >
           {revealed ? <EyeOff aria-hidden className="size-4" /> : <Eye aria-hidden className="size-4" />}
         </button>
-        {showCopyAction && (
+        {showCopyAction && onCopy && (
           <button type="button" aria-label="비밀번호 복사" onClick={onCopy} className={iconButton}>
             <Copy aria-hidden className="size-4" />
           </button>

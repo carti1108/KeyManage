@@ -4,6 +4,7 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
+  color-scheme: light;
   --background: #f8fafc;
   --foreground: #0f172a;
   --card: #ffffff;
@@ -23,6 +24,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --background: #0f172a;
   --foreground: #f8fafc;
   --card: #1e293b;
@@ -67,5 +69,10 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
+  }
+  /* Edge 기본 비밀번호 보기 버튼은 PasswordField의 10초 뒤 다시 가리기를 우회하므로 숨긴다 */
+  input::-ms-reveal,
+  input::-ms-clear {
+    display: none;
   }
 }
