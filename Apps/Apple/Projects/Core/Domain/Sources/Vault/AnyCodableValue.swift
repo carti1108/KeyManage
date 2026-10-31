@@ -10,11 +10,85 @@ public enum AnyCodableValue: Codable, Sendable, Equatable, Hashable {
 	case null
 
 	public init(from decoder: Decoder) throws {
-		throw VaultError.notImplemented
+		if let container = try? decoder.container(keyedBy: DynamicCodingKeys.self) {
+			var dict: [String: AnyCodableValue] = [:]
+			for key in container.allKeys {
+				dict[key.stringValue] = try container.decode(AnyCodableValue.self, forKey: key)
+			}
+			self = .dictionary(dict)
+			return
+		}
+		if var container = try? decoder.unkeyedContainer() {
+			var array: [AnyCodableValue] = []
+			while !container.isAtEnd {
+				array.append(try container.decode(AnyCodableValue.self))
+			}
+			self = .array(array)
+			return
+		}
+		let single = try decoder.singleValueContainer()
+		if single.decodeNil() {
+			self = .null
+		} else if let boolVal = try? single.decode(Bool.self) {
+			self = .bool(boolVal)
+		} else if let intVal = try? single.decode(Int.self) {
+			self = .int(intVal)
+		} else if let doubleVal = try? single.decode(Double.self) {
+			self = .double(doubleVal)
+		} else if let strVal = try? single.decode(String.self) {
+			self = .string(strVal)
+		} else {
+			throw DecodingError.dataCorrupted(
+				DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Unsupported AnyCodable value")
+			)
+		}
 	}
 
 	public func encode(to encoder: Encoder) throws {
-		throw VaultError.notImplemented
+		switch self {
+		case .null:
+			var container = encoder.singleValueContainer()
+			try container.encodeNil()
+		case .bool(let value):
+			var container = encoder.singleValueContainer()
+			try container.encode(value)
+		case .int(let value):
+			var container = encoder.singleValueContainer()
+			try container.encode(value)
+		case .double(let value):
+			var container = encoder.singleValueContainer()
+			try container.encode(value)
+		case .string(let value):
+			var container = encoder.singleValueContainer()
+			try container.encode(value)
+		case .array(let value):
+			var container = encoder.unkeyedContainer()
+			for item in value {
+				try container.encode(item)
+			}
+		case .dictionary(let value):
+			var container = encoder.container(keyedBy: DynamicCodingKeys.self)
+			for (key, val) in value {
+				if let codingKey = DynamicCodingKeys(stringValue: key) {
+					try container.encode(val, forKey: codingKey)
+				}
+			}
+		}
+	}
+}
+
+public struct DynamicCodingKeys: CodingKey, Sendable {
+	public var stringValue: String
+	public var intValue: Int?
+
+	public init?(stringValue: String) {
+		self.stringValue = stringValue
+		self.intValue = nil
+	}
+
+	public init?(intValue: Int) {
+		self.stringValue = String(intValue)
+		self.intValue = intValue
 	}
 }
 

@@ -6,10 +6,14 @@ public struct VaultSyncValidator: Sendable {
 	public init() {}
 
 	public func validatePayloadSize(_ sizeInBytes: Int) throws {
-		throw VaultError.notImplemented
+		if sizeInBytes > Self.maxPayloadSizeBytes {
+			throw VaultSyncError.payloadTooLarge(sizeInBytes)
+		}
 	}
 
 	public func validateRevision(server: Int, lastSeen: Int) throws {
-		throw VaultError.notImplemented
+		if server < lastSeen {
+			throw VaultSyncError.revisionRollbackDetected(lastSeen: lastSeen, server: server)
+		}
 	}
 }
