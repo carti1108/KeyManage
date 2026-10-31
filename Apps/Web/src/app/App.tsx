@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { SessionRoot } from '../ui/session/SessionRoot'
 import { startAutoLock } from './autoLockWiring'
 import { startClipboardBurn } from './clipboardWiring'
+import { startPendingSync } from './pendingSyncWiring'
 import { createServices, type Services } from './services'
 import { usePageHidden } from './usePageHidden'
 
@@ -14,6 +15,8 @@ function App({ services }: { services?: Services }) {
   useEffect(() => startAutoLock(session), [session])
   // 잠기면 바로, 탭으로 돌아오면 비우지 못한 클립보드를 비운다 (COM-001)
   useEffect(() => startClipboardBurn(session, clipboard), [session, clipboard])
+  // 서버에 올리지 못한 변경 사항을 재연결·30초마다 다시 보내고, 대기 중에 탭을 떠나면 확인을 받는다 (VLT-001)
+  useEffect(() => startPendingSync(session), [session])
 
   return <SessionRoot session={session} clipboard={clipboard} pageHidden={pageHidden} />
 }

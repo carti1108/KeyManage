@@ -1,8 +1,8 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { ServerError } from '../../domain/server/serverErrors'
 import { SessionExpiredError, WrongMasterPasswordError } from '../../domain/session/vaultSession'
-import { RevisionRollbackError } from '../../domain/vault/vaultSync'
+import { RevisionRollbackError, VaultSyncConflictError } from '../../domain/vault/vaultSync'
 import { createFakeClipboard } from '../../test/fakeClipboard'
 import { createFakeSession, fakeVault } from '../../test/fakeSession'
 
@@ -166,7 +166,7 @@ describe('SessionRoot', () => {
 
   describe('잠금 해제', () => {
     it('잠긴 계정의 이메일과 정책 제목을 보인다', () => {
-      const { session } = createFakeSession({ status: 'locked', email: EMAIL })
+      const { session } = createFakeSession({ status: 'locked', email: EMAIL, pendingSync: false })
       render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
 
       expect(screen.getByRole('heading', { name: '볼트가 잠겼습니다' })).toBeInTheDocument()
@@ -174,7 +174,7 @@ describe('SessionRoot', () => {
     })
 
     it('비밀번호가 틀리면 정책 문구를 보인다', async () => {
-      const { session } = createFakeSession({ status: 'locked', email: EMAIL })
+      const { session } = createFakeSession({ status: 'locked', email: EMAIL, pendingSync: false })
       session.unlock.mockRejectedValueOnce(new WrongMasterPasswordError())
       render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
 
@@ -185,7 +185,7 @@ describe('SessionRoot', () => {
     })
 
     it('서버에 닿지 못해 저장해 둔 볼트로 열었으면 오프라인 안내를 보인다', async () => {
-      const { session, control } = createFakeSession({ status: 'locked', email: EMAIL })
+      const { session, control } = createFakeSession({ status: 'locked', email: EMAIL, pendingSync: false })
       session.unlock.mockImplementationOnce(async () => {
         control.openVault(EMAIL)
         return { offline: true }
@@ -199,7 +199,7 @@ describe('SessionRoot', () => {
     })
 
     it('로그인이 만료되면 로그인 화면으로 돌아가 이유를 알린다', async () => {
-      const { session, control } = createFakeSession({ status: 'locked', email: EMAIL })
+      const { session, control } = createFakeSession({ status: 'locked', email: EMAIL, pendingSync: false })
       session.unlock.mockImplementationOnce(async () => {
         control.signOut()
         throw new SessionExpiredError()
@@ -221,7 +221,7 @@ describe('SessionRoot', () => {
     })
 
     it('잠금 해제가 실패하면 입력한 비밀번호를 지운다', async () => {
-      const { session } = createFakeSession({ status: 'locked', email: EMAIL })
+      const { session } = createFakeSession({ status: 'locked', email: EMAIL, pendingSync: false })
       session.unlock.mockRejectedValueOnce(new WrongMasterPasswordError())
       render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
 
@@ -233,7 +233,7 @@ describe('SessionRoot', () => {
     })
 
     it('잠금 해제 중 서버 볼트 되돌림을 받아들이면 확인 옵션으로 다시 연다', async () => {
-      const { session } = createFakeSession({ status: 'locked', email: EMAIL })
+      const { session } = createFakeSession({ status: 'locked', email: EMAIL, pendingSync: false })
       session.unlock.mockRejectedValueOnce(new RevisionRollbackError(5, 3))
       render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
 
@@ -246,7 +246,7 @@ describe('SessionRoot', () => {
     })
 
     it('잠금 화면에서 로그아웃하면 서버 응답을 기다리지 않고 바로 로그인 화면으로 간다', async () => {
-      const { session } = createFakeSession({ status: 'locked', email: EMAIL })
+      const { session } = createFakeSession({ status: 'locked', email: EMAIL, pendingSync: false })
       render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
 
       fireEvent.click(screen.getByRole('button', { name: '로그아웃' }))
@@ -257,7 +257,7 @@ describe('SessionRoot', () => {
 
   describe('열린 볼트', () => {
     it('항목을 저장하면 세션에 저장하고 새 볼트로 화면을 다시 그린다', async () => {
-      const { session } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault() })
+      const { session } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: false })
       render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
 
       fireEvent.click(screen.getByRole('button', { name: '항목 추가' }))
@@ -270,7 +270,7 @@ describe('SessionRoot', () => {
     })
 
     it('잠그기를 누르면 잠금 화면으로 바뀐다', async () => {
-      const { session } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault() })
+      const { session } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: false })
       render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
 
       fireEvent.click(screen.getByRole('button', { name: '잠그기' }))
@@ -280,7 +280,7 @@ describe('SessionRoot', () => {
     })
 
     it('자동 잠금처럼 바깥에서 잠겨도 잠금 화면으로 바뀐다', () => {
-      const { session, control } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault() })
+      const { session, control } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: false })
       render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
 
       act(() => control.closeVault())
@@ -289,7 +289,7 @@ describe('SessionRoot', () => {
     })
 
     it('서버 로그아웃 요청이 실패해도 이 기기는 로그아웃 화면으로 간다', async () => {
-      const { session, control } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault() })
+      const { session, control } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: false })
       session.logout.mockImplementationOnce(async () => {
         control.signOut()
         throw new ServerError(500, 'INTERNAL_ERROR')
@@ -302,14 +302,14 @@ describe('SessionRoot', () => {
     })
 
     it('새 버전 앱의 볼트는 읽기 전용 안내를 보인다', () => {
-      const { session } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault({ readOnly: true }) })
+      const { session } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault({ readOnly: true }), pendingSync: false })
       render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
 
       expect(screen.getByText('새 버전 앱에서 저장한 볼트입니다. 앱을 업데이트하기 전까지는 읽기만 할 수 있습니다.')).toBeInTheDocument()
     })
 
     it('잠금·로그인 화면도 가려지면 덮는다 (평문으로 펼친 비밀번호 보호)', () => {
-      const { session } = createFakeSession({ status: 'locked', email: EMAIL })
+      const { session } = createFakeSession({ status: 'locked', email: EMAIL, pendingSync: false })
       render(<SessionRoot session={session} clipboard={clipboard()} pageHidden />)
 
       expect(screen.getByTestId('privacy-cover')).toBeInTheDocument()
@@ -317,7 +317,7 @@ describe('SessionRoot', () => {
     })
 
     it('페이지가 가려지면 가림 화면으로 볼트 내용을 덮는다', () => {
-      const { session } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault() })
+      const { session } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: false })
       const { rerender } = render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
       expect(screen.queryByTestId('privacy-cover')).not.toBeInTheDocument()
 
@@ -325,6 +325,118 @@ describe('SessionRoot', () => {
 
       expect(screen.getByTestId('privacy-cover')).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: '잠그기' })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('동기화 대기 (VLT-001)', () => {
+    const OFFLINE = '오프라인 상태입니다. 변경 사항이 서버에 동기화되지 않습니다.'
+
+    function pendingVault() {
+      const fake = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: true })
+      render(<SessionRoot session={fake.session} clipboard={clipboard()} pageHidden={false} />)
+      return fake
+    }
+
+    it('대기 중이면 오프라인 경고를 보인다', () => {
+      pendingVault()
+
+      expect(screen.getByText(OFFLINE)).toBeInTheDocument()
+    })
+
+    it('다시 보내 모두 올라가면 경고를 내린다', () => {
+      const { control } = pendingVault()
+
+      act(() => {
+        control.setPending(false)
+        control.emitSync(null)
+      })
+
+      expect(screen.queryByText(OFFLINE)).not.toBeInTheDocument()
+    })
+
+    it('다시 보내다 분명한 거절을 받으면 정책 문구를 보인다', () => {
+      const { control } = pendingVault()
+
+      act(() => control.emitSync(new VaultSyncConflictError()))
+
+      expect(screen.getByText('다른 기기의 변경 사항과 충돌했습니다. 잠시 후 다시 시도해 주세요.')).toBeInTheDocument()
+    })
+
+    it('세션이 만료되면 로그인 화면에서 만료를 알린다', () => {
+      const { control } = pendingVault()
+
+      act(() => {
+        control.signOut()
+        control.emitSync(new SessionExpiredError())
+      })
+
+      expect(screen.getByRole('button', { name: '로그인' })).toBeInTheDocument()
+      expect(screen.getByText('로그인이 만료되었습니다. 다시 로그인해 주세요.')).toBeInTheDocument()
+    })
+
+    it('대기 중에 로그아웃하면 먼저 확인하고, 취소하면 그대로 둔다', () => {
+      const { session } = pendingVault()
+
+      fireEvent.click(screen.getByRole('button', { name: '로그아웃' }))
+
+      expect(screen.getByRole('alertdialog', { name: '동기화되지 않은 변경 사항' })).toHaveAccessibleDescription(
+        '로그아웃하면 서버에 올리지 못한 변경 사항이 사라집니다.',
+      )
+      fireEvent.click(screen.getByRole('button', { name: '취소' }))
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+      expect(session.logout).not.toHaveBeenCalled()
+    })
+
+    it('저장이 분명한 거절로 끝나도 먼저 반영된 변경 사항을 다시 읽어 보여 준다', async () => {
+      const { session, control } = pendingVault()
+      session.save.mockImplementationOnce(async (data) => {
+        control.commitPending(data)
+        throw new VaultSyncConflictError()
+      })
+
+      fireEvent.click(screen.getByRole('button', { name: '항목 추가' }))
+      type('서비스 이름', 'GitHub')
+      fireEvent.click(screen.getByRole('button', { name: '저장' }))
+      expect(await screen.findByText('다른 기기의 변경 사항과 충돌했습니다. 잠시 후 다시 시도해 주세요.')).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: '취소' }))
+
+      expect(screen.getByRole('button', { name: /GitHub/ })).toBeInTheDocument()
+    })
+
+    it('잠금 화면에서도 대기 중이면 로그아웃 전에 확인한다', async () => {
+      const { session } = createFakeSession({ status: 'locked', email: EMAIL, pendingSync: true })
+      render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
+
+      fireEvent.click(screen.getByRole('button', { name: '로그아웃' }))
+      expect(session.logout).not.toHaveBeenCalled()
+      fireEvent.click(within(screen.getByRole('alertdialog', { name: '동기화되지 않은 변경 사항' })).getByRole('button', { name: '로그아웃' }))
+
+      expect(session.logout).toHaveBeenCalledOnce()
+      expect(await screen.findByRole('button', { name: '로그인' })).toBeInTheDocument()
+    })
+
+    it('잠갔다가 다시 열면 지난 확인 창과 오류가 남지 않는다', () => {
+      const { control } = pendingVault()
+      fireEvent.click(screen.getByRole('button', { name: '로그아웃' }))
+      act(() => control.emitSync(new VaultSyncConflictError()))
+
+      act(() => {
+        control.closeVault()
+        control.openVault(EMAIL)
+      })
+
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+      expect(screen.queryByText('다른 기기의 변경 사항과 충돌했습니다. 잠시 후 다시 시도해 주세요.')).not.toBeInTheDocument()
+    })
+
+    it('확인하면 로그아웃한다', async () => {
+      const { session } = pendingVault()
+
+      fireEvent.click(screen.getByRole('button', { name: '로그아웃' }))
+      fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: '로그아웃' }))
+
+      expect(session.logout).toHaveBeenCalledOnce()
+      expect(await screen.findByRole('button', { name: '로그인' })).toBeInTheDocument()
     })
   })
 })

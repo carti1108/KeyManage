@@ -1,6 +1,6 @@
 // 잠금 화면 (SEC-003). 웹은 생체 인증이 없어 마스터 비밀번호로만 연다
 import { Lock } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { PasswordField } from '../components/PasswordField'
@@ -12,9 +12,11 @@ export interface UnlockScreenProps {
   email: string
   onUnlock: (password: string, options: RollbackOption) => Promise<void>
   onLogout: () => Promise<void>
+  /** 로그아웃 전에 묻는 확인 (동기화 대기 중일 때, VLT-001) */
+  logoutConfirm?: ReactNode
 }
 
-export function UnlockScreen({ email, onUnlock, onLogout }: UnlockScreenProps) {
+export function UnlockScreen({ email, onUnlock, onLogout, logoutConfirm }: UnlockScreenProps) {
   const [password, setPassword] = useState('')
   const action = useSessionAction()
 
@@ -49,6 +51,7 @@ export function UnlockScreen({ email, onUnlock, onLogout }: UnlockScreenProps) {
             잠금 해제
           </Button>
         </form>
+        {logoutConfirm}
         <Button variant="ghost" size="sm" onClick={() => void onLogout()} disabled={action.pending}>
           로그아웃
         </Button>
