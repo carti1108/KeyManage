@@ -460,4 +460,121 @@ final class VaultLockTests: XCTestCase {
 		XCTAssertNil(manager.currentBiometryStateHash)
 		XCTAssertNil(manager.lastMasterPasswordUnlockDate)
 	}
+
+	// MARK: - 15. 즉시(immediate) 옵션 시 포그라운드 유휴 체크에서 즉시 잠기지 않음 검증 (SEC-003, P2-1)
+	func testCheckIdleTimeoutDoesNotLockInForegroundWhenImmediateTimeout() throws {
+		let manager = VaultLockManager()
+		let fixture = try makeFixture()
+		manager.setupSession(
+			email: fixture.email,
+			sessionToken: fixture.sessionToken,
+			salt: fixture.salt,
+			iterations: fixture.iterations,
+			encryptedVault: fixture.encryptedVault
+		)
+		manager.autoLockTimeout = .immediate
+		let t0 = Date(timeIntervalSince1970: 1000)
+		manager.recordInteraction(at: t0)
+
+		// SEC-003: "즉시" 옵션은 백그라운드로 가는 순간 잠근다.
+		// 포그라운드에서 사용자가 화면을 보고 있을 때는 checkIdleTimeout이 호출되어도 즉시 잠기지 않아야 한다.
+		let t10 = t0.addingTimeInterval(10)
+		let didLock = manager.checkIdleTimeout(at: t10)
+
+		XCTAssertFalse(didLock, "즉시(immediate) 옵션은 백그라운드 전환 시 잠그는 옵션이므로 포그라운드 유휴 체크 시 잠기지 않아야 합니다.")
+		XCTAssertFalse(manager.isLocked, "포그라운드 체류 중에는 볼트가 잠금 상태가 되지 않아야 합니다.")
+	}
+
+	// MARK: - 16. 생체 잠금 해제 성공 시 decryptedVault 복원 검증 (SEC-003, P2-2)
+	func testBiometricUnlockRestoresDecryptedVault() throws {
+		let manager = VaultLockManager()
+		let fixture = try makeFixture()
+		let biometryHash = Data([0x01, 0x02, 0x03, 0x04])
+		let t0 = Date(timeIntervalSince1970: 1000)
+
+		manager.setupSession(
+			email: fixture.email,
+			sessionToken: fixture.sessionToken,
+			salt: fixture.salt,
+			iterations: fixture.iterations,
+			encryptedVault: fixture.encryptedVault,
+			isBiometricsEnabled: true,
+			biometryStateHash: biometryHash
+		)
+
+		// 최초 1회 마스터 패스워드로 언락하여 encryptionKey 획득 및 14일 타이머 시작
+		try manager.unlockWithMasterPassword(password: fixture.masterPassword, now: t0)
+		guard let recoveredKey = manager.encryptionKey else {
+			XCTFail("unlockWithMasterPassword 성공 후 encryptionKey가 존재해야 합니다.")
+			return
+		}
+
+		// 볼트 잠금
+		manager.lock()
+		XCTAssertTrue(manager.isLocked)
+		XCTAssertNil(manager.decryptedVault)
+		XCTAssertNil(manager.encryptionKey)
+
+		// 1시간 뒤 키체인에서 복원된 암호화 키로 생체 인증 잠금 해제 (14일 이내)
+		let unlockDate = t0.addingTimeInterval(3600)
+		try manager.unlockWithBiometrics(
+			evaluatedStateHash: biometryHash,
+			recoveredEncryptionKey: recoveredKey,
+			now: unlockDate
+		)
+
+		// SEC-003: 생체 인증으로 잠금 해제 성공 시 볼트가 복호화되어 decryptedVault가 복원되어야 함
+		XCTAssertFalse(manager.isLocked, "생체 인증 성공 시 잠금이 해제되어야 합니다.")
+		XCTAssertFalse(manager.isPrivacyCoverActive, "생체 인증 성공 시 가림 화면이 해제되어야 합니다.")
+		XCTAssertEqual(manager.encryptionKey, recoveredKey, "복원된 암호화 키가 메모리에 설정되어야 합니다.")
+		XCTAssertEqual(manager.decryptedVault, fixture.decryptedVault, "복원된 암호화 키로 복호화된 볼트 데이터가 유효하게 복원되어야 합니다.")
+	}
+
+	// MARK: - 17. 잠금 상태에서 포그라운드 복귀 시 가림 화면 해제 검증 (SEC-003, P2-3)
+	func testWillEnterForegroundDeactivatesPrivacyCoverEvenWhenLocked() throws {
+		let fixture = try makeFixture()
+
+		// Case A: 이미 잠긴 상태에서 백그라운드 전환 후 포그라운드 복귀
+		let managerA = VaultLockManager()
+		managerA.setupSession(
+			email: fixture.email,
+			sessionToken: fixture.sessionToken,
+			salt: fixture.salt,
+			iterations: fixture.iterations,
+			encryptedVault: fixture.encryptedVault
+		)
+		let t0 = Date(timeIntervalSince1970: 1000)
+		managerA.lock()
+		XCTAssertTrue(managerA.isLocked)
+
+		managerA.didEnterBackground(at: t0)
+		XCTAssertTrue(managerA.isPrivacyCoverActive, "백그라운드 전환 시 앱 스위처 캡처 방지 가림막 활성화")
+
+		let t10 = t0.addingTimeInterval(10)
+		managerA.willEnterForeground(at: t10)
+
+		// SEC-003: 앱이 포그라운드로 복귀할 때는 잠금 해제 폼 UI가 보여야 하므로 가림 화면이 걷혀야 함
+		XCTAssertTrue(managerA.isLocked, "잠금 상태는 유지되어야 합니다.")
+		XCTAssertFalse(managerA.isPrivacyCoverActive, "이미 잠긴 상태라도 포그라운드 복귀 시 잠금 해제 폼 UI 노출을 위해 가림 화면이 걷혀야 합니다.")
+
+		// Case B: 백그라운드 체류 중 타임아웃 경과로 포그라운드 복귀 시 지연 잠금되는 경우
+		let managerB = VaultLockManager()
+		managerB.setupSession(
+			email: fixture.email,
+			sessionToken: fixture.sessionToken,
+			salt: fixture.salt,
+			iterations: fixture.iterations,
+			encryptedVault: fixture.encryptedVault
+		)
+		managerB.autoLockTimeout = .fiveMinutes
+		managerB.recordInteraction(at: t0)
+		managerB.didEnterBackground(at: t0)
+		XCTAssertTrue(managerB.isPrivacyCoverActive)
+
+		let t400 = t0.addingTimeInterval(400) // 300초 초과 체류
+		managerB.willEnterForeground(at: t400)
+
+		XCTAssertTrue(managerB.isLocked, "타임아웃 경과로 볼트는 잠금 상태가 되어야 합니다.")
+		XCTAssertFalse(managerB.isPrivacyCoverActive, "타임아웃 경과로 잠기더라도 포그라운드 복귀 시 가림 화면은 걷혀야 합니다.")
+	}
 }

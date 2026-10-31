@@ -42,6 +42,7 @@ public protocol VaultLockManagerProtocol: AnyObject, Sendable {
 	func lock()
 	func unlockWithMasterPassword(password: String, now: Date) throws
 	func unlockWithBiometrics(evaluatedStateHash: Data, now: Date) throws
+	func unlockWithBiometrics(evaluatedStateHash: Data, recoveredEncryptionKey: Data, now: Date) throws
 	func logout()
 }
 
@@ -63,6 +64,18 @@ public extension VaultLockManagerProtocol {
 			encryptedVault: encryptedVault,
 			isBiometricsEnabled: isBiometricsEnabled,
 			biometryStateHash: biometryStateHash
+		)
+	}
+
+	func unlockWithBiometrics(
+		evaluatedStateHash: Data,
+		recoveredEncryptionKey: Data,
+		now: Date = Date()
+	) throws {
+		try unlockWithBiometrics(
+			evaluatedStateHash: evaluatedStateHash,
+			recoveredEncryptionKey: recoveredEncryptionKey,
+			now: now
 		)
 	}
 }
@@ -370,6 +383,18 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 		_isLocked = false
 		_isPrivacyCoverActive = false
 		_lastInteractionTime = now
+	}
+
+	public func unlockWithBiometrics(
+		evaluatedStateHash: Data,
+		recoveredEncryptionKey: Data,
+		now: Date = Date()
+	) throws {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+
+		// 인터페이스 스텁: 플래그 변경만 호출하고 복호화 로직은 비워둠 (RED)
+		try unlockWithBiometrics(evaluatedStateHash: evaluatedStateHash, now: now)
 	}
 
 	public func logout() {
