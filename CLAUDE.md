@@ -24,6 +24,7 @@
 
 ### 검증 위임
 - PR 전 독립 리뷰와 CI·뮤테이션 테스트 규칙은 [ADR-0009](docs/adr/ADR-0009-verification-delegation-pipeline.md)를 따른다.
+- 코드 리뷰에서 반복 적발되는 실수(스텁 잔재, 계층 침범, 동시성 데드락, 테스트 임의 변조 등)는 프롬프트 지시에만 의존하지 않고 정적 린트(`Scripts/check-apple-lint.sh`, ESLint 등)와 정책 합격 기준 감사(`Scripts/check-policy-acceptance.sh`) 및 CI 규칙으로 즉시 격상한다.
 
 ### 문서 검사
 - 문서를 고치면 `bash Scripts/check-docs.sh`를 실행해 링크, 정책·ADR·로그 목록 표, 정책·ADR 번호 참조가 맞는지 확인한다. 위반이 있으면 고친 뒤에 커밋한다.
