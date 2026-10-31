@@ -41,7 +41,6 @@ public protocol VaultLockManagerProtocol: AnyObject, Sendable {
 	func willEnterForeground(at date: Date)
 	func lock()
 	func unlockWithMasterPassword(password: String, now: Date) throws
-	func unlockWithBiometrics(evaluatedStateHash: Data, now: Date) throws
 	func unlockWithBiometrics(evaluatedStateHash: Data, recoveredEncryptionKey: Data, now: Date) throws
 	func logout()
 }
@@ -317,76 +316,65 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 			throw LockError.sessionNotInitialized
 		}
 
-		let normalized: Data
+		var normalized: Data?
+		defer { zeroizeData(&normalized) }
 		do {
 			normalized = try PasswordPreprocessor.preprocess(password)
 		} catch {
 			throw LockError.invalidMasterPassword
 		}
 
-		let derivedMasterKey: Data
+		var derivedMasterKey: Data?
 		do {
 			derivedMasterKey = try PBKDF2KeyDeriver.deriveMasterKey(
-				password: normalized,
+				password: normalized ?? Data(),
 				salt: salt,
 				iterations: _iterations
 			)
 		} catch {
+			zeroizeData(&derivedMasterKey)
 			throw LockError.invalidMasterPassword
 		}
 
 		let derivedKeys: SeparatedKeys
 		do {
-			derivedKeys = try HKDFKeySeparator.separate(masterKey: derivedMasterKey)
+			derivedKeys = try HKDFKeySeparator.separate(masterKey: derivedMasterKey ?? Data())
 		} catch {
+			zeroizeData(&derivedMasterKey)
 			throw LockError.invalidMasterPassword
 		}
+		var tempAuthKey: Data? = derivedKeys.authHash
+		var tempEncKey: Data? = derivedKeys.encryptionKey
+		defer { zeroizeData(&tempAuthKey) }
 
-		let decryptedData: Data
+		var decryptedData: Data?
+		defer { zeroizeData(&decryptedData) }
 		do {
-			decryptedData = try VaultCipher.decrypt(payload: encryptedVault, key: derivedKeys.encryptionKey)
+			decryptedData = try VaultCipher.decrypt(
+				payload: encryptedVault,
+				key: tempEncKey ?? Data()
+			)
 		} catch {
+			zeroizeData(&derivedMasterKey)
+			zeroizeData(&tempEncKey)
 			throw LockError.invalidMasterPassword
 		}
 
 		let decodedVault: VaultData
 		do {
-			decodedVault = try VaultData.decode(from: decryptedData)
+			decodedVault = try VaultData.decode(from: decryptedData ?? Data())
 		} catch {
+			zeroizeData(&derivedMasterKey)
+			zeroizeData(&tempEncKey)
 			throw LockError.invalidMasterPassword
 		}
 
+		zeroizeData(&_masterKey)
+		zeroizeData(&_encryptionKey)
 		_decryptedVault = decodedVault
 		_masterKey = derivedMasterKey
-		_encryptionKey = derivedKeys.encryptionKey
+		_encryptionKey = tempEncKey
 		_lastMasterPasswordUnlockDate = now
-		_isLocked = false
-		_isPrivacyCoverActive = false
-		_lastInteractionTime = now
-	}
-
-	public func unlockWithBiometrics(evaluatedStateHash: Data, now: Date = Date()) throws {
-		syncLock.lock()
-		defer { syncLock.unlock() }
-
-		guard _encryptedVault != nil else {
-			throw LockError.sessionNotInitialized
-		}
-
-		guard _isBiometricsEnabled else {
-			throw LockError.biometricsDisabled
-		}
-
-		guard let lastPwDate = _lastMasterPasswordUnlockDate,
-		      now.timeIntervalSince(lastPwDate) <= 14 * 86400 else {
-			throw LockError.biometricsExpiredRequirePassword
-		}
-
-		guard let currentHash = _currentBiometryStateHash,
-		      evaluatedStateHash == currentHash else {
-			throw LockError.biometricsInvalidatedRequirePassword
-		}
-
 		_isLocked = false
 		_isPrivacyCoverActive = false
 		_lastInteractionTime = now
@@ -418,9 +406,18 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 			throw LockError.biometricsInvalidatedRequirePassword
 		}
 
-		let decryptedData = try VaultCipher.decrypt(payload: encryptedVault, key: recoveredEncryptionKey)
-		let decodedVault = try JSONDecoder().decode(VaultData.self, from: decryptedData)
+		var decryptedData: Data?
+		defer { zeroizeData(&decryptedData) }
+		let decodedVault: VaultData
+		do {
+			let plain = try VaultCipher.decrypt(payload: encryptedVault, key: recoveredEncryptionKey)
+			decryptedData = plain
+			decodedVault = try VaultData.decode(from: plain)
+		} catch {
+			throw LockError.invalidMasterPassword
+		}
 
+		zeroizeData(&_encryptionKey)
 		_decryptedVault = decodedVault
 		_encryptionKey = recoveredEncryptionKey
 		_isLocked = false
