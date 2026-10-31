@@ -16,10 +16,18 @@ export class InvalidEmailError extends Error {
   }
 }
 
+/** 잠금 해제 때 서버 없이 같은 키를 다시 만들기 위한 값. 비밀이 아니다 (SEC-003) */
+export interface UnlockKdf {
+  /** Standard Base64, 16바이트 */
+  readonly salt: string
+  readonly iterations: number
+}
+
 export interface AuthResult {
   readonly session: Session
   /** 볼트 암·복호화 키. 잠그면 버린다 (SEC-003) */
   readonly encryptionKey: CryptoKey
+  readonly kdf: UnlockKdf
 }
 
 /** 앞뒤 공백 제거·소문자. 서버도 같은 규칙으로 비교한다 (api-spec 2.5) */
@@ -38,13 +46,14 @@ export function createAuthService(api: AuthApi) {
       const normalized = normalizeEmail(email)
       const salt = globalThis.crypto.getRandomValues(new Uint8Array(SALT_BYTES))
       const keys = await deriveKeys(password, salt, MIN_ITERATIONS)
+      const kdf = { salt: toBase64(salt), iterations: MIN_ITERATIONS }
       const session = await api.register({
         email: normalized,
-        authHash: toBase64(keys.authHash),
-        kdfSalt: toBase64(salt),
-        kdfIterations: MIN_ITERATIONS,
+        authHash: takeAuthHash(keys.authHash),
+        kdfSalt: kdf.salt,
+        kdfIterations: kdf.iterations,
       })
-      return { session, encryptionKey: keys.encryptionKey }
+      return { session, encryptionKey: keys.encryptionKey, kdf }
     },
 
     /**
@@ -55,8 +64,8 @@ export function createAuthService(api: AuthApi) {
       const params = await api.prelogin(normalized)
       if (params.kdf !== SUPPORTED_KDF) throw new InvalidKdfParamsError(`지원하지 않는 KDF: ${params.kdf}`)
       const keys = await deriveKeys(password, decodeSalt(params.salt), params.iterations)
-      const session = await api.login({ email: normalized, authHash: toBase64(keys.authHash) })
-      return { session, encryptionKey: keys.encryptionKey }
+      const session = await api.login({ email: normalized, authHash: takeAuthHash(keys.authHash) })
+      return { session, encryptionKey: keys.encryptionKey, kdf: { salt: params.salt, iterations: params.iterations } }
     },
 
     logout(accessToken: string): Promise<void> {
@@ -66,6 +75,13 @@ export function createAuthService(api: AuthApi) {
 }
 
 export type AuthService = ReturnType<typeof createAuthService>
+
+// 인증 해시는 서버로 보낼 문자열만 만들고 바이트는 지운다. 잠긴 동안 메모리에 남지 않게 한다 (SEC-003)
+function takeAuthHash(authHash: Uint8Array): string {
+  const encoded = toBase64(authHash)
+  authHash.fill(0)
+  return encoded
+}
 
 function decodeSalt(salt: string): Uint8Array<ArrayBuffer> {
   try {
