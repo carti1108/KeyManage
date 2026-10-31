@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { NOW, PASSWORD, fields, saveFromOtherDevice, serverItemIds, unlockedWithItem } from '../../test/sessionFixtures'
 import { NetworkError, ServerError, UnexpectedResponseError } from '../server/serverErrors'
 import { activeItems, addItem, type VaultData } from '../vault/vaultData'
-import { RevisionRollbackError, VaultTooLargeError } from '../vault/vaultSync'
+import { RevisionMismatchError, RevisionRollbackError, VaultSyncConflictError, VaultTooLargeError } from '../vault/vaultSync'
 import { SessionExpiredError, type VaultSession } from './vaultSession'
 
 function unlockedData(session: VaultSession): VaultData {
@@ -137,6 +137,37 @@ describe('대기 내용 다시 보내기', () => {
     expect(session.state()).toMatchObject({ pendingSync: true })
   })
 
+  it('저장 응답의 revision이 맞지 않으면 잠시 실패로 숨기지 않고 오류를 낸다', async () => {
+    const { session, vaultApi } = await unlockedWithItem()
+    vaultApi.save = async () => 99
+
+    await expect(saveItem(session, 'b')).rejects.toBeInstanceOf(RevisionMismatchError)
+  })
+
+  it('보내는 중에 잠겨도 올리기에 성공하면 잠금 화면의 대기 표시를 내리고 알린다', async () => {
+    const { session, vaultApi, syncResults } = await pendingWithItemB()
+    vaultApi.offline = false
+    const realSave = vaultApi.save.bind(vaultApi)
+    let release = () => {}
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    let reached = () => {}
+    const requested = new Promise<void>((resolve) => (reached = resolve))
+    vaultApi.save = async (expectedRevision, payload) => {
+      reached()
+      await gate
+      return realSave(expectedRevision, payload)
+    }
+
+    const retrying = session.retryPendingSync()
+    await requested
+    session.lock()
+    release()
+    await retrying
+
+    expect(session.state()).toMatchObject({ status: 'locked', pendingSync: false })
+    expect(syncResults).toEqual([null])
+  })
+
   it('대기가 없으면 요청을 보내지 않는다', async () => {
     const { session, vaultApi } = await unlockedWithItem()
     const before = vaultApi.saves
@@ -244,18 +275,32 @@ describe('대기 중 세션 만료(401)', () => {
     expect(await serverItemIds(vaultApi)).toEqual(['a', 'b'])
   })
 
-  it('다시 로그인할 때 올리기가 거절되면 대기 내용을 남겨 다음 로그인 때 다시 올린다', async () => {
+  it('다시 로그인할 때 충돌이 이어지면 로그인을 실패시키고 대기 내용을 남겨 다음 로그인 때 다시 올린다', async () => {
     const { session, vaultApi } = await expiredWithPending()
     const realSave = vaultApi.save.bind(vaultApi)
     vaultApi.save = async () => {
-      throw new ServerError(400, 'INVALID_PARAMETER')
+      throw new ServerError(409, 'VAULT_CONFLICT')
     }
-    await expect(session.login('user@example.com', PASSWORD)).rejects.toBeInstanceOf(ServerError)
+    await expect(session.login('user@example.com', PASSWORD)).rejects.toBeInstanceOf(VaultSyncConflictError)
     vaultApi.save = realSave
 
     await session.login('user@example.com', PASSWORD)
 
     expect(await serverItemIds(vaultApi)).toEqual(['a', 'b'])
+  })
+
+  it('다시 로그인할 때 서버가 받을 수 없는 대기 내용이면 서버 볼트로 열고, 대기 내용을 버린 뒤 알린다', async () => {
+    const { session, vaultApi, syncResults } = await expiredWithPending()
+    vaultApi.save = async () => {
+      throw new ServerError(413, 'VAULT_TOO_LARGE')
+    }
+
+    await session.login('user@example.com', PASSWORD)
+
+    expect(itemIds(session)).toEqual(['a'])
+    expect(session.state()).toMatchObject({ pendingSync: false })
+    expect(session.hasPendingSync()).toBe(false)
+    expect(syncResults.at(-1)).toBeInstanceOf(ServerError)
   })
 
   it('다시 로그인할 때 서버에 닿지 못하면 받아 온 서버 볼트와 병합한 대기로 연다', async () => {

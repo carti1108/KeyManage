@@ -35,6 +35,14 @@ export class VaultTooLargeError extends Error {
   }
 }
 
+/** 저장 응답의 revision이 기대값(+1)과 다름. 서버가 규약을 어겼으므로 잠시 실패로 숨기지 않는다 */
+export class RevisionMismatchError extends UnexpectedResponseError {
+  constructor(expected: number, actual: number) {
+    super(`저장 응답 revision이 ${expected}이 아님: ${actual}`)
+    this.name = 'RevisionMismatchError'
+  }
+}
+
 /** 서버 revision이 이 기기가 마지막으로 본 값보다 낮음. 사용자가 확인해야 받아들인다 (VLT-001) */
 export class RevisionRollbackError extends Error {
   readonly lastSeenRevision: number
@@ -84,6 +92,7 @@ export function createRevisionMemory(): RevisionMemory {
  * 요청 시간 초과도 NetworkError로 온다. 응답 형식 오류는 공용 와이파이 로그인 페이지처럼 중간에서 가로챈 응답일 수 있다
  */
 export function isTransientSyncError(error: unknown): boolean {
+  if (error instanceof RevisionMismatchError) return false
   if (error instanceof NetworkError || error instanceof UnexpectedResponseError) return true
   return error instanceof ServerError && (error.status >= 500 || error.status === 429)
 }
@@ -154,7 +163,7 @@ export function createVaultSync({ api, encryptionKey, now, revisionMemory }: Vau
         try {
           const revision = await api.save(expectedRevision, payload)
           // 서버는 저장할 때마다 1씩 올린다. 다른 값이면 되돌림 감지 기준을 흔들 수 있으므로 믿지 않는다
-          if (revision !== expectedRevision + 1) throw new UnexpectedResponseError(`저장 응답 revision이 ${expectedRevision + 1}이 아님: ${revision}`)
+          if (revision !== expectedRevision + 1) throw new RevisionMismatchError(expectedRevision + 1, revision)
           revisionMemory.raise(revision)
           return { revision, data: toSave, readOnly: false, payload }
         } catch (error) {

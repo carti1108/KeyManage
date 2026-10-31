@@ -179,7 +179,8 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory }: Vault
       // 그사이 로그아웃·다른 로그인이 있었으면 이전 세션의 실패를 지금 세션에 알리지 않는다
       if (generation !== startedGeneration) return 'idle'
       if (isUnauthorized(error)) throw expire()
-      if (!(error instanceof VaultSyncConflictError)) retryBlocked = true
+      // 잠금 전에 보낸 요청의 늦은 거절이 다시 연 세션의 재전송을 막지 않게 한다
+      if (epoch === startedAt && !(error instanceof VaultSyncConflictError)) retryBlocked = true
       throw error
     }
     if (generation !== startedGeneration || account === null) return 'idle'
@@ -187,6 +188,7 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory }: Vault
       // 보내는 사이 잠겼다. 잠기기 전에 더 고친 것이 없으면 올린 볼트를 잠긴 상태에 남긴다
       if (account.payload === vault.payload && saved.payload !== null) {
         account = { ...account, payload: saved.payload, revision: saved.revision, pendingSync: false }
+        return 'synced'
       }
       return 'idle'
     }
@@ -210,7 +212,8 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory }: Vault
 
   /**
    * 세션 만료 전에 남긴 대기 내용을 서버 볼트와 병합해 올린다. 서버에 닿지 못하면 병합한 볼트를 대기로 연다.
-   * 대기 내용은 볼트가 열린 뒤에야 지운다. 올리기가 거절되면 남겨 다음 로그인 때 다시 올린다
+   * 대기 내용은 볼트가 열린 뒤에야 지운다. 충돌·되돌림이면 로그인을 실패시키고 남겨 다음 로그인 때 다시 올린다.
+   * 서버가 받을 수 없는 대기 내용(읽기 전용, 용량 초과 등)이면 서버 볼트로 열고 dropped로 알린다
    */
   async function adoptOrphan(email: string, encryptionKey: CryptoKey, sync: VaultSync, vault: SyncedVault) {
     const pending = orphan
@@ -224,10 +227,15 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory }: Vault
     }
     const merged = mergeVaults(data, vault.data)
     try {
-      return { vault: await sync.save(vault, merged), pendingSync: false }
+      try {
+        return { vault: await sync.save(vault, merged), pendingSync: false }
+      } catch (error) {
+        if (!isTransientSyncError(error)) throw error
+        return { vault: { revision: vault.revision, data: merged, readOnly: false, payload: await sync.seal(merged) }, pendingSync: true }
+      }
     } catch (error) {
-      if (!isTransientSyncError(error)) throw error
-      return { vault: { revision: vault.revision, data: merged, readOnly: false, payload: await sync.seal(merged) }, pendingSync: true }
+      if (error instanceof VaultSyncConflictError || error instanceof RevisionRollbackError || isUnauthorized(error)) throw error
+      return { vault, pendingSync: false, dropped: error }
     }
   }
 
@@ -236,11 +244,12 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory }: Vault
     const sync = vaultSyncFor(result.session.accessToken, result.encryptionKey)
     const prepared = await prepareVault(sync, options)
     ensureCurrent(startedAt)
-    const { vault, pendingSync } = await adoptOrphan(email, result.encryptionKey, sync, prepared)
+    const adopted: { vault: SyncedVault; pendingSync: boolean; dropped?: unknown } = await adoptOrphan(email, result.encryptionKey, sync, prepared)
     ensureCurrent(startedAt)
-    open(email, result.session.accessToken, result.kdf, sync, vault, pendingSync)
-    // 올렸거나 이 볼트의 대기로 옮겼다. 다른 계정의 대기 내용이면 그 계정이 열렸으므로 버린다 (VLT-001)
+    open(email, result.session.accessToken, result.kdf, sync, adopted.vault, adopted.pendingSync)
+    // 올렸거나, 이 볼트의 대기로 옮겼거나, 서버가 받을 수 없어 버렸다. 다른 계정의 대기 내용이면 그 계정이 열렸으므로 버린다 (VLT-001)
     orphan = null
+    if (adopted.dropped !== undefined) notifySync(adopted.dropped)
   }
 
   function beginSignIn(email: string): number {
