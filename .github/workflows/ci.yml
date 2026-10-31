@@ -197,8 +197,6 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: jdx/mise-action@v2
-        with:
-          install_args: "tuist@4.191.5"
 
       - name: Apple 6중 기계적 통합 검증
         run: bash Scripts/verify-apple.sh

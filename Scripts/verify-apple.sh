@@ -11,6 +11,8 @@ APPLE_DIR="${ROOT_DIR}/Apps/Apple"
 
 if [ -n "${TUIST_BIN:-}" ] && [ -x "${TUIST_BIN}" ]; then
   :
+elif command -v mise >/dev/null 2>&1 && mise which tuist >/dev/null 2>&1; then
+  TUIST_BIN="$(mise which tuist)"
 elif [ -x "/Users/carti/.local/share/mise/installs/tuist/4.191.5/tuist" ]; then
   TUIST_BIN="/Users/carti/.local/share/mise/installs/tuist/4.191.5/tuist"
 elif command -v tuist >/dev/null 2>&1; then
