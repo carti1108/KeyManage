@@ -18,7 +18,8 @@ export function BurnTimerBadge({
   onBurned,
   className,
 }: BurnTimerBadgeProps) {
-  const remaining = Math.min(totalSeconds, Math.max(0, Math.ceil(remainingSeconds)))
+  const total = Number.isFinite(totalSeconds) && totalSeconds > 0 ? totalSeconds : DEFAULT_TOTAL_SECONDS
+  const remaining = Number.isFinite(remainingSeconds) ? Math.min(total, Math.max(0, Math.ceil(remainingSeconds))) : 0
   const burned = remaining === 0
   const notified = useRef(false)
 
@@ -45,7 +46,7 @@ export function BurnTimerBadge({
       <span
         aria-hidden
         className="absolute inset-x-0 top-0 h-px origin-left bg-accent transition-transform duration-1000 ease-linear"
-        style={{ transform: `scaleX(${totalSeconds > 0 ? remaining / totalSeconds : 0})` }}
+        style={{ transform: `scaleX(${remaining / total})` }}
       />
     </div>
   )

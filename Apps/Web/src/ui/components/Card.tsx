@@ -13,7 +13,8 @@ const BASE_CLASSES = 'rounded-lg border bg-card text-card-foreground'
 type Padding = keyof typeof PADDING_CLASSES
 
 type StaticCardProps = ComponentProps<'div'> & { padding?: Padding; interactive?: false }
-// 누를 수 있는 카드는 키보드로도 고를 수 있도록 button으로 그린다
+// 누를 수 있는 카드는 키보드로도 고를 수 있도록 button으로 그린다.
+// 그래서 안에 버튼·입력 필드를 넣을 수 없다. 복사 버튼이 있는 볼트 항목은 볼트 목록 단계에서 따로 정한다
 type InteractiveCardProps = ComponentProps<'button'> & { padding?: Padding; interactive: true }
 
 export type CardProps = StaticCardProps | InteractiveCardProps
