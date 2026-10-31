@@ -1,5 +1,5 @@
 {
-  "originHash" : "445b2e1ebd6745bee7bd1d294e6ab564d0dec957154764f6d395dd5a10bbcf54",
+  "originHash" : "7891a505d3c58127224b42da27f665f00c1fdbb8443294473c941fc684eea842",
   "pins" : [
     {
       "identity" : "microribs",
@@ -7,7 +7,7 @@
       "location" : "https://github.com/carti1108/MicroRIBs.git",
       "state" : {
         "branch" : "main",
-        "revision" : "064939d329623fb0a02fa05de13303f0f61e763b"
+        "revision" : "f38126c28987504737ec23829dd365e3e1b14695"
       }
     },
     {
