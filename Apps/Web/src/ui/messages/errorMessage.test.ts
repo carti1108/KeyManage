@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { InvalidEmailError } from '../../domain/auth/authService'
 import { InvalidPasswordError } from '../../domain/crypto/keys'
 import { NetworkError, ServerError } from '../../domain/server/serverErrors'
+import { InvalidVaultDataError } from '../../domain/vault/vaultData'
+import { VaultSyncConflictError } from '../../domain/vault/vaultSync'
 import { SessionExpiredError, VaultSetupError, WrongMasterPasswordError } from '../../domain/session/vaultSession'
 import { describeError } from './errorMessage'
 
@@ -20,6 +22,17 @@ describe('describeError', () => {
     [new VaultSetupError(new NetworkError()), '계정은 만들었지만 볼트를 준비하지 못했습니다. 다시 로그인해 주세요.'],
   ])('%s → 정책 문구', (error, body) => {
     expect(describeError(error).body).toBe(body)
+  })
+
+  it('볼트 형식 오류와 동기화 충돌은 VLT-001 문구를 쓴다', () => {
+    expect(describeError(new InvalidVaultDataError('items 없음'))).toEqual({
+      title: '볼트를 열 수 없음',
+      body: '볼트 데이터 형식이 올바르지 않습니다.',
+    })
+    expect(describeError(new VaultSyncConflictError())).toEqual({
+      title: '동기화 충돌',
+      body: '다른 기기의 변경 사항과 충돌했습니다. 잠시 후 다시 시도해 주세요.',
+    })
   })
 
   it('로그인 실패에는 제목을 붙인다 (SEC-002)', () => {

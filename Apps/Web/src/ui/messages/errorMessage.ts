@@ -2,6 +2,8 @@
 import { InvalidEmailError } from '../../domain/auth/authService'
 import { InvalidPasswordError } from '../../domain/crypto/keys'
 import { NetworkError, ServerError } from '../../domain/server/serverErrors'
+import { InvalidVaultDataError } from '../../domain/vault/vaultData'
+import { VaultSyncConflictError } from '../../domain/vault/vaultSync'
 import { SessionExpiredError, VaultSetupError, WrongMasterPasswordError } from '../../domain/session/vaultSession'
 
 export interface ErrorMessage {
@@ -28,6 +30,11 @@ export function describeError(error: unknown): ErrorMessage {
   if (error instanceof VaultSetupError) return { body: '계정은 만들었지만 볼트를 준비하지 못했습니다. 다시 로그인해 주세요.' }
   if (error instanceof InvalidEmailError) return { body: '올바른 이메일 주소를 입력해 주세요.' }
   if (error instanceof InvalidPasswordError) return { body: '마스터 비밀번호에 쓸 수 없는 문자가 있습니다.' }
+  // 복호화는 됐지만 내용 규격이 틀림. 덮어쓰지 않는다 (VLT-001)
+  if (error instanceof InvalidVaultDataError) return { title: '볼트를 열 수 없음', body: '볼트 데이터 형식이 올바르지 않습니다.' }
+  if (error instanceof VaultSyncConflictError) {
+    return { title: '동기화 충돌', body: '다른 기기의 변경 사항과 충돌했습니다. 잠시 후 다시 시도해 주세요.' }
+  }
   if (error instanceof NetworkError) return { body: '서버에 연결할 수 없습니다. 네트워크 연결을 확인해 주세요.' }
   return { body: UNKNOWN }
 }
