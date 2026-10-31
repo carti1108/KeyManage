@@ -14,7 +14,11 @@ let packageSettings = PackageSettings(
 		"OrderedCollections": ["MACOSX_DEPLOYMENT_TARGET": "14.0", "IPHONEOS_DEPLOYMENT_TARGET": "15.0"],
 		"DequeModule": ["MACOSX_DEPLOYMENT_TARGET": "14.0", "IPHONEOS_DEPLOYMENT_TARGET": "15.0"],
 		"SpanPreview": ["MACOSX_DEPLOYMENT_TARGET": "14.0", "IPHONEOS_DEPLOYMENT_TARGET": "15.0"],
-		"MicroRIBs": ["MACOSX_DEPLOYMENT_TARGET": "14.0", "IPHONEOS_DEPLOYMENT_TARGET": "15.0"]
+		"MicroRIBs": [
+			"MACOSX_DEPLOYMENT_TARGET": "14.0",
+			"IPHONEOS_DEPLOYMENT_TARGET": "15.0",
+			"OTHER_SWIFT_FLAGS": ["$(inherited)", "-enable-experimental-feature", "IsolatedDeinit"]
+		]
 	]
 )
 #endif
