@@ -33,9 +33,12 @@ echo ">> [3/6] 정책 합격 기준 감사 및 TDD 테스트 불변성 검증...
 bash "${ROOT_DIR}/Scripts/check-policy-acceptance.sh" "${ROOT_DIR}"
 bash "${ROOT_DIR}/Scripts/verify-tdd-integrity.sh"
 
-# 4. Tuist 프로젝트 생성
-echo ">> [4/6] Tuist 프로젝트 생성..."
+# 4. Tuist 외부 의존성 설치 및 프로젝트 생성
+echo ">> [4/6] Tuist 의존성 확인 및 프로젝트 생성..."
 cd "${APPLE_DIR}"
+if [ ! -d ".build/checkouts" ]; then
+  "${TUIST_BIN}" install
+fi
 "${TUIST_BIN}" generate --no-open
 
 # 5. macOS 빌드 검증 (Swift 6 Strict Concurrency 포함)

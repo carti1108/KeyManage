@@ -203,5 +203,13 @@ jobs:
       - name: Tuist 전역 버전 활성화
         run: mise use -g tuist@4.191.5
 
+      - name: Tuist 외부 의존성 캐시
+        uses: actions/cache@v4
+        with:
+          path: |
+            Apps/Apple/.build
+            ~/.cache/tuist
+          key: tuist-${{ runner.os }}-${{ hashFiles('Apps/Apple/Tuist/Package.resolved', 'Apps/Apple/Tuist/Package.swift') }}
+
       - name: Apple 6중 기계적 통합 검증
         run: bash Scripts/verify-apple.sh
