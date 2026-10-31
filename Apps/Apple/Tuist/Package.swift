@@ -22,6 +22,6 @@ let packageSettings = PackageSettings(
 let package = Package(
 	name: "KeyManagePackageDependencies",
 	dependencies: [
-		.package(path: "../../../../microRIBs")
+		.package(url: "https://github.com/carti1108/MicroRIBs.git", branch: "main")
 	]
 )

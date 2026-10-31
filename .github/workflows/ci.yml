@@ -189,3 +189,27 @@ jobs:
 
       - name: JDK 교차 검증 (AES-GCM 포함)
         run: java Tools/crypto-vectors/CrossCheck.java
+
+  # Apple 클라이언트(iOS·macOS): 정적 린트·정책 합격 기준·Tuist 생성·Swift 6 빌드·단위 테스트 (ADR-0014, ADR-0015)
+  apple:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+        with:
+          install_args: "tuist@4.191.5"
+
+      - name: Tuist 전역 버전 활성화
+        run: mise use -g tuist@4.191.5
+
+      - name: Tuist 외부 의존성 캐시
+        uses: actions/cache@v4
+        with:
+          path: |
+            Apps/Apple/Tuist/.build
+            ~/.cache/tuist
+          key: tuist-${{ runner.os }}-${{ hashFiles('Apps/Apple/Tuist/Package.resolved', 'Apps/Apple/Tuist/Package.swift') }}
+
+      - name: Apple 6중 기계적 통합 검증
+        run: bash Scripts/verify-apple.sh

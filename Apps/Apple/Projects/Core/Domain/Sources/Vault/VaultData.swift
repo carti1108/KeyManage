@@ -57,6 +57,16 @@ public struct VaultData: Codable, Sendable, Equatable {
 		self.unknownFields = unknownFields
 	}
 
+	public static func empty(now: Date = Date()) -> VaultData {
+		VaultData(
+			version: currentVersion,
+			updatedAt: VaultDateHelper.format(now),
+			items: [],
+			isReadOnly: false,
+			unknownFields: [:]
+		)
+	}
+
 	public init(from decoder: Decoder) throws {
 		let container = try decoder.container(keyedBy: DynamicCodingKeys.self)
 
