@@ -36,11 +36,11 @@ describe('scorePassword (GEN-001)', () => {
 })
 
 describe('hasSequentialDigits (GEN-001)', () => {
-  it.each(['123', 'a123b', '456', '9876', '3210', 'xx0123', 'pw789!'])('%s는 이어지는 숫자가 있다', (password) => {
+  it.each(['123', 'a123b', '456', '9876', '3210', 'xx0123', 'pw789!', '1210', '2123', '😀123'])('%s는 이어지는 숫자가 있다', (password) => {
     expect(hasSequentialDigits(password)).toBe(true)
   })
 
-  it.each(['', '12', '890', '901', '1a2b3', '135', '1122', '121', 'abc'])('%s는 이어지는 숫자가 없다', (password) => {
+  it.each(['', '12', '890', '901', '1a2b3', '135', '1122', '121', '1212', 'abc', '１２３', '١٢٣', '1😀2😀3'])('%s는 이어지는 숫자가 없다', (password) => {
     expect(hasSequentialDigits(password)).toBe(false)
   })
 })
