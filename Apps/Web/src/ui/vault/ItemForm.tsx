@@ -1,12 +1,16 @@
 // 항목 추가·수정 폼 (VLT-001)
+import { Wand2 } from 'lucide-react'
 import { useId, useState, type KeyboardEvent } from 'react'
+import { isWeak, scorePassword } from '../../domain/generator/passwordStrength'
 import { checkItemFields } from '../../domain/vault/itemList'
 import type { ItemFields, VaultItem } from '../../domain/vault/vaultData'
 import { Alert } from '../components/Alert'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
+import { EntropyGauge } from '../components/EntropyGauge'
 import { PasswordField } from '../components/PasswordField'
 import { TextField } from '../components/TextField'
+import { PasswordGenerator } from './PasswordGenerator'
 import { useSave } from './useSave'
 
 export interface ItemFormProps {
@@ -27,8 +31,10 @@ export function ItemForm({ item, onSubmit, onCancel }: ItemFormProps) {
   const [password, setPassword] = useState(item?.password ?? '')
   const [url, setUrl] = useState(item?.url ?? '')
   const [notes, setNotes] = useState(item?.notes ?? '')
+  const [generating, setGenerating] = useState(false)
   const save = useSave()
   const titleId = useId()
+  const score = scorePassword(password)
   const notesId = useId()
 
   function submit() {
@@ -61,6 +67,26 @@ export function ItemForm({ item, onSubmit, onCancel }: ItemFormProps) {
           concealment="css"
           {...IGNORE_PASSWORD_MANAGERS}
         />
+        {password !== '' && <EntropyGauge score={score} />}
+        {/* 약한 비밀번호도 저장은 허용한다. 사이트마다 규칙이 달라 사용자가 고를 수 없는 경우가 있다 (GEN-001) */}
+        {password !== '' && isWeak(score) && (
+          <Alert variant="info" title="취약한 비밀번호 경고">
+            현재 비밀번호는 보안에 취약합니다. 80점 이상의 강력한 비밀번호로 재생성하세요.
+          </Alert>
+        )}
+        {generating ? (
+          <PasswordGenerator
+            onUse={(generated) => {
+              setPassword(generated)
+              setGenerating(false)
+            }}
+            onClose={() => setGenerating(false)}
+          />
+        ) : (
+          <Button variant="outline" size="sm" icon={<Wand2 aria-hidden className="size-4" />} onClick={() => setGenerating(true)} className="self-start">
+            비밀번호 생성
+          </Button>
+        )}
         <TextField label="URL" type="url" value={url} onChange={(e) => setUrl(e.target.value)} {...PRIVATE_TEXT} />
         <div className="flex flex-col gap-1.5">
           <label htmlFor={notesId} className="text-sm font-medium">

@@ -196,6 +196,55 @@ describe('VaultScreen', () => {
       expect(onSave).not.toHaveBeenCalled()
     })
 
+    it('약한 비밀번호는 강도와 경고를 보이지만 저장은 막지 않는다 (GEN-001)', async () => {
+      const { onSave } = setup()
+
+      fireEvent.click(screen.getByRole('button', { name: '항목 추가' }))
+      type('서비스 이름', 'Naver')
+      type('비밀번호', '123456')
+
+      expect(screen.getByRole('meter', { name: '비밀번호 강도' })).toHaveAttribute('aria-valuenow', '19')
+      const warning = screen.getByRole('status')
+      expect(warning).toHaveTextContent('취약한 비밀번호 경고')
+      expect(warning).toHaveTextContent('현재 비밀번호는 보안에 취약합니다. 80점 이상의 강력한 비밀번호로 재생성하세요.')
+
+      fireEvent.click(screen.getByRole('button', { name: '저장' }))
+      await screen.findByRole('heading', { name: 'Naver' })
+      expect(onSave).toHaveBeenCalledOnce()
+    })
+
+    it('비밀번호가 비어 있으면 강도를 보이지 않는다', () => {
+      setup()
+
+      fireEvent.click(screen.getByRole('button', { name: '항목 추가' }))
+
+      expect(screen.queryByRole('meter')).not.toBeInTheDocument()
+    })
+
+    it('생성기로 만든 비밀번호를 비밀번호 칸에 넣는다', () => {
+      setup()
+
+      fireEvent.click(screen.getByRole('button', { name: '항목 추가' }))
+      fireEvent.click(screen.getByRole('button', { name: '비밀번호 생성' }))
+      const generated = screen.getByTestId('generated-password').textContent
+      fireEvent.click(screen.getByRole('button', { name: '이 비밀번호 사용' }))
+
+      expect(generated).toHaveLength(16)
+      expect(screen.getByLabelText('비밀번호')).toHaveValue(generated)
+      expect(screen.queryByTestId('generated-password')).not.toBeInTheDocument()
+    })
+
+    it('생성기 안에서 Enter를 눌러도 항목을 저장하지 않는다', () => {
+      const { onSave } = setup()
+
+      fireEvent.click(screen.getByRole('button', { name: '항목 추가' }))
+      type('서비스 이름', 'Naver')
+      fireEvent.click(screen.getByRole('button', { name: '비밀번호 생성' }))
+      fireEvent.keyDown(screen.getByLabelText('길이'), { key: 'Enter' })
+
+      expect(onSave).not.toHaveBeenCalled()
+    })
+
     it('아이디·URL·메모는 맞춤법 검사로 외부에 보내지 않는다', () => {
       setup()
 
