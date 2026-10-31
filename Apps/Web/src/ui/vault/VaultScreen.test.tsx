@@ -232,6 +232,30 @@ describe('VaultScreen', () => {
       expect(generated).toHaveLength(16)
       expect(screen.getByLabelText('비밀번호')).toHaveValue(generated)
       expect(screen.queryByTestId('generated-password')).not.toBeInTheDocument()
+      // 생성기가 사라져도 키보드 위치를 잃지 않게 비밀번호 칸으로 돌아온다
+      expect(screen.getByLabelText('비밀번호')).toHaveFocus()
+    })
+
+    it('생성기를 닫으면 비밀번호 칸으로 포커스를 돌려준다', () => {
+      setup()
+
+      fireEvent.click(screen.getByRole('button', { name: '항목 추가' }))
+      fireEvent.click(screen.getByRole('button', { name: '비밀번호 생성' }))
+      fireEvent.click(screen.getByRole('button', { name: '닫기' }))
+
+      expect(screen.getByLabelText('비밀번호')).toHaveFocus()
+    })
+
+    it('취약 경고를 알릴 영역은 비밀번호를 입력하기 전부터 있어서 경고가 생기면 읽힌다', () => {
+      setup()
+
+      fireEvent.click(screen.getByRole('button', { name: '항목 추가' }))
+      const region = screen.getByRole('status')
+      expect(region).toBeEmptyDOMElement()
+
+      type('비밀번호', '123456')
+
+      expect(region).toHaveTextContent('취약한 비밀번호 경고')
     })
 
     it('생성기 안에서 Enter를 눌러도 항목을 저장하지 않는다', () => {

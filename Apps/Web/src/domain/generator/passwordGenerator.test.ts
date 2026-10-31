@@ -7,6 +7,14 @@ import {
   type GeneratorOptions,
 } from './passwordGenerator'
 
+// 준비한 난수를 다 쓰면 무한 루프 대신 바로 실패한다
+function sequence(values: number[]) {
+  return () => {
+    if (values.length === 0) throw new Error('준비한 난수를 다 씀')
+    return values.shift()!
+  }
+}
+
 const ALL: GeneratorOptions = { length: 16, uppercase: true, lowercase: true, digits: true, symbols: true }
 
 const has = {
@@ -58,7 +66,7 @@ describe('generatePassword (GEN-001)', () => {
     // 풀은 대문자·소문자·숫자·특수기호 순서다. 소문자+숫자면 0~25는 소문자, 26~35는 숫자
     // 첫 시도는 모두 소문자라 버리고, 둘째 시도에서 숫자가 섞인다
     const draws = [0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 26]
-    const random = () => draws.shift()!
+    const random = sequence(draws)
 
     const password = generatePassword({ length: 8, uppercase: false, lowercase: true, digits: true, symbols: false }, random)
 
@@ -69,7 +77,7 @@ describe('generatePassword (GEN-001)', () => {
   it('나머지 연산 편향이 생기는 큰 난수는 버린다', () => {
     // 2^32 = 4294967296. 풀 36이면 4294967292 이상은 편향 구간이라 버린다
     const draws = [4294967295, 26, 0, 1, 2, 3, 4, 5, 6]
-    const random = () => draws.shift()!
+    const random = sequence(draws)
 
     expect(generatePassword({ length: 8, uppercase: false, lowercase: true, digits: true, symbols: false }, random)).toBe('0abcdefg')
   })
