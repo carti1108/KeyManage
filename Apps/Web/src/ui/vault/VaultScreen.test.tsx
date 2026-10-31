@@ -213,6 +213,21 @@ describe('VaultScreen', () => {
       expect(onSave).toHaveBeenCalledOnce()
     })
 
+    it('이어지는 숫자가 있으면 점수와 상관없이 안내한다', () => {
+      setup()
+
+      fireEvent.click(screen.getByRole('button', { name: '항목 추가' }))
+      // 이어지는 숫자가 있어도 길고 다양해 강도는 안전(80점 이상)이다
+      type('비밀번호', 'Xk#9mQ2!vL7@pR4$123')
+
+      expect(screen.getByRole('meter', { name: '비밀번호 강도' })).toHaveAttribute('aria-valuenow', '100')
+      expect(screen.getByRole('status')).toHaveTextContent('123처럼 이어지는 숫자가 들어 있어 추측하기 쉽습니다.')
+      expect(screen.getByRole('status')).not.toHaveTextContent('취약한 비밀번호 경고')
+
+      type('비밀번호', 'Xk#9mQ2!vL7@pR4$135')
+      expect(screen.getByRole('status')).toBeEmptyDOMElement()
+    })
+
     it('비밀번호가 비어 있으면 강도를 보이지 않는다', () => {
       setup()
 
