@@ -27,10 +27,13 @@ src/
 npm install
 npm run dev      # 개발 서버 (http://localhost:5173). /api는 localhost:8080 백엔드로 프록시
 npm run check    # 타입 검사 + lint(경고도 실패) + 테스트
+npm run test:integration  # 실제 백엔드에 붙는 통합 테스트 (백엔드를 먼저 띄운다)
 npm run build    # 정적 파일 빌드 (dist/)
 ```
 
-백엔드는 `Back/`에서 `./gradlew :app:bootRun`으로 띄웁니다. 개발 중에는 같은 출처 프록시를 쓰므로 CORS 설정이 필요 없습니다.
+백엔드는 `Back/`에서 `./gradlew :app:bootRun`으로 띄웁니다. 개발 중에는 같은 출처 프록시를 쓰므로 CORS 설정이 필요 없습니다(프록시가 브라우저 `Origin`을 지운다).
+
+통합 테스트(`src/integration/`)는 웹 클라이언트 코드로 가입·두 기기 동기화·충돌 병합·삭제·잠금 흐름을 실제 백엔드에서 확인합니다. 기본 주소는 `http://localhost:8080`이고 `KEYMANAGE_API_URL`로 바꿀 수 있습니다. `npm run check`에는 들어가지 않고, CI의 `integration` 작업이 백엔드를 띄워 실행합니다.
 
 ## 데스크톱 앱 (Tauri v2)
 
