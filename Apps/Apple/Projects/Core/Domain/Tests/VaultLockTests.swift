@@ -376,6 +376,7 @@ final class VaultLockTests: XCTestCase {
 			biometryStateHash: biometryHash
 		)
 		try manager.unlockWithMasterPassword(password: fixture.masterPassword, now: t0)
+		let key = try XCTUnwrap(manager.encryptionKey)
 		manager.lock()
 
 		// 14일 초과 시점 (14 * 86400 + 1초)
@@ -383,7 +384,11 @@ final class VaultLockTests: XCTestCase {
 
 		// SEC-003: 생체 인증을 켜도 14일마다 한 번 마스터 비밀번호 요구
 		XCTAssertThrowsError(
-			try manager.unlockWithBiometrics(evaluatedStateHash: biometryHash, now: expiredDate)
+			try manager.unlockWithBiometrics(
+				evaluatedStateHash: biometryHash,
+				recoveredEncryptionKey: key,
+				now: expiredDate
+			)
 		) { error in
 			guard let lockError = error as? LockError else {
 				XCTFail("LockError가 발생해야 하지만 \(error)가 발생함")
@@ -413,13 +418,18 @@ final class VaultLockTests: XCTestCase {
 			biometryStateHash: registeredHash
 		)
 		try manager.unlockWithMasterPassword(password: fixture.masterPassword, now: t0)
+		let key = try XCTUnwrap(manager.encryptionKey)
 		manager.lock()
 
 		let validDate = t0.addingTimeInterval(3600) // 1시간 경과 (14일 이내)
 
 		// SEC-003: 기기에 생체 정보가 새로 등록되면 생체 해제를 무효화하고 마스터 비밀번호를 요구한다
 		XCTAssertThrowsError(
-			try manager.unlockWithBiometrics(evaluatedStateHash: alteredHash, now: validDate)
+			try manager.unlockWithBiometrics(
+				evaluatedStateHash: alteredHash,
+				recoveredEncryptionKey: key,
+				now: validDate
+			)
 		) { error in
 			guard let lockError = error as? LockError else {
 				XCTFail("LockError가 발생해야 하지만 \(error)가 발생함")
@@ -576,5 +586,30 @@ final class VaultLockTests: XCTestCase {
 
 		XCTAssertTrue(managerB.isLocked, "타임아웃 경과로 볼트는 잠금 상태가 되어야 합니다.")
 		XCTAssertFalse(managerB.isPrivacyCoverActive, "타임아웃 경과로 잠기더라도 포그라운드 복귀 시 가림 화면은 걷혀야 합니다.")
+	}
+
+	// MARK: - 18. SEC-003 표준 사용자 문구 및 빈 볼트 생성 검증
+	func testStandardUserFacingStringsAndEmptyVaultFactory() throws {
+		XCTAssertEqual(
+			LockError.invalidMasterPassword.errorDescription,
+			"마스터 비밀번호가 올바르지 않습니다."
+		)
+		XCTAssertEqual(
+			LockError.emptyVaultPreparationFailed.errorDescription,
+			"계정은 만들었지만 볼트를 준비하지 못했습니다. 다시 로그인해 주세요."
+		)
+		XCTAssertEqual(VaultLockUIStrings.lockedTitle, "볼트가 잠겨 있습니다")
+		XCTAssertEqual(VaultLockUIStrings.unlockButtonTitle, "잠금 해제")
+		XCTAssertEqual(VaultLockUIStrings.biometricUnlockButtonTitle, "생체 인증으로 잠금 해제")
+
+		let fixedDate = Date(timeIntervalSince1970: 1_730_000_000)
+		let emptyVault = VaultData.empty(now: fixedDate)
+		XCTAssertEqual(emptyVault.version, 1)
+		XCTAssertTrue(emptyVault.items.isEmpty)
+		XCTAssertFalse(emptyVault.isReadOnly)
+
+		let encoded = try emptyVault.encode()
+		let decoded = try VaultData.decode(from: encoded)
+		XCTAssertEqual(decoded, emptyVault)
 	}
 }
