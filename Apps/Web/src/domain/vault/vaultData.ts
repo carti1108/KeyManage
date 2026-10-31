@@ -33,6 +33,12 @@ export interface ItemFields {
   readonly notes?: string
 }
 
+/** 항목 수정 내용. 선택 필드(url, notes)에 null을 주면 필드를 없앤다 */
+export type ItemChanges = Partial<Omit<ItemFields, 'url' | 'notes'>> & {
+  readonly url?: string | null
+  readonly notes?: string | null
+}
+
 /** 복호화는 됐지만 내용이 규격과 다름. 볼트를 열지 않고 서버 볼트도 덮어쓰지 않는다 */
 export class InvalidVaultDataError extends Error {
   constructor(message: string) {
@@ -111,10 +117,16 @@ export function addItem(data: VaultData, fields: ItemFields, now: Date, id: stri
 }
 
 /** @throws VaultItemNotFoundError */
-export function updateItem(data: VaultData, id: string, changes: Partial<ItemFields>, now: Date): VaultData {
+export function updateItem(data: VaultData, id: string, changes: ItemChanges, now: Date): VaultData {
   // undefined 값을 펼치면 필수 필드가 사라져 다른 기기가 볼트를 못 열게 되므로 거른다
-  const defined = Object.fromEntries(Object.entries(changes).filter(([, value]) => value !== undefined))
-  return replaceItem(data, id, now, (item, time) => ({ ...item, ...defined, updatedAt: time }))
+  const entries = Object.entries(changes).filter(([, value]) => value !== undefined)
+  const set = Object.fromEntries(entries.filter(([, value]) => value !== null))
+  // 지운 선택 필드는 빈 문자열이 아니라 필드 없음으로 남긴다. "값 없음"을 한 가지로만 나타낸다
+  const removed = new Set(entries.filter(([, value]) => value === null).map(([key]) => key))
+  return replaceItem(data, id, now, (item, time) => {
+    const kept = Object.fromEntries(Object.entries(item).filter(([key]) => !removed.has(key)))
+    return { ...kept, ...set, updatedAt: time } as VaultItem
+  })
 }
 
 /** 내용을 지우고 삭제 표시만 남긴다. 다른 기기와 병합할 때 삭제가 되살아나지 않게 하기 위해서다 (VLT-001) */

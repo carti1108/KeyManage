@@ -3,7 +3,8 @@ import { InvalidEmailError } from '../../domain/auth/authService'
 import { InvalidPasswordError } from '../../domain/crypto/keys'
 import { NetworkError, ServerError } from '../../domain/server/serverErrors'
 import { InvalidVaultDataError } from '../../domain/vault/vaultData'
-import { VaultSyncConflictError } from '../../domain/vault/vaultSync'
+import { ReadOnlyVaultError, RevisionRollbackError, VaultSyncConflictError, VaultTooLargeError } from '../../domain/vault/vaultSync'
+import { READ_ONLY_NOTICE, ROLLBACK_WARNING } from './vaultNotices'
 import { SessionExpiredError, VaultSetupError, WrongMasterPasswordError } from '../../domain/session/vaultSession'
 
 export interface ErrorMessage {
@@ -35,6 +36,12 @@ export function describeError(error: unknown): ErrorMessage {
   if (error instanceof VaultSyncConflictError) {
     return { title: '동기화 충돌', body: '다른 기기의 변경 사항과 충돌했습니다. 잠시 후 다시 시도해 주세요.' }
   }
+  if (error instanceof VaultTooLargeError) {
+    return { title: '저장 실패', body: '볼트 허용 용량(5MB)을 초과했거나 데이터 규격이 올바르지 않습니다.' }
+  }
+  if (error instanceof ReadOnlyVaultError) return { body: READ_ONLY_NOTICE }
+  // 받아들일지 묻는 흐름이 없는 곳(저장 등)에서는 경고만 보인다
+  if (error instanceof RevisionRollbackError) return { title: ROLLBACK_WARNING.title, body: ROLLBACK_WARNING.body }
   if (error instanceof NetworkError) return { body: '서버에 연결할 수 없습니다. 네트워크 연결을 확인해 주세요.' }
   return { body: UNKNOWN }
 }

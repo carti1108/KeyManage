@@ -253,6 +253,19 @@ describe('SessionRoot', () => {
   })
 
   describe('열린 볼트', () => {
+    it('항목을 저장하면 세션에 저장하고 새 볼트로 화면을 다시 그린다', async () => {
+      const { session } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault() })
+      render(<SessionRoot session={session} pageHidden={false} />)
+
+      fireEvent.click(screen.getByRole('button', { name: '항목 추가' }))
+      type('서비스 이름', 'GitHub')
+      fireEvent.click(screen.getByRole('button', { name: '저장' }))
+      fireEvent.click(await screen.findByRole('button', { name: '목록으로' }))
+
+      expect(session.save).toHaveBeenCalledOnce()
+      expect(screen.getByRole('button', { name: /GitHub/ })).toBeInTheDocument()
+    })
+
     it('잠그기를 누르면 잠금 화면으로 바뀐다', async () => {
       const { session } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault() })
       render(<SessionRoot session={session} pageHidden={false} />)

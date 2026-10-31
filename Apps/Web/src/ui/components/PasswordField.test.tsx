@@ -132,4 +132,40 @@ describe('PasswordField', () => {
 
     expect(screen.queryByRole('button', { name: '비밀번호 복사' })).not.toBeInTheDocument()
   })
+
+  describe('CSS 가림 (브라우저가 비밀번호 칸으로 알아보지 않게)', () => {
+    afterEach(() => vi.unstubAllGlobals())
+
+    function supportTextSecurity(supported: boolean) {
+      vi.stubGlobal('CSS', { supports: (property: string) => supported && property === '-webkit-text-security' })
+    }
+
+    it('지원하면 text 칸을 CSS로 가리고, 보기를 누르면 가림을 푼다', () => {
+      supportTextSecurity(true)
+      const { input } = setup({ concealment: 'css' })
+
+      expect(input).toHaveAttribute('type', 'text')
+      expect(input).toHaveAttribute('data-masked', 'css')
+
+      fireEvent.click(screen.getByRole('button', { name: '비밀번호 보기' }))
+
+      expect(input).toHaveAttribute('type', 'text')
+      expect(input).not.toHaveAttribute('data-masked')
+    })
+
+    it('가려진 동안에는 복사·잘라내기로 평문을 꺼내지 못한다', () => {
+      supportTextSecurity(true)
+      const { input } = setup({ concealment: 'css' })
+
+      expect(fireEvent.copy(input)).toBe(false)
+      expect(fireEvent.cut(input)).toBe(false)
+    })
+
+    it('지원하지 않는 브라우저에서는 평문이 보이지 않도록 기본 비밀번호 칸으로 돌아간다', () => {
+      supportTextSecurity(false)
+      const { input } = setup({ concealment: 'css' })
+
+      expect(input).toHaveAttribute('type', 'password')
+    })
+  })
 })

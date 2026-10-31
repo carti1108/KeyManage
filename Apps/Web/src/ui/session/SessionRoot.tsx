@@ -6,6 +6,7 @@ import { AuthScreen } from '../screens/AuthScreen'
 import { PrivacyCover } from '../screens/PrivacyCover'
 import { UnlockScreen } from '../screens/UnlockScreen'
 import { VaultHomeScreen } from '../screens/VaultHomeScreen'
+import { VaultScreen } from '../vault/VaultScreen'
 import type { RollbackOption, SessionPort } from './sessionPort'
 
 export interface SessionRootProps {
@@ -97,12 +98,20 @@ export function SessionRoot({ session, pageHidden }: SessionRootProps) {
     return (
       <VaultHomeScreen
         email={state.email}
-        itemCount={state.vault.data.items.length}
         readOnly={state.vault.readOnly}
         offline={offline}
         onLock={() => session.lock()}
         onLogout={() => void logout()}
-      />
+      >
+        <VaultScreen
+          vault={state.vault}
+          onSave={async (data) => {
+            await session.save(data)
+            // 저장은 잠금 알림을 보내지 않으므로 직접 다시 읽는다
+            refresh()
+          }}
+        />
+      </VaultHomeScreen>
     )
   }
 }

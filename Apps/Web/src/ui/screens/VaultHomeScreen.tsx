@@ -1,20 +1,20 @@
-// 볼트가 열린 뒤의 첫 화면. 항목 목록은 다음 단계에서 채운다
+// 볼트가 열린 뒤의 틀. 머리글(잠그기·로그아웃)과 상태 안내 아래에 볼트 화면을 둔다
 import { Lock, LogOut, WifiOff } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { Alert } from '../components/Alert'
 import { Button } from '../components/Button'
-import { Card } from '../components/Card'
 import { OFFLINE_NOTICE, READ_ONLY_NOTICE } from '../messages/vaultNotices'
 
 export interface VaultHomeScreenProps {
   email: string
-  itemCount: number
   readOnly: boolean
   offline: boolean
   onLock: () => void
   onLogout: () => void
+  children: ReactNode
 }
 
-export function VaultHomeScreen({ email, itemCount, readOnly, offline, onLock, onLogout }: VaultHomeScreenProps) {
+export function VaultHomeScreen({ email, readOnly, offline, onLock, onLogout, children }: VaultHomeScreenProps) {
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-4 bg-background p-4">
       <header className="flex items-center justify-between gap-2">
@@ -38,9 +38,7 @@ export function VaultHomeScreen({ email, itemCount, readOnly, offline, onLock, o
         </Alert>
       )}
       {readOnly && <Alert variant="info">{READ_ONLY_NOTICE}</Alert>}
-      <Card>
-        <p className="text-sm text-muted-foreground">저장된 항목 {itemCount}개</p>
-      </Card>
+      {children}
     </main>
   )
 }
