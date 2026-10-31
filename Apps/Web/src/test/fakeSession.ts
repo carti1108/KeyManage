@@ -1,7 +1,7 @@
 // 화면 테스트용 가짜 세션. 상태를 직접 바꾸고 실제 세션처럼 잠금·잠금 해제 알림을 보낸다
 import { vi } from 'vitest'
 import type { SessionState } from '../domain/session/vaultSession'
-import { emptyVault } from '../domain/vault/vaultData'
+import { emptyVault, type VaultData } from '../domain/vault/vaultData'
 import type { SyncedVault } from '../domain/vault/vaultSync'
 import type { SessionPort } from '../ui/session/sessionPort'
 
@@ -40,6 +40,11 @@ export function createFakeSession(initial: SessionState = { status: 'signedOut' 
     unlock: vi.fn(async () => {
       if (current.status === 'locked') control.openVault(current.email)
       return { offline: false }
+    }),
+    // 실제 세션처럼 저장해도 알림은 보내지 않는다. 화면이 직접 다시 읽어야 한다
+    save: vi.fn(async (data: VaultData) => {
+      if (current.status !== 'unlocked') throw new Error('잠금 해제 상태가 아님')
+      current = { ...current, vault: { ...current.vault, revision: current.vault.revision + 1, data } }
     }),
     lock: vi.fn(() => control.closeVault()),
     // 실제 세션처럼 이 기기의 세션을 먼저 지우고, 서버 응답은 테스트가 정할 때 끝낸다
