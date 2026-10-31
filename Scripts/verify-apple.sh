@@ -38,6 +38,7 @@ bash "${ROOT_DIR}/Scripts/verify-tdd-integrity.sh"
 # 4. Tuist 프로젝트 생성
 echo ">> [4/6] Tuist 프로젝트 생성..."
 cd "${APPLE_DIR}"
+"${TUIST_BIN}" install
 "${TUIST_BIN}" generate --no-open
 
 # 5. macOS 빌드 검증 (Swift 6 Strict Concurrency 포함)
