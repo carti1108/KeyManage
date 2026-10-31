@@ -68,26 +68,147 @@ public extension VaultLockManagerProtocol {
 }
 
 public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendable {
-	public private(set) var isLocked: Bool = false
-	public private(set) var isPrivacyCoverActive: Bool = false
-	public var autoLockTimeout: AutoLockTimeout = .default
-	public private(set) var lastInteractionTime: Date = Date(timeIntervalSince1970: 0)
+	private let syncLock = NSRecursiveLock()
 
-	public private(set) var email: String? = nil
-	public private(set) var sessionToken: String? = nil
-	public private(set) var salt: Data? = nil
-	public private(set) var iterations: Int = 0
-	public private(set) var encryptedVault: EncryptedVaultPayload? = nil
+	private var _isLocked: Bool = false
+	public var isLocked: Bool {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+		return _isLocked
+	}
 
-	public private(set) var masterKey: Data? = nil
-	public private(set) var encryptionKey: Data? = nil
-	public private(set) var decryptedVault: VaultData? = nil
+	private var _isPrivacyCoverActive: Bool = false
+	public var isPrivacyCoverActive: Bool {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+		return _isPrivacyCoverActive
+	}
 
-	public var isBiometricsEnabled: Bool = false
-	public private(set) var lastMasterPasswordUnlockDate: Date? = nil
-	public var currentBiometryStateHash: Data? = nil
+	private var _autoLockTimeout: AutoLockTimeout = .default
+	public var autoLockTimeout: AutoLockTimeout {
+		get {
+			syncLock.lock()
+			defer { syncLock.unlock() }
+			return _autoLockTimeout
+		}
+		set {
+			syncLock.lock()
+			defer { syncLock.unlock() }
+			_autoLockTimeout = newValue
+		}
+	}
 
-	public var onClipboardClearNeeded: (@Sendable () -> Void)? = nil
+	private var _lastInteractionTime: Date = Date(timeIntervalSince1970: 0)
+	public var lastInteractionTime: Date {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+		return _lastInteractionTime
+	}
+
+	private var _email: String? = nil
+	public var email: String? {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+		return _email
+	}
+
+	private var _sessionToken: String? = nil
+	public var sessionToken: String? {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+		return _sessionToken
+	}
+
+	private var _salt: Data? = nil
+	public var salt: Data? {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+		return _salt
+	}
+
+	private var _iterations: Int = 0
+	public var iterations: Int {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+		return _iterations
+	}
+
+	private var _encryptedVault: EncryptedVaultPayload? = nil
+	public var encryptedVault: EncryptedVaultPayload? {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+		return _encryptedVault
+	}
+
+	private var _masterKey: Data? = nil
+	public var masterKey: Data? {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+		return _masterKey
+	}
+
+	private var _encryptionKey: Data? = nil
+	public var encryptionKey: Data? {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+		return _encryptionKey
+	}
+
+	private var _decryptedVault: VaultData? = nil
+	public var decryptedVault: VaultData? {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+		return _decryptedVault
+	}
+
+	private var _isBiometricsEnabled: Bool = false
+	public var isBiometricsEnabled: Bool {
+		get {
+			syncLock.lock()
+			defer { syncLock.unlock() }
+			return _isBiometricsEnabled
+		}
+		set {
+			syncLock.lock()
+			defer { syncLock.unlock() }
+			_isBiometricsEnabled = newValue
+		}
+	}
+
+	private var _lastMasterPasswordUnlockDate: Date? = nil
+	public var lastMasterPasswordUnlockDate: Date? {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+		return _lastMasterPasswordUnlockDate
+	}
+
+	private var _currentBiometryStateHash: Data? = nil
+	public var currentBiometryStateHash: Data? {
+		get {
+			syncLock.lock()
+			defer { syncLock.unlock() }
+			return _currentBiometryStateHash
+		}
+		set {
+			syncLock.lock()
+			defer { syncLock.unlock() }
+			_currentBiometryStateHash = newValue
+		}
+	}
+
+	private var _onClipboardClearNeeded: (@Sendable () -> Void)? = nil
+	public var onClipboardClearNeeded: (@Sendable () -> Void)? {
+		get {
+			syncLock.lock()
+			defer { syncLock.unlock() }
+			return _onClipboardClearNeeded
+		}
+		set {
+			syncLock.lock()
+			defer { syncLock.unlock() }
+			_onClipboardClearNeeded = newValue
+		}
+	}
 
 	public init() {}
 
@@ -100,41 +221,191 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 		isBiometricsEnabled: Bool = false,
 		biometryStateHash: Data? = nil
 	) {
-		// Stub: 비즈니스 구현 없음
+		syncLock.lock()
+		defer { syncLock.unlock() }
+
+		_email = email
+		_sessionToken = sessionToken
+		_salt = salt
+		_iterations = iterations
+		_encryptedVault = encryptedVault
+		_isBiometricsEnabled = isBiometricsEnabled
+		_currentBiometryStateHash = biometryStateHash
+
+		_isLocked = false
+		_isPrivacyCoverActive = false
+		_lastInteractionTime = Date()
 	}
 
-	public func recordInteraction(at date: Date) {
-		// Stub: 비즈니스 구현 없음
+	public func recordInteraction(at date: Date = Date()) {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+		_lastInteractionTime = date
 	}
 
-	public func checkIdleTimeout(at date: Date) -> Bool {
-		// Stub: 비즈니스 구현 없음
+	public func checkIdleTimeout(at date: Date = Date()) -> Bool {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+
+		guard !_isLocked else { return false }
+
+		let elapsed = date.timeIntervalSince(_lastInteractionTime)
+		if elapsed >= _autoLockTimeout.timeInterval {
+			internalLock()
+			return true
+		}
 		return false
 	}
 
-	public func didEnterBackground(at date: Date) {
-		// Stub: 비즈니스 구현 없음
+	public func didEnterBackground(at date: Date = Date()) {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+
+		_isPrivacyCoverActive = true
+		if _autoLockTimeout == .immediate {
+			internalLock()
+		}
 	}
 
-	public func willEnterForeground(at date: Date) {
-		// Stub: 비즈니스 구현 없음
+	public func willEnterForeground(at date: Date = Date()) {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+
+		if !_isLocked {
+			let elapsed = date.timeIntervalSince(_lastInteractionTime)
+			if elapsed >= _autoLockTimeout.timeInterval {
+				internalLock()
+			} else {
+				_isPrivacyCoverActive = false
+			}
+		}
 	}
 
 	public func lock() {
-		// Stub: 비즈니스 구현 없음
+		syncLock.lock()
+		defer { syncLock.unlock() }
+		internalLock()
 	}
 
-	public func unlockWithMasterPassword(password: String, now: Date) throws {
-		// Stub: 비즈니스 구현 없음
-		throw LockError.notImplemented
+	public func unlockWithMasterPassword(password: String, now: Date = Date()) throws {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+
+		guard let salt = _salt,
+		      let encryptedVault = _encryptedVault,
+		      _iterations > 0 else {
+			throw LockError.sessionNotInitialized
+		}
+
+		let normalized: Data
+		do {
+			normalized = try PasswordPreprocessor.preprocess(password)
+		} catch {
+			throw LockError.invalidMasterPassword
+		}
+
+		let derivedMasterKey: Data
+		do {
+			derivedMasterKey = try PBKDF2KeyDeriver.deriveMasterKey(
+				password: normalized,
+				salt: salt,
+				iterations: _iterations
+			)
+		} catch {
+			throw LockError.invalidMasterPassword
+		}
+
+		let derivedKeys: SeparatedKeys
+		do {
+			derivedKeys = try HKDFKeySeparator.separate(masterKey: derivedMasterKey)
+		} catch {
+			throw LockError.invalidMasterPassword
+		}
+
+		let decryptedData: Data
+		do {
+			decryptedData = try VaultCipher.decrypt(payload: encryptedVault, key: derivedKeys.encryptionKey)
+		} catch {
+			throw LockError.invalidMasterPassword
+		}
+
+		let decodedVault: VaultData
+		do {
+			decodedVault = try VaultData.decode(from: decryptedData)
+		} catch {
+			throw LockError.invalidMasterPassword
+		}
+
+		_decryptedVault = decodedVault
+		_masterKey = derivedMasterKey
+		_encryptionKey = derivedKeys.encryptionKey
+		_lastMasterPasswordUnlockDate = now
+		_isLocked = false
+		_isPrivacyCoverActive = false
+		_lastInteractionTime = now
 	}
 
-	public func unlockWithBiometrics(evaluatedStateHash: Data, now: Date) throws {
-		// Stub: 비즈니스 구현 없음
-		throw LockError.notImplemented
+	public func unlockWithBiometrics(evaluatedStateHash: Data, now: Date = Date()) throws {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+
+		guard _encryptedVault != nil else {
+			throw LockError.sessionNotInitialized
+		}
+
+		guard _isBiometricsEnabled else {
+			throw LockError.biometricsDisabled
+		}
+
+		guard let lastPwDate = _lastMasterPasswordUnlockDate,
+		      now.timeIntervalSince(lastPwDate) <= 14 * 86400 else {
+			throw LockError.biometricsExpiredRequirePassword
+		}
+
+		guard let currentHash = _currentBiometryStateHash,
+		      evaluatedStateHash == currentHash else {
+			throw LockError.biometricsInvalidatedRequirePassword
+		}
+
+		_isLocked = false
+		_isPrivacyCoverActive = false
+		_lastInteractionTime = now
 	}
 
 	public func logout() {
-		// Stub: 비즈니스 구현 없음
+		syncLock.lock()
+		defer { syncLock.unlock() }
+
+		internalLock()
+
+		_email = nil
+		_sessionToken = nil
+		_salt = nil
+		_iterations = 0
+		_encryptedVault = nil
+		_isBiometricsEnabled = false
+		_currentBiometryStateHash = nil
+		_lastMasterPasswordUnlockDate = nil
+		_isPrivacyCoverActive = false
+	}
+
+	private func internalLock() {
+		_isLocked = true
+
+		zeroizeData(&_masterKey)
+		zeroizeData(&_encryptionKey)
+		_decryptedVault = nil
+
+		_onClipboardClearNeeded?()
+	}
+
+	private func zeroizeData(_ data: inout Data?) {
+		guard data != nil else { return }
+		data?.withUnsafeMutableBytes { ptr in
+			if let base = ptr.baseAddress {
+				memset_s(base, ptr.count, 0, ptr.count)
+			}
+		}
+		data = nil
 	}
 }
