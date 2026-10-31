@@ -1,88 +1,11 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
-import type { AuthApi, KdfParams, LoginRequest, RegisterRequest, Session } from '../auth/authApi'
+import { FakeAuthApi, FakeVaultApi, NOW, PASSWORD, fields, setup, unlockedWithItem } from '../../test/sessionFixtures'
 import { createAuthService } from '../auth/authService'
-import type { EncryptedVaultPayload } from '../crypto/vaultCipher'
-import { vectors } from '../crypto/testVectors'
 import { NetworkError, ServerError, UnexpectedResponseError } from '../server/serverErrors'
-import type { RemoteVault, VaultApi } from '../vault/vaultApi'
 import { addItem, activeItems } from '../vault/vaultData'
 import { RevisionRollbackError, createRevisionMemory, createVaultSync } from '../vault/vaultSync'
 import { SessionExpiredError, SessionStateError, VaultSetupError, WrongMasterPasswordError, createVaultSession } from './vaultSession'
-
-const NOW = new Date('2026-10-31T00:00:00Z')
-const vector = vectors.keyDerivationCases[0]
-const PASSWORD = vector.password
-const fields = { serviceName: 'GitHub', username: 'octocat', password: 'pw-1' }
-
-class FakeAuthApi implements AuthApi {
-  registered: RegisterRequest[] = []
-  loggedOut: string[] = []
-  kdf: KdfParams = { kdf: 'PBKDF2-HMAC-SHA256', iterations: vectors.kdf.iterations, salt: vector.salt }
-
-  async prelogin(): Promise<KdfParams> {
-    return this.kdf
-  }
-  async register(request: RegisterRequest): Promise<Session> {
-    this.registered.push(request)
-    this.kdf = { kdf: 'PBKDF2-HMAC-SHA256', iterations: request.kdfIterations, salt: request.kdfSalt }
-    return { accessToken: 'token-1', expiresAt: '2026-11-30T00:00:00Z' }
-  }
-  async login(_request: LoginRequest): Promise<Session> {
-    return { accessToken: 'token-1', expiresAt: '2026-11-30T00:00:00Z' }
-  }
-  async logout(accessToken: string) {
-    this.loggedOut.push(accessToken)
-  }
-}
-
-class FakeVaultApi implements VaultApi {
-  revision = 0
-  payload: EncryptedVaultPayload | null = null
-  saves = 0
-  offline = false
-  /** 설정하면 저장 요청이 이 약속이 풀릴 때까지 기다린다 */
-  gate: Promise<void> | null = null
-
-  async get(): Promise<RemoteVault | null> {
-    if (this.offline) throw new NetworkError()
-    return this.payload === null ? null : { revision: this.revision, payload: this.payload }
-  }
-  async save(expectedRevision: number, payload: EncryptedVaultPayload): Promise<number> {
-    if (this.offline) throw new NetworkError()
-    if (this.gate) await this.gate
-    this.saves += 1
-    if (expectedRevision !== this.revision) throw new ServerError(409, 'VAULT_CONFLICT')
-    this.payload = payload
-    this.revision += 1
-    return this.revision
-  }
-}
-
-function setup() {
-  const authApi = new FakeAuthApi()
-  const vaultApi = new FakeVaultApi()
-  const revisionMemory = createRevisionMemory()
-  let locks = 0
-  let unlocks = 0
-  const session = createVaultSession({
-    auth: createAuthService(authApi),
-    vaultSyncFor: (_token, encryptionKey) => createVaultSync({ api: vaultApi, encryptionKey, now: () => NOW, revisionMemory }),
-    revisionMemory,
-  })
-  session.onLock(() => locks++)
-  session.onUnlock(() => unlocks++)
-  return { session, authApi, vaultApi, revisionMemory, locks: () => locks, unlocks: () => unlocks }
-}
-
-async function unlockedWithItem() {
-  const ctx = setup()
-  await ctx.session.login('user@example.com', PASSWORD)
-  const state = ctx.session.state()
-  if (state.status !== 'unlocked') throw new Error('잠금 해제 상태가 아님')
-  await ctx.session.save(addItem(state.vault.data, fields, NOW, 'a'))
-  return ctx
-}
 
 describe('모든 계정은 볼트를 가진다 (SEC-003)', () => {
   it('가입하면 바로 빈 볼트를 저장하고 잠금 해제 상태가 된다', async () => {
