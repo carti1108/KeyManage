@@ -1,5 +1,5 @@
 // 항목 상세와 삭제 확인 (VLT-001)
-import { ArrowLeft, Pencil, Trash2 } from 'lucide-react'
+import { ArrowLeft, Copy, Pencil, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { VaultItem } from '../../domain/vault/vaultData'
 import { Alert } from '../components/Alert'
@@ -15,6 +15,7 @@ export interface ItemDetailProps {
   onBack: () => void
   onEdit: () => void
   onDelete: () => Promise<void>
+  onCopy: (text: string) => void
 }
 
 const noop = () => {}
@@ -28,7 +29,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-export function ItemDetail({ item, readOnly, onBack, onEdit, onDelete }: ItemDetailProps) {
+export function ItemDetail({ item, readOnly, onBack, onEdit, onDelete, onCopy }: ItemDetailProps) {
   const [confirming, setConfirming] = useState(false)
   const save = useSave()
   const heading = useRef<HTMLHeadingElement>(null)
@@ -76,12 +77,28 @@ export function ItemDetail({ item, readOnly, onBack, onEdit, onDelete }: ItemDet
           {item.serviceName}
         </h2>
         {item.username && (
-          <dl>
-            <Field label="아이디">{item.username}</Field>
-          </dl>
+          <div className="flex items-end justify-between gap-2">
+            <dl className="min-w-0">
+              <Field label="아이디">{item.username}</Field>
+            </dl>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="아이디 복사"
+              icon={<Copy aria-hidden className="size-4" />}
+              onClick={() => onCopy(item.username!)}
+            />
+          </div>
         )}
         {/* 비밀번호는 가려서 보이고, 보기를 누르면 10초 동안만 펼친다 */}
-        <PasswordField label="비밀번호" value={item.password ?? ''} onTextChange={noop} readOnly placeholder="" />
+        <PasswordField
+          label="비밀번호"
+          value={item.password ?? ''}
+          onTextChange={noop}
+          readOnly
+          placeholder=""
+          onCopy={item.password ? () => onCopy(item.password!) : undefined}
+        />
         {(item.url || item.notes) && (
           <dl className="flex flex-col gap-3">
             {/* 저장된 URL을 링크로 만들면 javascript: 같은 값이 실행될 수 있어 글자로만 보인다 */}

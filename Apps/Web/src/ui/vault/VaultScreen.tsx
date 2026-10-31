@@ -1,5 +1,8 @@
 // 열린 볼트의 목록·상세·편집 화면을 오간다
 import { useState } from 'react'
+import type { ClipboardPort } from '../clipboard/clipboardPort'
+import { useCopy } from '../clipboard/useCopy'
+import { Alert } from '../components/Alert'
 import { itemChanges } from '../../domain/vault/itemList'
 import { addItem, deleteItem, updateItem, type ItemFields } from '../../domain/vault/vaultData'
 import type { VaultData } from '../../domain/vault/vaultData'
@@ -14,12 +17,24 @@ export interface VaultScreenProps {
   vault: SyncedVault
   /** 저장이 끝나면 부모가 새 볼트를 내려 준다 */
   onSave: (data: VaultData) => Promise<void>
+  clipboard: Pick<ClipboardPort, 'copy'>
   now?: () => Date
 }
 
 const LIST: View = { kind: 'list' }
 
-export function VaultScreen({ vault, onSave, now = () => new Date() }: VaultScreenProps) {
+export function VaultScreen({ vault, onSave, clipboard, now = () => new Date() }: VaultScreenProps) {
+  const copy = useCopy(clipboard)
+  const onCopy = (text: string) => void copy.copy(text)
+  return (
+    <>
+      {copy.error && <Alert>{copy.error}</Alert>}
+      <VaultView vault={vault} onSave={onSave} onCopy={onCopy} now={now} />
+    </>
+  )
+}
+
+function VaultView({ vault, onSave, onCopy, now }: Omit<VaultScreenProps, 'clipboard'> & { onCopy: (text: string) => void; now: () => Date }) {
   const [view, setView] = useState<View>(LIST)
   // 목록으로 돌아올 때 포커스를 돌려줄 항목
   const [lastOpened, setLastOpened] = useState<string | null>(null)
@@ -39,6 +54,7 @@ export function VaultScreen({ vault, onSave, now = () => new Date() }: VaultScre
           setView({ kind: 'detail', id })
         }}
         onAdd={() => setView({ kind: 'add' })}
+        onCopy={onCopy}
       />
     )
   }
@@ -79,6 +95,7 @@ export function VaultScreen({ vault, onSave, now = () => new Date() }: VaultScre
       readOnly={readOnly}
       onBack={() => setView(LIST)}
       onEdit={() => setView({ kind: 'edit', id })}
+      onCopy={onCopy}
       onDelete={async () => {
         await onSave(deleteItem(data, id, now()))
         // 삭제를 기다리는 동안 다른 화면으로 갔다면 그 화면을 빼앗지 않는다
