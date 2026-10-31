@@ -25,6 +25,8 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    // 실제 백엔드가 필요한 통합 테스트는 npm run test:integration으로 따로 돌린다
+    exclude: ['**/node_modules/**', '**/*.integration.test.ts'],
     setupFiles: ['./src/test/setup.ts'],
   },
 })
