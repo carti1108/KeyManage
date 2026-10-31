@@ -168,6 +168,43 @@ describe('clipboardBurner (COM-001)', () => {
     expect(burner.state()).toEqual({ status: 'counting', expiresAt: 2 * BURN_AFTER_MS })
   })
 
+  it('복사(쓰기)가 끝나기 전에 잠기면 타이머를 걸지 않고 비운다 (SEC-003)', async () => {
+    const { time, board, burner } = setup()
+    let finishCopy = () => {}
+    board.clipboard.write = (text) => {
+      board.writes.push(text)
+      return text === '' ? Promise.resolve() : new Promise<void>((resolve) => (finishCopy = resolve))
+    }
+
+    const copying = burner.copy('secret')
+    await burner.clear()
+    finishCopy()
+    await copying
+
+    expect(board.writes).toEqual(['secret', ''])
+    expect(burner.state()).toEqual({ status: 'idle' })
+    await time.advance(BURN_AFTER_MS)
+    expect(board.writes).toEqual(['secret', ''])
+  })
+
+  it('먼저 시작한 복사가 늦게 끝나도 나중 복사의 타이머를 그대로 둔다', async () => {
+    const { time, board, burner } = setup()
+    let finishFirst = () => {}
+    board.clipboard.write = (text) => {
+      board.writes.push(text)
+      return text === 'first' ? new Promise<void>((resolve) => (finishFirst = resolve)) : Promise.resolve()
+    }
+
+    const first = burner.copy('first')
+    await time.advance(5_000)
+    await burner.copy('second')
+    await time.advance(1_000)
+    finishFirst()
+    await first
+
+    expect(burner.state()).toEqual({ status: 'counting', expiresAt: 5_000 + BURN_AFTER_MS })
+  })
+
   it('상태가 바뀌면 구독자에게 알린다', async () => {
     const { time, burner } = setup()
     const seen: string[] = []
