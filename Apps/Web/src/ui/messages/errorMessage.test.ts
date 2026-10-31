@@ -3,7 +3,7 @@ import { InvalidEmailError } from '../../domain/auth/authService'
 import { InvalidPasswordError } from '../../domain/crypto/keys'
 import { NetworkError, ServerError } from '../../domain/server/serverErrors'
 import { InvalidVaultDataError } from '../../domain/vault/vaultData'
-import { VaultSyncConflictError } from '../../domain/vault/vaultSync'
+import { ReadOnlyVaultError, RevisionRollbackError, VaultSyncConflictError, VaultTooLargeError } from '../../domain/vault/vaultSync'
 import { SessionExpiredError, VaultSetupError, WrongMasterPasswordError } from '../../domain/session/vaultSession'
 import { describeError } from './errorMessage'
 
@@ -33,6 +33,20 @@ describe('describeError', () => {
       title: '동기화 충돌',
       body: '다른 기기의 변경 사항과 충돌했습니다. 잠시 후 다시 시도해 주세요.',
     })
+  })
+
+  it('저장 실패는 VLT-001 문구를 쓴다', () => {
+    expect(describeError(new VaultTooLargeError(6_000_000))).toEqual({
+      title: '저장 실패',
+      body: '볼트 허용 용량(5MB)을 초과했거나 데이터 규격이 올바르지 않습니다.',
+    })
+    expect(describeError(new ReadOnlyVaultError()).body).toBe(
+      '새 버전 앱에서 저장한 볼트입니다. 앱을 업데이트하기 전까지는 읽기만 할 수 있습니다.',
+    )
+  })
+
+  it('저장 중 서버 볼트 되돌림은 경고 문구로 알린다', () => {
+    expect(describeError(new RevisionRollbackError(5, 3)).title).toBe('서버 볼트가 이전 상태로 돌아감')
   })
 
   it('로그인 실패에는 제목을 붙인다 (SEC-002)', () => {
