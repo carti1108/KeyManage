@@ -13,13 +13,15 @@ export interface AlertProps {
   children: ReactNode
   /** 본문 아래 버튼 등 */
   actions?: ReactNode
+  /** false면 역할을 붙이지 않는다. 늘 있는 바깥 알림 영역 안에 넣을 때 쓴다 */
+  live?: boolean
   className?: string
 }
 
-export function Alert({ variant = 'error', title, children, actions, className }: AlertProps) {
+export function Alert({ variant = 'error', title, children, actions, live = true, className }: AlertProps) {
   return (
     <div
-      role={variant === 'error' ? 'alert' : 'status'}
+      role={live ? (variant === 'error' ? 'alert' : 'status') : undefined}
       className={cn('flex flex-col gap-1 rounded-md border px-3 py-2 text-sm', VARIANT_CLASSES[variant], className)}
     >
       {title && <p className="font-semibold">{title}</p>}
