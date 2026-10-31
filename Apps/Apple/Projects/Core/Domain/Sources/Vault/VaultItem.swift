@@ -37,15 +37,27 @@ public struct VaultItem: Codable, Sendable, Equatable {
 		unknownFields: [String: AnyCodableValue] = [:]
 	) {
 		self.id = id
-		self.serviceName = serviceName
-		self.username = username
-		self.password = password
-		self.url = url
-		self.notes = notes
-		self.createdAt = createdAt
-		self.updatedAt = updatedAt
-		self.deletedAt = deletedAt
-		self.unknownFields = unknownFields
+		if deletedAt != nil {
+			self.serviceName = ""
+			self.username = ""
+			self.password = ""
+			self.url = nil
+			self.notes = nil
+			self.createdAt = createdAt
+			self.updatedAt = updatedAt
+			self.deletedAt = deletedAt
+			self.unknownFields = [:]
+		} else {
+			self.serviceName = serviceName
+			self.username = username
+			self.password = password
+			self.url = url
+			self.notes = notes
+			self.createdAt = createdAt
+			self.updatedAt = updatedAt
+			self.deletedAt = deletedAt
+			self.unknownFields = unknownFields
+		}
 	}
 
 	public init(from decoder: Decoder) throws {
@@ -145,6 +157,14 @@ public struct VaultItem: Codable, Sendable, Equatable {
 		var container = encoder.container(keyedBy: DynamicCodingKeys.self)
 
 		try container.encode(id, forKey: DynamicCodingKeys(stringValue: "id")!)
+		try container.encode(createdAt, forKey: DynamicCodingKeys(stringValue: "createdAt")!)
+		try container.encode(updatedAt, forKey: DynamicCodingKeys(stringValue: "updatedAt")!)
+
+		if let deletedAt = deletedAt {
+			try container.encode(deletedAt, forKey: DynamicCodingKeys(stringValue: "deletedAt")!)
+			return
+		}
+
 		try container.encode(serviceName, forKey: DynamicCodingKeys(stringValue: "serviceName")!)
 		try container.encode(username, forKey: DynamicCodingKeys(stringValue: "username")!)
 		try container.encode(password, forKey: DynamicCodingKeys(stringValue: "password")!)
@@ -153,11 +173,6 @@ public struct VaultItem: Codable, Sendable, Equatable {
 		}
 		if let notes = notes {
 			try container.encode(notes, forKey: DynamicCodingKeys(stringValue: "notes")!)
-		}
-		try container.encode(createdAt, forKey: DynamicCodingKeys(stringValue: "createdAt")!)
-		try container.encode(updatedAt, forKey: DynamicCodingKeys(stringValue: "updatedAt")!)
-		if let deletedAt = deletedAt {
-			try container.encode(deletedAt, forKey: DynamicCodingKeys(stringValue: "deletedAt")!)
 		}
 
 		for (key, val) in unknownFields {

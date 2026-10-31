@@ -24,7 +24,16 @@ public struct VaultSyncCoordinator: Sendable {
 		var currentExpectedRevision = lastSeenRevision
 		var retries = 0
 
+		guard !currentVault.isReadOnly else {
+			throw VaultError.vaultIsReadOnly
+		}
+
+		let encoder = JSONEncoder()
+
 		while true {
+			let encodedData = try encoder.encode(currentVault)
+			try validator.validatePayloadSize(encodedData.count)
+
 			do {
 				let newRev = try await saveOperation(currentVault, currentExpectedRevision)
 				return (savedVault: currentVault, newRevision: newRev)
@@ -39,6 +48,9 @@ public struct VaultSyncCoordinator: Sendable {
 				let (serverVault, serverRevision) = try await fetchOperation()
 				try validator.validateRevision(server: serverRevision, lastSeen: currentExpectedRevision)
 				currentVault = try merger.merge(local: currentVault, server: serverVault)
+				guard !currentVault.isReadOnly else {
+					throw VaultError.vaultIsReadOnly
+				}
 				currentExpectedRevision = serverRevision
 			}
 		}
