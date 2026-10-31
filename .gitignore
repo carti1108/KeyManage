@@ -27,6 +27,8 @@ build/
 out/
 # 로컬 볼트 저장 폴더 (ADR-0007)
 /data/
+# 백엔드를 Back/app에서 bootRun으로 띄우면 상대 경로 ./data가 여기 생긴다. 서버 비밀키·계정·볼트가 들어 있다
+/Back/app/data/
 
 # iOS / macOS (Xcode / Swift / Tuist)
 DerivedData/
