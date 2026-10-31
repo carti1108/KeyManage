@@ -1,7 +1,7 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { addItem, emptyVault, type VaultData } from '../../domain/vault/vaultData'
+import { addItem, deleteItem, emptyVault, type VaultData } from '../../domain/vault/vaultData'
 import { VaultTooLargeError, type SyncedVault } from '../../domain/vault/vaultSync'
 import { VaultScreen } from './VaultScreen'
 
@@ -11,7 +11,8 @@ function sampleData(): VaultData {
   let data = emptyVault(NOW)
   data = addItem(data, { serviceName: 'GitHub', username: 'octo', password: 'gh-secret', url: 'javascript:alert(1)', notes: '회사 계정' }, NOW, 'gh')
   data = addItem(data, { serviceName: 'Apple', username: 'tim', password: 'apple-secret' }, NOW, 'ap')
-  return data
+  // 새 버전 앱이 넣은 필드. 화면에서 고쳐도 남아야 한다
+  return { ...data, items: data.items.map((item) => (item.id === 'gh' ? { ...item, totp: 'FUTURE' } : item)) }
 }
 
 // 실제 화면처럼 저장이 끝나면 새 볼트를 내려 주는 부모
@@ -93,13 +94,15 @@ describe('VaultScreen', () => {
       expect(screen.getByText('회사 계정')).toBeInTheDocument()
     })
 
-    it('목록으로 돌아갈 수 있다', () => {
+    it('상세를 열면 제목에 포커스를 두고, 목록으로 돌아오면 보던 항목에 포커스를 돌려준다', () => {
       setup()
       openItem('GitHub')
+      expect(screen.getByRole('heading', { name: 'GitHub' })).toHaveFocus()
 
       fireEvent.click(screen.getByRole('button', { name: '목록으로' }))
 
       expect(screen.getByRole('list', { name: '항목 목록' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /GitHub/ })).toHaveFocus()
     })
   })
 
@@ -152,12 +155,50 @@ describe('VaultScreen', () => {
       expect(onSave).not.toHaveBeenCalled()
     })
 
-    it('저장한 비밀번호를 브라우저가 로그인 비밀번호로 기억하지 않게 한다', () => {
+    it('브라우저가 다른 사이트 자격 증명을 이 앱의 로그인으로 저장하지 않도록 폼 제출로 다루지 않는다', () => {
       setup()
 
       fireEvent.click(screen.getByRole('button', { name: '항목 추가' }))
 
-      expect(screen.getByLabelText('비밀번호')).toHaveAttribute('autocomplete', 'off')
+      const password = screen.getByLabelText('비밀번호')
+      expect(password.closest('form')).toBeNull()
+      expect(password).toHaveAttribute('autocomplete', 'off')
+      expect(password).toHaveAttribute('data-1p-ignore')
+      expect(password).toHaveAttribute('data-lpignore', 'true')
+    })
+
+    it('Enter로도 저장하고, 연달아 눌러도 한 번만 저장한다', async () => {
+      const { onSave } = setup()
+      let finish = () => {}
+      onSave.mockImplementationOnce(() => new Promise<void>((resolve) => (finish = resolve)))
+
+      fireEvent.click(screen.getByRole('button', { name: '항목 추가' }))
+      type('서비스 이름', 'Naver')
+      fireEvent.keyDown(screen.getByLabelText('서비스 이름'), { key: 'Enter' })
+      fireEvent.keyDown(screen.getByLabelText('서비스 이름'), { key: 'Enter' })
+      await act(async () => finish())
+
+      expect(onSave).toHaveBeenCalledOnce()
+    })
+
+    it('메모의 Enter는 줄바꿈이라 저장하지 않는다', () => {
+      const { onSave } = setup()
+
+      fireEvent.click(screen.getByRole('button', { name: '항목 추가' }))
+      type('서비스 이름', 'Naver')
+      fireEvent.keyDown(screen.getByLabelText('메모'), { key: 'Enter' })
+
+      expect(onSave).not.toHaveBeenCalled()
+    })
+
+    it('아이디·URL·메모는 맞춤법 검사로 외부에 보내지 않는다', () => {
+      setup()
+
+      fireEvent.click(screen.getByRole('button', { name: '항목 추가' }))
+
+      for (const label of ['아이디', 'URL', '메모']) {
+        expect(screen.getByLabelText(label)).toHaveAttribute('spellcheck', 'false')
+      }
     })
   })
 
@@ -173,7 +214,44 @@ describe('VaultScreen', () => {
 
       expect(await screen.findByText('octocat')).toBeInTheDocument()
       const edited = savedData().items.find((item) => item.id === 'gh')
-      expect(edited).toMatchObject({ serviceName: 'GitHub', username: 'octocat', password: 'gh-secret', notes: '회사 계정' })
+      expect(edited).toMatchObject({ serviceName: 'GitHub', username: 'octocat', password: 'gh-secret', notes: '회사 계정', totp: 'FUTURE' })
+    })
+
+    it('비어 있던 선택 필드는 빈 문자열로 만들지 않는다', async () => {
+      const { savedData } = setup()
+      openItem('Apple')
+
+      fireEvent.click(screen.getByRole('button', { name: '수정' }))
+      type('아이디', 'timcook')
+      fireEvent.click(screen.getByRole('button', { name: '저장' }))
+
+      await screen.findByText('timcook')
+      const edited = savedData().items.find((item) => item.id === 'ap')
+      expect(edited).not.toHaveProperty('url')
+      expect(edited).not.toHaveProperty('notes')
+    })
+
+    it('지운 선택 필드는 필드째 없앤다', async () => {
+      const { savedData } = setup()
+      openItem('GitHub')
+
+      fireEvent.click(screen.getByRole('button', { name: '수정' }))
+      type('URL', '')
+      fireEvent.click(screen.getByRole('button', { name: '저장' }))
+
+      await screen.findByRole('heading', { name: 'GitHub' })
+      expect(savedData().items.find((item) => item.id === 'gh')).not.toHaveProperty('url')
+    })
+
+    it('바뀐 것이 없으면 저장하지 않는다. 다른 기기의 변경을 덮어쓰지 않게 하기 위해서다', async () => {
+      const { onSave } = setup()
+      openItem('GitHub')
+
+      fireEvent.click(screen.getByRole('button', { name: '수정' }))
+      fireEvent.click(screen.getByRole('button', { name: '저장' }))
+
+      expect(await screen.findByRole('heading', { name: 'GitHub' })).toBeInTheDocument()
+      expect(onSave).not.toHaveBeenCalled()
     })
   })
 
@@ -193,6 +271,24 @@ describe('VaultScreen', () => {
       expect(await screen.findByRole('list', { name: '항목 목록' })).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: /GitHub/ })).not.toBeInTheDocument()
       expect(savedData().items.find((item) => item.id === 'gh')?.deletedAt).toBeDefined()
+    })
+
+    it('삭제하는 동안에는 다른 화면으로 가지 못하고, 실패하면 이유를 보인다', async () => {
+      const { onSave } = setup()
+      let fail = (_error: Error) => {}
+      onSave.mockImplementationOnce(() => new Promise<void>((_, reject) => (fail = reject)))
+      openItem('GitHub')
+
+      fireEvent.click(screen.getByRole('button', { name: '삭제' }))
+      fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: '삭제' }))
+
+      expect(screen.getByRole('button', { name: '목록으로' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: '수정' })).toBeDisabled()
+
+      await act(async () => fail(new VaultTooLargeError(6_000_000)))
+
+      expect(screen.getByRole('alert')).toHaveTextContent('저장 실패')
+      expect(screen.getByRole('heading', { name: 'GitHub' })).toBeInTheDocument()
     })
 
     it('확인 창에서 취소하면 지우지 않는다', () => {
@@ -221,8 +317,9 @@ describe('VaultScreen', () => {
     const { rerender } = render(<VaultScreen vault={{ revision: 1, data: initial, readOnly: false, payload: null }} onSave={vi.fn()} />)
     openItem('GitHub')
 
-    const withoutGitHub = { ...initial, items: initial.items.filter((item) => item.id !== 'gh') }
-    rerender(<VaultScreen vault={{ revision: 2, data: withoutGitHub, readOnly: false, payload: null }} onSave={vi.fn()} />)
+    // 동기화는 항목을 빼지 않고 삭제 표시만 남긴다
+    const synced = deleteItem(initial, 'gh', NOW)
+    rerender(<VaultScreen vault={{ revision: 2, data: synced, readOnly: false, payload: null }} onSave={vi.fn()} />)
 
     expect(screen.getByRole('list', { name: '항목 목록' })).toBeInTheDocument()
   })

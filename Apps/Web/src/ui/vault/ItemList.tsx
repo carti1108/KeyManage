@@ -1,6 +1,6 @@
 // 항목 목록과 검색
 import { Plus } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { listItems } from '../../domain/vault/itemList'
 import type { VaultData } from '../../domain/vault/vaultData'
 import { Button } from '../components/Button'
@@ -10,12 +10,19 @@ import { TextField } from '../components/TextField'
 export interface ItemListProps {
   data: VaultData
   readOnly: boolean
+  /** 상세에서 돌아왔을 때 포커스를 돌려줄 항목 */
+  focusId?: string | null
   onOpen: (id: string) => void
   onAdd: () => void
 }
 
-export function ItemList({ data, readOnly, onOpen, onAdd }: ItemListProps) {
+export function ItemList({ data, readOnly, focusId = null, onOpen, onAdd }: ItemListProps) {
   const [query, setQuery] = useState('')
+  const returnTarget = useRef<HTMLButtonElement>(null)
+
+  // 처음 그릴 때만 옮긴다. 검색하는 동안 포커스를 빼앗지 않는다
+  useEffect(() => returnTarget.current?.focus(), [])
+
   const items = listItems(data, query)
   const empty = data.items.every((item) => item.deletedAt !== undefined)
 
@@ -42,7 +49,7 @@ export function ItemList({ data, readOnly, onOpen, onAdd }: ItemListProps) {
         <ul aria-label="항목 목록" className="flex flex-col gap-2">
           {items.map((item) => (
             <li key={item.id}>
-              <Card interactive padding="sm" onClick={() => onOpen(item.id)}>
+              <Card interactive padding="sm" onClick={() => onOpen(item.id)} ref={item.id === focusId ? returnTarget : undefined}>
                 <span className="block font-medium">{item.serviceName}</span>
                 {item.username && <span className="block truncate text-sm text-muted-foreground">{item.username}</span>}
               </Card>
