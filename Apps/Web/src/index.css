@@ -71,6 +71,10 @@
     @apply bg-background text-foreground antialiased;
   }
   /* Edge 기본 비밀번호 보기 버튼은 PasswordField의 10초 뒤 다시 가리기를 우회하므로 숨긴다 */
+  /* PasswordField concealment="css": 비밀번호 칸(type=password) 없이 글자를 가린다 */
+  input[data-masked='css'] {
+    -webkit-text-security: disc;
+  }
   input::-ms-reveal,
   input::-ms-clear {
     display: none;
