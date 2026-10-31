@@ -2,9 +2,9 @@
 // 저장이 서버에 닿지 못했을 때 동기화 대기로 두고 나중에 올린다 (VLT-001)
 import { describe, expect, it } from 'vitest'
 import { NOW, PASSWORD, fields, saveFromOtherDevice, serverItemIds, unlockedWithItem } from '../../test/sessionFixtures'
-import { ServerError } from '../server/serverErrors'
+import { NetworkError, ServerError, UnexpectedResponseError } from '../server/serverErrors'
 import { activeItems, addItem, type VaultData } from '../vault/vaultData'
-import { VaultTooLargeError } from '../vault/vaultSync'
+import { RevisionRollbackError, VaultTooLargeError } from '../vault/vaultSync'
 import { SessionExpiredError, type VaultSession } from './vaultSession'
 
 function unlockedData(session: VaultSession): VaultData {
@@ -42,16 +42,33 @@ describe('저장이 서버에 닿지 못하면 동기화 대기로 둔다', () =
     expect(vaultApi.revision).toBe(2)
   })
 
-  it('서버 5xx 오류도 대기로 둔다', async () => {
-    const { session, vaultApi } = await unlockedWithItem()
-    vaultApi.save = async () => {
-      throw new ServerError(503, 'UNKNOWN')
+  it('서버 5xx, 요청 제한(429), 응답 형식 오류도 대기로 둔다', async () => {
+    for (const failure of [new ServerError(503, 'UNKNOWN'), new ServerError(429, 'TOO_MANY_ATTEMPTS'), new UnexpectedResponseError('형식 오류')]) {
+      const { session, vaultApi } = await unlockedWithItem()
+      vaultApi.save = async () => {
+        throw failure
+      }
+
+      await saveItem(session, 'b')
+
+      expect(session.state()).toMatchObject({ pendingSync: true })
+      expect(itemIds(session)).toEqual(['a', 'b'])
     }
+  })
 
-    await saveItem(session, 'b')
+  it('잠기거나 세션이 만료돼도 대기 중임을 알 수 있다 (떠남 확인·로그아웃 확인용)', async () => {
+    const { session, vaultApi } = await pendingWithItemB()
 
-    expect(session.state()).toMatchObject({ pendingSync: true })
-    expect(itemIds(session)).toEqual(['a', 'b'])
+    session.lock()
+    expect(session.state()).toEqual({ status: 'locked', email: 'user@example.com', pendingSync: true })
+    expect(session.hasPendingSync()).toBe(true)
+
+    vaultApi.offline = false
+    vaultApi.get = async () => {
+      throw new ServerError(401, 'UNAUTHORIZED')
+    }
+    await expect(session.unlock(PASSWORD)).rejects.toBeInstanceOf(SessionExpiredError)
+    expect(session.hasPendingSync()).toBe(true)
   })
 
   it('용량 초과처럼 분명한 거절은 대기로 두지 않고 오류를 낸다', async () => {
@@ -105,6 +122,21 @@ describe('대기 내용 다시 보내기', () => {
     expect(syncResults).toEqual([])
   })
 
+  it('분명한 거절을 받으면 알리고, 저장·잠금 해제 전까지 자동으로 다시 보내지 않는다', async () => {
+    const { session, vaultApi, syncResults } = await pendingWithItemB()
+    vaultApi.offline = false
+    vaultApi.save = async () => {
+      throw new ServerError(400, 'INVALID_PARAMETER')
+    }
+
+    await session.retryPendingSync()
+    await session.retryPendingSync()
+
+    expect(syncResults).toHaveLength(1)
+    expect(syncResults[0]).toBeInstanceOf(ServerError)
+    expect(session.state()).toMatchObject({ pendingSync: true })
+  })
+
   it('대기가 없으면 요청을 보내지 않는다', async () => {
     const { session, vaultApi } = await unlockedWithItem()
     const before = vaultApi.saves
@@ -154,6 +186,18 @@ describe('대기 중 잠금과 잠금 해제', () => {
   })
 })
 
+describe('대기 중 잠금 해제의 되돌림 검사', () => {
+  it('대기 내용이 있어도 먼저 서버 볼트를 받아, 기준과 같은 revision으로 되돌아간 서버를 잡는다', async () => {
+    const { session, vaultApi, revisionMemory } = await pendingWithItemB()
+    session.lock()
+    vaultApi.offline = false
+    // 이 기기는 revision 3까지 봤지만 서버는 백업에서 복구되어 2로 돌아갔다
+    revisionMemory.raise(3)
+
+    await expect(session.unlock(PASSWORD)).rejects.toBeInstanceOf(RevisionRollbackError)
+  })
+})
+
 describe('대기 중 세션 만료(401)', () => {
   async function expiredWithPending() {
     const ctx = await pendingWithItemB()
@@ -185,6 +229,71 @@ describe('대기 중 세션 만료(401)', () => {
     expect(itemIds(session)).toEqual(['a', 'b', 'x'])
     expect(await serverItemIds(vaultApi)).toEqual(['a', 'b', 'x'])
     expect(session.state()).toMatchObject({ pendingSync: false })
+  })
+
+  it('다른 이메일로 로그인에 실패하면 대기 내용을 버리지 않는다', async () => {
+    const { session, vaultApi, authApi } = await expiredWithPending()
+    authApi.login = async () => {
+      throw new ServerError(401, 'AUTH_FAILED')
+    }
+    await expect(session.login('typo@example.co', PASSWORD)).rejects.toBeInstanceOf(ServerError)
+    authApi.login = async () => ({ accessToken: 'token-1', expiresAt: '2026-11-30T00:00:00Z' })
+
+    await session.login('user@example.com', PASSWORD)
+
+    expect(await serverItemIds(vaultApi)).toEqual(['a', 'b'])
+  })
+
+  it('다시 로그인할 때 올리기가 거절되면 대기 내용을 남겨 다음 로그인 때 다시 올린다', async () => {
+    const { session, vaultApi } = await expiredWithPending()
+    const realSave = vaultApi.save.bind(vaultApi)
+    vaultApi.save = async () => {
+      throw new ServerError(400, 'INVALID_PARAMETER')
+    }
+    await expect(session.login('user@example.com', PASSWORD)).rejects.toBeInstanceOf(ServerError)
+    vaultApi.save = realSave
+
+    await session.login('user@example.com', PASSWORD)
+
+    expect(await serverItemIds(vaultApi)).toEqual(['a', 'b'])
+  })
+
+  it('다시 로그인할 때 서버에 닿지 못하면 받아 온 서버 볼트와 병합한 대기로 연다', async () => {
+    const { session, vaultApi } = await expiredWithPending()
+    await saveFromOtherDevice(vaultApi, 'x')
+    vaultApi.save = async () => {
+      throw new NetworkError()
+    }
+
+    await session.login('user@example.com', PASSWORD)
+
+    expect(itemIds(session)).toEqual(['a', 'b', 'x'])
+    expect(session.state()).toMatchObject({ pendingSync: true })
+  })
+
+  it('잠금 해제 중에 로그아웃하고 다른 계정으로 로그인하면, 늦게 온 401이 새 세션을 끝내지 않는다', async () => {
+    const { session, vaultApi } = await unlockedWithItem()
+    session.lock()
+    const realGet = vaultApi.get.bind(vaultApi)
+    let release = () => {}
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    let reached = () => {}
+    const requested = new Promise<void>((resolve) => (reached = resolve))
+    vaultApi.get = async () => {
+      vaultApi.get = realGet
+      reached()
+      await gate
+      throw new ServerError(401, 'UNAUTHORIZED')
+    }
+
+    const unlocking = session.unlock(PASSWORD).catch((error: unknown) => error)
+    await requested
+    await session.logout()
+    await session.login('other@example.com', PASSWORD)
+    release()
+    await unlocking
+
+    expect(session.state()).toMatchObject({ status: 'unlocked', email: 'other@example.com' })
   })
 
   it('다른 계정으로 로그인하면 대기 내용을 버린다', async () => {

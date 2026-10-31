@@ -8,7 +8,7 @@ import { VaultDecryptError, openVault, type EncryptedVaultPayload } from '../cry
 import { ServerError } from '../server/serverErrors'
 import { mergeVaults } from '../vault/mergeVaults'
 import { isReadOnly, parseVaultData, type VaultData } from '../vault/vaultData'
-import { RevisionRollbackError, isTransientSyncError, type RevisionMemory, type SyncedVault, type VaultSync } from '../vault/vaultSync'
+import { RevisionRollbackError, VaultSyncConflictError, isTransientSyncError, type RevisionMemory, type SyncedVault, type VaultSync } from '../vault/vaultSync'
 
 /** 마스터 비밀번호가 틀려 저장해 둔 볼트를 열 수 없음 */
 export class WrongMasterPasswordError extends Error {
@@ -44,7 +44,12 @@ export class VaultSetupError extends Error {
 
 export type SessionState =
   | { readonly status: 'signedOut' }
-  | { readonly status: 'locked'; readonly email: string }
+  | {
+      readonly status: 'locked'
+      readonly email: string
+      /** 서버에 올리지 못한 변경 사항이 암호화된 채 남아 있음 (VLT-001) */
+      readonly pendingSync: boolean
+    }
   | {
       readonly status: 'unlocked'
       readonly email: string
@@ -111,7 +116,7 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory }: Vault
   let generation = 0
   // 대기 내용 보내기를 한 번에 하나씩 순서대로 한다
   let pushChain: Promise<unknown> = Promise.resolve()
-  // 되돌림이 감지되면 잠금 해제·저장 전까지 자동으로 다시 보내지 않는다
+  // 충돌이 아닌 분명한 거절을 받으면 잠금 해제·저장·로그인 전까지 자동으로 다시 보내지 않는다
   let retryBlocked = false
   const lockListeners = new Set<() => void>()
   const unlockListeners = new Set<() => void>()
@@ -171,12 +176,14 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory }: Vault
       saved = await sync.save(vault, vault.data)
     } catch (error) {
       if (isTransientSyncError(error)) return 'stillPending'
-      if (isUnauthorized(error)) throw generation === startedGeneration ? expire() : new SessionExpiredError()
-      if (error instanceof RevisionRollbackError) retryBlocked = true
+      // 그사이 로그아웃·다른 로그인이 있었으면 이전 세션의 실패를 지금 세션에 알리지 않는다
+      if (generation !== startedGeneration) return 'idle'
+      if (isUnauthorized(error)) throw expire()
+      if (!(error instanceof VaultSyncConflictError)) retryBlocked = true
       throw error
     }
     if (generation !== startedGeneration || account === null) return 'idle'
-    if (epoch !== startedAt || unlocked === null) {
+    if (unlocked === null) {
       // 보내는 사이 잠겼다. 잠기기 전에 더 고친 것이 없으면 올린 볼트를 잠긴 상태에 남긴다
       if (account.payload === vault.payload && saved.payload !== null) {
         account = { ...account, payload: saved.payload, revision: saved.revision, pendingSync: false }
@@ -184,7 +191,7 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory }: Vault
       return 'idle'
     }
     // 보내는 사이 또 고쳤으면 새 수정은 다음 차례에 보낸다. 서버가 앞서 있으니 병합 절차를 탄다
-    if (unlocked.vault !== vault) return 'stillPending'
+    if (epoch !== startedAt || unlocked.vault !== vault) return 'stillPending'
     open(email, accessToken, kdf, sync, saved)
     return 'synced'
   }
@@ -201,10 +208,12 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory }: Vault
     return vault.payload === null ? sync.save(vault, vault.data) : vault
   }
 
-  /** 세션 만료 전에 남긴 대기 내용을 서버 볼트와 병합해 올린다. 서버에 닿지 못하면 대기로 연다 */
+  /**
+   * 세션 만료 전에 남긴 대기 내용을 서버 볼트와 병합해 올린다. 서버에 닿지 못하면 병합한 볼트를 대기로 연다.
+   * 대기 내용은 볼트가 열린 뒤에야 지운다. 올리기가 거절되면 남겨 다음 로그인 때 다시 올린다
+   */
   async function adoptOrphan(email: string, encryptionKey: CryptoKey, sync: VaultSync, vault: SyncedVault) {
     const pending = orphan
-    orphan = null
     if (pending === null || pending.email !== email) return { vault, pendingSync: false }
     let data: VaultData
     try {
@@ -213,13 +222,12 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory }: Vault
       // 열 수 없는 대기 내용(다른 키로 만든 것 등)은 버린다
       return { vault, pendingSync: false }
     }
-    const local: SyncedVault = { revision: pending.revision, data, readOnly: false, payload: pending.payload }
+    const merged = mergeVaults(data, vault.data)
     try {
-      // 옛 revision을 기준으로 보내 서버가 앞서 있으면 병합 절차를 탄다
-      return { vault: await sync.save(local, data), pendingSync: false }
+      return { vault: await sync.save(vault, merged), pendingSync: false }
     } catch (error) {
       if (!isTransientSyncError(error)) throw error
-      return { vault: local, pendingSync: true }
+      return { vault: { revision: vault.revision, data: merged, readOnly: false, payload: await sync.seal(merged) }, pendingSync: true }
     }
   }
 
@@ -231,13 +239,14 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory }: Vault
     const { vault, pendingSync } = await adoptOrphan(email, result.encryptionKey, sync, prepared)
     ensureCurrent(startedAt)
     open(email, result.session.accessToken, result.kdf, sync, vault, pendingSync)
+    // 올렸거나 이 볼트의 대기로 옮겼다. 다른 계정의 대기 내용이면 그 계정이 열렸으므로 버린다 (VLT-001)
+    orphan = null
   }
 
   function beginSignIn(email: string): number {
     clear()
     // 다른 계정의 revision을 기준으로 되돌림을 판정하지 않도록 계정이 바뀌면 지운다
     if (lastEmail !== email) revisionMemory.reset(0)
-    if (orphan !== null && orphan.email !== email) orphan = null
     lastEmail = email
     retryBlocked = false
     return epoch
@@ -246,19 +255,23 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory }: Vault
   /**
    * 잠금 해제 직후 서버와 맞춘다. 대기 내용이 있으면 서버 볼트로 덮지 않고 병합해 올린다
    * @returns 서버와 맞춘 볼트. 서버에 닿지 못하거나 서버 오류·응답 형식 오류면 null
-   * @throws RevisionRollbackError, SessionExpiredError
+   * @throws RevisionRollbackError, SessionExpiredError, SessionStateError(그사이 로그아웃·다른 로그인)
    */
   async function syncAfterUnlock(sync: VaultSync, cached: SyncedVault, pendingSync: boolean, options: RollbackOption) {
+    const startedGeneration = generation
     try {
-      // 옛 revision을 기준으로 보내 서버가 앞서 있으면 병합 절차를 탄다
-      if (pendingSync && options.acceptRollback !== true) return await sync.save(cached, cached.data)
+      // 대기 내용이 있어도 먼저 받아 되돌림을 검사한다. 기준과 같은 revision으로 되돌아간 서버도 잡는다
       const fresh = await sync.load(options)
       // 대기 내용이 있거나, 되돌림을 받아들였는데 서버 볼트가 없으면(유실) 이 기기의 볼트를 병합해 올린다
       if (pendingSync || fresh.payload === null) return await sync.save(fresh, mergeVaults(cached.data, fresh.data))
       return fresh
     } catch (error) {
       if (error instanceof RevisionRollbackError) throw error
-      if (isUnauthorized(error)) throw expire()
+      if (isUnauthorized(error)) {
+        // 그사이 로그아웃·다른 로그인이 있었으면 지금 세션을 끝내지 않는다
+        if (generation !== startedGeneration) throw new SessionStateError('기다리는 사이 로그아웃되어 작업을 취소함')
+        throw expire()
+      }
       return null
     }
   }
@@ -266,7 +279,7 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory }: Vault
   return {
     state(): SessionState {
       if (account === null) return { status: 'signedOut' }
-      if (unlocked === null) return { status: 'locked', email: account.email }
+      if (unlocked === null) return { status: 'locked', email: account.email, pendingSync: account.pendingSync }
       return { status: 'unlocked', email: account.email, vault: unlocked.vault, pendingSync: unlocked.pendingSync }
     },
 
@@ -350,6 +363,11 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory }: Vault
       open(email, accessToken, kdf, sync, { revision: vault.revision, data, readOnly: false, payload }, true)
       retryBlocked = false
       await enqueuePush()
+    },
+
+    /** 서버에 올리지 못한 변경 사항이 있는지. 잠겼거나 세션 만료로 로그아웃된 뒤 남긴 것도 센다 (떠남 확인용) */
+    hasPendingSync(): boolean {
+      return account?.pendingSync === true || orphan !== null
     },
 
     /**

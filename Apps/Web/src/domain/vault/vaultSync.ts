@@ -81,10 +81,11 @@ export function createRevisionMemory(): RevisionMemory {
 
 /**
  * 서버에 닿지 못했거나 서버가 잠시 처리하지 못한 실패. 변경 사항을 동기화 대기로 두고 나중에 다시 보낸다 (VLT-001).
- * 요청 시간 초과도 NetworkError로 온다
+ * 요청 시간 초과도 NetworkError로 온다. 응답 형식 오류는 공용 와이파이 로그인 페이지처럼 중간에서 가로챈 응답일 수 있다
  */
 export function isTransientSyncError(error: unknown): boolean {
-  return error instanceof NetworkError || (error instanceof ServerError && error.status >= 500)
+  if (error instanceof NetworkError || error instanceof UnexpectedResponseError) return true
+  return error instanceof ServerError && (error.status >= 500 || error.status === 429)
 }
 
 export interface VaultSyncDeps {

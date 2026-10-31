@@ -49,7 +49,7 @@ describe('잠금과 잠금 해제 (SEC-003)', () => {
 
     session.lock()
 
-    expect(session.state()).toEqual({ status: 'locked', email: 'user@example.com' })
+    expect(session.state()).toEqual({ status: 'locked', email: 'user@example.com', pendingSync: false })
     expect(locks()).toBe(1)
   })
 
