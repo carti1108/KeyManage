@@ -3,7 +3,7 @@ import { bindAutoLockEvents, browserScheduler } from '../adapters/browser/autoLo
 import { DEFAULT_AUTO_LOCK_MS, createAutoLock } from '../domain/lock/autoLock'
 import type { VaultSession } from '../domain/session/vaultSession'
 
-export type LockableSession = Pick<VaultSession, 'lock' | 'onLock' | 'onUnlock'>
+export type LockableSession = Pick<VaultSession, 'lock' | 'onLock' | 'onUnlock' | 'state'>
 
 /**
  * @param timeoutMs 자동 잠금 시간. 설정 화면이 생기기 전까지는 기본 5분
@@ -15,6 +15,8 @@ export function startAutoLock(session: LockableSession, timeoutMs: number = DEFA
   const unbindEvents = bindAutoLockEvents(autoLock)
   const offUnlock = session.onUnlock(() => autoLock.start())
   const offLock = session.onLock(() => autoLock.stop())
+  // 연결하는 시점에 이미 열려 있으면 알림을 기다리지 않고 바로 잰다
+  if (session.state().status === 'unlocked') autoLock.start()
   return () => {
     offUnlock()
     offLock()

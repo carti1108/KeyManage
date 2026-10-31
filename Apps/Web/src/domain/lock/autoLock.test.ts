@@ -114,6 +114,14 @@ describe('자동 잠금 (SEC-003)', () => {
     expect(locks()).toBe(2)
   })
 
+  it('탭이 동결되거나 페이지를 떠나면 바로 잠근다 (타이머가 멈출 수 있으므로)', () => {
+    const { autoLock, locks } = setup()
+
+    autoLock.suspended()
+
+    expect(locks()).toBe(1)
+  })
+
   it('멈추면 잠그지 않는다', () => {
     const { time, autoLock, locks } = setup()
 

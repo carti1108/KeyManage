@@ -21,6 +21,7 @@ export function createServices(apiBaseUrl: string | undefined = import.meta.env.
       auth: createAuthService(createHttpAuthApi(client)),
       vaultSyncFor: (accessToken, encryptionKey) =>
         createVaultSync({ api: createHttpVaultApi(client, accessToken), encryptionKey, now: () => new Date(), revisionMemory }),
+      revisionMemory,
     }),
   }
 }

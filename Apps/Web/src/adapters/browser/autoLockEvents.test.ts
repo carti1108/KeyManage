@@ -9,6 +9,7 @@ function recorder() {
       activity: () => calls.push('activity'),
       hidden: () => calls.push('hidden'),
       visible: () => calls.push('visible'),
+      suspended: () => calls.push('suspended'),
     },
   }
 }
@@ -40,11 +41,23 @@ describe('브라우저 이벤트를 자동 잠금에 연결 (SEC-003)', () => {
     unbind()
   })
 
+  it('탭 동결(freeze)과 페이지 떠남(pagehide)을 알린다', () => {
+    const { calls, autoLock } = recorder()
+    const unbind = bindAutoLockEvents(autoLock)
+
+    document.dispatchEvent(new Event('freeze'))
+    window.dispatchEvent(new Event('pagehide'))
+
+    expect(calls).toEqual(['suspended', 'suspended'])
+    unbind()
+  })
+
   it('연결을 풀면 더는 알리지 않는다', () => {
     const { calls, autoLock } = recorder()
 
     bindAutoLockEvents(autoLock)()
     window.dispatchEvent(new Event('keydown'))
+    window.dispatchEvent(new Event('pagehide'))
     setVisibility('hidden')
 
     expect(calls).toEqual([])

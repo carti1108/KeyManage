@@ -6,8 +6,12 @@ const MINUTE = 60_000
 function fakeSession() {
   const unlockListeners = new Set<() => void>()
   const lockListeners = new Set<() => void>()
-  const session: LockableSession & { locks: number; unlockNow(): void } = {
+  const session: LockableSession & { locks: number; unlocked: boolean; unlockNow(): void } = {
     locks: 0,
+    unlocked: false,
+    state() {
+      return this.unlocked ? ({ status: 'unlocked' } as ReturnType<LockableSession['state']>) : { status: 'signedOut' }
+    },
     lock() {
       this.locks += 1
       for (const l of lockListeners) l()
@@ -47,6 +51,17 @@ describe('세션과 자동 잠금 연결 (SEC-003)', () => {
 
     session.lock()
     vi.advanceTimersByTime(10 * MINUTE)
+    expect(session.locks).toBe(1)
+    stop()
+  })
+
+  it('연결하는 시점에 이미 열려 있으면 바로 타이머를 시작한다', () => {
+    const session = fakeSession()
+    session.unlocked = true
+    const stop = startAutoLock(session)
+
+    vi.advanceTimersByTime(5 * MINUTE)
+
     expect(session.locks).toBe(1)
     stop()
   })

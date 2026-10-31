@@ -45,6 +45,8 @@ export interface AutoLock {
   hidden(): void
   /** 다시 보임 */
   visible(): void
+  /** 탭 동결·페이지 떠남. 타이머가 멈출 수 있으므로 바로 잠근다 */
+  suspended(): void
 }
 
 /** @throws InvalidAutoLockTimeoutError */
@@ -96,6 +98,9 @@ export function createAutoLock({ timeoutMs, now, scheduler, onTimeout }: AutoLoc
     },
     visible() {
       if (running && expired()) fire()
+    },
+    suspended() {
+      if (running) fire()
     },
   }
 }
