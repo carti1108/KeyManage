@@ -6,7 +6,7 @@ import { vectors } from '../domain/crypto/testVectors'
 import { NetworkError, ServerError } from '../domain/server/serverErrors'
 import { createVaultSession } from '../domain/session/vaultSession'
 import type { RemoteVault, VaultApi } from '../domain/vault/vaultApi'
-import { addItem } from '../domain/vault/vaultData'
+import { activeItems, addItem } from '../domain/vault/vaultData'
 import { createRevisionMemory, createVaultSync } from '../domain/vault/vaultSync'
 
 export const NOW = new Date('2026-10-31T00:00:00Z')
@@ -81,4 +81,32 @@ export async function unlockedWithItem() {
   if (state.status !== 'unlocked') throw new Error('잠금 해제 상태가 아님')
   await ctx.session.save(addItem(state.vault.data, fields, NOW, 'a'))
   return ctx
+}
+
+/** 다른 기기(자기 되돌림 기준을 가진 별도 세션)로 같은 서버 볼트를 연다 */
+async function openOnOtherDevice(vaultApi: FakeVaultApi) {
+  const revisionMemory = createRevisionMemory()
+  const other = createVaultSession({
+    auth: createAuthService(new FakeAuthApi()),
+    vaultSyncFor: (_token, encryptionKey) => createVaultSync({ api: vaultApi, encryptionKey, now: () => NOW, revisionMemory }),
+    revisionMemory,
+  })
+  await other.login('device-2@example.com', PASSWORD)
+  const state = other.state()
+  if (state.status !== 'unlocked') throw new Error('잠금 해제 상태가 아님')
+  return { other, data: state.vault.data }
+}
+
+/** 서버 볼트의 살아 있는 항목 id (정렬) */
+export async function serverItemIds(vaultApi: FakeVaultApi): Promise<string[]> {
+  const { data } = await openOnOtherDevice(vaultApi)
+  return activeItems(data)
+    .map((item) => item.id)
+    .sort()
+}
+
+/** 다른 기기에서 항목을 하나 더해 저장한다 */
+export async function saveFromOtherDevice(vaultApi: FakeVaultApi, id: string): Promise<void> {
+  const { other, data } = await openOnOtherDevice(vaultApi)
+  await other.save(addItem(data, { ...fields, serviceName: id }, NOW, id))
 }

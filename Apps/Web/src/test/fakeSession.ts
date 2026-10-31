@@ -18,7 +18,7 @@ export function createFakeSession(initial: SessionState = { status: 'signedOut' 
     /** 진행 중인 로그아웃의 서버 요청을 끝낸다 */
     finishLogout: () => {},
     openVault(email = 'me@example.com', vault: SyncedVault = fakeVault()) {
-      current = { status: 'unlocked', email, vault }
+      current = { status: 'unlocked', email, vault, pendingSync: false }
       for (const listener of unlockListeners) listener()
     },
     closeVault() {

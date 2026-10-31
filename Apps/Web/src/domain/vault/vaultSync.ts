@@ -1,7 +1,7 @@
 // 볼트 불러오기·저장과 충돌 시 자동 병합 (VLT-001, ADR-0006)
 // 평문 볼트와 암호화 키는 이 모듈 안에서만 쓰고, 서버 포트에는 암호화된 페이로드만 넘긴다
 import { openVault, sealVault, type EncryptedVaultPayload } from '../crypto/vaultCipher'
-import { ServerError, UnexpectedResponseError } from '../server/serverErrors'
+import { NetworkError, ServerError, UnexpectedResponseError } from '../server/serverErrors'
 import { mergeVaults } from './mergeVaults'
 import { emptyVault, isReadOnly, parseVaultData, type VaultData } from './vaultData'
 import type { VaultApi } from './vaultApi'
@@ -79,6 +79,14 @@ export function createRevisionMemory(): RevisionMemory {
   }
 }
 
+/**
+ * 서버에 닿지 못했거나 서버가 잠시 처리하지 못한 실패. 변경 사항을 동기화 대기로 두고 나중에 다시 보낸다 (VLT-001).
+ * 요청 시간 초과도 NetworkError로 온다
+ */
+export function isTransientSyncError(error: unknown): boolean {
+  return error instanceof NetworkError || (error instanceof ServerError && error.status >= 500)
+}
+
 export interface VaultSyncDeps {
   readonly api: VaultApi
   readonly encryptionKey: CryptoKey
@@ -105,7 +113,24 @@ export function createVaultSync({ api, encryptionKey, now, revisionMemory }: Vau
     return { revision, data, readOnly: isReadOnly(data), payload: remote?.payload ?? null }
   }
 
+  /** @throws ReadOnlyVaultError, InvalidVaultDataError, VaultTooLargeError */
+  async function seal(data: VaultData): Promise<EncryptedVaultPayload> {
+    if (isReadOnly(data)) throw new ReadOnlyVaultError()
+    const json = JSON.stringify(data)
+    // 규격에 맞지 않는 볼트를 올리면 모든 기기가 열지 못하게 되므로 보내기 전에 다시 확인한다
+    parseVaultData(json)
+    const payload = await sealVault(encryptionKey, json)
+    assertWithinLimit(payload)
+    return payload
+  }
+
   return {
+    /**
+     * 서버에 보내지 않고 저장 전 검사와 암호화만 한다. 동기화 대기 내용을 기기에 남길 때 쓴다
+     * @throws ReadOnlyVaultError, InvalidVaultDataError, VaultTooLargeError
+     */
+    seal,
+
     /**
      * @param options.acceptRollback 되돌림 경고를 사용자가 확인했을 때만 true
      * @throws RevisionRollbackError, InvalidVaultDataError, VaultDecryptError, ServerError, NetworkError
@@ -124,12 +149,7 @@ export function createVaultSync({ api, encryptionKey, now, revisionMemory }: Vau
       let expectedRevision = base.revision
       let toSave = data
       for (let attempt = 0; ; attempt++) {
-        if (isReadOnly(toSave)) throw new ReadOnlyVaultError()
-        const json = JSON.stringify(toSave)
-        // 규격에 맞지 않는 볼트를 올리면 모든 기기가 열지 못하게 되므로 보내기 전에 다시 확인한다
-        parseVaultData(json)
-        const payload = await sealVault(encryptionKey, json)
-        assertWithinLimit(payload)
+        const payload = await seal(toSave)
         try {
           const revision = await api.save(expectedRevision, payload)
           // 서버는 저장할 때마다 1씩 올린다. 다른 값이면 되돌림 감지 기준을 흔들 수 있으므로 믿지 않는다

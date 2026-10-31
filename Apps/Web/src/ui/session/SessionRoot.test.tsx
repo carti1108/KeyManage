@@ -257,7 +257,7 @@ describe('SessionRoot', () => {
 
   describe('열린 볼트', () => {
     it('항목을 저장하면 세션에 저장하고 새 볼트로 화면을 다시 그린다', async () => {
-      const { session } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault() })
+      const { session } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: false })
       render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
 
       fireEvent.click(screen.getByRole('button', { name: '항목 추가' }))
@@ -270,7 +270,7 @@ describe('SessionRoot', () => {
     })
 
     it('잠그기를 누르면 잠금 화면으로 바뀐다', async () => {
-      const { session } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault() })
+      const { session } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: false })
       render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
 
       fireEvent.click(screen.getByRole('button', { name: '잠그기' }))
@@ -280,7 +280,7 @@ describe('SessionRoot', () => {
     })
 
     it('자동 잠금처럼 바깥에서 잠겨도 잠금 화면으로 바뀐다', () => {
-      const { session, control } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault() })
+      const { session, control } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: false })
       render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
 
       act(() => control.closeVault())
@@ -289,7 +289,7 @@ describe('SessionRoot', () => {
     })
 
     it('서버 로그아웃 요청이 실패해도 이 기기는 로그아웃 화면으로 간다', async () => {
-      const { session, control } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault() })
+      const { session, control } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: false })
       session.logout.mockImplementationOnce(async () => {
         control.signOut()
         throw new ServerError(500, 'INTERNAL_ERROR')
@@ -302,7 +302,7 @@ describe('SessionRoot', () => {
     })
 
     it('새 버전 앱의 볼트는 읽기 전용 안내를 보인다', () => {
-      const { session } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault({ readOnly: true }) })
+      const { session } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault({ readOnly: true }), pendingSync: false })
       render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
 
       expect(screen.getByText('새 버전 앱에서 저장한 볼트입니다. 앱을 업데이트하기 전까지는 읽기만 할 수 있습니다.')).toBeInTheDocument()
@@ -317,7 +317,7 @@ describe('SessionRoot', () => {
     })
 
     it('페이지가 가려지면 가림 화면으로 볼트 내용을 덮는다', () => {
-      const { session } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault() })
+      const { session } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: false })
       const { rerender } = render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
       expect(screen.queryByTestId('privacy-cover')).not.toBeInTheDocument()
 
