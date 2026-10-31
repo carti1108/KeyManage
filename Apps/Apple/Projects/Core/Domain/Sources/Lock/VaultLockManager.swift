@@ -258,12 +258,16 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 
 	public func checkIdleTimeout(at date: Date = Date()) -> Bool {
 		syncLock.lock()
-		defer { syncLock.unlock() }
-
-		guard !_isLocked else { return false }
+		guard !_isLocked, _autoLockTimeout != .immediate else {
+			syncLock.unlock()
+			return false
+		}
 
 		let elapsed = date.timeIntervalSince(_lastInteractionTime)
-		if elapsed >= _autoLockTimeout.timeInterval {
+		let shouldLock = elapsed >= _autoLockTimeout.timeInterval
+		syncLock.unlock()
+
+		if shouldLock {
 			internalLock()
 			return true
 		}
@@ -272,31 +276,34 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 
 	public func didEnterBackground(at date: Date = Date()) {
 		syncLock.lock()
-		defer { syncLock.unlock() }
-
 		_isPrivacyCoverActive = true
-		if _autoLockTimeout == .immediate {
+		let shouldLock = (_autoLockTimeout == .immediate)
+		syncLock.unlock()
+
+		if shouldLock {
 			internalLock()
 		}
 	}
 
 	public func willEnterForeground(at date: Date = Date()) {
 		syncLock.lock()
-		defer { syncLock.unlock() }
+		_isPrivacyCoverActive = false
 
+		let shouldLock: Bool
 		if !_isLocked {
 			let elapsed = date.timeIntervalSince(_lastInteractionTime)
-			if elapsed >= _autoLockTimeout.timeInterval {
-				internalLock()
-			} else {
-				_isPrivacyCoverActive = false
-			}
+			shouldLock = (elapsed >= _autoLockTimeout.timeInterval)
+		} else {
+			shouldLock = false
+		}
+		syncLock.unlock()
+
+		if shouldLock {
+			internalLock()
 		}
 	}
 
 	public func lock() {
-		syncLock.lock()
-		defer { syncLock.unlock() }
 		internalLock()
 	}
 
@@ -393,15 +400,39 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 		syncLock.lock()
 		defer { syncLock.unlock() }
 
-		// 인터페이스 스텁: 플래그 변경만 호출하고 복호화 로직은 비워둠 (RED)
-		try unlockWithBiometrics(evaluatedStateHash: evaluatedStateHash, now: now)
+		guard let encryptedVault = _encryptedVault else {
+			throw LockError.sessionNotInitialized
+		}
+
+		guard _isBiometricsEnabled else {
+			throw LockError.biometricsDisabled
+		}
+
+		guard let lastPwDate = _lastMasterPasswordUnlockDate,
+		      now.timeIntervalSince(lastPwDate) <= 14 * 86400 else {
+			throw LockError.biometricsExpiredRequirePassword
+		}
+
+		guard let currentHash = _currentBiometryStateHash,
+		      evaluatedStateHash == currentHash else {
+			throw LockError.biometricsInvalidatedRequirePassword
+		}
+
+		let decryptedData = try VaultCipher.decrypt(payload: encryptedVault, key: recoveredEncryptionKey)
+		let decodedVault = try JSONDecoder().decode(VaultData.self, from: decryptedData)
+
+		_decryptedVault = decodedVault
+		_encryptionKey = recoveredEncryptionKey
+		_isLocked = false
+		_isPrivacyCoverActive = false
+		_lastInteractionTime = now
 	}
 
 	public func logout() {
+		internalLock()
+
 		syncLock.lock()
 		defer { syncLock.unlock() }
-
-		internalLock()
 
 		_email = nil
 		_sessionToken = nil
@@ -415,13 +446,18 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 	}
 
 	private func internalLock() {
+		let callback: (@Sendable () -> Void)?
+		syncLock.lock()
 		_isLocked = true
 
 		zeroizeData(&_masterKey)
 		zeroizeData(&_encryptionKey)
 		_decryptedVault = nil
 
-		_onClipboardClearNeeded?()
+		callback = _onClipboardClearNeeded
+		syncLock.unlock()
+
+		callback?()
 	}
 
 	private func zeroizeData(_ data: inout Data?) {
