@@ -2,13 +2,13 @@
 import { createApiClient, resolveBaseUrl } from '../adapters/http/apiClient'
 import { createHttpAuthApi } from '../adapters/http/httpAuthApi'
 import { createHttpVaultApi } from '../adapters/http/httpVaultApi'
-import { createAuthService, type AuthService } from '../domain/auth/authService'
-import { createRevisionMemory, createVaultSync, type VaultSync } from '../domain/vault/vaultSync'
+import { createAuthService } from '../domain/auth/authService'
+import { createVaultSession, type VaultSession } from '../domain/session/vaultSession'
+import { createRevisionMemory, createVaultSync } from '../domain/vault/vaultSync'
 
 export interface Services {
-  readonly auth: AuthService
-  /** 로그인·잠금 해제 뒤 받은 토큰과 암호화 키로 볼트 동기화를 만든다 */
-  readonly vaultSync: (accessToken: string, encryptionKey: CryptoKey) => VaultSync
+  /** 로그인·가입·잠금·잠금 해제·로그아웃과 볼트 저장 (SEC-002, SEC-003) */
+  readonly session: VaultSession
 }
 
 /** @throws InvalidBaseUrlError 빌드할 때 넣은 서버 주소가 규칙에 맞지 않을 때 */
@@ -17,8 +17,10 @@ export function createServices(apiBaseUrl: string | undefined = import.meta.env.
   // 잠금 해제·재로그인으로 동기화를 새로 만들어도 되돌림 감지 기준을 이어 간다
   const revisionMemory = createRevisionMemory()
   return {
-    auth: createAuthService(createHttpAuthApi(client)),
-    vaultSync: (accessToken, encryptionKey) =>
-      createVaultSync({ api: createHttpVaultApi(client, accessToken), encryptionKey, now: () => new Date(), revisionMemory }),
+    session: createVaultSession({
+      auth: createAuthService(createHttpAuthApi(client)),
+      vaultSyncFor: (accessToken, encryptionKey) =>
+        createVaultSync({ api: createHttpVaultApi(client, accessToken), encryptionKey, now: () => new Date(), revisionMemory }),
+    }),
   }
 }
