@@ -19,10 +19,12 @@ export interface EntropyGaugeProps {
   score: number
   showLabel?: boolean
   animated?: boolean
+  /** 한 화면에 게이지가 둘 이상이면 보조 기술이 구분하도록 바꾼다 */
+  label?: string
   className?: string
 }
 
-export function EntropyGauge({ score, showLabel = true, animated = true, className }: EntropyGaugeProps) {
+export function EntropyGauge({ score, showLabel = true, animated = true, label = '비밀번호 강도', className }: EntropyGaugeProps) {
   const value = clampScore(score)
   const level = levelOf(value)
 
@@ -30,7 +32,7 @@ export function EntropyGauge({ score, showLabel = true, animated = true, classNa
     <div className={cn('flex items-center gap-3', className)}>
       <div
         role="meter"
-        aria-label="비밀번호 강도"
+        aria-label={label}
         aria-valuemin={0}
         aria-valuemax={MAX_SCORE}
         aria-valuenow={value}
