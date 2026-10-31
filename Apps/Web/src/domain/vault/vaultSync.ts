@@ -52,6 +52,8 @@ export interface SyncedVault {
   readonly revision: number
   readonly data: VaultData
   readonly readOnly: boolean
+  /** 서버에 있는 암호화 볼트. 잠금 해제 확인에 쓴다 (SEC-003). 서버에 볼트가 없으면 null */
+  readonly payload: EncryptedVaultPayload | null
 }
 
 /** 이 기기가 마지막으로 본 서버 revision. 잠금 해제·재로그인으로 동기화를 새로 만들어도 이어서 쓴다 */
@@ -100,7 +102,7 @@ export function createVaultSync({ api, encryptionKey, now, revisionMemory }: Vau
     const data = remote === null ? emptyVault(now()) : parseVaultData(await openVault(encryptionKey, remote.payload))
     if (acceptRollback) revisionMemory.reset(revision)
     else revisionMemory.raise(revision)
-    return { revision, data, readOnly: isReadOnly(data) }
+    return { revision, data, readOnly: isReadOnly(data), payload: remote?.payload ?? null }
   }
 
   return {
@@ -133,7 +135,7 @@ export function createVaultSync({ api, encryptionKey, now, revisionMemory }: Vau
           // 서버는 저장할 때마다 1씩 올린다. 다른 값이면 되돌림 감지 기준을 흔들 수 있으므로 믿지 않는다
           if (revision !== expectedRevision + 1) throw new UnexpectedResponseError(`저장 응답 revision이 ${expectedRevision + 1}이 아님: ${revision}`)
           revisionMemory.raise(revision)
-          return { revision, data: toSave, readOnly: false }
+          return { revision, data: toSave, readOnly: false, payload }
         } catch (error) {
           if (!(error instanceof ServerError && error.code === 'VAULT_CONFLICT')) throw error
           if (attempt === MAX_MERGE_RETRIES) throw new VaultSyncConflictError()

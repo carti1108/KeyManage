@@ -62,6 +62,8 @@ describe('로그인 (SEC-002)', () => {
     expect(api.preloginEmails).toEqual(['user@example.com'])
     expect(api.logins).toEqual([{ email: 'user@example.com', authHash: vector.authHash }])
     expect(result.session).toEqual(session)
+    // 잠금 해제 때 서버 없이 키를 다시 만들 수 있도록 KDF 값을 돌려준다 (SEC-003)
+    expect(result.kdf).toEqual({ salt: vector.salt, iterations: vectors.kdf.iterations })
   })
 
   it('돌려받은 암호화 키로 볼트를 암·복호화할 수 있다', async () => {
@@ -95,13 +97,14 @@ describe('가입 (SEC-002)', () => {
     const api = new FakeAuthApi()
     const service = createAuthService(api)
 
-    await service.register('New@Example.com', 'correct horse')
+    const registered = await service.register('New@Example.com', 'correct horse')
     const [request] = api.registered
 
     expect(request.email).toBe('new@example.com')
     expect(fromBase64(request.kdfSalt)).toHaveLength(16)
     expect(request.kdfIterations).toBe(MIN_ITERATIONS)
     expect(fromBase64(request.authHash)).toHaveLength(32)
+    expect(registered.kdf).toEqual({ salt: request.kdfSalt, iterations: MIN_ITERATIONS })
 
     const loginApi = new FakeAuthApi({ kdf: 'PBKDF2-HMAC-SHA256', iterations: request.kdfIterations, salt: request.kdfSalt })
     await createAuthService(loginApi).login('new@example.com', 'correct horse')

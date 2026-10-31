@@ -68,6 +68,7 @@ describe('볼트 불러오기 (api-spec 2.3)', () => {
 
     expect(loaded.revision).toBe(0)
     expect(loaded.data.items).toEqual([])
+    expect(loaded.payload).toBeNull()
   })
 
   it('서버 볼트를 복호화해 revision과 함께 돌려준다', async () => {
@@ -78,6 +79,8 @@ describe('볼트 불러오기 (api-spec 2.3)', () => {
 
     expect(loaded.revision).toBe(1)
     expect(loaded.data.items.map((i) => i.id)).toEqual(['a'])
+    // 잠금 해제 확인용으로 암호화 볼트도 돌려준다 (SEC-003)
+    expect(loaded.payload).toEqual(api.payload)
   })
 })
 
@@ -90,6 +93,7 @@ describe('볼트 저장과 충돌 병합 (VLT-001)', () => {
     const saved = await sync.save(loaded, addItem(loaded.data, fields, NOW, 'a'))
 
     expect(saved.revision).toBe(1)
+    expect(saved.payload).toEqual(api.payload)
     expect(JSON.stringify(api.payload)).not.toContain('"password"')
     expect((await api.current()).items.map((i) => i.id)).toEqual(['a'])
   })
