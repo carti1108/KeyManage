@@ -51,9 +51,10 @@ describe('SessionRoot', () => {
       render(<SessionRoot session={session} pageHidden={false} />)
 
       fillLogin()
-      const submit = screen.getByRole('button', { name: '로그인' })
-      fireEvent.click(submit)
-      fireEvent.click(submit)
+      // 버튼이 비활성으로 바뀌기 전의 Enter 연타처럼 폼을 두 번 제출한다
+      const form = screen.getByRole('button', { name: '로그인' }).closest('form')!
+      fireEvent.submit(form)
+      fireEvent.submit(form)
       await act(async () => finish())
 
       expect(session.login).toHaveBeenCalledOnce()
@@ -66,7 +67,10 @@ describe('SessionRoot', () => {
 
       fillLogin()
       fireEvent.click(screen.getByRole('button', { name: '로그인' }))
-      expect(await screen.findByText('서버 볼트가 이전 상태로 돌아감')).toBeInTheDocument()
+      const dialog = await screen.findByRole('alertdialog', { name: '서버 볼트가 이전 상태로 돌아감' })
+      // 받아들이지 않는 쪽에 먼저 포커스를 둔다
+      expect(screen.getByRole('button', { name: '취소' })).toHaveFocus()
+      expect(dialog).toHaveAccessibleDescription(/받아들이지 마세요/)
 
       fireEvent.click(screen.getByRole('button', { name: '서버 볼트 받아들이기' }))
 
@@ -85,6 +89,19 @@ describe('SessionRoot', () => {
 
       expect(screen.queryByText('서버 볼트가 이전 상태로 돌아감')).not.toBeInTheDocument()
       expect(session.login).toHaveBeenCalledOnce()
+    })
+
+    it('되돌림 경고가 뜬 채 가입으로 바꾸면 경고를 지운다', async () => {
+      const { session } = createFakeSession()
+      session.login.mockRejectedValueOnce(new RevisionRollbackError(5, 3))
+      render(<SessionRoot session={session} pageHidden={false} />)
+
+      fillLogin()
+      fireEvent.click(screen.getByRole('button', { name: '로그인' }))
+      await screen.findByRole('alertdialog')
+      fireEvent.click(screen.getByRole('button', { name: '계정 만들기' }))
+
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
     })
   })
 
@@ -191,9 +208,41 @@ describe('SessionRoot', () => {
 
       expect(await screen.findByRole('button', { name: '로그인' })).toBeInTheDocument()
       expect(screen.getByRole('status')).toHaveTextContent('로그인이 만료되었습니다. 다시 로그인해 주세요.')
+
+      // 다시 로그인을 시도하면 지난 안내는 지운다
+      session.login.mockRejectedValueOnce(new ServerError(401, 'AUTH_FAILED'))
+      fillLogin()
+      fireEvent.click(screen.getByRole('button', { name: '로그인' }))
+      await screen.findByRole('alert')
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
     })
 
-    it('잠금 화면에서 로그아웃할 수 있다', async () => {
+    it('잠금 해제가 실패하면 입력한 비밀번호를 지운다', async () => {
+      const { session } = createFakeSession({ status: 'locked', email: EMAIL })
+      session.unlock.mockRejectedValueOnce(new WrongMasterPasswordError())
+      render(<SessionRoot session={session} pageHidden={false} />)
+
+      type('마스터 비밀번호', 'wrong')
+      fireEvent.click(screen.getByRole('button', { name: '잠금 해제' }))
+      await screen.findByRole('alert')
+
+      expect(screen.getByLabelText('마스터 비밀번호')).toHaveValue('')
+    })
+
+    it('잠금 해제 중 서버 볼트 되돌림을 받아들이면 확인 옵션으로 다시 연다', async () => {
+      const { session } = createFakeSession({ status: 'locked', email: EMAIL })
+      session.unlock.mockRejectedValueOnce(new RevisionRollbackError(5, 3))
+      render(<SessionRoot session={session} pageHidden={false} />)
+
+      type('마스터 비밀번호', PASSWORD)
+      fireEvent.click(screen.getByRole('button', { name: '잠금 해제' }))
+      fireEvent.click(await screen.findByRole('button', { name: '서버 볼트 받아들이기' }))
+
+      await screen.findByRole('button', { name: '잠그기' })
+      expect(session.unlock).toHaveBeenLastCalledWith(PASSWORD, { acceptRollback: true })
+    })
+
+    it('잠금 화면에서 로그아웃하면 서버 응답을 기다리지 않고 바로 로그인 화면으로 간다', async () => {
       const { session } = createFakeSession({ status: 'locked', email: EMAIL })
       render(<SessionRoot session={session} pageHidden={false} />)
 
@@ -241,6 +290,14 @@ describe('SessionRoot', () => {
       render(<SessionRoot session={session} pageHidden={false} />)
 
       expect(screen.getByText('새 버전 앱에서 저장한 볼트입니다. 앱을 업데이트하기 전까지는 읽기만 할 수 있습니다.')).toBeInTheDocument()
+    })
+
+    it('잠금·로그인 화면도 가려지면 덮는다 (평문으로 펼친 비밀번호 보호)', () => {
+      const { session } = createFakeSession({ status: 'locked', email: EMAIL })
+      render(<SessionRoot session={session} pageHidden />)
+
+      expect(screen.getByTestId('privacy-cover')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: '잠금 해제' })).not.toBeInTheDocument()
     })
 
     it('페이지가 가려지면 가림 화면으로 볼트 내용을 덮는다', () => {

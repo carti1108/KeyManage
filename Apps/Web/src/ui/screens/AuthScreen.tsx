@@ -18,11 +18,13 @@ const PASSWORD_PROBLEMS: Record<NewMasterPasswordProblem, string> = {
 export interface AuthScreenProps {
   /** 로그인 화면으로 돌아온 이유(세션 만료 등) */
   notice?: string | null
+  /** 사용자가 다시 시도하면 지난 안내를 지운다 */
+  onDismissNotice?: () => void
   onLogin: (email: string, password: string, options: RollbackOption) => Promise<void>
   onRegister: (email: string, password: string) => Promise<void>
 }
 
-export function AuthScreen({ notice, onLogin, onRegister }: AuthScreenProps) {
+export function AuthScreen({ notice, onDismissNotice, onLogin, onRegister }: AuthScreenProps) {
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -32,6 +34,7 @@ export function AuthScreen({ notice, onLogin, onRegister }: AuthScreenProps) {
 
   function submit(event: FormEvent) {
     event.preventDefault()
+    onDismissNotice?.()
     if (registering) {
       const problem = checkNewMasterPassword(password, confirmation)
       if (problem) return action.showError({ body: PASSWORD_PROBLEMS[problem] })
@@ -44,7 +47,8 @@ export function AuthScreen({ notice, onLogin, onRegister }: AuthScreenProps) {
   function switchMode() {
     setMode(registering ? 'login' : 'register')
     setConfirmation('')
-    action.showError(null)
+    onDismissNotice?.()
+    action.reset()
   }
 
   return (

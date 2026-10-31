@@ -13,28 +13,41 @@ export function useSessionAction() {
   // 상태 갱신은 다음 렌더링에 반영되므로, 같은 틱의 두 번째 제출은 ref로 막는다
   const busy = useRef(false)
 
-  async function run(action: Action, options: RollbackOption = {}): Promise<void> {
-    if (busy.current) return
+  /** @returns 요청이 성공했는지. 진행 중이라 무시했으면 false */
+  async function run(action: Action, options: RollbackOption = {}): Promise<boolean> {
+    if (busy.current) return false
     busy.current = true
     setPending(true)
     setError(null)
     setRollbackAction(null)
     try {
       await action(options)
+      return true
     } catch (caught) {
       if (caught instanceof RevisionRollbackError) setRollbackAction(() => action)
       else setError(describeError(caught))
+      return false
     } finally {
       busy.current = false
       setPending(false)
     }
   }
 
+  /** 오류와 되돌림 확인을 모두 지운다. 확인 요청이 다른 화면·입력으로 이어지지 않게 한다 */
+  function reset() {
+    setError(null)
+    setRollbackAction(null)
+  }
+
   return {
     pending,
     error,
     /** 검사에서 걸린 문제처럼 요청 전에 정한 오류를 보인다 */
-    showError: setError,
+    showError(message: ErrorMessage) {
+      reset()
+      setError(message)
+    },
+    reset,
     run,
     rollback:
       rollbackAction === null

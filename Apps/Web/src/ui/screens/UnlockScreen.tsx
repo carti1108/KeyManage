@@ -20,7 +20,10 @@ export function UnlockScreen({ email, onUnlock, onLogout }: UnlockScreenProps) {
 
   function submit(event: FormEvent) {
     event.preventDefault()
-    void action.run((options) => onUnlock(password, options))
+    void action.run((options) => onUnlock(password, options)).then((ok) => {
+      // 실패한 비밀번호를 입력 칸에 남기지 않는다. 되돌림 확인용 재시도는 요청에 담긴 값을 쓴다
+      if (!ok) setPassword('')
+    })
   }
 
   return (

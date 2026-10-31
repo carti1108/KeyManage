@@ -31,69 +31,78 @@ export function SessionRoot({ session, pageHidden }: SessionRootProps) {
   }, [session, refresh])
 
   async function logout() {
+    // 세션은 이 기기 정리를 먼저 끝내고 서버에 토큰 폐기를 요청한다. 서버 응답을 기다리지 않고 화면을 바꾼다
+    const request = session.logout()
+    setNotice(null)
+    refresh()
     try {
-      await session.logout()
+      await request
     } catch {
-      // 이 기기의 세션은 이미 지워졌다. 서버 토큰 폐기만 실패한 것이라 만료(30일)를 기다린다 (SEC-002)
-    } finally {
-      setNotice(null)
-      refresh()
+      // 서버 토큰 폐기만 실패했다. 이 기기는 이미 로그아웃됐고 서버 토큰은 만료(30일)를 기다린다 (SEC-002)
     }
-  }
-
-  if (state.status === 'signedOut') {
-    return (
-      <AuthScreen
-        notice={notice}
-        onLogin={async (email, password, options) => {
-          await session.login(email, password, options)
-          setNotice(null)
-          setOffline(false)
-          refresh()
-        }}
-        onRegister={async (email, password) => {
-          await session.register(email, password)
-          setNotice(null)
-          setOffline(false)
-          refresh()
-        }}
-      />
-    )
-  }
-
-  if (state.status === 'locked') {
-    return (
-      <UnlockScreen
-        email={state.email}
-        onUnlock={async (password, options: RollbackOption) => {
-          try {
-            const result = await session.unlock(password, options)
-            setOffline(result.offline)
-          } catch (error) {
-            if (!(error instanceof SessionExpiredError)) throw error
-            setNotice(describeError(error).body)
-          }
-          refresh()
-        }}
-        onLogout={logout}
-      />
-    )
   }
 
   return (
     <>
-      {/* 가려진 동안에는 보조 기술과 키보드도 볼트 화면에 닿지 않게 한다 */}
+      {/* 가려진 동안에는 보조 기술과 키보드도 화면에 닿지 않게 한다 */}
       <div inert={pageHidden} aria-hidden={pageHidden || undefined}>
-        <VaultHomeScreen
-          email={state.email}
-          itemCount={state.vault.data.items.length}
-          readOnly={state.vault.readOnly}
-          offline={offline}
-          onLock={() => session.lock()}
-          onLogout={() => void logout()}
-        />
+        {renderScreen()}
       </div>
+      {/* 볼트뿐 아니라 평문으로 펼친 마스터 비밀번호도 앱 전환 화면에 비치지 않게 모든 화면을 덮는다 (SEC-003) */}
       {pageHidden && <PrivacyCover />}
     </>
   )
+
+  function renderScreen() {
+    if (state.status === 'signedOut') {
+      return (
+        <AuthScreen
+          notice={notice}
+          onDismissNotice={() => setNotice(null)}
+          onLogin={async (email, password, options) => {
+            await session.login(email, password, options)
+            setNotice(null)
+            setOffline(false)
+            refresh()
+          }}
+          onRegister={async (email, password) => {
+            await session.register(email, password)
+            setNotice(null)
+            setOffline(false)
+            refresh()
+          }}
+        />
+      )
+    }
+
+    if (state.status === 'locked') {
+      return (
+        <UnlockScreen
+          email={state.email}
+          onUnlock={async (password, options: RollbackOption) => {
+            try {
+              const result = await session.unlock(password, options)
+              setOffline(result.offline)
+            } catch (error) {
+              if (!(error instanceof SessionExpiredError)) throw error
+              setNotice(describeError(error).body)
+            }
+            refresh()
+          }}
+          onLogout={logout}
+        />
+      )
+    }
+
+    return (
+      <VaultHomeScreen
+        email={state.email}
+        itemCount={state.vault.data.items.length}
+        readOnly={state.vault.readOnly}
+        offline={offline}
+        onLock={() => session.lock()}
+        onLogout={() => void logout()}
+      />
+    )
+  }
 }

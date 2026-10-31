@@ -15,6 +15,8 @@ export function createFakeSession(initial: SessionState = { status: 'signedOut' 
   const unlockListeners = new Set<() => void>()
 
   const control = {
+    /** 진행 중인 로그아웃의 서버 요청을 끝낸다 */
+    finishLogout: () => {},
     openVault(email = 'me@example.com', vault: SyncedVault = fakeVault()) {
       current = { status: 'unlocked', email, vault }
       for (const listener of unlockListeners) listener()
@@ -40,7 +42,11 @@ export function createFakeSession(initial: SessionState = { status: 'signedOut' 
       return { offline: false }
     }),
     lock: vi.fn(() => control.closeVault()),
-    logout: vi.fn(async () => control.signOut()),
+    // 실제 세션처럼 이 기기의 세션을 먼저 지우고, 서버 응답은 테스트가 정할 때 끝낸다
+    logout: vi.fn(() => {
+      control.signOut()
+      return new Promise<void>((resolve) => (control.finishLogout = resolve))
+    }),
     onLock: (listener: () => void) => {
       lockListeners.add(listener)
       return () => lockListeners.delete(listener)
