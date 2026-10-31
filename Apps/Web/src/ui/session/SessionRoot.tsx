@@ -1,7 +1,10 @@
 // 세션 상태에 따라 로그인·잠금·볼트 화면을 고른다
 import { useCallback, useEffect, useState } from 'react'
 import { SessionExpiredError } from '../../domain/session/vaultSession'
-import { describeError } from '../messages/errorMessage'
+import { ConfirmPrompt } from '../components/ConfirmPrompt'
+import { Alert } from '../components/Alert'
+import { describeError, type ErrorMessage } from '../messages/errorMessage'
+import { PENDING_LOGOUT_CONFIRM } from '../messages/vaultNotices'
 import { AuthScreen } from '../screens/AuthScreen'
 import { PrivacyCover } from '../screens/PrivacyCover'
 import { UnlockScreen } from '../screens/UnlockScreen'
@@ -24,14 +27,34 @@ export function SessionRoot({ session, clipboard, pageHidden }: SessionRootProps
   const [state, setState] = useState(() => session.state())
   const [notice, setNotice] = useState<string | null>(null)
   const [offline, setOffline] = useState(false)
+  // 대기 내용 재전송이 분명한 거절을 받았을 때의 문구 (VLT-001)
+  const [syncError, setSyncError] = useState<ErrorMessage | null>(null)
+  const [confirmingLogout, setConfirmingLogout] = useState(false)
   const refresh = useCallback(() => setState(session.state()), [session])
 
   useEffect(() => {
-    const offLock = session.onLock(refresh)
+    const offLock = session.onLock(() => {
+      // 다시 열었을 때 지난 확인 창·오류가 남지 않게 한다
+      setConfirmingLogout(false)
+      setSyncError(null)
+      refresh()
+    })
     const offUnlock = session.onUnlock(refresh)
+    const offSync = session.onSyncChange((error) => {
+      refresh()
+      if (error === null) {
+        setOffline(false)
+        setSyncError(null)
+      } else if (error instanceof SessionExpiredError) {
+        setNotice(describeError(error).body)
+      } else {
+        setSyncError(describeError(error))
+      }
+    })
     return () => {
       offLock()
       offUnlock()
+      offSync()
     }
   }, [session, refresh])
 
@@ -39,6 +62,8 @@ export function SessionRoot({ session, clipboard, pageHidden }: SessionRootProps
     // 세션은 이 기기 정리를 먼저 끝내고 서버에 토큰 폐기를 요청한다. 서버 응답을 기다리지 않고 화면을 바꾼다
     const request = session.logout()
     setNotice(null)
+    setSyncError(null)
+    setConfirmingLogout(false)
     refresh()
     try {
       await request
@@ -103,16 +128,29 @@ export function SessionRoot({ session, clipboard, pageHidden }: SessionRootProps
       <VaultHomeScreen
         email={state.email}
         readOnly={state.vault.readOnly}
-        offline={offline}
+        offline={offline || state.pendingSync}
         onLock={() => session.lock()}
-        onLogout={() => void logout()}
+        // 올리지 못한 변경 사항이 있으면 사라진다고 먼저 알린다 (VLT-001)
+        onLogout={() => (state.pendingSync ? setConfirmingLogout(true) : void logout())}
       >
+        {confirmingLogout && (
+          <ConfirmPrompt
+            title={PENDING_LOGOUT_CONFIRM.title}
+            body={PENDING_LOGOUT_CONFIRM.body}
+            confirmLabel={PENDING_LOGOUT_CONFIRM.confirm}
+            cancelLabel={PENDING_LOGOUT_CONFIRM.cancel}
+            onConfirm={() => void logout()}
+            onCancel={() => setConfirmingLogout(false)}
+          />
+        )}
+        {syncError && <Alert title={syncError.title}>{syncError.body}</Alert>}
         <ClipboardNotice clipboard={clipboard} />
         <VaultScreen
           vault={state.vault}
           clipboard={clipboard}
           onSave={async (data) => {
             await session.save(data)
+            setSyncError(null)
             // 저장은 잠금 알림을 보내지 않으므로 직접 다시 읽는다
             refresh()
           }}

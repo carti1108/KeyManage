@@ -1,8 +1,8 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { ServerError } from '../../domain/server/serverErrors'
 import { SessionExpiredError, WrongMasterPasswordError } from '../../domain/session/vaultSession'
-import { RevisionRollbackError } from '../../domain/vault/vaultSync'
+import { RevisionRollbackError, VaultSyncConflictError } from '../../domain/vault/vaultSync'
 import { createFakeClipboard } from '../../test/fakeClipboard'
 import { createFakeSession, fakeVault } from '../../test/fakeSession'
 
@@ -325,6 +325,90 @@ describe('SessionRoot', () => {
 
       expect(screen.getByTestId('privacy-cover')).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: '잠그기' })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('동기화 대기 (VLT-001)', () => {
+    const OFFLINE = '오프라인 상태입니다. 변경 사항이 서버에 동기화되지 않습니다.'
+
+    function pendingVault() {
+      const fake = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: true })
+      render(<SessionRoot session={fake.session} clipboard={clipboard()} pageHidden={false} />)
+      return fake
+    }
+
+    it('대기 중이면 오프라인 경고를 보인다', () => {
+      pendingVault()
+
+      expect(screen.getByText(OFFLINE)).toBeInTheDocument()
+    })
+
+    it('다시 보내 모두 올라가면 경고를 내린다', () => {
+      const { control } = pendingVault()
+
+      act(() => {
+        control.setPending(false)
+        control.emitSync(null)
+      })
+
+      expect(screen.queryByText(OFFLINE)).not.toBeInTheDocument()
+    })
+
+    it('다시 보내다 분명한 거절을 받으면 정책 문구를 보인다', () => {
+      const { control } = pendingVault()
+
+      act(() => control.emitSync(new VaultSyncConflictError()))
+
+      expect(screen.getByText('다른 기기의 변경 사항과 충돌했습니다. 잠시 후 다시 시도해 주세요.')).toBeInTheDocument()
+    })
+
+    it('세션이 만료되면 로그인 화면에서 만료를 알린다', () => {
+      const { control } = pendingVault()
+
+      act(() => {
+        control.signOut()
+        control.emitSync(new SessionExpiredError())
+      })
+
+      expect(screen.getByRole('button', { name: '로그인' })).toBeInTheDocument()
+      expect(screen.getByText('로그인이 만료되었습니다. 다시 로그인해 주세요.')).toBeInTheDocument()
+    })
+
+    it('대기 중에 로그아웃하면 먼저 확인하고, 취소하면 그대로 둔다', () => {
+      const { session } = pendingVault()
+
+      fireEvent.click(screen.getByRole('button', { name: '로그아웃' }))
+
+      expect(screen.getByRole('alertdialog', { name: '동기화되지 않은 변경 사항' })).toHaveAccessibleDescription(
+        '로그아웃하면 서버에 올리지 못한 변경 사항이 사라집니다.',
+      )
+      fireEvent.click(screen.getByRole('button', { name: '취소' }))
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+      expect(session.logout).not.toHaveBeenCalled()
+    })
+
+    it('잠갔다가 다시 열면 지난 확인 창과 오류가 남지 않는다', () => {
+      const { control } = pendingVault()
+      fireEvent.click(screen.getByRole('button', { name: '로그아웃' }))
+      act(() => control.emitSync(new VaultSyncConflictError()))
+
+      act(() => {
+        control.closeVault()
+        control.openVault(EMAIL)
+      })
+
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+      expect(screen.queryByText('다른 기기의 변경 사항과 충돌했습니다. 잠시 후 다시 시도해 주세요.')).not.toBeInTheDocument()
+    })
+
+    it('확인하면 로그아웃한다', async () => {
+      const { session } = pendingVault()
+
+      fireEvent.click(screen.getByRole('button', { name: '로그아웃' }))
+      fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: '로그아웃' }))
+
+      expect(session.logout).toHaveBeenCalledOnce()
+      expect(await screen.findByRole('button', { name: '로그인' })).toBeInTheDocument()
     })
   })
 })

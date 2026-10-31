@@ -13,6 +13,7 @@ export function createFakeSession(initial: SessionState = { status: 'signedOut' 
   let current: SessionState = initial
   const lockListeners = new Set<() => void>()
   const unlockListeners = new Set<() => void>()
+  const syncListeners = new Set<(error: unknown) => void>()
 
   const control = {
     /** 진행 중인 로그아웃의 서버 요청을 끝낸다 */
@@ -25,6 +26,14 @@ export function createFakeSession(initial: SessionState = { status: 'signedOut' 
       if (current.status !== 'unlocked') return
       current = { status: 'locked', email: current.email }
       for (const listener of lockListeners) listener()
+    },
+    /** 동기화 대기 표시를 바꾼다. 실제 세션처럼 알림은 보내지 않는다 */
+    setPending(pendingSync: boolean) {
+      if (current.status === 'unlocked') current = { ...current, pendingSync }
+    },
+    /** 대기 내용 재전송 결과를 알린다. null이면 모두 올렸다 */
+    emitSync(error: unknown) {
+      for (const listener of syncListeners) listener(error)
     },
     signOut() {
       const wasUnlocked = current.status === 'unlocked'
@@ -59,6 +68,10 @@ export function createFakeSession(initial: SessionState = { status: 'signedOut' 
     onUnlock: (listener: () => void) => {
       unlockListeners.add(listener)
       return () => unlockListeners.delete(listener)
+    },
+    onSyncChange: (listener: (error: unknown) => void) => {
+      syncListeners.add(listener)
+      return () => syncListeners.delete(listener)
     },
   } satisfies SessionPort
 
