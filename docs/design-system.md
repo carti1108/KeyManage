@@ -39,7 +39,10 @@
 ## 3. 플랫폼별 토큰 바인딩 규격
 
 ### 3.1. Web·데스크톱 (Vite + React + Tailwind CSS, ADR-0012)
-* shadcn/ui 공식 `globals.css` 및 `tailwind.config.ts`의 CSS 변수(`var(--card)`, `var(--primary)`)와 100% 일치.
+* 토큰은 `Apps/Web/src/index.css`에 shadcn/ui와 같은 이름의 CSS 변수로 둔다. `:root`가 라이트, `.dark`가 다크이며 기본은 다크(`index.html`의 `<html class="dark">`)다.
+* Tailwind v4는 설정 파일 없이 CSS의 `@theme inline`으로 변수를 유틸리티에 연결한다(`bg-card`, `text-primary` 등).
+* 컴포넌트는 `Apps/Web/src/ui/components/`에 둔다. 클래스 병합은 `clsx`와 `tailwind-merge`, 아이콘은 `lucide-react`를 쓴다. Radix는 다이얼로그처럼 필요한 컴포넌트가 생길 때 추가한다.
+* 웹 글꼴(Poppins·Inter)은 데스크톱 CSP와 외부 요청 문제로 아직 넣지 않고 시스템 글꼴을 쓴다. 비밀번호는 `font-mono`로 표시한다.
 
 ### 3.2. iOS (SwiftUI & UIKit 공용)
 * iOS 구현이 **SwiftUI**가 되든 **UIKit**이 되든 상관없이 모두 지원할 수 있도록 `DesignToken` 정적 열거형 구조를 유지합니다:
@@ -114,7 +117,7 @@ public enum DesignToken {
   * `placeholder`: 플레이스홀더 텍스트 (기본: "비밀번호 입력")
   * `isSecured`: 마스킹 여부 (Boolean, 기본 true — `••••••••` 표시)
   * `showCopyAction`: 우측 복사 버튼 노출 여부 (Boolean, 기본 true)
-  * `onCopy`: 클립보드 복사 완료 시 콜백 이벤트 (`() -> Void`)
+  * `onCopy`: 복사 버튼을 눌렀을 때 부르는 콜백 (`() -> Void`). 실제 클립보드 쓰기와 30초 소각(COM-001)은 컴포넌트가 아니라 이를 받은 쪽이 맡는다
   * `onTextChange`: 텍스트 변경 이벤트 (`(String) -> Void`)
 * **내부 동작**: 평문 토글 후 10초간 조작이 없으면 보안을 위해 자동으로 `isSecured = true`로 복귀.
 
