@@ -104,6 +104,7 @@ KEYMANAGE_REGISTRATION_ENABLED=false
 | 데스크톱 앱이 서버에 접속하지 못한다 | 8443이 떠 있지 않다. `certs`의 인증서 파일 두 개와 `docker compose ps`를 확인한다. 다른 프로그램이 8443을 쓰면 데스크톱 앱은 쓸 수 없다. |
 | 브라우저가 8443에서 인증서 경고를 띄운다 | `mkcert -install`을 하지 않았거나, 인증서를 만든 뒤 `-uninstall`했다. |
 | `docker compose up`이 `Pool overlaps with other one on this address space`로 실패한다 | 다른 Docker 네트워크나 VPN이 `172.29.83.0/24`를 쓴다. `docker-compose.yml`의 서브넷과 caddy IP, `KEYMANAGE_HTTP_TRUSTED_PROXIES`를 같은 새 대역으로 바꾼다. |
+| 띄운 직후 가입·로그인이 서버 오류(502)로 실패한다 | 백엔드가 아직 뜨는 중이다. 몇 초 기다렸다 다시 시도한다. `docker compose logs backend`에 `Started`가 보이면 준비된 것이다. |
 | 페이지가 `Misdirected Request`(421)를 띄운다 | `localhost`가 아닌 주소로 접속했다. `http://localhost:8080`이나 `https://localhost:8443`으로 접속한다. |
 
 ## 트러블 슈팅
