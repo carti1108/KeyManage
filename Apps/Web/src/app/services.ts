@@ -1,6 +1,7 @@
 // 어댑터를 만들어 domain 유스케이스에 끼운다. 화면에는 이 결과만 넘긴다 (ADR-0004, ADR-0013)
 import { browserScheduler } from '../adapters/browser/autoLockEvents'
 import { browserClipboard } from '../adapters/browser/browserClipboard'
+import { createBrowserTabs } from '../adapters/browser/browserTabs'
 import { createIndexedDbDeviceStore } from '../adapters/browser/indexedDbDeviceStore'
 import { createApiClient, resolveBaseUrl } from '../adapters/http/apiClient'
 import { createHttpAuthApi } from '../adapters/http/httpAuthApi'
@@ -9,6 +10,7 @@ import { createAuthService } from '../domain/auth/authService'
 import { createClipboardBurner, type ClipboardBurner } from '../domain/clipboard/clipboardBurner'
 import type { DeviceStore } from '../domain/device/deviceRecord'
 import { createVaultSession, type VaultSession } from '../domain/session/vaultSession'
+import type { Tabs } from '../domain/tabs/tabs'
 import { createRevisionMemory, createVaultSync } from '../domain/vault/vaultSync'
 
 export interface Services {
@@ -16,15 +18,19 @@ export interface Services {
   readonly session: VaultSession
   /** 복사하고 30초 뒤 비우는 클립보드 (COM-001) */
   readonly clipboard: ClipboardBurner
+  /** 같은 브라우저의 다른 탭과 나누는 잠금·알림 (ADR-WEB-001) */
+  readonly tabs: Tabs
 }
 
 /**
  * @param deviceStore 한 계정의 기록을 두는 기기 저장소 (ADR-0019). 기본은 브라우저 IndexedDB
+ * @param tabs 같은 브라우저의 다른 탭과 나누는 잠금·알림 (ADR-WEB-001). 기본은 navigator.locks·BroadcastChannel
  * @throws InvalidBaseUrlError 빌드할 때 넣은 서버 주소가 규칙에 맞지 않을 때
  */
 export function createServices(
   apiBaseUrl: string | undefined = import.meta.env.VITE_API_BASE_URL,
   deviceStore: DeviceStore = createIndexedDbDeviceStore(),
+  tabs: Tabs = createBrowserTabs(),
 ): Services {
   const client = createApiClient({ baseUrl: resolveBaseUrl(apiBaseUrl), fetch: globalThis.fetch.bind(globalThis) })
   // 잠금 해제·재로그인으로 동기화를 새로 만들어도 되돌림 감지 기준을 이어 간다
@@ -37,7 +43,9 @@ export function createServices(
         createVaultSync({ api: createHttpVaultApi(client, accessToken), encryptionKey, now: () => new Date(), revisionMemory: memory }),
       revisionMemory,
       deviceStore,
+      tabs,
     }),
     clipboard: createClipboardBurner({ clipboard: browserClipboard, scheduler: browserScheduler, now: () => Date.now() }),
+    tabs,
   }
 }

@@ -28,11 +28,20 @@ export interface Scheduler {
   schedule(delayMs: number, run: () => void): () => void
 }
 
+/**
+ * 잠금 원인. 보이는 탭에서 타이머가 끝난 timer만 다른 탭에도 퍼뜨린다 (SEC-003, ADR-WEB-001).
+ * hidden: "즉시" 설정에서 숨겨짐, suspended: 동결·떠남,
+ * expired: 숨겨진 동안 타이머가 끝났거나 다시 보이거나 조작할 때 발견한 만료(이 탭의 조작 시각이 낡았을 수 있음)
+ */
+export type LockCause = 'timer' | 'hidden' | 'suspended' | 'expired'
+
 export interface AutoLockDeps {
   readonly timeoutMs: number
   readonly now: () => number
   readonly scheduler: Scheduler
-  readonly onTimeout: () => void
+  readonly onTimeout: (cause: LockCause) => void
+  /** 지금 화면에 보이는지. 없으면 늘 보인다고 본다. 숨겨진 탭의 타이머 만료는 다른 탭에 퍼뜨리지 않는다 */
+  readonly isVisible?: () => boolean
 }
 
 export interface AutoLock {
@@ -50,7 +59,7 @@ export interface AutoLock {
 }
 
 /** @throws InvalidAutoLockTimeoutError */
-export function createAutoLock({ timeoutMs, now, scheduler, onTimeout }: AutoLockDeps): AutoLock {
+export function createAutoLock({ timeoutMs, now, scheduler, onTimeout, isVisible = () => true }: AutoLockDeps): AutoLock {
   if (!ALLOWED_TIMEOUTS.includes(timeoutMs)) throw new InvalidAutoLockTimeoutError(timeoutMs)
   const immediate = timeoutMs === AUTO_LOCK_OPTIONS_MS.immediately
 
@@ -63,17 +72,17 @@ export function createAutoLock({ timeoutMs, now, scheduler, onTimeout }: AutoLoc
     cancel = null
   }
 
-  function fire() {
+  function fire(cause: LockCause) {
     running = false
     clearTimer()
-    onTimeout()
+    onTimeout(cause)
   }
 
   function restartTimer() {
     clearTimer()
     lastActivity = now()
     // "즉시"는 보이는 동안 잠그지 않고 백그라운드로 갈 때만 잠근다
-    if (!immediate) cancel = scheduler.schedule(timeoutMs, fire)
+    if (!immediate) cancel = scheduler.schedule(timeoutMs, () => fire(isVisible() ? 'timer' : 'expired'))
   }
 
   const expired = () => !immediate && now() - lastActivity >= timeoutMs
@@ -90,17 +99,17 @@ export function createAutoLock({ timeoutMs, now, scheduler, onTimeout }: AutoLoc
     activity() {
       if (!running) return
       // 시간이 지난 뒤의 첫 조작이 잠금을 미루지 않게 먼저 확인한다
-      if (expired()) fire()
+      if (expired()) fire('expired')
       else restartTimer()
     },
     hidden() {
-      if (running && immediate) fire()
+      if (running && immediate) fire('hidden')
     },
     visible() {
-      if (running && expired()) fire()
+      if (running && expired()) fire('expired')
     },
     suspended() {
-      if (running) fire()
+      if (running) fire('suspended')
     },
   }
 }

@@ -1,5 +1,5 @@
 // 세션 상태에 따라 로그인·잠금·볼트 화면을 고른다
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { MasterPasswordChangedError } from '../../domain/auth/authService'
 import { DeviceStorageError } from '../../domain/device/deviceRecord'
 import { SessionExpiredError } from '../../domain/session/vaultSession'
@@ -38,6 +38,8 @@ export function SessionRoot({ session, clipboard, pageHidden }: SessionRootProps
   // 대기 내용 재전송이 분명한 거절을 받았을 때의 문구 (VLT-002)
   const [syncError, setSyncError] = useState<ErrorMessage | null>(null)
   const [confirmingLogout, setConfirmingLogout] = useState(false)
+  // 다른 탭의 대기 내용을 확인하는 동안 로그아웃을 다시 받지 않는다
+  const checkingLogout = useRef(false)
   const refresh = useCallback(() => setState(session.state()), [session])
 
   useEffect(() => {
@@ -64,10 +66,13 @@ export function SessionRoot({ session, clipboard, pageHidden }: SessionRootProps
         setSyncError(describeError(error))
       }
     })
+    // 다른 탭의 병합·잠금·로그아웃으로 바뀐 상태를 다시 읽는다 (ADR-WEB-001)
+    const offRemote = session.onRemoteChange(refresh)
     return () => {
       offLock()
       offUnlock()
       offSync()
+      offRemote()
     }
   }, [session, refresh])
 
@@ -87,10 +92,23 @@ export function SessionRoot({ session, clipboard, pageHidden }: SessionRootProps
     }
   }
 
-  /** 올리지 못한 변경 사항이 있으면 사라진다고 먼저 알린다 (VLT-002) */
-  function requestLogout(pendingSync: boolean) {
-    if (pendingSync) setConfirmingLogout(true)
-    else void logout()
+  /**
+   * 올리지 못한 변경 사항이 있으면 사라진다고 먼저 알린다 (VLT-002).
+   * 이 탭에 없어도 다른 탭이 기기 기록에 남겼을 수 있으니 기록을 확인한다 (ADR-WEB-001)
+   */
+  async function requestLogout(pendingSync: boolean) {
+    if (pendingSync) {
+      setConfirmingLogout(true)
+      return
+    }
+    if (checkingLogout.current) return
+    checkingLogout.current = true
+    try {
+      if (await session.pendingOnDevice()) setConfirmingLogout(true)
+      else await logout()
+    } finally {
+      checkingLogout.current = false
+    }
   }
 
   function logoutConfirm() {
@@ -166,7 +184,7 @@ export function SessionRoot({ session, clipboard, pageHidden }: SessionRootProps
         readOnly={state.vault.readOnly}
         offline={offline || state.pendingSync}
         onLock={() => session.lock()}
-        onLogout={() => requestLogout(state.pendingSync)}
+        onLogout={() => void requestLogout(state.pendingSync)}
       >
         {logoutConfirm()}
         {syncError && <Alert title={syncError.title}>{syncError.body}</Alert>}

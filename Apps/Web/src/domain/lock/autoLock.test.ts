@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AUTO_LOCK_OPTIONS_MS, DEFAULT_AUTO_LOCK_MS, InvalidAutoLockTimeoutError, createAutoLock, type Scheduler } from './autoLock'
+import { AUTO_LOCK_OPTIONS_MS, DEFAULT_AUTO_LOCK_MS, InvalidAutoLockTimeoutError, createAutoLock, type LockCause, type Scheduler } from './autoLock'
 
 const MINUTE = 60_000
 
@@ -35,12 +35,22 @@ function fakeTime() {
   }
 }
 
-function setup(timeoutMs = DEFAULT_AUTO_LOCK_MS) {
+function setup(timeoutMs = DEFAULT_AUTO_LOCK_MS, isVisible = () => true) {
   const time = fakeTime()
   let locks = 0
-  const autoLock = createAutoLock({ timeoutMs, now: time.now, scheduler: time.scheduler, onTimeout: () => locks++ })
+  const causes: LockCause[] = []
+  const autoLock = createAutoLock({
+    timeoutMs,
+    now: time.now,
+    scheduler: time.scheduler,
+    isVisible,
+    onTimeout: (cause) => {
+      locks++
+      causes.push(cause)
+    },
+  })
   autoLock.start()
-  return { time, autoLock, locks: () => locks }
+  return { time, autoLock, locks: () => locks, causes }
 }
 
 describe('자동 잠금 (SEC-003)', () => {
@@ -131,5 +141,53 @@ describe('자동 잠금 (SEC-003)', () => {
     autoLock.activity()
 
     expect(locks()).toBe(0)
+  })
+})
+
+describe('자동 잠금 원인 (SEC-003, ADR-WEB-001)', () => {
+  it('보이는 탭의 타이머가 끝나면 timer', () => {
+    const { time, causes } = setup()
+
+    time.advance(5 * MINUTE)
+
+    expect(causes).toEqual(['timer'])
+  })
+
+  it('"즉시" 설정에서 숨겨지면 hidden', () => {
+    const { autoLock, causes } = setup(AUTO_LOCK_OPTIONS_MS.immediately)
+
+    autoLock.hidden()
+
+    expect(causes).toEqual(['hidden'])
+  })
+
+  it('동결·떠남이면 suspended', () => {
+    const { autoLock, causes } = setup()
+
+    autoLock.suspended()
+
+    expect(causes).toEqual(['suspended'])
+  })
+
+  it('다시 보이거나 조작할 때 만료를 발견하면 expired', () => {
+    const first = setup()
+    first.time.advanceWithoutTimers(5 * MINUTE)
+    first.autoLock.visible()
+    const second = setup()
+    second.time.advanceWithoutTimers(5 * MINUTE)
+    second.autoLock.activity()
+
+    expect(first.causes).toEqual(['expired'])
+    expect(second.causes).toEqual(['expired'])
+  })
+})
+
+describe('숨겨진 탭의 시간 초과 (SEC-003, ADR-WEB-001)', () => {
+  it('숨겨진 동안 타이머가 끝나면 이 탭만 잠그는 expired', () => {
+    const { time, causes } = setup(DEFAULT_AUTO_LOCK_MS, () => false)
+
+    time.advance(5 * MINUTE)
+
+    expect(causes).toEqual(['expired'])
   })
 })

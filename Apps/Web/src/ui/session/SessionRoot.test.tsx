@@ -543,3 +543,41 @@ describe('SessionRoot', () => {
     })
   })
 })
+
+describe('다른 탭과 함께 쓸 때 (ADR-WEB-001)', () => {
+  const OFFLINE = '오프라인 상태입니다. 변경 사항이 서버에 동기화되지 않습니다.'
+
+  it('다른 탭이 남긴 대기 내용이 있으면 로그아웃 전에 확인한다', async () => {
+    const { session, control } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: false, signedIn: true, storedOnDevice: true })
+    control.setDevicePending(true)
+    render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
+
+    fireEvent.click(screen.getByRole('button', { name: '로그아웃' }))
+
+    expect(await screen.findByRole('alertdialog', { name: '동기화되지 않은 변경 사항' })).toBeInTheDocument()
+    expect(session.logout).not.toHaveBeenCalled()
+  })
+
+  it('확인 여부를 기다리는 동안 로그아웃을 다시 눌러도 한 번만 처리한다', async () => {
+    const { session } = createFakeSession({ status: 'locked', email: EMAIL, pendingSync: false })
+    render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
+
+    fireEvent.click(screen.getByRole('button', { name: '로그아웃' }))
+    fireEvent.click(screen.getByRole('button', { name: '로그아웃' }))
+
+    expect(await screen.findByRole('button', { name: '로그인' })).toBeInTheDocument()
+    expect(session.pendingOnDevice).toHaveBeenCalledOnce()
+    expect(session.logout).toHaveBeenCalledOnce()
+  })
+
+  it('다른 탭이 볼트를 바꾸면 다시 그린다', () => {
+    const { session, control } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: false, signedIn: true, storedOnDevice: true })
+    render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
+    expect(screen.queryByText(OFFLINE)).not.toBeInTheDocument()
+
+    control.setPending(true)
+    act(() => control.emitRemote())
+
+    expect(screen.getByText(OFFLINE)).toBeInTheDocument()
+  })
+})

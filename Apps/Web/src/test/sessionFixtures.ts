@@ -6,6 +6,8 @@ import { DeviceStorageError, type DeviceRecord, type DeviceStore } from '../doma
 import { vectors } from '../domain/crypto/testVectors'
 import { NetworkError, ServerError } from '../domain/server/serverErrors'
 import { createVaultSession } from '../domain/session/vaultSession'
+import { createSingleTabFallback } from '../domain/tabs/inMemoryTabs'
+import type { Tabs } from '../domain/tabs/tabs'
 import type { RemoteVault, VaultApi } from '../domain/vault/vaultApi'
 import { activeItems, addItem } from '../domain/vault/vaultData'
 import { createRevisionMemory, createVaultSync } from '../domain/vault/vaultSync'
@@ -98,9 +100,11 @@ interface SetupDeps {
   readonly authApi?: FakeAuthApi
   readonly vaultApi?: FakeVaultApi
   readonly deviceStore?: FakeDeviceStore
+  /** 같은 브라우저의 다른 탭과 공유하는 잠금·알림. 없으면 탭 하나 */
+  readonly tabs?: Tabs
 }
 
-export function setup({ authApi = new FakeAuthApi(), vaultApi = new FakeVaultApi(), deviceStore = new FakeDeviceStore() }: SetupDeps = {}) {
+export function setup({ authApi = new FakeAuthApi(), vaultApi = new FakeVaultApi(), deviceStore = new FakeDeviceStore(), tabs = createSingleTabFallback() }: SetupDeps = {}) {
   const revisionMemory = createRevisionMemory()
   let locks = 0
   let unlocks = 0
@@ -109,6 +113,7 @@ export function setup({ authApi = new FakeAuthApi(), vaultApi = new FakeVaultApi
     vaultSyncFor: (_token, encryptionKey, memory) => createVaultSync({ api: vaultApi, encryptionKey, now: () => NOW, revisionMemory: memory }),
     revisionMemory,
     deviceStore,
+    tabs,
   })
   session.onLock(() => locks++)
   session.onUnlock(() => unlocks++)
@@ -139,6 +144,7 @@ async function openOnOtherDevice(vaultApi: FakeVaultApi) {
     vaultSyncFor: (_token, encryptionKey, memory) => createVaultSync({ api: vaultApi, encryptionKey, now: () => NOW, revisionMemory: memory }),
     revisionMemory,
     deviceStore: new FakeDeviceStore(),
+    tabs: createSingleTabFallback(),
   })
   await other.login('device-2@example.com', PASSWORD)
   const state = other.state()
