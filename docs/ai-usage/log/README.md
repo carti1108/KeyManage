@@ -52,3 +52,4 @@
 | 044 | 2026-11-01 | [문서 지도·작성 가이드 분리와 README 정리 (#70 PR 3)](044-readme-readability.md) |
 | 045 | 2026-11-01 | [웹 여러 탭 기기 기록 동기화](045-web-multi-tab-device-record.md) |
 | 046 | 2026-11-01 | [Apple 오프라인 동기화 대기 및 기기 볼트 보존 구현 (#68)](046-apple-offline-sync-and-device-storage.md) |
+| 047 | 2026-11-01 | [웹 자동 잠금 시간 설정](047-web-auto-lock-setting.md) |
