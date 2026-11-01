@@ -12,7 +12,7 @@ let project = Project(
 			bundleId: "com.keymanage.macos",
 			deploymentTargets: .macOS("14.0"),
 			infoPlist: .default,
-			sources: ["Sources/macOS/**"],
+			sources: ["Sources/macOS/**", "Sources/Shared/**"],
 			dependencies: [
 				.project(target: "KeyManageDomain", path: "../Core/Domain"),
 				.project(target: "KeyManageData", path: "../Core/Data"),
@@ -20,6 +20,8 @@ let project = Project(
 				.project(target: "KeyManageUIAdapter", path: "../Core/UIAdapter"),
 				.project(target: "UnlockFeatureInterface", path: "../Features/Unlock"),
 				.project(target: "UnlockFeatureImplementation", path: "../Features/Unlock"),
+				.project(target: "RootFeatureInterface", path: "../Features/Root"),
+				.project(target: "RootFeatureImplementation", path: "../Features/Root"),
 				.external(name: "MicroRIBs")
 			]
 		),
@@ -30,7 +32,7 @@ let project = Project(
 			bundleId: "com.keymanage.ios",
 			deploymentTargets: .iOS("15.0"),
 			infoPlist: .default,
-			sources: ["Sources/iOS/**"],
+			sources: ["Sources/iOS/**", "Sources/Shared/**"],
 			dependencies: [
 				.project(target: "KeyManageDomain", path: "../Core/Domain"),
 				.project(target: "KeyManageData", path: "../Core/Data"),
@@ -38,6 +40,8 @@ let project = Project(
 				.project(target: "KeyManageUIAdapter", path: "../Core/UIAdapter"),
 				.project(target: "UnlockFeatureInterface", path: "../Features/Unlock"),
 				.project(target: "UnlockFeatureImplementation", path: "../Features/Unlock"),
+				.project(target: "RootFeatureInterface", path: "../Features/Root"),
+				.project(target: "RootFeatureImplementation", path: "../Features/Root"),
 				.external(name: "MicroRIBs")
 			]
 		)

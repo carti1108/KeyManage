@@ -138,9 +138,15 @@ public struct KMPasswordField: View {
             RoundedRectangle(cornerRadius: 6)
                 .stroke(DesignToken.View.input, lineWidth: 1)
         )
+#if os(macOS)
         .onChange(of: text) { _, newValue in
             engine.updateText(newValue)
         }
+#else
+        .onChange(of: text) { newValue in
+            engine.updateText(newValue)
+        }
+#endif
         .task(id: engine.isSecured) {
             guard !engine.isSecured else { return }
             while !Task.isCancelled && !engine.isSecured && engine.autoMaskSecondsRemaining > 0 {

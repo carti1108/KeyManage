@@ -34,6 +34,11 @@ public extension Project {
 			}
 		}
 
+		let microRIBsDependency: TargetDependency = .external(name: "MicroRIBs")
+
+		let filteredInterfaceDeps = interfaceDependencies.filter { $0 != microRIBsDependency }
+		let filteredImplementationDeps = implementationDependencies.filter { $0 != microRIBsDependency }
+
 		let interfaceTarget = Target.target(
 			name: "\(name)Interface",
 			destinations: destinations,
@@ -41,7 +46,7 @@ public extension Project {
 			bundleId: "com.keymanage.\(name.lowercased()).interface",
 			deploymentTargets: .multiplatform(iOS: "15.0", macOS: "14.0"),
 			sources: ["Interface/**"],
-			dependencies: interfaceDependencies
+			dependencies: [microRIBsDependency] + filteredInterfaceDeps
 		)
 
 		let implementationTarget = Target.target(
@@ -51,7 +56,7 @@ public extension Project {
 			bundleId: "com.keymanage.\(name.lowercased()).implementation",
 			deploymentTargets: .multiplatform(iOS: "15.0", macOS: "14.0"),
 			sources: ["Implementation/**"],
-			dependencies: [.target(name: "\(name)Interface")] + implementationDependencies
+			dependencies: [.target(name: "\(name)Interface"), microRIBsDependency] + filteredImplementationDeps
 		)
 
 		let testingTarget = Target.target(
@@ -61,7 +66,7 @@ public extension Project {
 			bundleId: "com.keymanage.\(name.lowercased()).testing",
 			deploymentTargets: .multiplatform(iOS: "15.0", macOS: "14.0"),
 			sources: ["Testing/**"],
-			dependencies: [.target(name: "\(name)Interface")] + interfaceDependencies
+			dependencies: [.target(name: "\(name)Interface"), microRIBsDependency] + filteredInterfaceDeps
 		)
 
 		let testsTarget = Target.target(
