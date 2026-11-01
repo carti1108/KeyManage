@@ -53,9 +53,10 @@ export function sameRecord(a: DeviceRecord, b: DeviceRecord): boolean {
 
 export function reconcileDeviceRecord({ current, lastSeen, email, kdf, unlocked }: ReconcileInput): Reconciliation {
   if (current === null) return lastSeen === null ? { kind: 'write' } : { kind: 'loggedOutElsewhere' }
+  // 이 탭이 본 그대로면 다른 탭이 쓰지 않았다. 이 탭이 새 비밀번호로 로그인해 옛 KDF 기록을 바꾸는 경우도 여기서 쓴다
+  if (lastSeen !== null && sameRecord(current, lastSeen)) return { kind: 'write' }
   if (current.email !== email) return { kind: 'loggedOutElsewhere' }
   if (!sameKdf(current.kdf, kdf)) return { kind: 'passwordChanged' }
-  if (lastSeen !== null && sameRecord(current, lastSeen)) return { kind: 'write' }
   return unlocked ? { kind: 'merge', record: current } : { kind: 'skip' }
 }
 
