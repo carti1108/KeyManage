@@ -94,9 +94,15 @@ public final class ClipboardManager: ClipboardManagerProtocol, @unchecked Sendab
 	private let pasteboard: PasteboardProtocol
 	private let scheduler: ClipboardTimerScheduler
 
+	private let lock = NSLock()
+	private var _isTimerActive: Bool = false
+	private var _currentGeneration: Int = 0
+	private var _cancelTimer: (@Sendable () -> Void)?
+
 	public var isTimerActive: Bool {
-		// RED phase stub: 컴파일 성공을 위한 기본값 반환
-		return false
+		lock.lock()
+		defer { lock.unlock() }
+		return _isTimerActive
 	}
 
 	public init(
@@ -109,15 +115,62 @@ public final class ClipboardManager: ClipboardManagerProtocol, @unchecked Sendab
 		self.scheduler = scheduler
 	}
 
+	deinit {
+		_cancelTimer?()
+	}
+
 	public func copy(_ text: String) throws {
-		// RED phase stub: GREEN 단계에서 구현 예정
+		lock.lock()
+		defer { lock.unlock() }
+
+		try pasteboard.setString(text)
+
+		_cancelTimer?()
+		_currentGeneration += 1
+		let generation = _currentGeneration
+		_isTimerActive = true
+
+		let cancel = scheduler.schedule(after: autoBurnInterval) { [weak self] in
+			self?.handleTimerFired(generation: generation)
+		}
+		_cancelTimer = cancel
 	}
 
 	public func handleLock() {
-		// RED phase stub: GREEN 단계에서 구현 예정
+		lock.lock()
+		defer { lock.unlock() }
+
+		_cancelTimer?()
+		_cancelTimer = nil
+		_isTimerActive = false
+		_currentGeneration += 1
+
+		try? pasteboard.clear()
 	}
 
 	public func clear() {
-		// RED phase stub: GREEN 단계에서 구현 예정
+		lock.lock()
+		defer { lock.unlock() }
+
+		_cancelTimer?()
+		_cancelTimer = nil
+		_isTimerActive = false
+		_currentGeneration += 1
+
+		try? pasteboard.clear()
+	}
+
+	private func handleTimerFired(generation: Int) {
+		lock.lock()
+		defer { lock.unlock() }
+
+		guard _currentGeneration == generation, _isTimerActive else {
+			return
+		}
+
+		_isTimerActive = false
+		_cancelTimer = nil
+
+		try? pasteboard.clear()
 	}
 }
