@@ -56,3 +56,4 @@
 | 048 | 2026-11-01 | [Apple 클립보드 복사 및 30초 자동 소각 엔진 구현 (COM-001)](048-apple-clipboard-auto-burn.md) |
 | 049 | 2026-11-01 | [데스크톱 릴리스 빌드의 서버 통신 확인](049-desktop-release-server-check.md) |
 | 050 | 2026-11-01 | [Apple 디자인 시스템 토큰 및 5대 핵심 컴포넌트 구현 (#82)](050-apple-design-system-core-components.md) |
+| 051 | 2026-11-01 | [Apple UnlockFeature microRIBs 잠금 해제 인터랙터 및 뷰 조립 (#84)](051-apple-unlock-feature-ribs.md) |
