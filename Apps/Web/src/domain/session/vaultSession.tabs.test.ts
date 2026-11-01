@@ -1,12 +1,13 @@
 // @vitest-environment node
 // 같은 계정을 연 여러 탭이 기기 기록을 덮어쓰지 않고 맞춘다 (ADR-WEB-001)
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { NOW, PASSWORD, fields, setup } from '../../test/sessionFixtures'
 import { fromBase64 } from '../crypto/base64'
 import { deriveKeys } from '../crypto/keys'
 import { openVault } from '../crypto/vaultCipher'
 import type { DeviceRecord } from '../device/deviceRecord'
 import { createInMemoryTabHub } from '../tabs/inMemoryTabs'
+import type { TabMessageKind, Tabs } from '../tabs/tabs'
 import { activeItems, addItem, parseVaultData, type VaultData } from '../vault/vaultData'
 import type { VaultSession } from './vaultSession'
 
@@ -145,7 +146,7 @@ describe('기기 기록 쓰기 (ADR-WEB-001)', () => {
 
     const saving = saveItem(a.session, 'a')
     await gate.started
-    a.session.lock()
+    a.session.lock('thisTab')
     vaultApi.offline = true
     await saveItem(b.session, 'b')
     const written = structuredClone(deviceStore.record)
@@ -154,5 +155,139 @@ describe('기기 기록 쓰기 (ADR-WEB-001)', () => {
     await saving.catch(() => undefined)
 
     expect(deviceStore.record).toEqual(written)
+  })
+})
+
+/** 받는 메시지를 끊을 수 있는 탭. 동결돼 메시지를 놓친 탭을 흉내 낸다 */
+function mutable(tabs: Tabs) {
+  let muted = false
+  const wrapped: Tabs = {
+    lock: tabs.lock,
+    channel: {
+      post: (kind) => tabs.channel.post(kind),
+      subscribe: (listener: (kind: TabMessageKind) => void) => tabs.channel.subscribe((kind) => muted || listener(kind)),
+    },
+  }
+  return { tabs: wrapped, mute: () => (muted = true) }
+}
+
+/** 다른 탭이 보낸 메시지의 처리(복호화 등)가 끝나기를 잠깐 기다린다 */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 50))
+
+describe('다른 탭에 알리기 (ADR-WEB-001)', () => {
+  it('한 탭에서 잠그면 모든 탭이 잠긴다', async () => {
+    const { a, b } = await twoUnlockedTabs()
+
+    a.session.lock()
+
+    expect(b.session.state().status).toBe('locked')
+  })
+
+  it('이 탭만 잠그면 다른 탭에 알리지 않는다', async () => {
+    const { a, b } = await twoUnlockedTabs()
+
+    a.session.lock('thisTab')
+
+    expect(a.session.state().status).toBe('locked')
+    expect(b.session.state().status).toBe('unlocked')
+  })
+
+  it('한 탭에서 로그아웃하면 모든 탭이 로그아웃하고 기록은 지운 채로 둔다', async () => {
+    const { a, b, deviceStore } = await twoUnlockedTabs()
+    const writes = deviceStore.writes
+
+    await b.session.logout()
+    await settle()
+
+    expect(a.session.state()).toEqual({ status: 'signedOut' })
+    expect(deviceStore.record).toBeUndefined()
+    expect(deviceStore.writes).toBe(writes)
+    expect(a.authApi.loggedOut).toHaveLength(2)
+  })
+
+  it('다른 계정으로 로그인하면 이전 계정의 다른 탭은 로그아웃한다', async () => {
+    const { a, b, deviceStore } = await twoUnlockedTabs()
+
+    await b.session.login('other@example.com', PASSWORD)
+    await settle()
+
+    expect(a.session.state()).toEqual({ status: 'signedOut' })
+    expect(deviceStore.record?.email).toBe('other@example.com')
+  })
+
+  it('잠긴 탭은 다른 탭이 쓴 기록으로 암호화된 볼트를 바꾼다', async () => {
+    const { a, b, vaultApi } = await twoUnlockedTabs()
+    a.session.lock()
+    await b.session.unlock(PASSWORD)
+    vaultApi.offline = true
+
+    await saveItem(b.session, 'b')
+    await vi.waitFor(() => expect(a.session.state()).toMatchObject({ status: 'locked', pendingSync: true }))
+
+    await a.session.unlock(PASSWORD)
+    expect(itemIds(unlockedData(a.session))).toEqual(['b'])
+  })
+
+  it('알림을 놓쳤어도 잠금을 풀 때 최신 기기 기록으로 연다', async () => {
+    const hub = createInMemoryTabHub()
+    const tabA = mutable(hub.connect())
+    const a = setup({ tabs: tabA.tabs })
+    const b = setup({ authApi: a.authApi, vaultApi: a.vaultApi, deviceStore: a.deviceStore, tabs: hub.connect() })
+    await a.session.login(EMAIL, PASSWORD)
+    await b.session.restore()
+    await b.session.unlock(PASSWORD)
+    a.session.lock('thisTab')
+    tabA.mute()
+    a.vaultApi.offline = true
+
+    await saveItem(b.session, 'b')
+    expect(a.session.state()).toMatchObject({ status: 'locked', pendingSync: false })
+    await a.session.unlock(PASSWORD)
+
+    expect(itemIds(unlockedData(a.session))).toEqual(['b'])
+  })
+
+  it('로그아웃 확인용으로 다른 탭이 남긴 대기 내용도 알려 준다', async () => {
+    const hub = createInMemoryTabHub()
+    const tabA = mutable(hub.connect())
+    const a = setup({ tabs: tabA.tabs })
+    const b = setup({ authApi: a.authApi, vaultApi: a.vaultApi, deviceStore: a.deviceStore, tabs: hub.connect() })
+    await a.session.login(EMAIL, PASSWORD)
+    await b.session.restore()
+    await b.session.unlock(PASSWORD)
+    tabA.mute()
+    a.vaultApi.offline = true
+
+    expect(await a.session.pendingOnDevice()).toBe(false)
+    await saveItem(b.session, 'b')
+
+    expect(a.session.state()).toMatchObject({ pendingSync: false })
+    expect(await a.session.pendingOnDevice()).toBe(true)
+  })
+
+  it('로그인 전 탭은 메시지를 무시한다', async () => {
+    const { hub, a, vaultApi } = await twoUnlockedTabs()
+    const c = setup({ authApi: a.authApi, vaultApi, deviceStore: a.deviceStore, tabs: hub.connect() })
+    vaultApi.offline = true
+
+    await saveItem(a.session, 'a')
+    a.session.lock()
+    await a.session.logout()
+    await settle()
+
+    expect(c.session.state()).toEqual({ status: 'signedOut' })
+    expect(c.locks()).toBe(0)
+  })
+
+  it('다른 탭 때문에 상태가 바뀌면 알린다', async () => {
+    const { a, b, vaultApi } = await twoUnlockedTabs()
+    const changes = vi.fn()
+    a.session.onRemoteChange(changes)
+    vaultApi.offline = true
+
+    await saveItem(b.session, 'b')
+
+    await vi.waitFor(() => expect(itemIds(unlockedData(a.session))).toEqual(['b']))
+    expect(changes).toHaveBeenCalled()
   })
 })

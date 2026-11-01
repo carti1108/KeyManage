@@ -1,118 +1,37 @@
 // 로그인·가입·잠금·잠금 해제·로그아웃 상태 관리 (SEC-002, SEC-003)
 // 잠기면 암호화 키와 평문 볼트를 버리고, 이메일·KDF 값·토큰·암호화 볼트만 남긴다
 // 서버에 닿지 못한 저장은 동기화 대기로 두고 나중에 다시 보낸다 (VLT-002)
-import { MasterPasswordChangedError, normalizeEmail, type AuthResult, type AuthService, type UnlockKdf } from '../auth/authService'
+import { MasterPasswordChangedError, normalizeEmail, type AuthResult, type UnlockKdf } from '../auth/authService'
 import { fromBase64 } from '../crypto/base64'
 import { deriveKeys } from '../crypto/keys'
-import { VaultDecryptError, openVault, type EncryptedVaultPayload } from '../crypto/vaultCipher'
+import { VaultDecryptError, openVault } from '../crypto/vaultCipher'
 import { createDevicePersistence } from '../device/devicePersistence'
 import { reconcileDeviceRecord, sameKdf, samePayload, sameRecord } from '../device/reconcileDeviceRecord'
-import { DEVICE_RECORD_VERSION, DeviceStorageError, parseDeviceRecord, type DeviceRecord, type DeviceStore } from '../device/deviceRecord'
+import { DEVICE_RECORD_VERSION, DeviceStorageError, parseDeviceRecord, type DeviceRecord } from '../device/deviceRecord'
 import { NetworkError, ServerError } from '../server/serverErrors'
-import type { Tabs } from '../tabs/tabs'
+import type { TabMessageKind } from '../tabs/tabs'
 import { mergeVaults } from '../vault/mergeVaults'
 import { isReadOnly, parseVaultData, type VaultData } from '../vault/vaultData'
 import { RevisionRollbackError, VaultSyncConflictError, isTransientSyncError, type RevisionMemory, type SyncedVault, type VaultSync } from '../vault/vaultSync'
 import { mergeRecordIntoMemory, type MergedVault } from './recordMerge'
 
-/** 마스터 비밀번호가 틀려 저장해 둔 볼트를 열 수 없음 */
-export class WrongMasterPasswordError extends Error {
-  constructor() {
-    super('마스터 비밀번호가 올바르지 않음')
-    this.name = 'WrongMasterPasswordError'
-  }
-}
+import {
+  SessionExpiredError,
+  SessionStateError,
+  VaultSetupError,
+  WrongMasterPasswordError,
+  type Account,
+  type LockScope,
+  type OrphanedPending,
+  type RollbackOption,
+  type SessionState,
+  type SyncChangeListener,
+  type Unlocked,
+  type VaultSessionDeps,
+} from './sessionTypes'
 
-/** 지금 상태에서는 할 수 없는 동작이거나, 기다리는 사이 잠금·로그아웃으로 취소된 작업 */
-export class SessionStateError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = 'SessionStateError'
-  }
-}
-
-/** 세션 토큰이 만료·폐기됨. 로그아웃 상태로 바뀌었으니 다시 로그인해야 한다 (SEC-002) */
-export class SessionExpiredError extends Error {
-  constructor() {
-    super('세션이 만료됨')
-    this.name = 'SessionExpiredError'
-  }
-}
-
-/** 가입은 됐지만 빈 볼트를 저장하지 못함. 다시 가입하지 말고 로그인하면 그때 볼트를 만든다 (SEC-003) */
-export class VaultSetupError extends Error {
-  constructor(cause: unknown) {
-    super('가입 뒤 볼트 준비 실패', { cause })
-    this.name = 'VaultSetupError'
-  }
-}
-
-export type SessionState =
-  | { readonly status: 'signedOut' }
-  | {
-      readonly status: 'locked'
-      readonly email: string
-      /** 서버에 올리지 못한 변경 사항이 암호화된 채 남아 있음 (VLT-002) */
-      readonly pendingSync: boolean
-    }
-  | {
-      readonly status: 'unlocked'
-      readonly email: string
-      readonly vault: SyncedVault
-      /** 서버에 올리지 못한 변경 사항이 있음 (VLT-002) */
-      readonly pendingSync: boolean
-      /** 세션 토큰이 있음. 없으면(오프라인으로 다시 열었을 때) 비밀번호를 다시 입력받아야 동기화한다 (SEC-003) */
-      readonly signedIn: boolean
-      /** 마지막 기기 저장이 성공함. 실패하면 새로고침 때 올리지 못한 변경 사항이 사라질 수 있다 (VLT-003) */
-      readonly storedOnDevice: boolean
-    }
-
-export interface VaultSessionDeps {
-  readonly auth: AuthService
-  /** revisionMemory는 세션이 넘기는 이번 로그인 전용 창이다. 로그인이 바뀐 뒤 늦게 온 응답은 기준을 바꾸지 못한다 */
-  readonly vaultSyncFor: (accessToken: string, encryptionKey: CryptoKey, revisionMemory: RevisionMemory) => VaultSync
-  /** 되돌림 감지 기준. 로그아웃·계정 전환 때 지운다 */
-  readonly revisionMemory: RevisionMemory
-  /** 한 계정의 기록을 두는 기기 저장소 (ADR-0019) */
-  readonly deviceStore: DeviceStore
-  /** 같은 브라우저의 다른 탭과 기기 기록 쓰기를 나누고 변경을 알린다 (ADR-WEB-001) */
-  readonly tabs: Tabs
-}
-
-// 잠겨도 남는 값. 비밀이 아니거나(KDF 값) 암호화돼 있다(볼트)
-interface Account {
-  readonly email: string
-  /** 기기 기록으로 다시 열었고 아직 로그인하지 못했으면 null (ADR-0019) */
-  readonly accessToken: string | null
-  readonly kdf: UnlockKdf
-  /** 마지막 볼트. 동기화 대기 중이면 대기 내용을 담은 볼트다 */
-  readonly payload: EncryptedVaultPayload
-  /** payload가 바탕으로 삼은 서버 revision */
-  readonly revision: number
-  readonly pendingSync: boolean
-}
-
-// 잠금 해제 동안만 있는 값
-interface Unlocked {
-  readonly sync: VaultSync
-  readonly vault: SyncedVault
-  readonly pendingSync: boolean
-}
-
-// 세션 만료로 로그아웃될 때 남긴 동기화 대기 내용. 같은 계정으로 다시 로그인하면 올린다 (VLT-002)
-interface OrphanedPending {
-  readonly email: string
-  readonly payload: EncryptedVaultPayload
-  readonly revision: number
-}
-
-interface RollbackOption {
-  /** 서버 볼트 되돌림 경고를 사용자가 확인했을 때만 true (VLT-001) */
-  readonly acceptRollback?: boolean
-}
-
-/** 동기화 대기 내용을 다시 보낸 결과. null이면 모두 올렸다 */
-export type SyncChangeListener = (error: unknown) => void
+export { SessionExpiredError, SessionStateError, VaultSetupError, WrongMasterPasswordError }
+export type { LockScope, SessionState, SyncChangeListener, VaultSessionDeps }
 
 type PushResult = 'synced' | 'idle' | 'stillPending'
 
@@ -305,6 +224,57 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory, deviceS
   }
 
   /**
+   * 잠긴 탭의 암호화 볼트·revision·대기 표시를 기기 기록 값으로 바꾼다. 같은 계정·KDF의 기록일 때만 바꾼다.
+   * 기록을 읽지 못하면 메모리 값을 그대로 둔다 (ADR-WEB-001)
+   */
+  async function refreshLockedFromDevice(): Promise<void> {
+    await tabs.lock.run('device', async () => {
+      const target = account
+      if (target === null || unlocked !== null) return
+      let record: DeviceRecord | null
+      try {
+        record = await readDevice()
+      } catch {
+        return
+      }
+      if (account !== target || unlocked !== null) return
+      if (record === null) {
+        // 이 탭이 본 기록이 사라졌다. 다른 탭에서 로그아웃했다
+        if (lastSeen !== null) signOutLocally()
+        return
+      }
+      if (record.email !== target.email) return signOutLocally()
+      if (!sameKdf(record.kdf, target.kdf)) return passwordChangedElsewhere()
+      lastSeen = record
+      revisionMemory.raise(record.lastSeenRevision)
+      if (samePayload(record.payload, target.payload) && record.revision === target.revision && record.pendingSync === target.pendingSync) return
+      account = { ...target, payload: record.payload, revision: record.revision, pendingSync: record.pendingSync }
+      notify(remoteListeners)
+    })
+  }
+
+  /** 볼트가 열려 있으면 키와 평문 볼트를 버린다 */
+  function lockThisTab(): boolean {
+    epoch += 1
+    if (unlocked === null) return false
+    unlocked = null
+    notify(lockListeners)
+    return true
+  }
+
+  /** 다른 탭이 보낸 알림. 메시지는 믿지 않고 필요한 값은 기기 기록에서 직접 읽는다 (ADR-WEB-001) */
+  function onTabMessage(kind: TabMessageKind) {
+    // 로그인 전(로그인 중 포함) 탭은 다른 탭의 알림을 따르지 않는다
+    if (account === null) return
+    if (kind === 'record-changed') void (unlocked === null ? refreshLockedFromDevice() : persist())
+    else if (kind === 'locked') {
+      if (lockThisTab()) notify(remoteListeners)
+    } else if (kind === 'logged-out') signOutLocally()
+  }
+
+  tabs.channel.subscribe(onTabMessage)
+
+  /**
    * 서버에 올린 볼트를 기기에 대기 없이 남긴다. 보내는 사이 이 탭에서 또 고쳤거나 다른 탭이 기록을 썼으면 남기지 않는다.
    * 탭 간 잠금 안에서만 부른다
    * @returns 남겼는지
@@ -454,6 +424,8 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory, deviceS
       // 다른 계정의 인증이 성공했다. 볼트를 준비하지 못하더라도 이전 계정의 기록을 남기지 않는다 (ADR-0019)
       lastSeen = null
       await device.clear()
+      // 이전 계정으로 열린 다른 탭은 모두 로그아웃한다
+      tabs.channel.post('logged-out')
       return
     }
     if (!sameKdf(record.kdf, kdf)) {
@@ -578,12 +550,12 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory, deviceS
       await signIn(normalized, startedAt, await auth.login(email, password), options)
     },
 
-    /** 키와 평문 볼트를 버린다. 진행 중인 잠금 해제·저장도 취소한다. 동기화 대기 내용은 암호화된 채 남는다 */
-    lock(): void {
-      epoch += 1
-      if (unlocked === null) return
-      unlocked = null
-      notify(lockListeners)
+    /**
+     * 키와 평문 볼트를 버린다. 진행 중인 잠금 해제·저장도 취소한다. 동기화 대기 내용은 암호화된 채 남는다.
+     * allTabs(잠금 버튼, 보이는 탭의 자동 잠금 시간 초과)면 같은 계정의 다른 탭도 잠근다. 새로고침·떠남·동결, "즉시" 설정의 숨김은 thisTab (SEC-003)
+     */
+    lock(scope: LockScope = 'allTabs'): void {
+      if (lockThisTab() && scope === 'allTabs') tabs.channel.post('locked')
     },
 
     /**
@@ -595,8 +567,13 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory, deviceS
     async unlock(password: string, options: RollbackOption = {}): Promise<{ offline: boolean }> {
       if (account === null) throw new SessionStateError('로그인 전에는 잠금을 해제할 수 없음')
       if (unlocked !== null) return { offline: false }
-      const locked = account
       const startedAt = epoch
+      // 동결 등으로 다른 탭의 알림을 놓쳤을 수 있으니 기기 기록을 다시 읽어 최신 볼트로 연다 (ADR-WEB-001)
+      await refreshLockedFromDevice()
+      ensureCurrent(startedAt)
+      if (account === null) throw new SessionStateError('다른 탭에서 로그아웃됨')
+      if (unlocked !== null) return { offline: false }
+      const locked = account
 
       const { keys, data } = await verifyPassword(password, locked)
       // 토큰이 있으면 인증 해시가 필요 없어 바로 지운다. 없으면(기기 기록으로 다시 열었으면) 바로 로그인하고 지운다 (SEC-003, ADR-0019)
@@ -731,6 +708,8 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory, deviceS
       resetSignIn()
       // 이 기기의 기록도 지운다 (ADR-0019). 지우지 못했으면 서버 폐기 결과보다 먼저 알린다
       const cleared = (await tabs.lock.run('device', () => device.clear())) === true
+      // 같은 계정의 다른 탭도 로그아웃한다. 기기 기록은 이 탭이 지웠다
+      if (token !== undefined) tabs.channel.post('logged-out')
       let serverError: unknown = null
       if (token !== undefined && token !== null) {
         try {
@@ -741,6 +720,23 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory, deviceS
       }
       if (!cleared) throw new DeviceStorageError(new Error('로그아웃 때 기기 기록을 지우지 못함'))
       if (serverError !== null) throw serverError
+    },
+
+    /**
+     * 기기 기록에 서버에 올리지 못한 변경이 있는지. 기록은 모든 탭의 대기 내용을 합친 것이므로 로그아웃 확인에 쓴다 (ADR-WEB-001).
+     * 다른 탭이 쓰는 중이면 끝난 뒤 읽는다. 읽지 못하면 이 탭의 대기 표시로 답한다
+     */
+    async pendingOnDevice(): Promise<boolean> {
+      const fallback = account?.pendingSync === true
+      const record = await tabs.lock.run('device', readDevice).catch(() => undefined)
+      if (record === undefined) return fallback
+      return account !== null && record !== null && record.email === account.email && record.pendingSync
+    },
+
+    /** 다른 탭 때문에 상태가 바뀌었을 때(병합, 잠금, 로그아웃) 부를 함수를 등록한다. 화면이 상태를 다시 읽는다 */
+    onRemoteChange(listener: () => void): () => void {
+      remoteListeners.add(listener)
+      return () => remoteListeners.delete(listener)
     },
 
     /** 볼트가 닫힐 때(잠금, 잠금 해제 상태에서 로그아웃) 부를 함수를 등록한다. 클립보드 비우기 등 (COM-001) */
