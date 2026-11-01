@@ -195,6 +195,7 @@ final class ClipboardManagerTests: XCTestCase {
 			"보안을 위해 복사된 내용이 30초 후 클립보드에서 자동 삭제됩니다."
 		)
 		XCTAssertEqual(ClipboardStrings.copyFailedMessage, "클립보드에 복사하지 못했습니다.")
+		XCTAssertEqual(ClipboardStrings.clearFailedMessage, "클립보드를 비우지 못했습니다.")
 		XCTAssertEqual(ClipboardError.copyFailed.errorDescription, "클립보드에 복사하지 못했습니다.")
 		XCTAssertEqual(ClipboardError.clearFailed.errorDescription, "클립보드를 비우지 못했습니다.")
 	}
@@ -370,5 +371,90 @@ final class ClipboardManagerTests: XCTestCase {
 		XCTAssertNil(pasteboard.getString(), "VaultLockManager.lock() 호출 시 클립보드가 즉시 비워져야 합니다.")
 		XCTAssertEqual(pasteboard.clearCallCount, 1)
 		XCTAssertFalse(sut.isTimerActive)
+	}
+
+	// MARK: - 12. 소멸자(deinit) 시 잔존 비밀번호 비움 및 타이머 해제 검증 (SEC-003)
+
+	func test_deinit_clearsPasteboardAndCancelsActiveTimer() throws {
+		var instance: ClipboardManager? = ClipboardManager(pasteboard: pasteboard, scheduler: scheduler)
+		try instance?.copy("sensitive-credential")
+		XCTAssertEqual(pasteboard.getString(), "sensitive-credential")
+		XCTAssertEqual(scheduler.activeTaskCount, 1)
+
+		instance = nil
+
+		XCTAssertNil(pasteboard.getString(), "인스턴스 소멸 시 클립보드는 잔존 비밀번호 방지를 위해 즉시 비워져야 합니다.")
+		XCTAssertEqual(pasteboard.clearCallCount, 1)
+		XCTAssertEqual(scheduler.activeTaskCount, 0, "소멸 시 스케줄러 태스크도 취소되어야 합니다.")
+	}
+
+	// MARK: - 13. DefaultClipboardTimerScheduler 기본 동작 검증
+
+	func test_defaultClipboardTimerScheduler_schedulesAndExecutesAction() {
+		let realScheduler = DefaultClipboardTimerScheduler()
+		let expectation = expectation(description: "GCD work item should execute")
+
+		_ = realScheduler.schedule(after: 0.05) {
+			expectation.fulfill()
+		}
+
+		wait(for: [expectation], timeout: 1.0)
+	}
+
+	// MARK: - 14. DefaultClipboardTimerScheduler 취소 동작 검증
+
+	func test_defaultClipboardTimerScheduler_cancellationPreventsExecution() {
+		final class ExecutionFlag: @unchecked Sendable {
+			private let lock = NSLock()
+			private var _executed = false
+			var executed: Bool {
+				lock.lock()
+				defer { lock.unlock() }
+				return _executed
+			}
+			func setExecuted() {
+				lock.lock()
+				_executed = true
+				lock.unlock()
+			}
+		}
+
+		let realScheduler = DefaultClipboardTimerScheduler()
+		let flag = ExecutionFlag()
+
+		let cancel = realScheduler.schedule(after: 0.05) {
+			flag.setExecuted()
+		}
+
+		cancel()
+
+		let waitExpectation = expectation(description: "Wait to ensure cancelled task does not execute")
+		DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+			waitExpectation.fulfill()
+		}
+
+		wait(for: [waitExpectation], timeout: 1.0)
+		XCTAssertFalse(flag.executed, "취소된 태스크는 실행되어서는 안 됩니다.")
+	}
+
+	// MARK: - 15. 다중 스레드 동시성 스트레스 테스트
+
+	func test_clipboardManager_threadSafetyStressTest() {
+		let iterations = 100
+		guard let manager = sut else {
+			XCTFail("sut가 초기화되지 않았습니다.")
+			return
+		}
+
+		DispatchQueue.concurrentPerform(iterations: iterations) { index in
+			if index % 3 == 0 {
+				try? manager.copy("password-\(index)")
+			} else if index % 3 == 1 {
+				manager.handleLock()
+			} else {
+				manager.clear()
+			}
+			_ = manager.isTimerActive
+		}
 	}
 }

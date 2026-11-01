@@ -5,6 +5,7 @@ public enum ClipboardStrings {
 	public static let copySuccessTitle = "클립보드 보안 소각"
 	public static let copySuccessMessage = "보안을 위해 복사된 내용이 30초 후 클립보드에서 자동 삭제됩니다."
 	public static let copyFailedMessage = "클립보드에 복사하지 못했습니다."
+	public static let clearFailedMessage = "클립보드를 비우지 못했습니다."
 }
 
 /// 클립보드 에러 정의
@@ -17,7 +18,7 @@ public enum ClipboardError: Error, LocalizedError, Sendable, Equatable {
 		case .copyFailed:
 			return ClipboardStrings.copyFailedMessage
 		case .clearFailed:
-			return "클립보드를 비우지 못했습니다."
+			return ClipboardStrings.clearFailedMessage
 		}
 	}
 }
@@ -117,60 +118,82 @@ public final class ClipboardManager: ClipboardManagerProtocol, @unchecked Sendab
 
 	deinit {
 		_cancelTimer?()
+		try? pasteboard.clear()
 	}
 
 	public func copy(_ text: String) throws {
-		lock.lock()
-		defer { lock.unlock() }
-
 		try pasteboard.setString(text)
 
-		_cancelTimer?()
+		let oldCancel: (@Sendable () -> Void)?
+		let generation: Int
+
+		lock.lock()
+		oldCancel = _cancelTimer
+		_cancelTimer = nil
 		_currentGeneration += 1
-		let generation = _currentGeneration
+		generation = _currentGeneration
 		_isTimerActive = true
+		lock.unlock()
+
+		oldCancel?()
 
 		let cancel = scheduler.schedule(after: autoBurnInterval) { [weak self] in
 			self?.handleTimerFired(generation: generation)
 		}
-		_cancelTimer = cancel
+
+		lock.lock()
+		if _currentGeneration == generation && _isTimerActive {
+			_cancelTimer = cancel
+			lock.unlock()
+		} else {
+			lock.unlock()
+			cancel()
+		}
 	}
 
 	public func handleLock() {
-		lock.lock()
-		defer { lock.unlock() }
+		let oldCancel: (@Sendable () -> Void)?
 
-		_cancelTimer?()
+		lock.lock()
+		oldCancel = _cancelTimer
 		_cancelTimer = nil
 		_isTimerActive = false
 		_currentGeneration += 1
+		lock.unlock()
 
+		oldCancel?()
 		try? pasteboard.clear()
 	}
 
 	public func clear() {
-		lock.lock()
-		defer { lock.unlock() }
+		let oldCancel: (@Sendable () -> Void)?
 
-		_cancelTimer?()
+		lock.lock()
+		oldCancel = _cancelTimer
 		_cancelTimer = nil
 		_isTimerActive = false
 		_currentGeneration += 1
+		lock.unlock()
 
+		oldCancel?()
 		try? pasteboard.clear()
 	}
 
 	private func handleTimerFired(generation: Int) {
+		let shouldClear: Bool
+
 		lock.lock()
-		defer { lock.unlock() }
-
-		guard _currentGeneration == generation, _isTimerActive else {
-			return
+		if _currentGeneration == generation && _isTimerActive {
+			_isTimerActive = false
+			_cancelTimer = nil
+			shouldClear = true
+		} else {
+			shouldClear = false
 		}
+		lock.unlock()
 
-		_isTimerActive = false
-		_cancelTimer = nil
-
-		try? pasteboard.clear()
+		if shouldClear {
+			try? pasteboard.clear()
+		}
 	}
 }
