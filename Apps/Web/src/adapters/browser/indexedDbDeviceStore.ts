@@ -7,6 +7,8 @@ const DATABASE_VERSION = 1
 const STORE_NAME = 'device'
 // 기기에는 한 계정만 두므로 키는 하나다
 const RECORD_KEY = 'account'
+/** 열기가 끝나지 않으면(일부 브라우저의 멈춤, 다른 탭의 차단) 실패로 보고 로그인 화면에서 시작한다 */
+export const OPEN_TIMEOUT_MS = 3_000
 
 function promised<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -15,12 +17,37 @@ function promised<T>(request: IDBRequest<T>): Promise<T> {
   })
 }
 
-function openDatabase(factory: IDBFactory): Promise<IDBDatabase> {
-  const request = factory.open(DATABASE_NAME, DATABASE_VERSION)
-  request.onupgradeneeded = () => {
-    if (!request.result.objectStoreNames.contains(STORE_NAME)) request.result.createObjectStore(STORE_NAME)
-  }
-  return promised(request)
+function openDatabase(factory: IDBFactory, onClosed: () => void): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    let settled = false
+    const finish = (outcome: () => void) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      outcome()
+    }
+    const timer = setTimeout(() => finish(() => reject(new Error('기기 저장소를 여는 데 시간이 너무 걸림'))), OPEN_TIMEOUT_MS)
+    const request = factory.open(DATABASE_NAME, DATABASE_VERSION)
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains(STORE_NAME)) request.result.createObjectStore(STORE_NAME)
+    }
+    request.onblocked = () => finish(() => reject(new Error('다른 탭이 기기 저장소의 이전 버전을 쓰고 있음')))
+    request.onerror = () => finish(() => reject(request.error))
+    request.onsuccess = () => {
+      const db = request.result
+      // 제한 시간이 지난 뒤에 열렸으면 쓰지 않으니 바로 닫는다
+      if (settled) {
+        db.close()
+        return
+      }
+      // 다른 탭이 새 버전으로 올리려 하면 막지 않도록 닫고, 다음 쓰기 때 다시 연다
+      db.onversionchange = () => {
+        db.close()
+        onClosed()
+      }
+      finish(() => resolve(db))
+    }
+  })
 }
 
 /** 쓰기는 트랜잭션이 끝나야(디스크에 반영돼야) 성공으로 본다 */
@@ -45,13 +72,23 @@ export function requestPersistentStorage(): void {
 export function createIndexedDbDeviceStore(factory: IDBFactory = globalThis.indexedDB): DeviceStore {
   let database: Promise<IDBDatabase> | null = null
 
-  async function run<T>(work: (db: IDBDatabase) => Promise<T>): Promise<T> {
+  async function connection(): Promise<IDBDatabase> {
     try {
-      database ??= openDatabase(factory)
-      return await work(await database)
+      database ??= openDatabase(factory, () => (database = null))
+      return await database
     } catch (error) {
       // 열기에 실패했으면 다음 호출에서 다시 연다
       database = null
+      throw new DeviceStorageError(error)
+    }
+  }
+
+  async function run<T>(work: (db: IDBDatabase) => Promise<T>): Promise<T> {
+    const db = await connection()
+    try {
+      return await work(db)
+    } catch (error) {
+      // 트랜잭션 실패(저장 공간 부족 등)는 연결을 버리지 않는다. 열린 연결이 새지 않게 한다
       throw new DeviceStorageError(error)
     }
   }

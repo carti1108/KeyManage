@@ -1,7 +1,7 @@
 import { IDBFactory } from 'fake-indexeddb'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DEVICE_RECORD_VERSION, DeviceStorageError, type DeviceRecord } from '../../domain/device/deviceRecord'
-import { createIndexedDbDeviceStore } from './indexedDbDeviceStore'
+import { OPEN_TIMEOUT_MS, createIndexedDbDeviceStore } from './indexedDbDeviceStore'
 
 const record: DeviceRecord = {
   version: DEVICE_RECORD_VERSION,
@@ -43,6 +43,25 @@ describe('IndexedDB 기기 저장소 (ADR-0019)', () => {
     await store.clear()
 
     expect(await store.load()).toBeUndefined()
+  })
+
+  afterEach(() => vi.useRealTimers())
+
+  it('다른 탭이 열기를 막으면 기다리지 않고 DeviceStorageError를 낸다', async () => {
+    const request = {} as IDBOpenDBRequest
+    const blocking = { open: () => (queueMicrotask(() => request.onblocked?.({} as IDBVersionChangeEvent)), request) } as unknown as globalThis.IDBFactory
+
+    await expect(createIndexedDbDeviceStore(blocking).load()).rejects.toBeInstanceOf(DeviceStorageError)
+  })
+
+  it('열기가 끝나지 않으면 제한 시간 뒤 DeviceStorageError를 낸다 (빈 화면에 멈추지 않게)', async () => {
+    vi.useFakeTimers()
+    const silent = { open: () => ({}) as IDBOpenDBRequest } as unknown as globalThis.IDBFactory
+
+    const loading = expect(createIndexedDbDeviceStore(silent).load()).rejects.toBeInstanceOf(DeviceStorageError)
+    await vi.advanceTimersByTimeAsync(OPEN_TIMEOUT_MS)
+
+    await loading
   })
 
   it('저장소를 열지 못하면 DeviceStorageError를 낸다', async () => {
