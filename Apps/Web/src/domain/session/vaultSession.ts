@@ -1,11 +1,13 @@
 // 로그인·가입·잠금·잠금 해제·로그아웃 상태 관리 (SEC-002, SEC-003)
 // 잠기면 암호화 키와 평문 볼트를 버리고, 이메일·KDF 값·토큰·암호화 볼트만 남긴다
 // 서버에 닿지 못한 저장은 동기화 대기로 두고 나중에 다시 보낸다 (VLT-001)
-import { normalizeEmail, type AuthResult, type AuthService, type UnlockKdf } from '../auth/authService'
+import { MasterPasswordChangedError, normalizeEmail, type AuthResult, type AuthService, type UnlockKdf } from '../auth/authService'
 import { fromBase64 } from '../crypto/base64'
 import { deriveKeys } from '../crypto/keys'
 import { VaultDecryptError, openVault, type EncryptedVaultPayload } from '../crypto/vaultCipher'
-import { ServerError } from '../server/serverErrors'
+import { createDevicePersistence } from '../device/devicePersistence'
+import { DEVICE_RECORD_VERSION, parseDeviceRecord, type DeviceStore } from '../device/deviceRecord'
+import { NetworkError, ServerError } from '../server/serverErrors'
 import { mergeVaults } from '../vault/mergeVaults'
 import { isReadOnly, parseVaultData, type VaultData } from '../vault/vaultData'
 import { RevisionRollbackError, VaultSyncConflictError, isTransientSyncError, type RevisionMemory, type SyncedVault, type VaultSync } from '../vault/vaultSync'
@@ -56,6 +58,8 @@ export type SessionState =
       readonly vault: SyncedVault
       /** 서버에 올리지 못한 변경 사항이 있음 (VLT-001) */
       readonly pendingSync: boolean
+      /** 세션 토큰이 있음. 없으면(오프라인으로 다시 열었을 때) 비밀번호를 다시 입력받아야 동기화한다 (SEC-003) */
+      readonly signedIn: boolean
     }
 
 export interface VaultSessionDeps {
@@ -63,12 +67,15 @@ export interface VaultSessionDeps {
   readonly vaultSyncFor: (accessToken: string, encryptionKey: CryptoKey) => VaultSync
   /** vaultSyncFor가 쓰는 것과 같은 기억. 로그아웃·계정 전환 때 지운다 */
   readonly revisionMemory: RevisionMemory
+  /** 한 계정의 기록을 두는 기기 저장소 (ADR-0019) */
+  readonly deviceStore: DeviceStore
 }
 
 // 잠겨도 남는 값. 비밀이 아니거나(KDF 값) 암호화돼 있다(볼트)
 interface Account {
   readonly email: string
-  readonly accessToken: string
+  /** 기기 기록으로 다시 열었고 아직 로그인하지 못했으면 null (ADR-0019) */
+  readonly accessToken: string | null
   readonly kdf: UnlockKdf
   /** 마지막 볼트. 동기화 대기 중이면 대기 내용을 담은 볼트다 */
   readonly payload: EncryptedVaultPayload
@@ -105,7 +112,14 @@ function isUnauthorized(error: unknown): boolean {
   return error instanceof ServerError && error.code === 'UNAUTHORIZED'
 }
 
-export function createVaultSession({ auth, vaultSyncFor, revisionMemory }: VaultSessionDeps) {
+function sameKdf(a: UnlockKdf, b: UnlockKdf): boolean {
+  return a.salt === b.salt && a.iterations === b.iterations
+}
+
+// 세션 토큰 없이 연 볼트의 동기화 객체에 넘기는 값. pushPending·syncAfterUnlock이 토큰 없이는 요청하지 않는다
+const NO_TOKEN = ''
+
+export function createVaultSession({ auth, vaultSyncFor, revisionMemory, deviceStore }: VaultSessionDeps) {
   let account: Account | null = null
   let unlocked: Unlocked | null = null
   let lastEmail: string | null = null
@@ -121,6 +135,9 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory }: Vault
   const lockListeners = new Set<() => void>()
   const unlockListeners = new Set<() => void>()
   const syncListeners = new Set<SyncChangeListener>()
+  const device = createDevicePersistence(deviceStore, (error) => notifySync(error))
+  // 기기 기록의 계정과 KDF 값. 같은 이메일로 로그인할 때 KDF 값이 바뀌었는지 본다 (ADR-0019)
+  let deviceIdentity: { readonly email: string; readonly kdf: UnlockKdf } | null = null
 
   function notify(listeners: Set<() => void>) {
     for (const listener of listeners) listener()
@@ -134,13 +151,23 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory }: Vault
     if (epoch !== startedAt) throw new SessionStateError('기다리는 사이 잠금 또는 로그아웃되어 작업을 취소함')
   }
 
-  function open(email: string, accessToken: string, kdf: UnlockKdf, sync: VaultSync, vault: SyncedVault, pendingSync = false) {
+  /** 계정 기록을 기기에 쓴다. 다른 계정의 기록은 덮어써 지워진다 (한 계정만, ADR-0019). 실패는 알리고 거절하지 않는다 */
+  function persist(): Promise<void> {
+    if (account === null) return Promise.resolve()
+    const { email, kdf, payload, revision, pendingSync } = account
+    deviceIdentity = { email, kdf }
+    return device.save({ version: DEVICE_RECORD_VERSION, email, kdf, payload, revision, lastSeenRevision: revisionMemory.get(), pendingSync })
+  }
+
+  /** @returns 기기 기록 쓰기. 실패해도 거절하지 않는다 */
+  function open(email: string, accessToken: string | null, kdf: UnlockKdf, sync: VaultSync, vault: SyncedVault, pendingSync = false): Promise<void> {
     // 모든 계정이 볼트를 가지므로 여기서 payload가 없을 수 없다 (SEC-003)
     if (vault.payload === null) throw new SessionStateError('볼트 없이 잠금을 해제할 수 없음')
     const wasLocked = unlocked === null
     account = { email, accessToken, kdf, payload: vault.payload, revision: vault.revision, pendingSync }
     unlocked = { sync, vault, pendingSync }
     if (wasLocked) notify(unlockListeners)
+    return persist()
   }
 
   function clear() {
@@ -167,6 +194,8 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory }: Vault
    */
   async function pushPending(): Promise<PushResult> {
     if (account === null || unlocked === null || !unlocked.pendingSync) return 'idle'
+    // 세션 없이 열었으면 비밀번호를 다시 입력받아 로그인할 때까지 보내지 않는다 (SEC-003)
+    if (account.accessToken === null) return 'stillPending'
     const startedAt = epoch
     const startedGeneration = generation
     const { email, accessToken, kdf } = account
@@ -188,13 +217,14 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory }: Vault
       // 보내는 사이 잠겼다. 잠기기 전에 더 고친 것이 없으면 올린 볼트를 잠긴 상태에 남긴다
       if (account.payload === vault.payload && saved.payload !== null) {
         account = { ...account, payload: saved.payload, revision: saved.revision, pendingSync: false }
+        await persist()
         return 'synced'
       }
       return 'idle'
     }
     // 보내는 사이 또 고쳤으면 새 수정은 다음 차례에 보낸다. 서버가 앞서 있으니 병합 절차를 탄다
     if (epoch !== startedAt || unlocked.vault !== vault) return 'stillPending'
-    open(email, accessToken, kdf, sync, saved)
+    await open(email, accessToken, kdf, sync, saved)
     return 'synced'
   }
 
@@ -241,12 +271,17 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory }: Vault
 
   async function signIn(email: string, startedAt: number, result: AuthResult, options: RollbackOption) {
     ensureCurrent(startedAt)
+    if (deviceIdentity?.email === email && !sameKdf(deviceIdentity.kdf, result.kdf)) {
+      // 다른 기기에서 비밀번호를 바꿨다. 옛 키의 기기 사본과 대기 내용은 열 수 없으니 버리고, 새 볼트의 revision을 기준으로 삼는다 (ADR-0019)
+      orphan = null
+      revisionMemory.reset(0)
+    }
     const sync = vaultSyncFor(result.session.accessToken, result.encryptionKey)
     const prepared = await prepareVault(sync, options)
     ensureCurrent(startedAt)
     const adopted: { vault: SyncedVault; pendingSync: boolean; dropped?: unknown } = await adoptOrphan(email, result.encryptionKey, sync, prepared)
     ensureCurrent(startedAt)
-    open(email, result.session.accessToken, result.kdf, sync, adopted.vault, adopted.pendingSync)
+    await open(email, result.session.accessToken, result.kdf, sync, adopted.vault, adopted.pendingSync)
     // 올렸거나, 이 볼트의 대기로 옮겼거나, 서버가 받을 수 없어 버렸다. 다른 계정의 대기 내용이면 그 계정이 열렸으므로 버린다 (VLT-001)
     orphan = null
     if (adopted.dropped !== undefined) notifySync(adopted.dropped)
@@ -285,11 +320,42 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory }: Vault
     }
   }
 
+  /** 비밀번호로 이 기기의 볼트를 열어 확인한다. 틀리면 인증 해시도 지운다 */
+  async function verifyPassword(password: string, target: Account) {
+    const keys = await deriveKeys(password, fromBase64(target.kdf.salt), target.kdf.iterations)
+    try {
+      return { keys, data: parseVaultData(await openVault(keys.encryptionKey, target.payload)) }
+    } catch (error) {
+      keys.authHash.fill(0)
+      if (error instanceof VaultDecryptError) throw new WrongMasterPasswordError()
+      throw error
+    }
+  }
+
+  /**
+   * 세션 토큰 없이 연 계정을 이미 만든 인증 해시로 로그인한다. 인증 해시는 이 요청 안에서 지운다 (ADR-0019)
+   * @returns 세션 토큰. 서버에 닿지 못하면 null
+   * @throws MasterPasswordChangedError(로그아웃 상태로 바꾼다)
+   */
+  async function resumeSession(target: Account, authHash: Uint8Array): Promise<string | null> {
+    const startedGeneration = generation
+    try {
+      return (await auth.resume(target.email, target.kdf, authHash)).accessToken
+    } catch (error) {
+      if (isTransientSyncError(error)) return null
+      // 기기 기록은 새 비밀번호로 로그인에 성공할 때 버린다 (ADR-0019)
+      if (error instanceof MasterPasswordChangedError && generation === startedGeneration) clear()
+      throw error
+    } finally {
+      authHash.fill(0)
+    }
+  }
+
   return {
     state(): SessionState {
       if (account === null) return { status: 'signedOut' }
       if (unlocked === null) return { status: 'locked', email: account.email, pendingSync: account.pendingSync }
-      return { status: 'unlocked', email: account.email, vault: unlocked.vault, pendingSync: unlocked.pendingSync }
+      return { status: 'unlocked', email: account.email, vault: unlocked.vault, pendingSync: unlocked.pendingSync, signedIn: account.accessToken !== null }
     },
 
     /** @throws VaultSetupError 가입은 됐지만 빈 볼트를 저장하지 못했을 때 */
@@ -335,25 +401,53 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory }: Vault
       const locked = account
       const startedAt = epoch
 
-      const keys = await deriveKeys(password, fromBase64(locked.kdf.salt), locked.kdf.iterations)
-      // 잠금 해제에는 인증 해시가 필요 없다. 메모리에 남기지 않는다
+      const { keys, data } = await verifyPassword(password, locked)
+      // 토큰이 있으면 인증 해시가 필요 없어 바로 지운다. 없으면(기기 기록으로 다시 열었으면) 바로 로그인하고 지운다 (SEC-003, ADR-0019)
+      const accessToken = locked.accessToken ?? (await resumeSession(locked, keys.authHash))
       keys.authHash.fill(0)
-      let data: VaultData
-      try {
-        data = parseVaultData(await openVault(keys.encryptionKey, locked.payload))
-      } catch (error) {
-        if (error instanceof VaultDecryptError) throw new WrongMasterPasswordError()
-        throw error
-      }
       ensureCurrent(startedAt)
+      // 받은 토큰은 되돌림 확인으로 잠긴 채 끝나도 남겨, 다시 풀 때 또 로그인하지 않게 한다
+      if (locked.accessToken === null && accessToken !== null) account = { ...locked, accessToken }
 
-      const sync = vaultSyncFor(locked.accessToken, keys.encryptionKey)
+      const sync = vaultSyncFor(accessToken ?? NO_TOKEN, keys.encryptionKey)
       const cached: SyncedVault = { revision: locked.revision, data, readOnly: isReadOnly(data), payload: locked.payload }
       retryBlocked = false
-      const fresh = await syncAfterUnlock(sync, cached, locked.pendingSync, options)
+      const fresh = accessToken === null ? null : await syncAfterUnlock(sync, cached, locked.pendingSync, options)
       ensureCurrent(startedAt)
-      open(locked.email, locked.accessToken, locked.kdf, sync, fresh ?? cached, fresh === null && locked.pendingSync)
+      await open(locked.email, accessToken, locked.kdf, sync, fresh ?? cached, fresh === null && locked.pendingSync)
       return { offline: fresh === null }
+    },
+
+    /**
+     * 세션 없이 연 볼트에서 비밀번호를 다시 입력받아 로그인하고 서버와 맞춘다 (SEC-003, ADR-0019)
+     * @throws WrongMasterPasswordError, NetworkError(아직 서버에 닿지 못함), MasterPasswordChangedError(로그아웃됨),
+     *   RevisionRollbackError, SessionExpiredError, SessionStateError
+     */
+    async reconnect(password: string): Promise<void> {
+      if (account === null || unlocked === null) throw new SessionStateError('잠금 해제 상태가 아님')
+      if (account.accessToken !== null) return
+      const current = account
+      const startedAt = epoch
+      const { keys } = await verifyPassword(password, current)
+      const accessToken = await resumeSession(current, keys.authHash)
+      if (accessToken === null) throw new NetworkError()
+      ensureCurrent(startedAt)
+      const opened = unlocked
+      if (opened === null) throw new SessionStateError('잠금 해제 상태가 아님')
+      const sync = vaultSyncFor(accessToken, keys.encryptionKey)
+      await open(current.email, accessToken, current.kdf, sync, opened.vault, opened.pendingSync)
+
+      retryBlocked = false
+      const fresh = await syncAfterUnlock(sync, opened.vault, opened.pendingSync, {})
+      ensureCurrent(startedAt)
+      // 다시 닿지 못했으면 대기는 그대로 두고 다음 재전송 때 올린다
+      if (fresh === null) return
+      // 맞추는 사이 또 고쳤으면 새 수정을 보낸다. 서버가 앞서 있으니 병합 절차를 탄다
+      if (unlocked?.vault !== opened.vault) {
+        await enqueuePush()
+        return
+      }
+      await open(current.email, accessToken, current.kdf, sync, fresh)
     },
 
     /**
@@ -369,14 +463,32 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory }: Vault
       const payload = await sync.seal(data)
       ensureCurrent(startedAt)
       // 기준 revision은 마지막으로 서버와 맞춘 값 그대로다. 서버가 앞서 있으면 보낼 때 병합한다
-      open(email, accessToken, kdf, sync, { revision: vault.revision, data, readOnly: false, payload }, true)
+      await open(email, accessToken, kdf, sync, { revision: vault.revision, data, readOnly: false, payload }, true)
       retryBlocked = false
       await enqueuePush()
     },
 
-    /** 서버에 올리지 못한 변경 사항이 있는지. 잠겼거나 세션 만료로 로그아웃된 뒤 남긴 것도 센다 (떠남 확인용) */
-    hasPendingSync(): boolean {
-      return account?.pendingSync === true || orphan !== null
+    /**
+     * 서버에 올리지 못한 변경 사항이 기기에도 아직 저장되지 않았는지(쓰는 중이거나 실패). 떠남 확인용 (VLT-001).
+     * 잠겼거나 세션 만료로 로그아웃된 뒤 남긴 것도 센다
+     */
+    hasUnsavedChanges(): boolean {
+      return (account?.pendingSync === true || orphan !== null) && device.isBehind()
+    },
+
+    /**
+     * 기기 기록이 있으면 그 계정의 잠금 화면으로 시작한다 (SEC-003, ADR-0019). 앱을 열 때 한 번 부른다.
+     * 기록이 없거나 규격에 맞지 않으면 로그인 전 상태로 둔다
+     * @throws DeviceStorageError 기기 저장소를 읽지 못함
+     */
+    async restore(): Promise<void> {
+      const record = parseDeviceRecord(await deviceStore.load())
+      if (record === null || account !== null) return
+      const { email, kdf, payload, revision, pendingSync } = record
+      account = { email, accessToken: null, kdf, payload, revision, pendingSync }
+      deviceIdentity = { email, kdf }
+      lastEmail = email
+      revisionMemory.reset(record.lastSeenRevision)
     },
 
     /**
@@ -394,16 +506,19 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory }: Vault
     },
 
     /**
-     * 이 기기의 세션을 먼저 지우고(볼트가 열려 있었으면 잠금 알림), 서버에 토큰 폐기를 요청한다.
+     * 이 기기의 세션과 기기 기록을 먼저 지우고(볼트가 열려 있었으면 잠금 알림), 서버에 토큰 폐기를 요청한다.
      * 동기화 대기 내용도 버린다. 서버 요청이 실패하면 오류를 그대로 알린다. 이 기기는 이미 로그아웃된 상태다
      */
     async logout(): Promise<void> {
       const token = account?.accessToken
       clear()
       orphan = null
+      deviceIdentity = null
       revisionMemory.reset(0)
       lastEmail = null
-      if (token !== undefined) await auth.logout(token)
+      // 이 기기의 기록도 지운다 (ADR-0019)
+      await device.clear()
+      if (token !== undefined && token !== null) await auth.logout(token)
     },
 
     /** 볼트가 닫힐 때(잠금, 잠금 해제 상태에서 로그아웃) 부를 함수를 등록한다. 클립보드 비우기 등 (COM-001) */

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
-import { FakeAuthApi, FakeVaultApi, NOW, PASSWORD, fields, setup, unlockedWithItem } from '../../test/sessionFixtures'
+import { FakeAuthApi, FakeDeviceStore, FakeVaultApi, NOW, PASSWORD, fields, setup, unlockedWithItem } from '../../test/sessionFixtures'
 import { createAuthService } from '../auth/authService'
 import { NetworkError, ServerError, UnexpectedResponseError } from '../server/serverErrors'
 import { addItem, activeItems } from '../vault/vaultData'
@@ -33,6 +33,7 @@ describe('모든 계정은 볼트를 가진다 (SEC-003)', () => {
       auth: createAuthService(new FakeAuthApi()),
       vaultSyncFor: (_t, encryptionKey) => createVaultSync({ api: vaultApi, encryptionKey, now: () => NOW, revisionMemory: memory }),
       revisionMemory: memory,
+      deviceStore: new FakeDeviceStore(),
     })
 
     await other.login('user@example.com', PASSWORD)
