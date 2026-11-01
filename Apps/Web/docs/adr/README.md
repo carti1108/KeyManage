@@ -17,4 +17,5 @@
 | [ADR-0013](ADR-0013-desktop-network-csp.md) | 데스크톱 앱의 서버 요청은 웹뷰 fetch로 보내고, CSP에는 빌드할 때 정한 서버 주소 하나만 연다 | 채택 | 2026-10-29 |
 | [ADR-0018](ADR-0018-web-device-storage-scope.md) | 웹 클라이언트는 기기에 암호화된 볼트와 동기화 상태만 저장하고 세션 토큰은 저장하지 않는다 | 대체됨 (→ ADR-0019) | 2026-10-31 |
 | [ADR-0019](ADR-0019-web-device-storage-single-account.md) | 웹 기기 저장은 한 계정만 두고, 인증 해시는 잠금 해제 요청 하나 안에서만 쓴다 | 대체됨 (→ ADR-0020) | 2026-11-01 |
-| [ADR-0020](ADR-0020-web-device-storage-review-hardening.md) | 웹 기기 저장: 다른 계정 인증 시 이전 기록 삭제, KDF 변경에도 되돌림 검사 유지, 읽지 못한 기록 재확인 | 채택 | 2026-11-01 |
+| [ADR-0020](ADR-0020-web-device-storage-review-hardening.md) | 웹 기기 저장: 다른 계정 인증 시 이전 기록 삭제, KDF 변경에도 되돌림 검사 유지, 읽지 못한 기록 재확인 | 일부 대체됨 (결정 3·6 → ADR-WEB-001) | 2026-11-01 |
+| [ADR-WEB-001](ADR-WEB-001-multi-tab-device-record.md) | 웹 여러 탭은 탭 간 잠금 아래에서 기기 기록을 읽고 병합해 쓰며, 암호화 키는 탭 사이로 넘기지 않는다 | 채택 | 2026-11-01 |
