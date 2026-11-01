@@ -122,6 +122,20 @@ if has_device_store_module:
     ]
     check_invariants("6단계: 기기 볼트 보존(VLT-003)", device_store_rules)
 
+# 7. 클립보드 자동 비우기 모듈 (COM-001) — 모듈이 존재할 때만 감사
+has_clipboard_module = os.path.isdir(os.path.join(sources_dir, "Clipboard"))
+
+if has_clipboard_module:
+    clipboard_rules = [
+        ("COM-001 클립보드 유효 시간(30초) 경계값 검증", r"(defaultAutoBurnInterval|30\.0)"),
+        ("COM-001 복사 직후 표준 제목('클립보드 보안 소각') 검증", r"클립보드 보안 소각"),
+        ("COM-001 복사 직후 표준 본문('보안을 위해 복사된 내용이 30초 후 클립보드에서 자동 삭제됩니다.') 검증", r"보안을 위해 복사된 내용이 30초 후 클립보드에서 자동 삭제됩니다\."),
+        ("COM-001 복사 실패 표준 문구('클립보드에 복사하지 못했습니다.') 검증", r"클립보드에 복사하지 못했습니다\."),
+        ("COM-001 비우기 실패 표준 문구('클립보드를 비우지 못했습니다.') 검증", r"클립보드를 비우지 못했습니다\."),
+        ("COM-001 / SEC-003 앱 잠금 시 즉시 비움(handleLock) 검증", r"handleLock"),
+    ]
+    check_invariants("7단계: 클립보드 자동 비우기(COM-001)", clipboard_rules)
+
 if violations:
     print("정책 합격 기준(Policy Acceptance Audit) 위반 발견:")
     for v in violations:
