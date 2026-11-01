@@ -16,7 +16,7 @@ function leavePage(): Event {
   return event
 }
 
-describe('동기화 대기 재전송을 브라우저에 연결 (VLT-001)', () => {
+describe('동기화 대기 재전송을 브라우저에 연결 (VLT-002)', () => {
   beforeEach(() => vi.useFakeTimers())
   afterEach(() => vi.useRealTimers())
 

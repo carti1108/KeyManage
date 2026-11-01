@@ -12,7 +12,7 @@ export interface UnlockScreenProps {
   email: string
   onUnlock: (password: string, options: RollbackOption) => Promise<void>
   onLogout: () => Promise<void>
-  /** 로그아웃 전에 묻는 확인 (동기화 대기 중일 때, VLT-001) */
+  /** 로그아웃 전에 묻는 확인 (동기화 대기 중일 때, VLT-002) */
   logoutConfirm?: ReactNode
 }
 

@@ -1,5 +1,5 @@
 // @vitest-environment node
-// 웹 기기 저장: 재시작 뒤 잠금 화면, 세션 없는 잠금 해제, 한 계정만 보관 (ADR-0019, SEC-003, VLT-001)
+// 웹 기기 저장: 재시작 뒤 잠금 화면, 세션 없는 잠금 해제, 한 계정만 보관 (ADR-0019, SEC-003, VLT-003)
 import { describe, expect, it } from 'vitest'
 import { NOW, PASSWORD, fields, restart, serverItemIds, setup, unlockedWithItem } from '../../test/sessionFixtures'
 import { MasterPasswordChangedError } from '../auth/authService'
@@ -282,7 +282,7 @@ describe('비밀번호가 바뀌었을 때 (SEC-003)', () => {
   })
 })
 
-describe('기기에는 한 계정만 둔다 (VLT-001)', () => {
+describe('기기에는 한 계정만 둔다 (VLT-003)', () => {
   it('다른 계정의 로그인이 성공하면 이전 기록을 지우고 새 계정을 저장한다', async () => {
     const ctx = await unlockedWithItem()
     const { session, deviceStore } = await restart(ctx)
@@ -344,7 +344,7 @@ describe('기기에는 한 계정만 둔다 (VLT-001)', () => {
   })
 })
 
-describe('기기 저장 실패 (VLT-001)', () => {
+describe('기기 저장 실패 (VLT-003)', () => {
   it('저장에 실패해도 볼트는 쓰던 그대로 두고, 실패를 알리고, 떠남 확인이 필요하다고 답한다', async () => {
     const { session, vaultApi, deviceStore } = await unlockedWithItem()
     const results: unknown[] = []

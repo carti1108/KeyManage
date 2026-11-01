@@ -16,7 +16,7 @@ export interface DeviceRecord {
   readonly payload: EncryptedVaultPayload
   /** payload가 바탕으로 삼은 서버 revision */
   readonly revision: number
-  /** 되돌림 감지 기준 (VLT-001) */
+  /** 되돌림 감지 기준 (VLT-003) */
   readonly lastSeenRevision: number
   readonly pendingSync: boolean
 }

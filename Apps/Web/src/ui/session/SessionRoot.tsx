@@ -35,7 +35,7 @@ export function SessionRoot({ session, clipboard, pageHidden }: SessionRootProps
   const [state, setState] = useState(() => session.state())
   const [notice, setNotice] = useState<string | null>(null)
   const [offline, setOffline] = useState(false)
-  // 대기 내용 재전송이 분명한 거절을 받았을 때의 문구 (VLT-001)
+  // 대기 내용 재전송이 분명한 거절을 받았을 때의 문구 (VLT-002)
   const [syncError, setSyncError] = useState<ErrorMessage | null>(null)
   const [confirmingLogout, setConfirmingLogout] = useState(false)
   const refresh = useCallback(() => setState(session.state()), [session])
@@ -87,7 +87,7 @@ export function SessionRoot({ session, clipboard, pageHidden }: SessionRootProps
     }
   }
 
-  /** 올리지 못한 변경 사항이 있으면 사라진다고 먼저 알린다 (VLT-001) */
+  /** 올리지 못한 변경 사항이 있으면 사라진다고 먼저 알린다 (VLT-002) */
   function requestLogout(pendingSync: boolean) {
     if (pendingSync) setConfirmingLogout(true)
     else void logout()
