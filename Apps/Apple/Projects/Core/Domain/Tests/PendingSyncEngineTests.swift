@@ -10,6 +10,7 @@ final class PendingSyncEngineTests: XCTestCase {
 		var lastUploadedVault: VaultData?
 		var lastExpectedRevision: Int?
 		var uploadError: Error?
+		var fetchError: Error?
 		var nextRevisionToReturn: Int = 1
 		var vaultToFetch: VaultData?
 		var revisionToFetch: Int = 1
@@ -26,6 +27,9 @@ final class PendingSyncEngineTests: XCTestCase {
 
 		func fetchVault() async throws -> (vault: VaultData, revision: Int) {
 			fetchCallCount += 1
+			if let fetchError {
+				throw fetchError
+			}
 			let vault = vaultToFetch ?? VaultData(updatedAt: "2026-11-01T00:00:00Z", items: [])
 			return (vault, revisionToFetch)
 		}
@@ -282,7 +286,7 @@ final class PendingSyncEngineTests: XCTestCase {
 	func test_sessionExpired401_reloginSameAccount_mergesAndUploads() async throws {
 		let remoteService = MockRemoteVaultSyncService()
 		remoteService.uploadError = URLError(.notConnectedToInternet)
-		let engine = PendingSyncEngine(remoteService: remoteService)
+		let engine = PendingSyncEngine(remoteService: remoteService, currentEmail: "current_user@example.com")
 		let vault = makeSampleVault(itemCount: 2)
 		_ = try await engine.save(vault: vault, expectedRevision: 1)
 
@@ -303,7 +307,7 @@ final class PendingSyncEngineTests: XCTestCase {
 	func test_sessionExpired401_loginDifferentAccount_discardsPendingChanges() async throws {
 		let remoteService = MockRemoteVaultSyncService()
 		remoteService.uploadError = URLError(.notConnectedToInternet)
-		let engine = PendingSyncEngine(remoteService: remoteService)
+		let engine = PendingSyncEngine(remoteService: remoteService, currentEmail: "current_user@example.com")
 		let vault = makeSampleVault()
 		_ = try await engine.save(vault: vault, expectedRevision: 1)
 
@@ -323,5 +327,58 @@ final class PendingSyncEngineTests: XCTestCase {
 		XCTAssertEqual(PendingSyncStrings.logoutDialogMessage, "로그아웃하면 서버에 올리지 못한 변경 사항이 사라집니다.")
 		XCTAssertEqual(PendingSyncStrings.logoutConfirmButton, "로그아웃")
 		XCTAssertEqual(PendingSyncStrings.logoutCancelButton, "취소")
+	}
+
+	// 16. 잠금 해제 시 원격 조회 일시 실패해도 오프라인 잠금 해제 허용
+	func test_offlineUnlock_transientFetchFailure_allowsUnlockAndRetainsPendingVault() async throws {
+		let remoteService = MockRemoteVaultSyncService()
+		remoteService.uploadError = URLError(.notConnectedToInternet)
+		remoteService.fetchError = URLError(.notConnectedToInternet)
+		let engine = PendingSyncEngine(remoteService: remoteService)
+
+		let initialVault = makeSampleVault(itemCount: 1)
+		_ = try await engine.save(vault: initialVault, expectedRevision: 1)
+		XCTAssertTrue(engine.status.hasPendingSync)
+
+		let localFallback = makeSampleVault(itemCount: 2)
+		let unlocked = try await engine.triggerUnlock(serverVault: localFallback, serverRevision: 1)
+
+		XCTAssertNotNil(unlocked)
+		XCTAssertTrue(engine.status.hasPendingSync, "네트워크 장애 시 잠금은 해제되되 대기 내용은 보존되어야 합니다.")
+	}
+
+	// 17. 대기 변경사항 수동 폐기 검증 (KDF 변경 등 연동용)
+	func test_discardPendingChanges_resetsStatus() async throws {
+		let remoteService = MockRemoteVaultSyncService()
+		remoteService.uploadError = URLError(.timedOut)
+		let engine = PendingSyncEngine(remoteService: remoteService)
+
+		_ = try await engine.save(vault: makeSampleVault(), expectedRevision: 1)
+		XCTAssertTrue(engine.status.hasPendingSync)
+
+		engine.discardPendingChanges()
+		XCTAssertFalse(engine.status.hasPendingSync)
+		XCTAssertNil(engine.status.pendingVault)
+	}
+
+	// 18. 대기 변경사항이 없을 때도 되돌림 검증(Rollback Detection) 항상 수행
+	func test_unlockWithoutPending_validatesRevisionRollback() async {
+		let remoteService = MockRemoteVaultSyncService()
+		let engine = PendingSyncEngine(remoteService: remoteService)
+
+		// baseRevision이 5인 상태에서 서버 revision이 3으로 역행 시 예외 발생
+		_ = try? await engine.save(vault: makeSampleVault(), expectedRevision: 4)
+		// 성공 시 baseRevision = 5
+
+		remoteService.nextRevisionToReturn = 3
+		remoteService.revisionToFetch = 3
+		do {
+			_ = try await engine.triggerUnlock(serverVault: makeSampleVault(), serverRevision: 3)
+			XCTFail("서버 revision이 역행하면 되돌림 감지 예외를 던져야 합니다.")
+		} catch let error as VaultSyncError {
+			XCTAssertEqual(error, .revisionRollbackDetected(lastSeen: 4, server: 3))
+		} catch {
+			XCTFail("예상치 못한 에러: \(error)")
+		}
 	}
 }

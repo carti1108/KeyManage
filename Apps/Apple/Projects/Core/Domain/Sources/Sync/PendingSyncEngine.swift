@@ -21,6 +21,7 @@ public struct PendingSyncStatus: Equatable, Sendable {
 	public var baseRevision: Int
 	public var pendingVault: VaultData?
 	public var offlineWarningMessage: String?
+	public var isSyncing: Bool
 
 	public init(
 		hasPendingSync: Bool = false,
@@ -28,7 +29,8 @@ public struct PendingSyncStatus: Equatable, Sendable {
 		isOffline: Bool = false,
 		baseRevision: Int = 0,
 		pendingVault: VaultData? = nil,
-		offlineWarningMessage: String? = nil
+		offlineWarningMessage: String? = nil,
+		isSyncing: Bool = false
 	) {
 		self.hasPendingSync = hasPendingSync
 		self.isAutoSyncPaused = isAutoSyncPaused
@@ -36,20 +38,22 @@ public struct PendingSyncStatus: Equatable, Sendable {
 		self.baseRevision = baseRevision
 		self.pendingVault = pendingVault
 		self.offlineWarningMessage = offlineWarningMessage
+		self.isSyncing = isSyncing
 	}
 }
 
 public enum PendingSyncStrings {
 	public static let offlineWarning = "오프라인 상태입니다. 변경 사항이 서버에 동기화되지 않습니다."
-	public static let logoutDialogTitle = "동기화되지 않은 변경 사항"
-	public static let logoutDialogMessage = "로그아웃하면 서버에 올리지 못한 변경 사항이 사라집니다."
-	public static let logoutConfirmButton = "로그아웃"
-	public static let logoutCancelButton = "취소"
-
 	public static let logoutConfirmTitle = "동기화되지 않은 변경 사항"
 	public static let logoutConfirmMessage = "로그아웃하면 서버에 올리지 못한 변경 사항이 사라집니다."
 	public static let logoutButton = "로그아웃"
 	public static let cancelButton = "취소"
+
+	// 호환성 별칭
+	public static var logoutDialogTitle: String { logoutConfirmTitle }
+	public static var logoutDialogMessage: String { logoutConfirmMessage }
+	public static var logoutConfirmButton: String { logoutButton }
+	public static var logoutCancelButton: String { cancelButton }
 }
 
 public protocol RemoteVaultSyncServiceProtocol: Sendable {
@@ -117,6 +121,7 @@ public protocol PendingSyncEngineProtocol: Sendable {
 	func handleRelogin(email: String, serverVault: VaultData, serverRevision: Int) async throws -> VaultData?
 	func handleLogout() async throws -> Bool
 	func setOffline(_ isOffline: Bool)
+	func discardPendingChanges()
 }
 
 public final class PendingSyncEngine: PendingSyncEngineProtocol, @unchecked Sendable {
@@ -145,7 +150,7 @@ public final class PendingSyncEngine: PendingSyncEngineProtocol, @unchecked Send
 		deviceStore: DeviceVaultStoreProtocol? = nil,
 		coordinator: VaultSyncCoordinator? = nil,
 		failureClassifier: SyncFailureClassifierProtocol = DefaultSyncFailureClassifier(),
-		currentEmail: String? = "current_user@example.com"
+		currentEmail: String? = nil
 	) {
 		self.remoteService = remoteService
 		self.deviceStore = deviceStore
@@ -166,31 +171,38 @@ public final class PendingSyncEngine: PendingSyncEngineProtocol, @unchecked Send
 		return mutate(&_status)
 	}
 
-	private func getCurrentEmail() -> String? {
+	public func getCurrentEmail() -> String? {
 		lock.lock()
 		defer { lock.unlock() }
 		return _currentEmail
 	}
 
-	private func setCurrentEmail(_ email: String?) {
+	public func setCurrentEmail(_ email: String?) {
 		lock.lock()
 		defer { lock.unlock() }
 		_currentEmail = email
 	}
 
+	public func discardPendingChanges() {
+		mutateStatus { st in
+			st.hasPendingSync = false
+			st.pendingVault = nil
+		}
+	}
+
 	public func save(vault: VaultData, expectedRevision: Int) async throws -> Bool {
-		let (accumulatedVault, revisionToUse, isOffline) = mutateStatus { st -> (VaultData, Int, Bool) in
+		let (existingPending, rev, isOffline) = mutateStatus { st -> (VaultData?, Int, Bool) in
 			st.isAutoSyncPaused = false
-			let accumulated: VaultData
-			let rev: Int
-			if st.hasPendingSync, let existingPending = st.pendingVault {
-				accumulated = (try? coordinator.merger.merge(local: existingPending, server: vault)) ?? vault
-				rev = st.baseRevision
-			} else {
-				accumulated = vault
-				rev = expectedRevision
-			}
-			return (accumulated, rev, st.isOffline)
+			let baseRev = st.hasPendingSync ? st.baseRevision : expectedRevision
+			return (st.pendingVault, baseRev, st.isOffline)
+		}
+
+		// 비재진입 락 밖에서 병합 수행 (P2 데드락 방지)
+		let accumulatedVault: VaultData
+		if let existing = existingPending {
+			accumulatedVault = (try? coordinator.merger.merge(local: existing, server: vault)) ?? vault
+		} else {
+			accumulatedVault = vault
 		}
 
 		guard !accumulatedVault.isReadOnly else {
@@ -206,34 +218,39 @@ public final class PendingSyncEngine: PendingSyncEngineProtocol, @unchecked Send
 			mutateStatus { st in
 				st.hasPendingSync = true
 				st.pendingVault = accumulatedVault
-				st.baseRevision = revisionToUse
+				st.baseRevision = rev
 			}
 			return true
 		}
 
+		// 상태에 누적본을 즉시 반영 (TOCTOU 방지)
+		mutateStatus { st in
+			st.hasPendingSync = true
+			st.pendingVault = accumulatedVault
+			st.baseRevision = rev
+		}
+
 		guard let remote = remoteService else {
-			mutateStatus { st in
-				st.hasPendingSync = true
-				st.pendingVault = accumulatedVault
-				st.baseRevision = revisionToUse
-			}
 			return true
 		}
 
 		do {
-			let newRev = try await remote.uploadVault(accumulatedVault, expectedRevision: revisionToUse)
+			let newRev = try await remote.uploadVault(accumulatedVault, expectedRevision: rev)
 
-			if newRev != revisionToUse + 1 {
+			if newRev != rev + 1 {
 				mutateStatus { st in
 					st.hasPendingSync = false
 					st.pendingVault = nil
 				}
-				throw PendingSyncError.serverProtocolViolation(expected: revisionToUse + 1, actual: newRev)
+				throw PendingSyncError.serverProtocolViolation(expected: rev + 1, actual: newRev)
 			}
 
 			mutateStatus { st in
-				st.hasPendingSync = false
-				st.pendingVault = nil
+				// 통신 도중 추가 수정이 없었을 때만 대기열 해제 (P1 레이스 컨디션 방지)
+				if st.pendingVault == accumulatedVault {
+					st.hasPendingSync = false
+					st.pendingVault = nil
+				}
 				st.baseRevision = newRev
 				st.isAutoSyncPaused = false
 			}
@@ -244,8 +261,7 @@ public final class PendingSyncEngine: PendingSyncEngineProtocol, @unchecked Send
 			case .transient:
 				mutateStatus { st in
 					st.hasPendingSync = true
-					st.pendingVault = accumulatedVault
-					st.baseRevision = revisionToUse
+					st.baseRevision = rev
 				}
 				return true
 			case .definitiveRejection:
@@ -279,15 +295,23 @@ public final class PendingSyncEngine: PendingSyncEngineProtocol, @unchecked Send
 	}
 
 	private func performResync() async throws {
-		let currentStatus = getStatus()
-		guard currentStatus.hasPendingSync, let pending = currentStatus.pendingVault else {
+		let shouldStart = mutateStatus { st -> (shouldProceed: Bool, pending: VaultData?, baseRev: Int) in
+			guard st.hasPendingSync, let pending = st.pendingVault else {
+				return (false, nil, 0)
+			}
+			guard !st.isAutoSyncPaused, !st.isOffline, !st.isSyncing else {
+				return (false, nil, 0)
+			}
+			st.isSyncing = true
+			return (true, pending, st.baseRevision)
+		}
+
+		guard shouldStart.shouldProceed, let pending = shouldStart.pending else {
 			return
 		}
-		guard !currentStatus.isAutoSyncPaused else {
-			return
-		}
-		guard !currentStatus.isOffline else {
-			return
+
+		defer {
+			mutateStatus { $0.isSyncing = false }
 		}
 
 		guard let remote = remoteService else {
@@ -297,7 +321,7 @@ public final class PendingSyncEngine: PendingSyncEngineProtocol, @unchecked Send
 		do {
 			let result = try await coordinator.syncWithRetry(
 				local: pending,
-				lastSeenRevision: currentStatus.baseRevision,
+				lastSeenRevision: shouldStart.baseRev,
 				saveOperation: { vaultToSave, rev in
 					try await remote.uploadVault(vaultToSave, expectedRevision: rev)
 				},
@@ -307,8 +331,11 @@ public final class PendingSyncEngine: PendingSyncEngineProtocol, @unchecked Send
 			)
 
 			mutateStatus { st in
-				st.hasPendingSync = false
-				st.pendingVault = nil
+				// 동기화 도중 신규 변경이 없었던 경우에만 대기열 초기화 (P1 동시성 데이터 유실 방지)
+				if st.pendingVault == pending {
+					st.hasPendingSync = false
+					st.pendingVault = nil
+				}
 				st.baseRevision = result.newRevision
 				st.isAutoSyncPaused = false
 			}
@@ -338,38 +365,64 @@ public final class PendingSyncEngine: PendingSyncEngineProtocol, @unchecked Send
 			return st
 		}
 
-		let serverVaultToUse: VaultData
-		let serverRevToUse: Int
+		var serverVaultToUse: VaultData = serverVault
+		var serverRevToUse: Int = serverRevision
+		var fetchTransientlyFailed = false
 
 		if let remote = remoteService {
-			let fetched = try await remote.fetchVault()
-			serverVaultToUse = fetched.vault
-			serverRevToUse = fetched.revision
-		} else {
-			serverVaultToUse = serverVault
-			serverRevToUse = serverRevision
+			do {
+				let fetched = try await remote.fetchVault()
+				serverVaultToUse = fetched.vault
+				serverRevToUse = fetched.revision
+			} catch {
+				let failureType = failureClassifier.classify(error)
+				if failureType == .transient {
+					// P1 오프라인 잠금 해제 지원: 일시적 네트워크 장애 시 전달받은 로컬 사본 사용
+					fetchTransientlyFailed = true
+				} else {
+					throw error
+				}
+			}
 		}
 
-		if currentStatus.hasPendingSync, let pendingVault = currentStatus.pendingVault {
-			try coordinator.validator.validateRevision(server: serverRevToUse, lastSeen: currentStatus.baseRevision)
+		// P2: 대기 변경 유무와 관계없이 되돌림 검증(Rollback Detection) 항상 수행
+		try coordinator.validator.validateRevision(server: serverRevToUse, lastSeen: currentStatus.baseRevision)
 
+		if currentStatus.hasPendingSync, let pendingVault = currentStatus.pendingVault {
 			let mergedVault = try coordinator.merger.merge(local: pendingVault, server: serverVaultToUse)
 
-			if let remote = remoteService {
-				let newRev = try await remote.uploadVault(mergedVault, expectedRevision: serverRevToUse)
-				mutateStatus { st in
-					st.hasPendingSync = false
-					st.pendingVault = nil
-					st.baseRevision = newRev
-					st.isAutoSyncPaused = false
+			if !fetchTransientlyFailed, let remote = remoteService {
+				do {
+					let newRev = try await remote.uploadVault(mergedVault, expectedRevision: serverRevToUse)
+					mutateStatus { st in
+						if st.pendingVault == pendingVault {
+							st.hasPendingSync = false
+							st.pendingVault = nil
+						}
+						st.baseRevision = newRev
+						st.isAutoSyncPaused = false
+					}
+					return mergedVault
+				} catch {
+					let uploadFailure = failureClassifier.classify(error)
+					if uploadFailure == .transient {
+						// 업로드 일시 실패 시 대기열에 유지하고 병합본 반환
+						mutateStatus { st in
+							st.hasPendingSync = true
+							st.pendingVault = mergedVault
+							st.baseRevision = serverRevToUse
+						}
+						return mergedVault
+					} else {
+						throw error
+					}
 				}
-				return mergedVault
 			} else {
+				// 오프라인이거나 remote 없음: 대기열 유지하고 병합본 정상 반환 (잠금 해제 허용)
 				mutateStatus { st in
-					st.hasPendingSync = false
-					st.pendingVault = nil
+					st.hasPendingSync = true
+					st.pendingVault = mergedVault
 					st.baseRevision = serverRevToUse
-					st.isAutoSyncPaused = false
 				}
 				return mergedVault
 			}
@@ -390,7 +443,7 @@ public final class PendingSyncEngine: PendingSyncEngineProtocol, @unchecked Send
 	}
 
 	public func handleRelogin(email: String, serverVault: VaultData, serverRevision: Int) async throws -> VaultData? {
-		let previousEmail = getCurrentEmail()
+		let previousEmail = getCurrentEmail() ?? deviceStore?.currentRecord?.email
 		let currentStatus = mutateStatus { st -> PendingSyncStatus in
 			st.isAutoSyncPaused = false
 			return st

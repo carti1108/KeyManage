@@ -116,6 +116,9 @@ public final class DeviceVaultStore: DeviceVaultStoreProtocol, @unchecked Sendab
 
 		if existing == nil, let storage = storage {
 			existing = try await storage.load()
+			if let loaded = existing {
+				updateRecord(loaded, hasError: false)
+			}
 		}
 
 		if let current = existing, current.email != email {
@@ -154,6 +157,9 @@ public final class DeviceVaultStore: DeviceVaultStoreProtocol, @unchecked Sendab
 
 		if record == nil, let storage = storage {
 			record = try await storage.load()
+			if let loaded = record {
+				updateRecord(loaded, hasError: false)
+			}
 		}
 
 		guard var rec = record else { return false }
