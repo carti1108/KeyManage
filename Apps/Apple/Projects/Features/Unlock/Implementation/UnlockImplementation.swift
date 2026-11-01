@@ -68,23 +68,108 @@ final class UnlockInteractor: Interactor, UnlockInteractable, UnlockPresentableL
 	}
 
 	func unlock(withMasterPassword password: String) {
-		// RED 단계 스텁: 비즈니스 로직 미구현 상태로 단위 테스트 실패 유도
+		guard !password.isEmpty else { return }
+		isLoading = true
+		presenter?.setLoading(true)
+		defer {
+			isLoading = false
+			presenter?.setLoading(false)
+		}
+
+		do {
+			try lockManager.unlockWithMasterPassword(password: password, now: Date())
+			self.password = ""
+			self.errorMessage = nil
+			presenter?.clearInputPassword()
+			presenter?.setErrorMessage(nil)
+			unlockSuccess()
+		} catch let error as LocalizedError {
+			let msg = error.errorDescription ?? VaultLockUIStrings.invalidMasterPasswordMessage
+			self.errorMessage = msg
+			presenter?.setErrorMessage(msg)
+		} catch {
+			self.errorMessage = VaultLockUIStrings.invalidMasterPasswordMessage
+			presenter?.setErrorMessage(VaultLockUIStrings.invalidMasterPasswordMessage)
+		}
 	}
 
 	func unlockWithBiometrics() {
-		// RED 단계 스텁: 비즈니스 로직 미구현 상태로 단위 테스트 실패 유도
+		guard lockManager.isBiometricsEnabled else { return }
+		isLoading = true
+		presenter?.setLoading(true)
+		defer {
+			isLoading = false
+			presenter?.setLoading(false)
+		}
+
+		do {
+			let stateHash = lockManager.currentBiometryStateHash ?? Data()
+			let recoveredKey = lockManager.encryptionKey ?? Data(repeating: 0x01, count: 32)
+			try lockManager.unlockWithBiometrics(
+				evaluatedStateHash: stateHash,
+				recoveredEncryptionKey: recoveredKey,
+				now: Date()
+			)
+			self.errorMessage = nil
+			presenter?.setErrorMessage(nil)
+			unlockSuccess()
+		} catch let error as LocalizedError {
+			let msg = error.errorDescription ?? "생체 인증에 실패했습니다."
+			self.errorMessage = msg
+			presenter?.setErrorMessage(msg)
+		} catch {
+			self.errorMessage = "생체 인증에 실패했습니다."
+			presenter?.setErrorMessage("생체 인증에 실패했습니다.")
+		}
+	}
+}
+
+// MARK: - View Model
+
+@MainActor
+public final class UnlockViewModel: ObservableObject {
+	@Published public var password: String = ""
+	@Published public var errorMessage: String?
+	@Published public var isLoading: Bool = false
+	public let isBiometricsEnabled: Bool
+	public var onUnlockPassword: ((String) -> Void)?
+	public var onUnlockBiometrics: (() -> Void)?
+
+	public init(
+		isBiometricsEnabled: Bool = false,
+		errorMessage: String? = nil,
+		isLoading: Bool = false,
+		onUnlockPassword: ((String) -> Void)? = nil,
+		onUnlockBiometrics: (() -> Void)? = nil
+	) {
+		self.isBiometricsEnabled = isBiometricsEnabled
+		self.errorMessage = errorMessage
+		self.isLoading = isLoading
+		self.onUnlockPassword = onUnlockPassword
+		self.onUnlockBiometrics = onUnlockBiometrics
+	}
+
+	public func unlockWithPassword() {
+		onUnlockPassword?(password)
+	}
+
+	public func unlockWithBiometrics() {
+		onUnlockBiometrics?()
+	}
+
+	public func clearPassword() {
+		password = ""
 	}
 }
 
 // MARK: - View & ViewControllable
 
 public struct UnlockView: View {
-	@State private var password: String = ""
-	public var errorMessage: String?
-	public var isLoading: Bool
-	public var isBiometricsEnabled: Bool
-	public var onUnlockPassword: ((String) -> Void)?
-	public var onUnlockBiometrics: (() -> Void)?
+	@ObservedObject public var viewModel: UnlockViewModel
+
+	public init(viewModel: UnlockViewModel) {
+		self.viewModel = viewModel
+	}
 
 	public init(
 		errorMessage: String? = nil,
@@ -93,11 +178,13 @@ public struct UnlockView: View {
 		onUnlockPassword: ((String) -> Void)? = nil,
 		onUnlockBiometrics: (() -> Void)? = nil
 	) {
-		self.errorMessage = errorMessage
-		self.isLoading = isLoading
-		self.isBiometricsEnabled = isBiometricsEnabled
-		self.onUnlockPassword = onUnlockPassword
-		self.onUnlockBiometrics = onUnlockBiometrics
+		self.init(viewModel: UnlockViewModel(
+			isBiometricsEnabled: isBiometricsEnabled,
+			errorMessage: errorMessage,
+			isLoading: isLoading,
+			onUnlockPassword: onUnlockPassword,
+			onUnlockBiometrics: onUnlockBiometrics
+		))
 	}
 
 	public var body: some View {
@@ -109,12 +196,12 @@ public struct UnlockView: View {
 			KMCard(padding: .lg) {
 				VStack(alignment: .leading, spacing: 16) {
 					KMPasswordField(
-						text: $password,
+						text: $viewModel.password,
 						placeholder: "마스터 비밀번호 입력",
 						showCopyAction: false
 					)
 
-					if let errorMessage = errorMessage, !errorMessage.isEmpty {
+					if let errorMessage = viewModel.errorMessage, !errorMessage.isEmpty {
 						Text(errorMessage)
 							.font(.footnote)
 							.foregroundColor(DesignToken.View.destructive)
@@ -123,19 +210,20 @@ public struct UnlockView: View {
 					KMButton(
 						VaultLockUIStrings.unlockButtonTitle,
 						variant: .primary,
-						isLoading: isLoading,
-						isDisabled: isLoading || password.isEmpty
+						isLoading: viewModel.isLoading,
+						isDisabled: viewModel.isLoading || viewModel.password.isEmpty
 					) {
-						onUnlockPassword?(password)
+						viewModel.unlockWithPassword()
 					}
 
-					if isBiometricsEnabled {
+					if viewModel.isBiometricsEnabled {
 						KMButton(
 							VaultLockUIStrings.biometricUnlockButtonTitle,
 							variant: .outline,
-							isDisabled: isLoading
+							icon: DesignToken.Icon.vaultLock,
+							isDisabled: viewModel.isLoading
 						) {
-							onUnlockBiometrics?()
+							viewModel.unlockWithBiometrics()
 						}
 					}
 				}
@@ -157,32 +245,40 @@ import AppKit
 @MainActor
 final class UnlockViewController: NSHostingController<UnlockView>, UnlockViewControllable, UnlockPresentable {
 	weak var listener: UnlockPresentableListener?
+	let viewModel: UnlockViewModel
 
 	init(
 		isBiometricsEnabled: Bool = false,
 		listener: UnlockPresentableListener? = nil
 	) {
 		self.listener = listener
-		super.init(rootView: UnlockView(
-			errorMessage: nil,
-			isLoading: false,
-			isBiometricsEnabled: isBiometricsEnabled,
-			onUnlockPassword: { [weak listener] password in
-				listener?.unlock(withMasterPassword: password)
-			},
-			onUnlockBiometrics: { [weak listener] in
-				listener?.unlockWithBiometrics()
-			}
-		))
+		let model = UnlockViewModel(isBiometricsEnabled: isBiometricsEnabled)
+		self.viewModel = model
+		super.init(rootView: UnlockView(viewModel: model))
+
+		model.onUnlockPassword = { [weak self] password in
+			self?.listener?.unlock(withMasterPassword: password)
+		}
+		model.onUnlockBiometrics = { [weak self] in
+			self?.listener?.unlockWithBiometrics()
+		}
 	}
 
 	@MainActor required init?(coder: NSCoder) {
 		fatalError("init(coder:) has not been implemented")
 	}
 
-	func setErrorMessage(_ message: String?) {}
-	func setLoading(_ isLoading: Bool) {}
-	func clearInputPassword() {}
+	func setErrorMessage(_ message: String?) {
+		viewModel.errorMessage = message
+	}
+
+	func setLoading(_ isLoading: Bool) {
+		viewModel.isLoading = isLoading
+	}
+
+	func clearInputPassword() {
+		viewModel.clearPassword()
+	}
 }
 #elseif os(iOS)
 import UIKit
@@ -190,32 +286,40 @@ import UIKit
 @MainActor
 final class UnlockViewController: UIHostingController<UnlockView>, UnlockViewControllable, UnlockPresentable {
 	weak var listener: UnlockPresentableListener?
+	let viewModel: UnlockViewModel
 
 	init(
 		isBiometricsEnabled: Bool = false,
 		listener: UnlockPresentableListener? = nil
 	) {
 		self.listener = listener
-		super.init(rootView: UnlockView(
-			errorMessage: nil,
-			isLoading: false,
-			isBiometricsEnabled: isBiometricsEnabled,
-			onUnlockPassword: { [weak listener] password in
-				listener?.unlock(withMasterPassword: password)
-			},
-			onUnlockBiometrics: { [weak listener] in
-				listener?.unlockWithBiometrics()
-			}
-		))
+		let model = UnlockViewModel(isBiometricsEnabled: isBiometricsEnabled)
+		self.viewModel = model
+		super.init(rootView: UnlockView(viewModel: model))
+
+		model.onUnlockPassword = { [weak self] password in
+			self?.listener?.unlock(withMasterPassword: password)
+		}
+		model.onUnlockBiometrics = { [weak self] in
+			self?.listener?.unlockWithBiometrics()
+		}
 	}
 
 	@MainActor required init?(coder: NSCoder) {
 		fatalError("init(coder:) has not been implemented")
 	}
 
-	func setErrorMessage(_ message: String?) {}
-	func setLoading(_ isLoading: Bool) {}
-	func clearInputPassword() {}
+	func setErrorMessage(_ message: String?) {
+		viewModel.errorMessage = message
+	}
+
+	func setLoading(_ isLoading: Bool) {
+		viewModel.isLoading = isLoading
+	}
+
+	func clearInputPassword() {
+		viewModel.clearPassword()
+	}
 }
 #endif
 
