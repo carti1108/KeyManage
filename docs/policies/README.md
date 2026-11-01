@@ -24,6 +24,8 @@
 | [SEC-003](SEC/SEC-003-unlock-and-auto-lock.md) | 잠금 해제 및 자동 잠금 정책 | 확정 | 보안 및 마스터키 |
 | [GEN-001](GEN/GEN-001-password-generation-and-entropy-scoring.md) | 무작위 암호 생성 및 엔트로피 점수 산출 규칙 | 확정 | 비밀번호 생성 및 진단 |
 | [VLT-001](VLT/VLT-001-cross-platform-vault-sync.md) | 크로스 플랫폼 볼트 동기화 및 충돌 해결 정책 | 확정 | 볼트 저장 및 동기화 |
+| [VLT-002](VLT/VLT-002-offline-pending-sync.md) | 오프라인 동기화 대기 및 재전송 정책 | 확정 | 볼트 저장 및 동기화 |
+| [VLT-003](VLT/VLT-003-device-vault-persistence.md) | 기기 볼트 보존 정책 | 확정 | 볼트 저장 및 동기화 |
 | [COM-001](COM/COM-001-clipboard-auto-burn-and-graceful-fallback.md) | 클립보드 30초 자동 소각 및 오류 방어 정책 | 확정 | 공통 예외 및 클립보드 |
 
 ---
