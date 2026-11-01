@@ -1,7 +1,9 @@
 import Foundation
+import Combine
 import MicroRIBs
 import KeyManageDomain
 import UnlockFeatureInterface
+import MainFeatureInterface
 import RootFeatureInterface
 
 // MARK: - MockVaultLockManager
@@ -248,19 +250,79 @@ public final class RootRoutingMock: RootRouting {
 	}
 }
 
+// MARK: - MockMainBuilder
+
+@MainActor
+public final class MockMainBuilder: MainBuildable {
+	public var buildCallCount = 0
+	public var receivedListener: MainListener?
+	public var routingToReturn: MainRouting
+
+	public init(routingToReturn: MainRouting = MockMainRouting()) {
+		self.routingToReturn = routingToReturn
+	}
+
+	public func build(withListener listener: MainListener) -> MainRouting {
+		buildCallCount += 1
+		receivedListener = listener
+		return routingToReturn
+	}
+}
+
+@MainActor
+public final class MockMainRouting: MainRouting {
+	public let viewControllable: ViewControllable
+	public var interactable: Interactable
+	public var children: [Routing] = []
+	public var lifecycle: AsyncStream<RouterLifecycle> {
+		lifecycleSubject.stream
+	}
+	private let lifecycleSubject = PassthroughAsyncSubject<RouterLifecycle>()
+
+	public var loadCallCount = 0
+	public var attachChildCallCount = 0
+	public var detachChildCallCount = 0
+
+	public init(
+		viewControllable: ViewControllable = InternalMockViewControllable(),
+		interactable: Interactable = InternalMockInteractable()
+	) {
+		self.viewControllable = viewControllable
+		self.interactable = interactable
+	}
+
+	public func load() {
+		loadCallCount += 1
+		lifecycleSubject.send(.didLoad)
+	}
+
+	public func attachChild(_ child: Routing) {
+		attachChildCallCount += 1
+		children.append(child)
+	}
+
+	public func detachChild(_ child: Routing) {
+		detachChildCallCount += 1
+		children.removeAll { $0 === child }
+	}
+}
+
 // MARK: - RootDependencyMock
 
 @MainActor
 public final class RootDependencyMock: RootDependency {
 	public var lockManager: VaultLockManagerProtocol
 	public var unlockBuilder: UnlockBuildable
+	public var mainBuilder: MainBuildable
 
 	public init(
 		lockManager: VaultLockManagerProtocol = MockVaultLockManager(),
-		unlockBuilder: UnlockBuildable = MockUnlockBuilder()
+		unlockBuilder: UnlockBuildable = MockUnlockBuilder(),
+		mainBuilder: MainBuildable = MockMainBuilder()
 	) {
 		self.lockManager = lockManager
 		self.unlockBuilder = unlockBuilder
+		self.mainBuilder = mainBuilder
 	}
 }
 

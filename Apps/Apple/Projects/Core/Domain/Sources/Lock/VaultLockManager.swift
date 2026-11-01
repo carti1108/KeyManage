@@ -46,6 +46,10 @@ public protocol VaultLockManagerProtocol: AnyObject, Sendable {
 }
 
 public extension VaultLockManagerProtocol {
+	func lockVault() {
+		lock()
+	}
+
 	func setupSession(
 		email: String,
 		sessionToken: String,

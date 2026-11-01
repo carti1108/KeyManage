@@ -50,6 +50,7 @@ final class RootInteractableMock: RootInteractable {
 
 	var didUnlockVaultCallCount = 0
 	var didLockVaultCallCount = 0
+	var didRequestLockVaultCallCount = 0
 
 	func activate() {
 		isActive = true
@@ -67,6 +68,10 @@ final class RootInteractableMock: RootInteractable {
 
 	func didLockVault() {
 		didLockVaultCallCount += 1
+	}
+
+	func didRequestLockVault() {
+		didRequestLockVaultCallCount += 1
 	}
 }
 
@@ -240,5 +245,102 @@ struct RootFeatureTests {
 		let router = routing as? RootRouter
 		#expect(router?.unlockBuilder === unlockBuilder)
 		#expect(routing.viewControllable is RootViewControllable)
+	}
+
+	// MARK: - 7. RootRouter routeToMain 호출 시 Main RIB 부착 및 뷰 교체 검증
+	@Test("RootRouter.routeToMain() 호출 시 mainBuilder.build(...) 실행 및 자식 RIB attach, 뷰 교체 검증")
+	func rootRouter_routeToMain_attachesMainRoutingAndReplacesActiveView() {
+		// Given
+		let unlockBuilder = MockUnlockBuilder()
+		let mainRouting = MockMainRouting()
+		let mainBuilder = MockMainBuilder(routingToReturn: mainRouting)
+		let interactor = RootInteractableMock()
+		let viewController = RootViewControllableSpy()
+		let router = RootRouter(
+			interactor: interactor,
+			viewController: viewController,
+			unlockBuilder: unlockBuilder,
+			mainBuilder: mainBuilder
+		)
+
+		// When
+		router.routeToMain()
+
+		// Then
+		#expect(mainBuilder.buildCallCount == 1)
+		#expect(router.children.contains { $0 === mainRouting })
+		#expect(viewController.replaceActiveViewCallCount == 1)
+		#if os(macOS)
+		#expect(viewController.replacedViewControllable?.nsViewController === mainRouting.viewControllable.nsViewController)
+		#elseif os(iOS)
+		#expect(viewController.replacedViewControllable?.uiViewController === mainRouting.viewControllable.uiViewController)
+		#endif
+	}
+
+	// MARK: - 8. RootRouter routeToMain 중복 호출 시 멱등성 검증
+	@Test("RootRouter.routeToMain() 이미 부착된 상태에서 재호출 시 중복 빌드 및 부착을 건너뛴다")
+	func rootRouter_routeToMain_whenAlreadyAttached_isIdempotent() {
+		// Given
+		let unlockBuilder = MockUnlockBuilder()
+		let mainRouting = MockMainRouting()
+		let mainBuilder = MockMainBuilder(routingToReturn: mainRouting)
+		let interactor = RootInteractableMock()
+		let viewController = RootViewControllableSpy()
+		let router = RootRouter(
+			interactor: interactor,
+			viewController: viewController,
+			unlockBuilder: unlockBuilder,
+			mainBuilder: mainBuilder
+		)
+		router.routeToMain()
+
+		// When
+		router.routeToMain()
+
+		// Then
+		#expect(mainBuilder.buildCallCount == 1)
+	}
+
+	// MARK: - 9. RootRouter routeToUnlock 호출 시 기존 Main RIB 분리 검증
+	@Test("RootRouter.routeToUnlock() 호출 시 기 부착된 mainRouting이 detach되고 자식 목록에서 제거된다")
+	func rootRouter_routeToUnlock_whenMainAttached_detachesMainRouting() {
+		// Given
+		let unlockRouting = MockUnlockRouting()
+		let unlockBuilder = MockUnlockBuilder(stubbedRouting: unlockRouting)
+		let mainRouting = MockMainRouting()
+		let mainBuilder = MockMainBuilder(routingToReturn: mainRouting)
+		let interactor = RootInteractableMock()
+		let viewController = RootViewControllableSpy()
+		let router = RootRouter(
+			interactor: interactor,
+			viewController: viewController,
+			unlockBuilder: unlockBuilder,
+			mainBuilder: mainBuilder
+		)
+		router.attachChild(mainRouting)
+		#expect(router.children.contains { $0 === mainRouting })
+
+		// When
+		router.routeToUnlock()
+
+		// Then
+		#expect(!router.children.contains { $0 === mainRouting })
+		#expect(router.mainRouting == nil)
+	}
+
+	// MARK: - 10. RootInteractor MainListener didRequestLockVault 수신 시 Unlock RIB 전이 검증
+	@Test("RootInteractor가 MainListener.didRequestLockVault() 수신 시 router.routeToUnlock() 호출 검증")
+	func rootInteractor_didRequestLockVault_routesToUnlock() {
+		// Given
+		let lockManager = MockVaultLockManager()
+		let interactor = RootInteractor(lockManager: lockManager)
+		let router = RootRoutingMock()
+		interactor.router = router
+
+		// When
+		interactor.didRequestLockVault()
+
+		// Then
+		#expect(router.routeToUnlockCallCount == 1)
 	}
 }

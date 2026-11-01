@@ -32,4 +32,8 @@ final class RootInteractor: Interactor, RootInteractable {
 	func didLockVault() {
 		router?.routeToUnlock()
 	}
+
+	func didRequestLockVault() {
+		router?.routeToUnlock()
+	}
 }
