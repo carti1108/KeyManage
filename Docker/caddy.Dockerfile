@@ -18,5 +18,6 @@ COPY Docker/caddy/https.caddy /etc/caddy/https.caddy
 COPY Docker/caddy/entrypoint.sh /usr/local/bin/keymanage-caddy
 # Windows에서 받은 레포는 스크립트가 CRLF일 수 있다. 셸이 읽을 수 있게 LF로 바꾼다
 RUN sed -i 's/\r$//' /usr/local/bin/keymanage-caddy && chmod +x /usr/local/bin/keymanage-caddy
+# 공식 이미지 기본값대로 root로 실행한다. Linux에서 mkcert 키는 호스트 사용자 소유 0600이라, 다른 uid로는 마운트한 키를 읽지 못한다
 EXPOSE 8080 8443
 ENTRYPOINT ["/usr/local/bin/keymanage-caddy"]

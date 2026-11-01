@@ -7,6 +7,10 @@
 	persist_config off
 	# 8443의 인증서는 직접 지정한다. 80 포트 리다이렉트와 인증서 발급을 하지 않는다
 	auto_https disable_redirects
+	# HTTP/3(UDP)는 열지 않는다. Alt-Svc h3 광고도 하지 않는다
+	servers {
+		protocols h1 h2
+	}
 }
 
 (keymanage) {
