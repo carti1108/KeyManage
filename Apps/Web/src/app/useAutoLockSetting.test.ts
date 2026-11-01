@@ -11,14 +11,16 @@ const MINUTE = 60_000
 function fakeSession() {
   const unlockListeners = new Set<() => void>()
   const lockListeners = new Set<() => void>()
-  const session: LockableSession & { locks: number; status: 'unlocked' | 'signedOut'; unlockNow(): void; logout(): void } = {
+  const session: LockableSession & { locks: number; scopes: (string | undefined)[]; status: 'unlocked' | 'signedOut'; unlockNow(): void; logout(): void } = {
     locks: 0,
+    scopes: [],
     status: 'signedOut',
     state() {
       return this.status === 'unlocked' ? ({ status: 'unlocked' } as ReturnType<LockableSession['state']>) : { status: 'signedOut' }
     },
-    lock() {
+    lock(scope) {
       this.locks += 1
+      this.scopes.push(scope)
       this.status = 'signedOut'
       for (const l of lockListeners) l()
     },
@@ -146,5 +148,19 @@ describe('자동 잠금 시간 설정과 타이머 연결 (SEC-003, ADR-WEB-002)
     window.dispatchEvent(new StorageEvent('storage', { key: AUTO_LOCK_STORAGE_KEY, newValue: '60000' }))
 
     expect(hook.result.current.timeoutMs).toBe(before)
+  })
+
+  it('숨겨진 탭이 다른 탭에서 "즉시"를 받으면 그 탭만 바로 잠근다', () => {
+    const { session, hook } = setup()
+    act(() => session.unlockNow())
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
+
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', { key: AUTO_LOCK_STORAGE_KEY, newValue: '0' }))
+    })
+
+    expect(session.scopes).toEqual(['thisTab'])
+    visibility.mockRestore()
+    hook.unmount()
   })
 })

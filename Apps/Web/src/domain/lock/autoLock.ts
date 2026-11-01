@@ -95,7 +95,9 @@ export function createAutoLock({ timeoutMs, now, scheduler, onTimeout, isVisible
   return {
     start() {
       running = true
-      restartTimer()
+      // "즉시"는 숨겨지는 순간 잠근다. 이미 숨겨진 채 시작(설정 변경으로 다시 연결)하면 숨김 알림이 다시 오지 않으므로 바로 잠근다
+      if (immediate && !isVisible()) fire('hidden')
+      else restartTimer()
     },
     stop() {
       running = false

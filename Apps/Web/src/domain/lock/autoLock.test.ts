@@ -191,3 +191,19 @@ describe('숨겨진 탭의 시간 초과 (SEC-003, ADR-WEB-001)', () => {
     expect(causes).toEqual(['expired'])
   })
 })
+
+describe('숨겨진 탭에서 시작 (SEC-003)', () => {
+  it('"즉시" 설정으로 숨겨진 채 시작하면 바로 그 탭만 잠그는 hidden', () => {
+    const { causes } = setup(AUTO_LOCK_OPTIONS_MS.immediately, () => false)
+
+    expect(causes).toEqual(['hidden'])
+  })
+
+  it('"즉시"가 아니면 숨겨진 채 시작해도 바로 잠그지 않고 시간을 잰다', () => {
+    const { time, causes } = setup(MINUTE, () => false)
+
+    expect(causes).toEqual([])
+    time.advance(MINUTE)
+    expect(causes).toEqual(['expired'])
+  })
+})
