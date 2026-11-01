@@ -1,5 +1,6 @@
 // 세션 상태에 따라 로그인·잠금·볼트 화면을 고른다
 import { useCallback, useEffect, useState } from 'react'
+import { MasterPasswordChangedError } from '../../domain/auth/authService'
 import { SessionExpiredError } from '../../domain/session/vaultSession'
 import { ConfirmPrompt } from '../components/ConfirmPrompt'
 import { Alert } from '../components/Alert'
@@ -12,7 +13,13 @@ import { VaultHomeScreen } from '../screens/VaultHomeScreen'
 import type { ClipboardPort } from '../clipboard/clipboardPort'
 import { ClipboardNotice } from '../clipboard/ClipboardNotice'
 import { VaultScreen } from '../vault/VaultScreen'
+import { ReconnectPrompt } from './ReconnectPrompt'
 import type { RollbackOption, SessionPort } from './sessionPort'
+
+/** 로그인 화면으로 돌려보내며 이유를 알려야 하는 오류 (SEC-002, SEC-003) */
+function sendsToSignIn(error: unknown): boolean {
+  return error instanceof SessionExpiredError || error instanceof MasterPasswordChangedError
+}
 
 export interface SessionRootProps {
   session: SessionPort
@@ -138,7 +145,7 @@ export function SessionRoot({ session, clipboard, pageHidden }: SessionRootProps
               const result = await session.unlock(password, options)
               setOffline(result.offline)
             } catch (error) {
-              if (!(error instanceof SessionExpiredError)) throw error
+              if (!sendsToSignIn(error)) throw error
               setNotice(describeError(error).body)
             }
             refresh()
@@ -159,6 +166,22 @@ export function SessionRoot({ session, clipboard, pageHidden }: SessionRootProps
       >
         {logoutConfirm()}
         {syncError && <Alert title={syncError.title}>{syncError.body}</Alert>}
+        {!state.signedIn && (
+          <ReconnectPrompt
+            email={state.email}
+            onReconnect={async (password) => {
+              try {
+                await session.reconnect(password)
+                setSyncError(null)
+              } catch (error) {
+                if (!sendsToSignIn(error)) throw error
+                setNotice(describeError(error).body)
+              } finally {
+                refresh()
+              }
+            }}
+          />
+        )}
         <ClipboardNotice clipboard={clipboard} />
         <VaultScreen
           vault={state.vault}

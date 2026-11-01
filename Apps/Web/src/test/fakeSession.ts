@@ -19,7 +19,7 @@ export function createFakeSession(initial: SessionState = { status: 'signedOut' 
     /** 진행 중인 로그아웃의 서버 요청을 끝낸다 */
     finishLogout: () => {},
     openVault(email = 'me@example.com', vault: SyncedVault = fakeVault()) {
-      current = { status: 'unlocked', email, vault, pendingSync: false }
+      current = { status: 'unlocked', email, vault, pendingSync: false, signedIn: true }
       for (const listener of unlockListeners) listener()
     },
     closeVault() {
@@ -58,6 +58,10 @@ export function createFakeSession(initial: SessionState = { status: 'signedOut' 
     save: vi.fn(async (data: VaultData) => {
       if (current.status !== 'unlocked') throw new Error('잠금 해제 상태가 아님')
       current = { ...current, vault: { ...current.vault, revision: current.vault.revision + 1, data } }
+    }),
+    // 실제 세션처럼 다시 로그인하면 세션이 생기고, 저장은 알림 없이 화면이 다시 읽는다
+    reconnect: vi.fn(async (_password: string) => {
+      if (current.status === 'unlocked') current = { ...current, signedIn: true }
     }),
     lock: vi.fn(() => control.closeVault()),
     // 실제 세션처럼 이 기기의 세션을 먼저 지우고, 서버 응답은 테스트가 정할 때 끝낸다
