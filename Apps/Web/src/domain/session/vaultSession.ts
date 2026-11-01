@@ -6,6 +6,7 @@ import { fromBase64 } from '../crypto/base64'
 import { deriveKeys } from '../crypto/keys'
 import { VaultDecryptError, openVault, type EncryptedVaultPayload } from '../crypto/vaultCipher'
 import { createDevicePersistence } from '../device/devicePersistence'
+import { sameKdf, samePayload, sameRecord } from '../device/reconcileDeviceRecord'
 import { DEVICE_RECORD_VERSION, DeviceStorageError, parseDeviceRecord, type DeviceRecord, type DeviceStore } from '../device/deviceRecord'
 import { NetworkError, ServerError } from '../server/serverErrors'
 import { mergeVaults } from '../vault/mergeVaults'
@@ -113,25 +114,6 @@ type PushResult = 'synced' | 'idle' | 'stillPending'
 
 function isUnauthorized(error: unknown): boolean {
   return error instanceof ServerError && error.code === 'UNAUTHORIZED'
-}
-
-function sameKdf(a: UnlockKdf, b: UnlockKdf): boolean {
-  return a.salt === b.salt && a.iterations === b.iterations
-}
-
-function samePayload(a: EncryptedVaultPayload, b: EncryptedVaultPayload): boolean {
-  return a.version === b.version && a.cipher === b.cipher && a.iv === b.iv && a.ciphertext === b.ciphertext && a.tag === b.tag
-}
-
-function sameRecord(a: DeviceRecord, b: DeviceRecord): boolean {
-  return (
-    a.email === b.email &&
-    sameKdf(a.kdf, b.kdf) &&
-    samePayload(a.payload, b.payload) &&
-    a.revision === b.revision &&
-    a.lastSeenRevision === b.lastSeenRevision &&
-    a.pendingSync === b.pendingSync
-  )
 }
 
 // 세션 토큰 없이 연 볼트의 동기화 객체에 넘기는 값. pushPending·syncAfterUnlock이 토큰 없이는 요청하지 않는다
