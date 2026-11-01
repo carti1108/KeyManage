@@ -53,7 +53,7 @@ describe('describeError', () => {
     expect(describeError(new ServerError(401, 'AUTH_FAILED')).title).toBe('로그인 실패')
   })
 
-  it('예상하지 못한 오류는 내부 메시지를 드러내지 않고 공통 문구를 쓴다 (COM-001)', () => {
+  it('예상하지 못한 오류는 내부 메시지를 드러내지 않고 공통 문구를 쓴다 (COM-002)', () => {
     const message = describeError(new Error('stack trace with secret')).body
 
     expect(message).toBe('알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.')
