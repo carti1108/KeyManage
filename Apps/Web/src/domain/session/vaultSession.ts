@@ -727,12 +727,11 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory, deviceS
 
     /**
      * 기기 기록에 서버에 올리지 못한 변경이 있는지. 기록은 모든 탭의 대기 내용을 합친 것이므로 로그아웃 확인에 쓴다 (ADR-WEB-001).
-     * 다른 탭이 쓰는 중이면 끝난 뒤 읽는다. 읽지 못하면 이 탭의 대기 표시로 답한다
+     * 다른 탭이 쓰는 중이면 끝난 뒤 읽는다. 읽지 못하면 다른 탭의 대기 내용을 알 수 없으니 있다고 보고 확인을 받는다
      */
     async pendingOnDevice(): Promise<boolean> {
-      const fallback = account?.pendingSync === true
       const record = await tabs.lock.run('device', readDevice).catch(() => undefined)
-      if (record === undefined) return fallback
+      if (record === undefined) return true
       return account !== null && record !== null && record.email === account.email && record.pendingSync
     },
 

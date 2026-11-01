@@ -353,3 +353,12 @@ describe('기기에 쓰지 못한 대기 내용 (ADR-WEB-001)', () => {
     expect(await recordItemIds(shared.record)).toEqual(['a', 'y'])
   })
 })
+
+describe('로그아웃 확인 (ADR-WEB-001)', () => {
+  it('기기 기록을 읽지 못하면 대기 내용이 있다고 보고 확인을 받는다', async () => {
+    const { a, deviceStore } = await twoUnlockedTabs()
+    deviceStore.failLoads = 1
+
+    expect(await a.session.pendingOnDevice()).toBe(true)
+  })
+})
