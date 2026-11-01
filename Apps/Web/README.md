@@ -42,9 +42,44 @@ npm run build    # 정적 파일 빌드 (dist/)
 ```bash
 npm run tauri dev                          # 개발 서버를 띄우고 데스크톱 창으로 연다
 npm run tauri build -- --debug --no-bundle # 디버그 실행 파일만 빌드 (src-tauri/target/debug)
-npm run tauri build                        # 설치 파일까지 빌드
+npm run tauri:build                        # 릴리스 빌드(설치 파일 포함). VITE_API_BASE_URL 필요
+npm run tauri:build -- --no-bundle         # 릴리스 실행 파일만 빌드 (src-tauri/target/release)
 ```
 
-- **CSP**: 스크립트·스타일은 앱 자체에서만 불러오고, 네트워크는 앱 자신과 Rust(IPC)로만 허용한다. 악성 코드가 들어와도 복호화된 데이터를 외부로 보내지 못하게 하기 위해서다. 서버 통신 경로는 API 클라이언트 작업에서 정한다. 개발(`tauri dev`)에서는 Vite의 인라인 스타일·스크립트와 HMR 웹소켓을 위해 `devCsp`를 따로 쓴다.
+릴리스는 반드시 `npm run tauri:build`로 만든다. 이 명령이 서버 주소로 릴리스 CSP(`tauri.release.conf.json`)를 만들어 넘긴다. `npm run tauri build`로 바로 빌드하면 CSP가 서버를 막아 통신할 수 없는 앱이 된다.
+
+- **CSP**: 스크립트·스타일은 앱 자체에서만 불러오고, 네트워크는 앱 자신과 Rust(IPC), 그리고 릴리스 빌드에서는 빌드할 때 정한 서버 출처 하나로만 허용한다(ADR-0013). 악성 코드가 들어와도 복호화된 데이터를 다른 곳으로 보내지 못하게 하기 위해서다. 개발(`tauri dev`)에서는 Vite의 인라인 스타일·스크립트와 HMR 웹소켓을 위해 `devCsp`를 따로 쓴다.
 - **권한**: 현재는 `core:default`만 연다. 클립보드 등 플랫폼 기능은 그 기능을 만드는 작업에서 필요한 권한만 추가한다.
-- `tauri dev`에서는 창이 Vite 개발 서버를 열므로 `/api` 프록시가 그대로 동작한다. **빌드된 앱**에는 프록시가 없어 서버 주소 설정이 필요하며, API 클라이언트 작업에서 다룬다.
+- `tauri dev`에서는 창이 Vite 개발 서버를 열므로 `/api` 프록시가 그대로 동작한다. 개발 서버가 이미 떠 있으면 `npm run tauri dev -- --config '{"build":{"beforeDevCommand":""}}'`로 그 서버를 쓴다.
+- **빌드된 앱**에는 프록시가 없다. 서버 주소는 빌드할 때 `VITE_API_BASE_URL`로 정하고, HTTPS 출처만 받는다(릴리스는 `http://localhost`도 거절). 서버는 `keymanage.http.allowed-origins`에 앱 출처(Windows는 `http://tauri.localhost`)를 넣어 CORS를 허용해야 한다.
+
+### 릴리스 빌드 로컬 확인
+
+배포 서버 없이 릴리스 앱의 서버 통신을 확인하는 절차다. 2026-11-01에 Windows에서 이 절차로 가입·로그인·항목 저장과 브라우저와의 동기화를 확인했다.
+
+1. 로컬 HTTPS 인증서를 만든다. [mkcert](https://github.com/FiloSottile/mkcert)는 이 PC에만 신뢰되는 루트 인증서를 등록한다(지울 때는 `mkcert -uninstall`).
+
+   ```bash
+   mkcert -install
+   mkcert -cert-file localhost.pem -key-file localhost-key.pem localhost 127.0.0.1
+   ```
+
+2. [Caddy](https://caddyserver.com/)로 `https://localhost:8443`을 백엔드 8080으로 넘긴다. `Caddyfile`:
+
+   ```caddyfile
+   {
+   	auto_https disable_redirects
+   	admin off
+   }
+
+   https://localhost:8443 {
+   	tls localhost.pem localhost-key.pem
+   	reverse_proxy localhost:8080
+   }
+   ```
+
+   `caddy run --config Caddyfile --adapter caddyfile`로 띄운다.
+
+3. 백엔드를 앱 출처만 허용하도록 띄운다(`Back/`에서): `KEYMANAGE_HTTP_ALLOWED_ORIGINS=http://tauri.localhost ./gradlew :app:bootRun`
+4. 서버 주소를 넣어 빌드하고 실행한다: `VITE_API_BASE_URL=https://localhost:8443 npm run tauri:build -- --no-bundle` 뒤 `src-tauri/target/release/keymanage-desktop.exe`
+5. 앱에서 가입·로그인·항목 저장을 하고, 브라우저(`npm run dev`)에서 같은 계정으로 항목이 보이는지 확인한다.
