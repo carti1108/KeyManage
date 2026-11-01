@@ -13,7 +13,7 @@
 | iOS·macOS 공유 | `Domain`, `Data`, `Interactor`, `Viewless RIBs`는 iOS와 macOS가 같은 코드를 쓴다. |
 | 플랫폼별 분리 | 화면 전환이 다른 `Viewable Router`, `Builder`, 최상위 컨테이너 `View`는 플랫폼별로 나눈다. |
 
-> **주의** 공통 정책([`docs/policies/`](../../../docs/policies/README.md))은 Apple 구현 PR에서 고치지 않는다. 정책에 빈틈이 보이면 정책 이슈로 올린다.
+공통 정책([`docs/policies/`](../../../docs/policies/README.md))은 Apple 구현 PR에서 고치지 않는다. 정책에 빈틈이 보이면 정책 이슈로 올린다.
 
 ---
 
