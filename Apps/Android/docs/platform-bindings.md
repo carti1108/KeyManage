@@ -14,7 +14,7 @@
 
 ## 색상 토큰
 
-Material3 `darkColorScheme()`와 `lightColorScheme()`에 공통 토큰 값을 그대로 넣는다. 화면에서는 `MaterialTheme.colorScheme.*`로 쓴다.
+Jetpack Compose의 Material3 `darkColorScheme()`와 `lightColorScheme()`에 공통 토큰 값을 그대로 넣는다. 화면에서는 `MaterialTheme.colorScheme.*`로 쓴다.
 
 ## 글꼴
 

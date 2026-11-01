@@ -1,11 +1,11 @@
 # 볼트 암호화 규격과 평문 볼트 스키마
 
 - 적용 범위: 모든 클라이언트(iOS/macOS, Android, Web)
-- 관련 정책: SEC-001, SEC-002, VLT-001
+- 관련 정책: SEC-001, SEC-002, SEC-003, VLT-001, VLT-002, VLT-003
 
 > **요약** 클라이언트는 마스터 비밀번호에서 키를 유도해 볼트를 AES-256-GCM으로 암호화한다. 서버에는 암호문(`EncryptedVaultPayload`)만 보낸다. 모든 클라이언트는 같은 파라미터와 같은 평문 스키마(`VaultData`)를 써야 서로의 볼트를 열 수 있다.
 
-> **주의** 이 규격의 값 하나라도 플랫폼마다 다르면, 다른 기기에서 볼트를 열 수 없다. 값을 바꾸려면 ADR이 필요하다.
+> **주의** 키 유도·암호화 파라미터나 평문 스키마가 플랫폼마다 다르면, 다른 기기에서 볼트를 열 수 없다.
 
 ---
 
@@ -121,9 +121,9 @@
 | `updatedAt` | String | 예 | ISO 8601 UTC 타임스탬프(`YYYY-MM-DDTHH:mm:ssZ`) |
 | `items` | Array | 예 | 계정 자격증명 목록 |
 | `items[].id` | String | 예 | UUID v4 고유 식별자 |
-| `items[].serviceName` | String | 예 | 서비스·사이트 이름(예: "Google", "GitHub") |
-| `items[].username` | String | 예 | 로그인 아이디 또는 이메일 |
-| `items[].password` | String | 예 | 평문 비밀번호 |
+| `items[].serviceName` | String | 예(삭제된 항목은 아니요) | 서비스·사이트 이름(예: "Google", "GitHub") |
+| `items[].username` | String | 예(삭제된 항목은 아니요) | 로그인 아이디 또는 이메일 |
+| `items[].password` | String | 예(삭제된 항목은 아니요) | 평문 비밀번호 |
 | `items[].url` | String | 아니요 | 로그인 페이지 URL |
 | `items[].notes` | String | 아니요 | 사용자 메모 |
 | `items[].createdAt` | String | 예 | 등록 일시(ISO 8601) |

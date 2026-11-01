@@ -1,7 +1,7 @@
 # 웹 플랫폼 바인딩
 
 - 대상 명세: [vault-spec.md](../../../docs/vault-spec.md), [design-system.md](../../../docs/design-system.md)
-- 대상 코드: `Apps/Web/src/`
+- 대상 코드: `Apps/Web/src/` (Vite + React + Tailwind CSS)
 
 > **요약** 웹·데스크톱 클라이언트가 공통 암호 규격과 디자인 시스템을 어떤 라이브러리와 파일로 구현하는지 적는다.
 
@@ -9,7 +9,8 @@
 
 | 규격 | 구현 |
 | :--- | :--- |
-| PBKDF2 | Web Crypto API (`subtle.deriveKey`) |
+| PBKDF2 | Web Crypto API (`subtle.deriveBits({ name: "PBKDF2" })`) |
+| HKDF(암호화 키) | Web Crypto API (`subtle.deriveKey`) |
 | AES-256-GCM | Web Crypto API (`subtle.encrypt({ name: "AES-GCM" })`) |
 
 ## 색상 토큰

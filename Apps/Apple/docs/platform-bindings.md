@@ -14,7 +14,9 @@
 
 ## 색상 토큰
 
-iOS 구현이 SwiftUI든 UIKit이든 모두 지원하도록 `DesignToken` 정적 열거형 구조를 유지한다.
+> **현재 상태** 아래 `DesignToken`은 목표 구조다. 아직 코드에 없다.
+
+iOS 구현이 SwiftUI든 UIKit이든 모두 지원하도록 `DesignToken` 정적 열거형 구조를 둔다.
 
 ```swift
 public enum DesignToken {

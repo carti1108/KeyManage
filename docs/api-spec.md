@@ -146,7 +146,7 @@
 | 상태 | 코드 | 메시지 | 조건 |
 | :--- | :--- | :--- | :--- |
 | 409 | `VAULT_CONFLICT` | 다른 기기에서 볼트가 먼저 변경되었습니다. | `expectedRevision`이 서버의 현재 revision과 다르다. 응답에 `currentRevision`을 더한다. 클라이언트는 최신 볼트를 조회해 항목별로 병합한 뒤 다시 저장한다 (VLT-001, ADR-0006). |
-| 413 | `VAULT_TOO_LARGE` | 볼트 허용 용량(5MB)을 초과했습니다. | 페이로드가 허용 용량을 넘었다. |
+| 413 | `VAULT_TOO_LARGE` | 볼트 허용 용량(5MB)을 초과했습니다. | 페이로드가 5MB를 넘었거나, 요청 본문이 1장의 상한(6MB)을 넘었다. |
 
 409 응답 예:
 
@@ -187,6 +187,8 @@
 | :--- | :--- |
 | URL | `POST /api/v1/auth/register` (토큰 불필요) |
 | 응답 201 Created | `{ "accessToken": "<토큰>", "expiresAt": "2026-11-27T11:20:00Z" }` |
+
+**요청 본문**
 
 ```json
 { "email": "user@example.com", "authHash": "<32바이트 Base64>", "kdfSalt": "<16바이트 Base64>", "kdfIterations": 600000 }
