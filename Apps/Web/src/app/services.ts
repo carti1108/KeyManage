@@ -32,8 +32,9 @@ export function createServices(
   return {
     session: createVaultSession({
       auth: createAuthService(createHttpAuthApi(client)),
-      vaultSyncFor: (accessToken, encryptionKey) =>
-        createVaultSync({ api: createHttpVaultApi(client, accessToken), encryptionKey, now: () => new Date(), revisionMemory }),
+      // 세션이 로그인마다 따로 넘기는 기억을 쓴다. 이전 로그인의 늦은 응답이 기준을 바꾸지 못한다
+      vaultSyncFor: (accessToken, encryptionKey, memory) =>
+        createVaultSync({ api: createHttpVaultApi(client, accessToken), encryptionKey, now: () => new Date(), revisionMemory: memory }),
       revisionMemory,
       deviceStore,
     }),

@@ -101,7 +101,7 @@ export function setup({ authApi = new FakeAuthApi(), vaultApi = new FakeVaultApi
   let unlocks = 0
   const session = createVaultSession({
     auth: createAuthService(authApi),
-    vaultSyncFor: (_token, encryptionKey) => createVaultSync({ api: vaultApi, encryptionKey, now: () => NOW, revisionMemory }),
+    vaultSyncFor: (_token, encryptionKey, memory) => createVaultSync({ api: vaultApi, encryptionKey, now: () => NOW, revisionMemory: memory }),
     revisionMemory,
     deviceStore,
   })
@@ -131,7 +131,7 @@ async function openOnOtherDevice(vaultApi: FakeVaultApi) {
   const revisionMemory = createRevisionMemory()
   const other = createVaultSession({
     auth: createAuthService(new FakeAuthApi()),
-    vaultSyncFor: (_token, encryptionKey) => createVaultSync({ api: vaultApi, encryptionKey, now: () => NOW, revisionMemory }),
+    vaultSyncFor: (_token, encryptionKey, memory) => createVaultSync({ api: vaultApi, encryptionKey, now: () => NOW, revisionMemory: memory }),
     revisionMemory,
     deviceStore: new FakeDeviceStore(),
   })

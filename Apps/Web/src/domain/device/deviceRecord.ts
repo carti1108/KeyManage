@@ -1,6 +1,8 @@
 // 웹 기기에 저장하는 한 계정의 기록 (ADR-0019)
 // 비밀이 아니거나(이메일, KDF 값, revision) 암호화된 값(볼트)만 담는다. 토큰·키·인증 해시·평문은 담지 않는다
 import type { UnlockKdf } from '../auth/authService'
+import { fromBase64 } from '../crypto/base64'
+import { MAX_ITERATIONS, MIN_ITERATIONS, SALT_BYTES } from '../crypto/keys'
 import type { EncryptedVaultPayload } from '../crypto/vaultCipher'
 
 /** 기록 형식 버전. 형식을 바꾸면 올리고 이전 기록을 옮기는 절차를 둔다 */
@@ -47,8 +49,20 @@ function isRevision(value: unknown): value is number {
   return Number.isSafeInteger(value) && (value as number) >= 0
 }
 
+function isSalt(value: unknown): value is string {
+  if (typeof value !== 'string') return false
+  try {
+    return fromBase64(value).length === SALT_BYTES
+  } catch {
+    return false
+  }
+}
+
+// 키 유도가 받아들이지 않는 값이면 잠금 화면에서 빠져나올 수 없으므로 읽을 때 거른다 (SEC-001)
 function isKdf(value: unknown): value is UnlockKdf {
-  return isFields(value) && typeof value.salt === 'string' && Number.isSafeInteger(value.iterations) && (value.iterations as number) > 0
+  if (!isFields(value) || !isSalt(value.salt) || !Number.isSafeInteger(value.iterations)) return false
+  const iterations = value.iterations as number
+  return iterations >= MIN_ITERATIONS && iterations <= MAX_ITERATIONS
 }
 
 // 헤더 값의 규격은 복호화할 때 openVault가 확인한다. 여기서는 모양만 본다
