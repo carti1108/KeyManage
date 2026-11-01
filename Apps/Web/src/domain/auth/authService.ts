@@ -2,6 +2,7 @@
 // 마스터 비밀번호와 암호화 키는 이 모듈 밖의 서버 포트로 넘기지 않는다. 서버에는 인증 해시만 보낸다
 import { InvalidBase64Error, fromBase64, toBase64 } from '../crypto/base64'
 import { InvalidKdfParamsError, MIN_ITERATIONS, SALT_BYTES, deriveKeys } from '../crypto/keys'
+import { ServerError } from '../server/serverErrors'
 import type { AuthApi, KdfParams, Session } from './authApi'
 
 const SUPPORTED_KDF: KdfParams['kdf'] = 'PBKDF2-HMAC-SHA256'
@@ -13,6 +14,14 @@ export class InvalidEmailError extends Error {
   constructor() {
     super('이메일 형식이 올바르지 않음')
     this.name = 'InvalidEmailError'
+  }
+}
+
+/** 기기에 저장한 KDF 값이 서버와 다르거나 로그인이 인증 실패로 거절됨. 다른 기기에서 마스터 비밀번호를 바꾼 것으로 본다 (SEC-003) */
+export class MasterPasswordChangedError extends Error {
+  constructor() {
+    super('마스터 비밀번호가 바뀜')
+    this.name = 'MasterPasswordChangedError'
   }
 }
 
@@ -66,6 +75,26 @@ export function createAuthService(api: AuthApi) {
       const keys = await deriveKeys(password, decodeSalt(params.salt), params.iterations)
       const session = await api.login({ email: normalized, authHash: takeAuthHash(keys.authHash) })
       return { session, encryptionKey: keys.encryptionKey, kdf: { salt: params.salt, iterations: params.iterations } }
+    },
+
+    /**
+     * 세션 토큰 없이 잠금을 풀 때, 기기에 저장한 KDF 값으로 이미 만든 인증 해시로 로그인한다 (ADR-0019).
+     * 인증 해시 바이트는 성공·실패와 관계없이 지운다. 이 요청 밖으로 남기지 않는다
+     * @throws MasterPasswordChangedError, 그 밖에 서버 통신 오류(NetworkError 등)
+     */
+    async resume(email: string, kdf: UnlockKdf, authHash: Uint8Array): Promise<Session> {
+      try {
+        const params = await api.prelogin(email)
+        if (params.kdf !== SUPPORTED_KDF || params.salt !== kdf.salt || params.iterations !== kdf.iterations) {
+          throw new MasterPasswordChangedError()
+        }
+        return await api.login({ email, authHash: takeAuthHash(authHash) })
+      } catch (error) {
+        if (error instanceof ServerError && error.code === 'AUTH_FAILED') throw new MasterPasswordChangedError()
+        throw error
+      } finally {
+        authHash.fill(0)
+      }
     },
 
     logout(accessToken: string): Promise<void> {

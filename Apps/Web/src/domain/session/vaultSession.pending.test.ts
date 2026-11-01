@@ -56,19 +56,21 @@ describe('저장이 서버에 닿지 못하면 동기화 대기로 둔다', () =
     }
   })
 
-  it('잠기거나 세션이 만료돼도 대기 중임을 알 수 있다 (떠남 확인·로그아웃 확인용)', async () => {
-    const { session, vaultApi } = await pendingWithItemB()
+  it('잠기거나 세션이 만료돼도 대기 중이고, 기기에 저장하지 못했으면 떠남 확인이 필요하다고 답한다', async () => {
+    const { session, vaultApi, deviceStore } = await pendingWithItemB()
+    deviceStore.failing = true
+    await saveItem(session, 'c')
 
     session.lock()
     expect(session.state()).toEqual({ status: 'locked', email: 'user@example.com', pendingSync: true })
-    expect(session.hasPendingSync()).toBe(true)
+    expect(session.hasUnsavedChanges()).toBe(true)
 
     vaultApi.offline = false
     vaultApi.get = async () => {
       throw new ServerError(401, 'UNAUTHORIZED')
     }
     await expect(session.unlock(PASSWORD)).rejects.toBeInstanceOf(SessionExpiredError)
-    expect(session.hasPendingSync()).toBe(true)
+    expect(session.hasUnsavedChanges()).toBe(true)
   })
 
   it('용량 초과처럼 분명한 거절은 대기로 두지 않고 오류를 낸다', async () => {
@@ -299,7 +301,6 @@ describe('대기 중 세션 만료(401)', () => {
 
     expect(itemIds(session)).toEqual(['a'])
     expect(session.state()).toMatchObject({ pendingSync: false })
-    expect(session.hasPendingSync()).toBe(false)
     expect(syncResults.at(-1)).toBeInstanceOf(ServerError)
   })
 

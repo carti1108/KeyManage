@@ -1,11 +1,12 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
 import { fromBase64 } from '../crypto/base64'
-import { InvalidKdfParamsError, MAX_ITERATIONS, MIN_ITERATIONS } from '../crypto/keys'
+import { InvalidKdfParamsError, MAX_ITERATIONS, MIN_ITERATIONS, deriveKeys } from '../crypto/keys'
 import { vectors } from '../crypto/testVectors'
 import { openVault, sealVault } from '../crypto/vaultCipher'
 import type { AuthApi, KdfParams, LoginRequest, RegisterRequest, Session } from './authApi'
-import { InvalidEmailError, createAuthService, normalizeEmail } from './authService'
+import { NetworkError, ServerError } from '../server/serverErrors'
+import { InvalidEmailError, MasterPasswordChangedError, createAuthService, normalizeEmail } from './authService'
 
 const session: Session = { accessToken: 'token-1', expiresAt: '2026-11-28T00:00:00Z' }
 const vector = vectors.keyDerivationCases[0]
@@ -129,5 +130,51 @@ describe('로그아웃', () => {
     await createAuthService(api).logout('token-1')
 
     expect(api.loggedOut).toEqual(['token-1'])
+  })
+})
+
+describe('저장한 KDF 값으로 다시 로그인 (SEC-003, ADR-0019)', () => {
+  const stored = { salt: vector.salt, iterations: vectors.kdf.iterations }
+
+  async function derivedAuthHash() {
+    return (await deriveKeys(vector.password, fromBase64(vector.salt), vectors.kdf.iterations)).authHash
+  }
+
+  it('서버 KDF 값이 같으면 이미 만든 인증 해시로 로그인하고, 바이트는 지운다', async () => {
+    const api = new FakeAuthApi()
+    const authHash = await derivedAuthHash()
+
+    expect(await createAuthService(api).resume('user@example.com', stored, authHash)).toEqual(session)
+    expect(api.logins).toEqual([{ email: 'user@example.com', authHash: vector.authHash }])
+    expect(authHash.every((byte) => byte === 0)).toBe(true)
+  })
+
+  it('서버 KDF 값이 다르면 비밀번호가 바뀐 것으로 보고 로그인 요청을 보내지 않는다', async () => {
+    const api = new FakeAuthApi({ kdf: 'PBKDF2-HMAC-SHA256', iterations: vectors.kdf.iterations, salt: 'AAAAAAAAAAAAAAAAAAAAAA==' })
+    const authHash = await derivedAuthHash()
+
+    await expect(createAuthService(api).resume('user@example.com', stored, authHash)).rejects.toBeInstanceOf(MasterPasswordChangedError)
+    expect(api.logins).toEqual([])
+    expect(authHash.every((byte) => byte === 0)).toBe(true)
+  })
+
+  it('인증 실패로 거절되면 비밀번호가 바뀐 것으로 본다', async () => {
+    const api = new FakeAuthApi()
+    api.login = async () => {
+      throw new ServerError(401, 'AUTH_FAILED')
+    }
+
+    await expect(createAuthService(api).resume('user@example.com', stored, await derivedAuthHash())).rejects.toBeInstanceOf(MasterPasswordChangedError)
+  })
+
+  it('서버에 닿지 못해도 인증 해시 바이트를 지우고 오류를 그대로 낸다', async () => {
+    const api = new FakeAuthApi()
+    api.prelogin = async () => {
+      throw new NetworkError()
+    }
+    const authHash = await derivedAuthHash()
+
+    await expect(createAuthService(api).resume('user@example.com', stored, authHash)).rejects.toBeInstanceOf(NetworkError)
+    expect(authHash.every((byte) => byte === 0)).toBe(true)
   })
 })
