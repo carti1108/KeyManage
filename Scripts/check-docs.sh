@@ -7,6 +7,10 @@
 #      아직 없는 정책 번호는 <문서 폴더>/policies/open-questions.md에 예정으로 적혀 있을 때만 허용한다.
 #      "CAT-001부터 발급한다" 같은 번호 발급 안내문("부터 발급"이 들어간 줄)은 참조로 보지 않는다.
 #
+# 플랫폼 문서 폴더: 루트에서 두 단계 아래까지의 docs/(예: Apps/Web/docs/, Back/docs/)도 링크·번호 검사 대상이다.
+#   그 폴더에 adr/README.md가 있으면 그 폴더의 ADR 목록 표도 검사한다.
+#   ADR 번호는 공통(ADR-0001)과 플랫폼 접두어(ADR-WEB-001 등)를 모두 인식하며, 모든 ADR 폴더에서 겹치면 안 된다.
+#
 # 문서 폴더는 docs/ 또는 Docs/ 중 있는 것을 쓴다. adr/, policies/, ai-usage/는 있는 것만 검사한다.
 # 정책 접두어는 policies/README.md의 "영역과 접두어" 표와 실제 정책 파일 이름에서 읽는다(코드에 고정하지 않는다).
 #
@@ -103,6 +107,20 @@ for folder, ok, readme in (
 LOG_ENTRY = re.compile(r".*[\\/]" + re.escape(docs) + r"[\\/]ai-usage[\\/]log[\\/]\d{3}-[^\\/]+\.md$")
 scope = [os.path.join(root, f) for f in ("README.md", "CLAUDE.md", "AGENTS.md") if os.path.isfile(os.path.join(root, f))]
 scope += sorted(glob.glob(os.path.join(root, docs, "**", "*.md"), recursive=True))
+# 플랫폼 문서 폴더(루트에서 두 단계 아래까지의 docs/, 예: Apps/Web/docs/, Back/docs/). 빌드 산출물·의존성 폴더는 건너뛴다.
+SKIP_DIRS = {"node_modules", ".git", "build", "dist", "target", ".gradle", "Derived", "DerivedData"}
+platform_docs = sorted(
+    d for pattern in ("*/docs", "*/*/docs")
+    for d in glob.glob(os.path.join(root, pattern))
+    if os.path.isdir(d)
+    # 폴더 이름이 정확히 docs일 때만(대소문자를 구분하지 않는 Windows에서도 Linux CI와 같은 결과를 내도록)
+    and "docs" in os.listdir(os.path.dirname(d))
+    and not (set(os.path.relpath(d, root).replace(os.sep, "/").split("/")) & SKIP_DIRS)
+    # 루트 문서 폴더와 그 아래는 이미 검사 대상이다
+    and os.path.relpath(d, root).replace(os.sep, "/").split("/")[0] != docs
+)
+for d in platform_docs:
+    scope += sorted(glob.glob(os.path.join(d, "**", "*.md"), recursive=True))
 scope = [p for p in scope if not LOG_ENTRY.match(p)]
 
 def without_fences(text):
@@ -133,9 +151,10 @@ def section(text, heading):
     return match.group(1) if match else None
 
 def check_table(label, readme, heading, row_pattern, actual):
-    """표의 행(키: 번호)과 실제 파일에서 읽은 값(actual)을 비교한다."""
-    text = section(read(path_of(*readme)), heading)
-    shown = f"{docs}/" + "/".join(readme)
+    """표의 행(키: 번호)과 실제 파일에서 읽은 값(actual)을 비교한다. readme는 문서 폴더 기준 경로 조각이거나 파일 경로다."""
+    readme_path = readme if isinstance(readme, str) else path_of(*readme)
+    text = section(read(readme_path), heading)
+    shown = rel(readme_path)
     if text is None:
         report(f"{label} 목록 표를 찾을 수 없음: {shown}의 '## {heading}'")
         return
@@ -188,21 +207,38 @@ if has_policies:
         if m:
             prefixes.add(m.group(1))
 
+# ADR 번호: 공통은 ADR-0001, 플랫폼은 ADR-WEB-001처럼 접두어를 붙인다.
+# 번호는 모든 ADR 폴더(공통 + 플랫폼)에서 겹치면 안 되고, 번호 참조는 모든 폴더의 번호를 기준으로 확인한다.
+ADR_ID = r"ADR-(?:\d{4}|[A-Z]{2,4}-\d{3})"
+adr_dirs = [path_of("adr")] if has_adr else []
+for d in platform_docs:
+    if os.path.isfile(os.path.join(d, "adr", "README.md")):
+        adr_dirs.append(os.path.join(d, "adr"))
+    elif os.path.isdir(os.path.join(d, "adr")):
+        report(f"ADR 폴더는 있는데 목록 표의 README.md가 없음: {rel(os.path.join(d, 'adr'))}")
 adrs = {}
-if has_adr:
-    for path in sorted(glob.glob(path_of("adr", "ADR-[0-9][0-9][0-9][0-9]*.md"))):
-        if not re.match(r"ADR-\d{4}(-.+)?\.md$", os.path.basename(path)):
+for adr_dir in adr_dirs:
+    found = {}
+    for path in sorted(glob.glob(os.path.join(adr_dir, "ADR-*.md"))):
+        if not re.match(ADR_ID + r"(-.+)?\.md$", os.path.basename(path)):
             continue
         lines = read(path).split("\n")
-        head = re.match(r"### (ADR-\d{4}) (.+)$", lines[0])
+        head = re.match(r"### (" + ADR_ID + r") (.+)$", lines[0])
         if head is None:
             report(f"ADR 파일의 첫 줄이 '### 번호 제목' 형식이 아님: {rel(path)}")
             continue
+        if re.match(ADR_ID, os.path.basename(path)).group(0) != head.group(1):
+            report(f"ADR 파일 이름과 첫 줄의 번호가 다름: {rel(path)} → {head.group(1)}")
+            continue
+        if head.group(1) in adrs or head.group(1) in found:
+            report(f"ADR 번호가 겹침: {head.group(1)} ({rel(path)})")
+            continue
         status = field(lines, "상태")
         date = field(lines, "날짜")
-        adrs[head.group(1)] = {"fields": ["링크", "제목", "상태", "날짜"], "values": [os.path.basename(path), head.group(2), status, date]}
-    check_table("ADR", ("adr", "README.md"), "ADR 목록",
-                re.compile(r"^\| \[(ADR-\d{4})\]\(([^)]+)\) \| (.+?) \| (.+?) \| (\d{4}-\d{2}-\d{2}) \|$"), adrs)
+        found[head.group(1)] = {"fields": ["링크", "제목", "상태", "날짜"], "values": [os.path.basename(path), head.group(2), status, date]}
+    check_table("ADR", os.path.join(adr_dir, "README.md"), "ADR 목록",
+                re.compile(r"^\| \[(" + ADR_ID + r")\]\(([^)]+)\) \| (.+?) \| (.+?) \| (\d{4}-\d{2}-\d{2}) \|$"), found)
+    adrs.update(found)
 
 if has_log:
     logs = {}
@@ -222,7 +258,7 @@ open_questions = path_of("policies", "open-questions.md")
 planned = set()
 if os.path.isfile(open_questions):
     planned = set(re.findall(r"\b[A-Z]{2,4}-\d{3}\b", read(open_questions)))
-policy_ref = re.compile(r"\b(?:" + "|".join(sorted(re.escape(p) for p in prefixes)) + r")-\d{3}\b") if prefixes else None
+policy_ref = re.compile(r"(?<!ADR-)\b(?:" + "|".join(sorted(re.escape(p) for p in prefixes)) + r")-\d{3}\b") if prefixes else None
 for path in scope:
     if os.path.abspath(path) == os.path.abspath(open_questions):
         continue
@@ -233,9 +269,13 @@ for path in scope:
             for pid in policy_ref.findall(line):
                 if pid not in policies and pid not in planned:
                     report(f"없는 정책 번호 참조: {rel(path)}:{number} → {pid}")
-        if has_adr:
-            for aid in re.findall(r"\bADR-\d{4}\b", line):
-                if aid not in adrs:
+        if adr_dirs:
+            # 숫자가 들어간 ADR 번호 후보를 넓게 잡아, 형식이 틀린 번호(ADR-WEB-0001 등)도 놓치지 않는다.
+            # 'ADR-xxxx', 'ADR-WEB-NNN' 같은 자리표시는 숫자가 없어 후보가 아니다.
+            for aid in re.findall(r"\bADR-(?:[A-Z]+-)?\d+\b", line):
+                if not re.fullmatch(ADR_ID, aid):
+                    report(f"ADR 번호 형식이 틀림: {rel(path)}:{number} → {aid}")
+                elif aid not in adrs:
                     report(f"없는 ADR 번호 참조: {rel(path)}:{number} → {aid}")
 
 for message in violations:

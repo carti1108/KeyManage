@@ -43,6 +43,6 @@
 
 ## 5. 관련 결정
 
-- ADR-0018: 웹 기기 저장 범위
-- ADR-0019: 한 계정만 보관
-- ADR-0020: 다른 계정 인증 시 삭제, KDF 변경 시 되돌림 검사 유지, 읽지 못한 기록 재확인
+- [ADR-0018](adr/ADR-0018-web-device-storage-scope.md): 웹 기기 저장 범위
+- [ADR-0019](adr/ADR-0019-web-device-storage-single-account.md): 한 계정만 보관
+- [ADR-0020](adr/ADR-0020-web-device-storage-review-hardening.md): 다른 계정 인증 시 삭제, KDF 변경 시 되돌림 검사 유지, 읽지 못한 기록 재확인

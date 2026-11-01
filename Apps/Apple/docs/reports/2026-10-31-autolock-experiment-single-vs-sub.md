@@ -1,14 +1,14 @@
 # Apple 클라이언트 잠금 해제·자동 잠금 A/B 비교 실험 및 1~3단계 종합 분석 보고서
 
 - **작성일**: 2026-10-31
-- **관련 근거**: [ADR-0016](../adr/ADR-0016-apple-collaboration-experiment-delegation-and-role-separation.md), [ADR-0017](../adr/ADR-0017-single-agent-vs-subagent-experiment.md), [SEC-003](../policies/SEC/SEC-003-unlock-and-auto-lock.md), [COM-001](../policies/COM/COM-001-clipboard-auto-burn-and-graceful-fallback.md)
+- **관련 근거**: [ADR-0016](../adr/ADR-0016-apple-collaboration-experiment-delegation-and-role-separation.md), [ADR-0017](../adr/ADR-0017-single-agent-vs-subagent-experiment.md), [SEC-003](../../../../docs/policies/SEC/SEC-003-unlock-and-auto-lock.md), [COM-001](../../../../docs/policies/COM/COM-001-clipboard-auto-burn-and-graceful-fallback.md)
 - **실험 환경**: Apple Swift 6, Tuist 4.191.5, Google Antigravity (Gemini), macOS Sequoia
 
 ---
 
 ## 1. 3단계(결승전) 실험 개요 및 방법론 보정
 
-1·2단계 실험에서 제기된 방법론적 한계(① 프롬프트에 정책 요약 힌트 제공, ② 단일 에이전트에 자체 리뷰 단계 미부여, ③ 브랜치명을 아는 비블라인드 판정)를 시정하기 위해, 3단계([SEC-003](../policies/SEC/SEC-003-unlock-and-auto-lock.md) 볼트 잠금 해제·자동 잠금·메모리 보안)는 다음 **4대 엄격 통제 조건** 아래 수행되었습니다.
+1·2단계 실험에서 제기된 방법론적 한계(① 프롬프트에 정책 요약 힌트 제공, ② 단일 에이전트에 자체 리뷰 단계 미부여, ③ 브랜치명을 아는 비블라인드 판정)를 시정하기 위해, 3단계([SEC-003](../../../../docs/policies/SEC/SEC-003-unlock-and-auto-lock.md) 볼트 잠금 해제·자동 잠금·메모리 보안)는 다음 **4대 엄격 통제 조건** 아래 수행되었습니다.
 
 1. **Zero-Hint 프롬프트**: 두 에이전트 모두에게 요구사항 요약 없이 오직 정책 문서 경로(`docs/policies/SEC/SEC-003-unlock-and-auto-lock.md`, `COM-001`)만 제공하여 순수 문서 독해력을 평가했습니다.
 2. **양측 동일 4단계 프로세스 부여**: 단일 에이전트에게도 서브에이전트와 동일하게 **3단계(5대 축 감사 및 결함 수정 `fix:` 커밋)** 단계를 부여하여, '리뷰 유무'가 아닌 **'자체 리뷰(Self-Review) 대 독립 리뷰(Independent Review)'**의 순수 효과를 분리 측정했습니다.
