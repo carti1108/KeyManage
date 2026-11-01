@@ -1,6 +1,6 @@
-# KeyManage 서비스 정책 SSOT (Single Source of Truth)
+# 서비스 정책
 
-이 문서는 `KeyManage` 서비스의 동작 규칙, 값과 경계, 사용자 문구, 예외 처리의 유일한 진실 공급원(SSOT)입니다.
+> **요약** 앱의 동작 규칙, 값과 경계, 사용자 문구, 예외의 유일한 기준이다. 코드와 정책이 다르면 정책을 기준으로 본다. 모든 플랫폼에 같은 정책이 적용된다.
 
 ---
 
@@ -31,6 +31,10 @@
 
 ---
 
-## 정책 틀
+## 정책 쓰기
 
-새 정책은 [`templates/policy.md`](../templates/policy.md)를 복사해 쓴다. 문장 규칙은 [문서 작성 형식](../README.md)을 따른다.
+1. 정책의 조회·추가·수정·폐기는 `policy-manager` 스킬 절차를 따른다.
+2. 새 정책은 [`templates/policy.md`](../templates/policy.md)를 복사해 쓴다.
+3. 문장 규칙은 [문서 작성 가이드](../writing-guide.md)를 따른다.
+4. 한 플랫폼의 구현 중에 정책의 빈틈이 보이면, 공유 정책을 그 자리에서 고치지 않고 정책 이슈로 올린다.
+5. 바뀐 내용은 [`CHANGELOG.md`](CHANGELOG.md)에 한 줄 추가한다. 아직 정하지 못한 항목은 [`open-questions.md`](open-questions.md)에 둔다.

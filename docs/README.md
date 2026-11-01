@@ -1,111 +1,61 @@
 # KeyManage 문서 지도
 
-이 문서는 `KeyManage` 레포의 공식 문서 체계 진입점입니다. 모든 설계 결정, 서비스 정책, 크로스 플랫폼 공통 규격, AI 활용 과정은 이 디렉터리(`docs/`) 하위에 기록되고 추적됩니다.
+> **요약** 공통 문서(정책, 공통 ADR, 공통 명세, AI 로그)는 이 `docs/`에 둔다. 플랫폼 문서는 각 플랫폼 폴더의 `docs/`에 둔다. 무엇을 어디에 쓰는지는 [문서 작성 가이드](writing-guide.md)를 따른다.
 
 ---
 
-## 1. 플랫폼 공통 개발 명세서
+## 1. 찾는 것이 있을 때
 
-백엔드와 모든 플랫폼 클라이언트(iOS/macOS, Android, Web)가 병렬 개발 시 공유하는 표준 계약 문서입니다.
-
-| 명세서 | 내용 |
+| 찾는 것 | 볼 곳 |
 | :--- | :--- |
-| [`vault-spec.md`](vault-spec.md) | **볼트 암호화 규격**: PBKDF2/AES-GCM 파라미터, Base64 직렬화 및 평문 볼트 JSON 스키마 |
-| [`api-spec.md`](api-spec.md) | **백엔드 REST API 계약**: 비밀번호 생성, 엔트로피 감사, 볼트 동기화 엔드포인트 및 DTO 스펙 |
-| [`design-system.md`](design-system.md) | **시멘틱 디자인 시스템**: 다크/라이트 컬러 토큰, 타이포그래피, 핵심 컴포넌트 및 아이콘 매핑표 |
+| 앱이 어떻게 동작해야 하는가(값, 문구, 예외) | [정책](policies/README.md) |
+| 왜 이렇게 만들었는가 | [공통 ADR](adr/README.md), 각 플랫폼의 `docs/adr/` |
+| 암호화 파라미터와 볼트 JSON 형식 | [`vault-spec.md`](vault-spec.md) |
+| 서버 API 요청·응답과 오류 코드 | [`api-spec.md`](api-spec.md) |
+| 색상 토큰과 컴포넌트 규격 | [`design-system.md`](design-system.md) |
+| 한 플랫폼의 구현 방법 | 아래 3장의 플랫폼 문서 |
+| 새 문서를 쓰는 방법 | [문서 작성 가이드](writing-guide.md), [`templates/`](templates/) |
+| AI와 어떻게 작업했는가 | [AI 활용 기록](ai-usage/README.md) |
 
 ---
 
-## 2. 거버넌스 및 정책 문서 체계
+## 2. 공통 문서
 
-| 폴더 | 용도 | 관리 규칙 및 플러그인 |
+### 명세
+
+모든 클라이언트와 백엔드가 같은 값을 써야 하는 규격이다.
+
+| 명세 | 내용 |
+| :--- | :--- |
+| [`vault-spec.md`](vault-spec.md) | 볼트 암호화 규격: 키 유도·암호화 파라미터, 암호화 컨테이너, 평문 볼트 스키마, 병합 규칙 |
+| [`api-spec.md`](api-spec.md) | 백엔드 REST API 계약: 볼트 조회·저장, 계정 인증, 오류 코드 |
+| [`design-system.md`](design-system.md) | 디자인 시스템: 색상 토큰, 타이포그래피, 핵심 컴포넌트, 아이콘 의미 |
+| [`crypto-test-vectors.json`](crypto-test-vectors.json) | 플랫폼 간 암호 테스트 벡터 |
+
+### 기록과 정책
+
+| 폴더 | 내용 | 관리 방법 |
 | :--- | :--- | :--- |
-| [`adr/`](adr/README.md) | 아키텍처 및 기술 결정 기록 (ADR) | `adr-manager` (한 번 채택된 결정은 불변, 대체 시 새 ADR 발행) |
-| [`policies/`](policies/README.md) | 서비스 정책 SSOT (Single Source of Truth) | `policy-manager` (영역별 규칙, 경계값, 예외, 검증 방법 관리) |
-| [`ai-usage/`](ai-usage/README.md) | AI 활용 기록 및 평가 보고서 | `project-docs:ai-usage` (작업 단위별 append-only 기록) |
+| [`policies/`](policies/README.md) | 서비스 정책. 동작 규칙의 유일한 기준이다. | `policy-manager` 스킬 |
+| [`adr/`](adr/README.md) | 공통 아키텍처 결정 기록. 채택한 결정은 고치지 않는다. | `adr-manager` 스킬 |
+| [`ai-usage/`](ai-usage/README.md) | AI 활용 기록. 항목은 추가만 한다. | `project-docs:ai-usage` 스킬 |
+| [`templates/`](templates/) | 정책·ADR·플랫폼 명세·AI 로그 템플릿 | [작성 가이드](writing-guide.md) |
 
 ---
 
 ## 3. 플랫폼 문서
 
+이 표는 문서를 찾기 위한 지도다. 공통 문서의 본문은 플랫폼 문서를 근거로 삼지 않는다.
+
 | 폴더 | 내용 |
 | :--- | :--- |
-| [`Apps/Web/docs/`](../Apps/Web/docs/README.md) | 웹·데스크톱(Tauri) 클라이언트 ADR과 구현 명세 |
-| [`Apps/Apple/docs/`](../Apps/Apple/docs/README.md) | Apple(iOS·macOS) 클라이언트 ADR, 구현 계약, 실험 보고서 |
+| [`Apps/Web/docs/`](../Apps/Web/docs/README.md) | 웹·데스크톱(Tauri) 클라이언트 ADR, 기기 저장 명세, 플랫폼 바인딩 |
+| [`Apps/Apple/docs/`](../Apps/Apple/docs/README.md) | Apple(iOS·macOS) 클라이언트 ADR, 구현 계약, 플랫폼 바인딩, 실험 보고서 |
 | [`Back/docs/`](../Back/docs/README.md) | 백엔드 ADR |
 | [`Apps/Android/docs/`](../Apps/Android/docs/README.md) | Android 클라이언트(아직 없음)를 만들 때 쓸 플랫폼 바인딩 |
 
-이 표는 문서를 찾기 위한 지도다. 공통 문서의 본문은 플랫폼 문서를 근거로 삼지 않는다.
-
 ---
 
-## 4. 문서 경계 기준
+## 4. 문서 검사
 
-### 어디에 무엇을 쓰는가
-
-| 문서 | 위치 | 담는 것 | 담지 않는 것 |
-| :--- | :--- | :--- | :--- |
-| 정책 | `docs/policies/` | 모든 플랫폼이 똑같이 지키고 테스트로 확인하는 동작, 값, 사용자 문구, 예외 | 저장소·라이브러리 이름, 시간 제한 같은 구현 세부 |
-| 공통 ADR | `docs/adr/` | 시스템 전체에 영향을 주는 결정과 이유 (암호 방식, 키 유도, 동기화 프로토콜, 작업 방식) | 한 플랫폼에만 해당하는 결정 |
-| 플랫폼 ADR | `Apps/Web/docs/adr/`, `Apps/Apple/docs/adr/`, `Back/docs/adr/` | 그 플랫폼의 기술·구조 결정과 이유 | 동작 규칙 (정책으로 쓴다) |
-| 플랫폼 명세 | `Apps/Web/docs/`, `Apps/Apple/docs/`, `Back/docs/` | 구현 계약: 저장소, 시간 제한, 동시성 전제, 알려진 제약 | 결정의 이유 (ADR로 쓴다) |
-
-한 플랫폼에서만 한 실험이나 작업 방식 결정(예: Apple 협업 실험 ADR-0016·0017)은 그 플랫폼 ADR로 둔다. 모든 플랫폼의 작업 방식을 바꾸는 결정만 공통 ADR이다.
-
-### 참조 방향
-
-- 플랫폼 문서는 공통 문서(정책, 공통 ADR, 공통 명세)를 참조할 수 있다.
-- 공통 문서는 플랫폼 문서를 참조하지 않는다.
-- 플랫폼 문서는 다른 플랫폼 문서를 참조하지 않는다.
-
-### 판단 순서
-
-1. 사용자가 보는 동작이나 값이 바뀌는가? 그러면 정책이다. 모든 플랫폼에서 같아야 하는지 먼저 확인한다.
-2. 대안이 있었고 이유를 남길 결정인가? 그러면 ADR이다. 시스템 전체에 영향을 주면 공통, 아니면 플랫폼 ADR이다.
-3. 구현을 바꿔도 사용자 동작이 그대로인가? 그러면 플랫폼 명세다. 정책과 ADR을 고치지 않는다.
-
-### 템플릿
-
-새 문서는 [`templates/`](templates/)의 템플릿을 복사해 쓴다.
-
-| 문서 | 템플릿 |
-| :--- | :--- |
-| 정책 | [`templates/policy.md`](templates/policy.md) |
-| ADR (공통·플랫폼) | [`templates/adr.md`](templates/adr.md) |
-| 플랫폼 명세 | [`templates/platform-spec.md`](templates/platform-spec.md) |
-| AI 활용 로그 | [`templates/ai-log.md`](templates/ai-log.md) |
-
-- 문서 맨 위에는 상태와 적용 범위 같은 메타 정보와 한 줄 요약(`> **요약**`)을 둔다.
-- 절은 `##` 제목으로 나눈다. 값, 사용자 문구, 비교는 표로 쓴다. 순서가 있으면 번호 목록, 나란한 항목이면 글머리표를 쓴다.
-- 이력처럼 자주 보지 않는 내용은 `<details>`로 접는다.
-- 채택한 ADR과 기존 AI 로그는 템플릿에 맞춰 고치지 않는다. 새로 쓰는 문서부터 적용한다.
-
-### 작성 형식 (한국어 STE)
-
-항공 정비 문서의 ASD-STE100(Simplified Technical English) 원칙을 한국어에 맞게 옮긴 규칙이다. 정책, 명세, ADR의 본문 문장에 적용한다.
-
-| # | 규칙 | 예 |
-| :--- | :--- | :--- |
-| 1 | 한 문장에는 규칙이나 사실 하나만 쓴다. "~하고, ~하며"로 잇지 않는다. | ✗ 뽑고, 빠지면 다시 뽑는다 → ✓ 뽑는다. 빠지면 다시 뽑는다. |
-| 2 | 절차 문장은 약 40자, 설명 문장은 약 60자 안에서 끝낸다. (권장 기준) | |
-| 3 | 누가 하는지 쓴다(클라이언트, 서버, 사용자). "~된다"보다 "~한다"를 쓴다. | ✓ 클라이언트는 30초 뒤 클립보드를 비운다. |
-| 4 | 조건을 문장 앞에 쓴다. | ✓ 앱이 잠기면, 클라이언트는 즉시 비운다. |
-| 5 | 같은 개념은 같은 단어로 쓴다. 문서의 '용어' 표에서 정의한다. | ✗ 소각·비움·삭제를 섞어 씀 → ✓ "비운다"로 통일 |
-| 6 | 명사를 셋 이상 잇지 않는다. | ✗ 클립보드 보안 소각 정책 → ✓ 클립보드 자동 비우기 |
-| 7 | 데이터 손실이나 보안 위험은 `> **주의**` 블록으로 규칙보다 앞에 쓴다. | |
-| 8 | 사용자 문구(화면에 나오는 글)는 화면과 같아야 하므로 1~7을 적용하지 않는다. | |
-
-그 밖의 규칙:
-
-- 한 플랫폼에만 쓰는 사용자 문구는 상황 이름에 `(웹)`처럼 플랫폼을 붙인다.
-- 정책의 주제가 둘 이상이 되면 정책을 나눈다 (예: VLT-001 → VLT-002, VLT-003).
-
----
-
-## 5. 문서 정합성 검사
-
-모든 문서는 링크 깨짐, 번호 중복, 필수 필드 누락을 방지하기 위해 자동 검사 스크립트로 검증됩니다. 플랫폼 문서 폴더(`Apps/*/docs/`, `Back/docs/`)도 함께 검사합니다.
-
-```bash
-bash Scripts/check-docs.sh
-```
+문서를 고치면 `bash Scripts/check-docs.sh`를 돌린다. 자세한 내용은 [작성 가이드](writing-guide.md) 4장에 있다.
