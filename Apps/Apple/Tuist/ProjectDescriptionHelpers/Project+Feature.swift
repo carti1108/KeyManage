@@ -61,7 +61,7 @@ public extension Project {
 			bundleId: "com.keymanage.\(name.lowercased()).testing",
 			deploymentTargets: .multiplatform(iOS: "15.0", macOS: "14.0"),
 			sources: ["Testing/**"],
-			dependencies: [.target(name: "\(name)Interface")]
+			dependencies: [.target(name: "\(name)Interface")] + interfaceDependencies
 		)
 
 		let testsTarget = Target.target(
