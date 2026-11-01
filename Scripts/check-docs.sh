@@ -113,8 +113,11 @@ platform_docs = sorted(
     d for pattern in ("*/docs", "*/*/docs")
     for d in glob.glob(os.path.join(root, pattern))
     if os.path.isdir(d)
+    # 폴더 이름이 정확히 docs일 때만(대소문자를 구분하지 않는 Windows에서도 Linux CI와 같은 결과를 내도록)
+    and "docs" in os.listdir(os.path.dirname(d))
     and not (set(os.path.relpath(d, root).replace(os.sep, "/").split("/")) & SKIP_DIRS)
-    and os.path.normpath(d) != os.path.normpath(os.path.join(root, docs))
+    # 루트 문서 폴더와 그 아래는 이미 검사 대상이다
+    and os.path.relpath(d, root).replace(os.sep, "/").split("/")[0] != docs
 )
 for d in platform_docs:
     scope += sorted(glob.glob(os.path.join(d, "**", "*.md"), recursive=True))
@@ -224,6 +227,9 @@ for adr_dir in adr_dirs:
         if head is None:
             report(f"ADR 파일의 첫 줄이 '### 번호 제목' 형식이 아님: {rel(path)}")
             continue
+        if re.match(ADR_ID, os.path.basename(path)).group(0) != head.group(1):
+            report(f"ADR 파일 이름과 첫 줄의 번호가 다름: {rel(path)} → {head.group(1)}")
+            continue
         if head.group(1) in adrs or head.group(1) in found:
             report(f"ADR 번호가 겹침: {head.group(1)} ({rel(path)})")
             continue
@@ -252,7 +258,7 @@ open_questions = path_of("policies", "open-questions.md")
 planned = set()
 if os.path.isfile(open_questions):
     planned = set(re.findall(r"\b[A-Z]{2,4}-\d{3}\b", read(open_questions)))
-policy_ref = re.compile(r"\b(?:" + "|".join(sorted(re.escape(p) for p in prefixes)) + r")-\d{3}\b") if prefixes else None
+policy_ref = re.compile(r"(?<!ADR-)\b(?:" + "|".join(sorted(re.escape(p) for p in prefixes)) + r")-\d{3}\b") if prefixes else None
 for path in scope:
     if os.path.abspath(path) == os.path.abspath(open_questions):
         continue
@@ -264,8 +270,12 @@ for path in scope:
                 if pid not in policies and pid not in planned:
                     report(f"없는 정책 번호 참조: {rel(path)}:{number} → {pid}")
         if adr_dirs:
-            for aid in re.findall(r"\b" + ADR_ID + r"\b", line):
-                if aid not in adrs:
+            # 숫자가 들어간 ADR 번호 후보를 넓게 잡아, 형식이 틀린 번호(ADR-WEB-0001 등)도 놓치지 않는다.
+            # 'ADR-xxxx', 'ADR-WEB-NNN' 같은 자리표시는 숫자가 없어 후보가 아니다.
+            for aid in re.findall(r"\bADR-(?:[A-Z]+-)?\d+\b", line):
+                if not re.fullmatch(ADR_ID, aid):
+                    report(f"ADR 번호 형식이 틀림: {rel(path)}:{number} → {aid}")
+                elif aid not in adrs:
                     report(f"없는 ADR 번호 참조: {rel(path)}:{number} → {aid}")
 
 for message in violations:
