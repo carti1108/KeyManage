@@ -25,6 +25,11 @@ export function bindAutoLockEvents(autoLock: Pick<AutoLock, 'activity' | 'hidden
   }
 }
 
+/** 탭이 지금 화면에 보이는지 */
+export function isPageVisible(): boolean {
+  return document.visibilityState !== 'hidden'
+}
+
 /** setTimeout 기반 스케줄러 */
 export const browserScheduler = {
   schedule(delayMs: number, run: () => void) {

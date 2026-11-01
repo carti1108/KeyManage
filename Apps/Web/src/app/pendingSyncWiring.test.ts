@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createInMemoryTabHub } from '../domain/tabs/inMemoryTabs'
 import { PENDING_SYNC_RETRY_MS, startPendingSync } from './pendingSyncWiring'
 
 function setup(pending = true) {
@@ -64,5 +65,26 @@ describe('동기화 대기 재전송을 브라우저에 연결 (VLT-002)', () =>
 
     expect(session.retryPendingSync).not.toHaveBeenCalled()
     expect(leavePage().defaultPrevented).toBe(false)
+  })
+})
+
+describe('여러 탭의 대기 내용 재전송 (ADR-WEB-001)', () => {
+  it('다른 탭이 재전송 잠금을 잡고 있으면 이번 차례를 건너뛴다', async () => {
+    const hub = createInMemoryTabHub()
+    let release!: () => void
+    const held = hub.connect().lock.run('sync', () => new Promise<void>((resolve) => (release = resolve)))
+    const session = { retryPendingSync: vi.fn(async () => {}), hasUnsavedChanges: () => false }
+    const stop = startPendingSync(session, hub.connect())
+
+    window.dispatchEvent(new Event('online'))
+    await Promise.resolve()
+
+    expect(session.retryPendingSync).not.toHaveBeenCalled()
+    release()
+    await held
+    window.dispatchEvent(new Event('online'))
+    await Promise.resolve()
+    expect(session.retryPendingSync).toHaveBeenCalledOnce()
+    stop()
   })
 })

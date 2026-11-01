@@ -142,6 +142,14 @@ export function createVaultSync({ api, encryptionKey, now, revisionMemory }: Vau
     seal,
 
     /**
+     * 이 기기에 남은 암호화 볼트(다른 탭이 쓴 기기 기록 등)를 연다. 서버에 요청하지 않는다
+     * @throws VaultDecryptError, UnsupportedPayloadError, InvalidVaultDataError
+     */
+    async open(payload: EncryptedVaultPayload): Promise<VaultData> {
+      return parseVaultData(await openVault(encryptionKey, payload))
+    },
+
+    /**
      * @param options.acceptRollback 되돌림 경고를 사용자가 확인했을 때만 true
      * @throws RevisionRollbackError, InvalidVaultDataError, VaultDecryptError, ServerError, NetworkError
      */
