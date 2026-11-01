@@ -99,6 +99,29 @@ if has_generator_module:
     ]
     check_invariants("4단계: 비밀번호 생성기(GEN-001)", generator_rules)
 
+# 5. 오프라인 동기화 대기 모듈 (VLT-002) — 모듈이 존재할 때만 감사
+has_pending_sync_module = os.path.isdir(os.path.join(sources_dir, "Sync"))
+
+if has_pending_sync_module:
+    pending_sync_rules = [
+        ("VLT-002 재전송 주기(30초) 상수 검증", r"(30|resyncIntervalSeconds)"),
+        ("VLT-002 오프라인 경고 표준 문구('오프라인 상태입니다. 변경 사항이 서버에 동기화되지 않습니다.') 검증", r"오프라인 상태입니다\. 변경 사항이 서버에 동기화되지 않습니다\."),
+        ("VLT-002 대기 중 로그아웃 확인 제목('동기화되지 않은 변경 사항') 검증", r"동기화되지 않은 변경 사항"),
+        ("VLT-002 대기 중 로그아웃 확인 본문('로그아웃하면 서버에 올리지 못한 변경 사항이 사라집니다.') 검증", r"로그아웃하면 서버에 올리지 못한 변경 사항이 사라집니다\."),
+    ]
+    check_invariants("5단계: 오프라인 동기화 대기(VLT-002)", pending_sync_rules)
+
+# 6. 기기 볼트 보존 모듈 (VLT-003) — 모듈이 존재할 때만 감사
+has_device_store_module = os.path.isdir(os.path.join(sources_dir, "Persistence"))
+
+if has_device_store_module:
+    device_store_rules = [
+        ("VLT-003 단일 계정 기기 기록 및 복원 검증", r"DeviceVaultRecord"),
+        ("VLT-003 다른 계정 인증 시 이전 기록 삭제 검증", r"handleAuthenticationSuccess"),
+        ("VLT-003 KDF 파라미터 변경 감지 및 대기 폐기 검증", r"evaluateKdfChange"),
+    ]
+    check_invariants("6단계: 기기 볼트 보존(VLT-003)", device_store_rules)
+
 if violations:
     print("정책 합격 기준(Policy Acceptance Audit) 위반 발견:")
     for v in violations:
