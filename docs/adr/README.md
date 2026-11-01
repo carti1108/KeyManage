@@ -31,5 +31,4 @@
 | [ADR-0009](ADR-0009-verification-delegation-pipeline.md) | AI 작업의 검증 위임 체계 (CI·뮤테이션 테스트·독립 리뷰) | 채택 | 2026-10-28 |
 | [ADR-0010](ADR-0010-client-composition-ios-and-shared-web.md) | 클라이언트 구성: iOS 네이티브와 웹 코드 공유(브라우저·데스크톱) 우선 | 채택 | 2026-10-28 |
 | [ADR-0011](ADR-0011-password-preprocessing-and-header-aad.md) | 마스터 비밀번호 전처리와 볼트 암호문 헤더 인증 | 채택 | 2026-10-29 |
-
 | [ADR-0021](ADR-0021-local-docker-compose-demo.md) | 데모는 받은 사람의 로컬 Docker Compose로 실행하고, 데스크톱 릴리스는 `https://localhost:8443`을 서버 주소로 빌드한다 | 채택 | 2026-11-01 |
