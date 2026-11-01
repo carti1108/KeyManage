@@ -12,7 +12,7 @@ export const ACTIVITY_BROADCAST_INTERVAL_MS = 1_000
 export type LockableSession = Pick<VaultSession, 'lock' | 'onLock' | 'onUnlock' | 'state'>
 
 /**
- * @param timeoutMs 자동 잠금 시간. 설정 화면이 생기기 전까지는 기본 5분
+ * @param timeoutMs 자동 잠금 시간. 기본 5분. 바꾸려면 해제하고 새 시간으로 다시 연결한다 (ADR-WEB-002)
  * @param tabs 같은 브라우저의 다른 탭과 나누는 알림. 없으면 탭 하나
  * @returns 연결 해제 함수
  * @throws InvalidAutoLockTimeoutError
