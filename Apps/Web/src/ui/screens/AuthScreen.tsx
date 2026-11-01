@@ -1,11 +1,12 @@
-// 로그인·가입 화면 (SEC-002)
-import { useState, type FormEvent } from 'react'
+// 로그인·가입 화면 (SEC-001, SEC-002)
+import { useId, useState, type FormEvent } from 'react'
 import { checkNewMasterPassword, type NewMasterPasswordProblem } from '../../domain/auth/masterPassword'
 import { Alert } from '../components/Alert'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { PasswordField } from '../components/PasswordField'
 import { TextField } from '../components/TextField'
+import { MASTER_PASSWORD_SETUP } from '../messages/authNotices'
 import type { RollbackOption } from '../session/sessionPort'
 import { SessionFeedback } from '../session/SessionFeedback'
 import { useSessionAction } from '../session/useSessionAction'
@@ -31,6 +32,7 @@ export function AuthScreen({ notice, onDismissNotice, onLogin, onRegister }: Aut
   const [confirmation, setConfirmation] = useState('')
   const action = useSessionAction()
   const registering = mode === 'register'
+  const setupHintId = useId()
 
   function submit(event: FormEvent) {
     event.preventDefault()
@@ -68,11 +70,20 @@ export function AuthScreen({ notice, onDismissNotice, onLogin, onRegister }: Aut
             onChange={(e) => setEmail(e.target.value)}
             required
           />
+          {registering && (
+            // 잃어버리면 복구할 수 없다는 안내를 입력란 설명으로 읽어 준다 (SEC-001)
+            <div id={setupHintId}>
+              <Alert variant="info" live={false} title={MASTER_PASSWORD_SETUP.title}>
+                {MASTER_PASSWORD_SETUP.body}
+              </Alert>
+            </div>
+          )}
           <PasswordField
             label="마스터 비밀번호"
             autoComplete={registering ? 'new-password' : 'current-password'}
             value={password}
             onTextChange={setPassword}
+            aria-describedby={registering ? setupHintId : undefined}
             required
           />
           {registering && (
