@@ -12,7 +12,7 @@ let project = Project(
 			bundleId: "com.keymanage.macos",
 			deploymentTargets: .macOS("14.0"),
 			infoPlist: .default,
-			sources: ["Sources/macOS/**"],
+			sources: ["Sources/macOS/**", "Sources/Shared/**"],
 			dependencies: [
 				.project(target: "KeyManageDomain", path: "../Core/Domain"),
 				.project(target: "KeyManageData", path: "../Core/Data"),
@@ -32,7 +32,7 @@ let project = Project(
 			bundleId: "com.keymanage.ios",
 			deploymentTargets: .iOS("15.0"),
 			infoPlist: .default,
-			sources: ["Sources/iOS/**"],
+			sources: ["Sources/iOS/**", "Sources/Shared/**"],
 			dependencies: [
 				.project(target: "KeyManageDomain", path: "../Core/Domain"),
 				.project(target: "KeyManageData", path: "../Core/Data"),

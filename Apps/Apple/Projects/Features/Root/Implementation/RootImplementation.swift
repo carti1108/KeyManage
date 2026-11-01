@@ -40,15 +40,19 @@ final class RootInteractor: Interactor, RootInteractable {
 
 	override func didBecomeActive() {
 		super.didBecomeActive()
-		// RED 단계 스텁: 라우팅 미수행
+		if lockManager.isLocked {
+			router?.routeToUnlock()
+		} else {
+			router?.routeToMain()
+		}
 	}
 
 	func didUnlockVault() {
-		// RED 단계 스텁: Main 라우팅 미수행
+		router?.routeToMain()
 	}
 
 	func didLockVault() {
-		// RED 단계 스텁: Unlock 라우팅 미수행
+		router?.routeToUnlock()
 	}
 }
 
@@ -141,11 +145,21 @@ final class RootRouter: ViewableRouter<RootInteractable, RootViewControllable>, 
 	}
 
 	func routeToUnlock() {
-		// RED 단계 스텁: Unlock RIB 부착 미구현
+		if let existingUnlock = self.unlockRouting {
+			detachChild(existingUnlock)
+			self.unlockRouting = nil
+		}
+		let unlock = unlockBuilder.build(withListener: interactor)
+		self.unlockRouting = unlock
+		attachChild(unlock)
+		viewController.replaceActiveView(with: unlock.viewControllable)
 	}
 
 	func routeToMain() {
-		// RED 단계 스텁: Main RIB 부착 미구현
+		if let existingUnlock = self.unlockRouting {
+			detachChild(existingUnlock)
+			self.unlockRouting = nil
+		}
 	}
 }
 
