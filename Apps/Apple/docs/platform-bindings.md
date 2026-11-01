@@ -14,28 +14,26 @@
 
 ## 색상 토큰
 
-> **현재 상태** 아래 `DesignToken`은 목표 구조다. 아직 코드에 없다.
-
-iOS 구현이 SwiftUI든 UIKit이든 모두 지원하도록 `DesignToken` 정적 열거형 구조를 둔다.
+iOS·macOS 구현이 SwiftUI든 UIKit/AppKit이든 모두 지원하도록 `KeyManageDesignSystem` 모듈 내 `DesignToken` 정적 열거형 구조를 둔다. 시스템 다크/라이트 모드 전환에 동적으로 반응한다.
 
 ```swift
 public enum DesignToken {
-    // UIColor (UIKit 지원)
+    // UIColor / NSColor (UIKit / AppKit 지원, @MainActor)
     public enum UI {
-        public static let background = UIColor(named: "ColorBackground") ?? UIColor(hex: "#0F172A")
-        public static let card = UIColor(named: "ColorCard") ?? UIColor(hex: "#1E293B")
-        public static let primary = UIColor(named: "ColorPrimary") ?? UIColor(hex: "#38BDF8")
-        public static let accent = UIColor(named: "ColorAccent") ?? UIColor(hex: "#10B981")
-        public static let destructive = UIColor(named: "ColorDestructive") ?? UIColor(hex: "#EF4444")
+        public static var background: PlatformColor { Colors.background.dynamicPlatformColor() }
+        public static var card: PlatformColor { Colors.card.dynamicPlatformColor() }
+        public static var primary: PlatformColor { Colors.primary.dynamicPlatformColor() }
+        public static var accent: PlatformColor { Colors.accent.dynamicPlatformColor() }
+        public static var destructive: PlatformColor { Colors.destructive.dynamicPlatformColor() }
     }
     
-    // SwiftUI Color (SwiftUI 지원)
+    // SwiftUI Color (SwiftUI 지원, 동적 전환)
     public enum View {
-        public static let background = Color(uiColor: UI.background)
-        public static let card = Color(uiColor: UI.card)
-        public static let primary = Color(uiColor: UI.primary)
-        public static let accent = Color(uiColor: UI.accent)
-        public static let destructive = Color(uiColor: UI.destructive)
+        public static var background: Color { Colors.background.color() }
+        public static var card: Color { Colors.card.color() }
+        public static var primary: Color { Colors.primary.color() }
+        public static var accent: Color { Colors.accent.color() }
+        public static var destructive: Color { Colors.destructive.color() }
     }
 }
 ```
