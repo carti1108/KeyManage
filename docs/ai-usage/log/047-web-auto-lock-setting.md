@@ -1,7 +1,7 @@
 # 2026-11-01 · 웹 자동 잠금 시간 설정
 
-- 이슈·PR: 없음(PR 전)
-- 커밋: 31e1d21, 037c6db, 3e2fcc0, f580d9e, 3a3fc37, b8af1e9, 7fad512, 6e83beb, 58b8a4a
+- 이슈·PR: PR #79
+- 커밋: 31e1d21, 037c6db, 3e2fcc0, f580d9e, 3a3fc37, b8af1e9, 7fad512, 6e83beb, 58b8a4a, 1aa0bd1
 
 > **요약** 웹에서 5분으로 고정돼 있던 자동 잠금 시간을 사용자가 고를 수 있게 했다. 설정은 기기마다 localStorage에 저장하고 서버와 동기화하지 않는다. 사람이 저장 범위(기기별, 동기화 안 함)와 정책·ADR 안을 승인했다.
 
@@ -34,9 +34,10 @@
 
 | 검증 | 결과 |
 | :--- | :--- |
-| `npm run check` (tsc, oxlint, vitest) | 통과. 43개 파일, 543개 테스트(시작 전 495개) |
+| `npm run check` (tsc, oxlint, vitest) | 통과. 44개 파일, 545개 테스트(시작 전 495개) |
 | `bash Scripts/check-docs.sh` | 통과 |
 | 독립 리뷰 서브에이전트 | HIGH 1, MEDIUM 1, LOW 4. HIGH·MEDIUM과 LOW 2건을 고침 |
+| 통합 테스트 | 로컬은 하지 않음(백엔드 미기동). PR #79 CI의 integration 작업 결과로 확인 |
 
 ## 검증하지 못한 것
 
@@ -53,4 +54,5 @@
 | :--- | :--- | :--- |
 | 공통 정책 SEC-003에 웹 ADR 링크를 넣음(공통 문서는 플랫폼 문서를 참조하지 않는 규칙 위반) | AI가 작성 가이드를 읽고 발견(문서 검사는 통과했음) | 커밋 전에 링크를 지움 |
 | 숨겨진 탭이 다른 탭에서 "즉시"로 바뀐 설정을 받으면 타이머 없이 잠금 해제 상태로 남음 | 독립 리뷰 | 즉시 설정이고 숨겨진 상태로 시작하면 그 탭만 잠그고 회귀 테스트 추가 |
+| node 환경의 통합 테스트에서 어댑터 기본 인자가 `window`를 참조해 `ReferenceError`로 실패(로컬 `npm run check`는 jsdom이라 통과) | PR #79 CI의 integration 작업 | `window`가 없으면 구독하지 않게 고치고 node 환경 테스트 추가 |
 | 리뷰가 제안한 "effect 안에서 다시 읽기"는 lint 규칙(`set-state-in-effect`)에 걸림 | 구현 서브에이전트 | `useSyncExternalStore`로 바꿈 |
