@@ -503,12 +503,17 @@ describe('SessionRoot', () => {
       expect(screen.getByText(warning)).toBeInTheDocument()
     })
 
-    it('기기 저장 실패 알림은 저장 오류 칸에 따로 띄우지 않는다 (경고는 상태로 보인다)', () => {
-      const { control } = tokenlessVault()
+    it('기기 저장 실패 알림은 저장 오류 칸에 따로 띄우지 않고 상태 경고 하나로만 보인다', () => {
+      const { session, control } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: true, signedIn: true, storedOnDevice: true })
+      render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
+      const warning = '이 기기에 볼트를 저장하지 못했습니다. 새로고침하면 서버에 올리지 못한 변경 사항이 사라질 수 있습니다.'
 
-      act(() => control.emitSync(new DeviceStorageError(new Error('저장 공간 부족'))))
+      act(() => {
+        control.setStoredOnDevice(false)
+        control.emitSync(new DeviceStorageError(new Error('저장 공간 부족')))
+      })
 
-      expect(screen.queryByText('이 기기에 볼트를 저장하지 못했습니다. 새로고침하면 서버에 올리지 못한 변경 사항이 사라질 수 있습니다.')).not.toBeInTheDocument()
+      expect(screen.getAllByText(warning)).toHaveLength(1)
     })
 
     it('로그아웃했지만 기기 기록을 지우지 못하면 로그인 화면에서 알린다', async () => {

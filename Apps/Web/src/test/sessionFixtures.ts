@@ -68,10 +68,15 @@ export class FakeVaultApi implements VaultApi {
 export class FakeDeviceStore implements DeviceStore {
   stored: unknown = undefined
   failing = false
+  /** 남은 횟수만큼 읽기만 실패한다 (열기 시간 초과 등) */
+  failLoads = 0
   writes = 0
 
   async load(): Promise<unknown> {
-    if (this.failing) throw new DeviceStorageError(new Error('저장소 오류'))
+    if (this.failing || this.failLoads > 0) {
+      this.failLoads = Math.max(0, this.failLoads - 1)
+      throw new DeviceStorageError(new Error('저장소 오류'))
+    }
     return structuredClone(this.stored)
   }
   async save(record: DeviceRecord): Promise<void> {

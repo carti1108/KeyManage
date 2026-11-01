@@ -154,6 +154,49 @@ describe('다시 열기 (SEC-003)', () => {
     expect(results.at(-1)).toBeInstanceOf(ServerError)
   })
 
+  it('다시 입력했는데 서버가 거절하면 실제 사유를 낸다 (연결 실패로 뭉뚱그리지 않는다)', async () => {
+    const ctx = await unlockedWithItem()
+    const { session, authApi, vaultApi } = await restart(ctx)
+    authApi.offline = true
+    vaultApi.offline = true
+    await session.unlock(PASSWORD)
+    authApi.offline = false
+    vaultApi.offline = false
+
+    for (const failure of [new ServerError(403, 'ORIGIN_NOT_ALLOWED'), new ServerError(503, 'UNKNOWN')]) {
+      authApi.prelogin = async () => {
+        throw failure
+      }
+      await expect(session.reconnect(PASSWORD)).rejects.toBe(failure)
+    }
+    expect(session.state()).toMatchObject({ signedIn: false })
+  })
+
+  it('재시작 뒤 같은 볼트로 잠금을 풀면 기기 기록을 다시 쓰지 않는다', async () => {
+    const ctx = await unlockedWithItem()
+    const { session, deviceStore } = await restart(ctx)
+    const writes = deviceStore.writes
+
+    await session.unlock(PASSWORD)
+
+    expect(deviceStore.writes).toBe(writes)
+  })
+
+  it('재시작 때 기기 기록을 읽지 못했어도, 같은 계정으로 로그인하면 기록을 다시 읽어 대기 내용을 병합해 올린다', async () => {
+    const ctx = await pendingOnDevice()
+    ctx.vaultApi.offline = false
+    ctx.deviceStore.failLoads = 1
+    const next = setup({ authApi: ctx.authApi, vaultApi: ctx.vaultApi, deviceStore: ctx.deviceStore })
+    await expect(next.session.restore()).rejects.toBeInstanceOf(DeviceStorageError)
+    expect(next.session.state()).toEqual({ status: 'signedOut' })
+
+    await next.session.login('user@example.com', PASSWORD)
+
+    expect(itemIds(next.session)).toEqual(['a', 'b'])
+    expect(await serverItemIds(ctx.vaultApi)).toEqual(['a', 'b'])
+    expect(ctx.deviceStore.record).toMatchObject({ pendingSync: false })
+  })
+
   it('재시작 뒤에도 대기 내용을 이어 받아, 잠금을 풀면 올린다', async () => {
     const ctx = await pendingOnDevice()
     const { session, vaultApi } = await restart(ctx)
