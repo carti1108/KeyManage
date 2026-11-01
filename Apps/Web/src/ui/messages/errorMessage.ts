@@ -1,4 +1,4 @@
-// 오류를 사용자 문구로 바꾼다. 문구는 정책이 정한 그대로 쓴다 (SEC-002, SEC-003, COM-001)
+// 오류를 사용자 문구로 바꾼다. 문구는 정책이 정한 그대로 쓴다 (SEC-002, SEC-003, COM-002)
 import { InvalidEmailError, MasterPasswordChangedError } from '../../domain/auth/authService'
 import { DeviceStorageError } from '../../domain/device/deviceRecord'
 import { InvalidPasswordError } from '../../domain/crypto/keys'

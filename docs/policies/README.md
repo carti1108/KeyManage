@@ -26,24 +26,11 @@
 | [VLT-001](VLT/VLT-001-cross-platform-vault-sync.md) | 크로스 플랫폼 볼트 동기화 및 충돌 해결 정책 | 확정 | 볼트 저장 및 동기화 |
 | [VLT-002](VLT/VLT-002-offline-pending-sync.md) | 오프라인 동기화 대기 및 재전송 정책 | 확정 | 볼트 저장 및 동기화 |
 | [VLT-003](VLT/VLT-003-device-vault-persistence.md) | 기기 볼트 보존 정책 | 확정 | 볼트 저장 및 동기화 |
-| [COM-001](COM/COM-001-clipboard-auto-burn-and-graceful-fallback.md) | 클립보드 30초 자동 소각 및 오류 방어 정책 | 확정 | 공통 예외 및 클립보드 |
+| [COM-001](COM/COM-001-clipboard-auto-burn.md) | 클립보드 자동 비우기 | 확정 | 공통 예외 및 클립보드 |
+| [COM-002](COM/COM-002-error-state-guidance.md) | 오류 상태 안내 정책 | 확정 | 공통 예외 및 클립보드 |
 
 ---
 
 ## 정책 틀
 
-새로운 정책은 아래 서식을 그대로 따릅니다:
-
-```markdown
-# <접두어>-<번호> 제목
-- 상태: 확정
-- 규칙: 무엇을, 언제, 어떻게 제한/보장하는지 한두 문장
-- 값: 구체적인 경계값 (해당 없으면 "해당 없음")
-- 적용 범위: 어떤 화면/모듈/상황
-- 예외: 없음
-- 사용자 문구: 제목 "..." / 본문 "..."
-- 근거: 파일경로:줄번호 또는 설계 문서
-- 검증 방법: 테스트 파일명 또는 QA 체크리스트
-- 비고: 관련 ADR 번호 또는 참고 사항
-- 이력: YYYY-MM-DD 초기 등록
-```
+새 정책은 [`templates/policy.md`](../templates/policy.md)를 복사해 쓴다. 문장 규칙은 [문서 작성 형식](../README.md)을 따른다.

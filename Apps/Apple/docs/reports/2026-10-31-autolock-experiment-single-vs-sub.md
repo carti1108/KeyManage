@@ -1,7 +1,7 @@
 # Apple 클라이언트 잠금 해제·자동 잠금 A/B 비교 실험 및 1~3단계 종합 분석 보고서
 
 - **작성일**: 2026-10-31
-- **관련 근거**: [ADR-0016](../adr/ADR-0016-apple-collaboration-experiment-delegation-and-role-separation.md), [ADR-0017](../adr/ADR-0017-single-agent-vs-subagent-experiment.md), [SEC-003](../../../../docs/policies/SEC/SEC-003-unlock-and-auto-lock.md), [COM-001](../../../../docs/policies/COM/COM-001-clipboard-auto-burn-and-graceful-fallback.md)
+- **관련 근거**: [ADR-0016](../adr/ADR-0016-apple-collaboration-experiment-delegation-and-role-separation.md), [ADR-0017](../adr/ADR-0017-single-agent-vs-subagent-experiment.md), [SEC-003](../../../../docs/policies/SEC/SEC-003-unlock-and-auto-lock.md), [COM-001](../../../../docs/policies/COM/COM-001-clipboard-auto-burn.md)
 - **실험 환경**: Apple Swift 6, Tuist 4.191.5, Google Antigravity (Gemini), macOS Sequoia
 
 ---
