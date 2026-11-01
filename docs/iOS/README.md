@@ -16,7 +16,13 @@
 
 ---
 
-## 2. 관련 전사 거버넌스 및 인덱스
+## 2. 플랫폼 구현 계약
+
+* **생체 해제용 키 보관** ([SEC-003](../policies/SEC/SEC-003-unlock-and-auto-lock.md)): 생체 인증으로 보호되는 Keychain 항목에 두고, 접근성은 `ThisDeviceOnly`로 한다. iCloud 동기화와 백업에서 뺀다.
+
+---
+
+## 3. 관련 전사 거버넌스 및 인덱스
 
 * [`adr/`](adr/README.md): Apple 플랫폼 아키텍처 결정 기록 인덱스 ([ADR-0014](../adr/ADR-0014-apple-multiplatform-microribs.md), [ADR-0015](../adr/ADR-0015-tuist-micro-features-modularization.md))
 * [`ai-usage/`](ai-usage/README.md): Apple 플랫폼 기능 구현 및 AI 페어프로그래밍 작업 일지 인덱스 ([025](../ai-usage/log/025-apple-client-scaffold-and-governance.md))
