@@ -600,7 +600,7 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory, deviceS
     },
 
     /**
-     * 서버에 올리지 못한 변경 사항이 기기에도 아직 저장되지 않았는지(쓰는 중이거나 실패). 떠남 확인용 (VLT-003).
+     * 서버에 올리지 못한 변경 사항이 기기에도 아직 저장되지 않았는지(쓰는 중이거나 실패). 떠남 확인용 (VLT-002).
      * 잠겼거나 세션 만료로 로그아웃된 뒤 남긴 것도 센다
      */
     hasUnsavedChanges(): boolean {
