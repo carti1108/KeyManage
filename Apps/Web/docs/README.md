@@ -6,4 +6,4 @@
 | :--- | :--- |
 | [`adr/`](adr/README.md) | 웹 ADR (ADR-0012·0013·0018~0020, 새 결정은 `ADR-WEB-NNN`) |
 | [`platform-bindings.md`](platform-bindings.md) | 암호 라이브러리, 색상 토큰, 글꼴, 아이콘 이름 |
-| [`device-storage.md`](device-storage.md) | 기기 저장 명세: IndexedDB 저장소, 기록 형식, 열기 제한 시간, 알려진 제약 |
+| [`device-storage.md`](device-storage.md) | 기기 저장 명세: IndexedDB 저장소, 기록 형식, 열기 제한 시간, 알려진 제약, 자동 잠금 설정 저장 위치 |

@@ -12,6 +12,8 @@
 | 포트 | `DeviceStore` (`src/domain/device/deviceRecord.ts`) |
 | 어댑터 | `src/adapters/browser/indexedDbDeviceStore.ts` |
 
+자동 잠금 시간 설정은 이 기록에 넣지 않는다. 계정과 무관하게 기기에 남아야 하므로 localStorage 키 `keymanage.autoLockMs` 하나에 따로 두고, 로그아웃·계정 전환 때 지우지 않는다. 포트는 `AutoLockSettingStore`(`src/domain/lock/autoLockSetting.ts`), 어댑터는 `src/adapters/browser/localStorageAutoLockSetting.ts`다 ([ADR-WEB-002](adr/ADR-WEB-002-auto-lock-setting-storage.md)).
+
 ## 2. 기록 형식 (`DeviceRecord`, 버전 1)
 
 | 필드 | 뜻 |
@@ -72,3 +74,4 @@
 - [ADR-0019](adr/ADR-0019-web-device-storage-single-account.md): 한 계정만 보관
 - [ADR-0020](adr/ADR-0020-web-device-storage-review-hardening.md): 다른 계정 인증 시 삭제, KDF 변경 시 되돌림 검사 유지, 읽지 못한 기록 재확인
 - [ADR-WEB-001](adr/ADR-WEB-001-multi-tab-device-record.md): 여러 탭의 기기 기록 쓰기와 탭 간 알림
+- [ADR-WEB-002](adr/ADR-WEB-002-auto-lock-setting-storage.md): 자동 잠금 시간 설정은 기기 기록과 따로 localStorage에 둔다
