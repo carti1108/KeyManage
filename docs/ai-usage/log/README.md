@@ -47,3 +47,4 @@
 | 039 | 2026-11-01 | [Apple 비밀번호 무작위 생성기 및 엔트로피 점수 진단기 서브에이전트 구현 (#40)](039-apple-password-generator-subagent.md) |
 | 040 | 2026-11-01 | [문서 경계 기준과 VLT 정책 분할 (#69 PR A)](040-docs-boundaries-and-policy-split.md) |
 | 041 | 2026-11-01 | [플랫폼 ADR과 문서를 각 플랫폼 폴더로 분리 (#69 PR B)](041-platform-docs-split.md) |
+| 042 | 2026-11-01 | [문서 템플릿과 한국어 STE 규칙, 정책 10개 변환 (#70 PR 1)](042-policy-template-and-ste.md) |
