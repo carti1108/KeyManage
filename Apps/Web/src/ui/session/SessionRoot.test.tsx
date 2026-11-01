@@ -479,7 +479,7 @@ describe('SessionRoot', () => {
       expect(screen.getByText(OFFLINE)).toBeInTheDocument()
     })
 
-    it('서버에 닿지 못해 연 볼트도 다시 연결되면 대기 내용이 없을 때 경고를 내린다', async () => {
+    it('서버에 닿지 못해 연 볼트는 브라우저가 다시 연결돼도 동기화에 성공할 때까지 경고를 유지한다', async () => {
       const { session, control } = createFakeSession({ status: 'locked', email: EMAIL, pendingSync: false })
       session.unlock.mockImplementationOnce(async () => {
         control.openVault(EMAIL)
@@ -492,18 +492,25 @@ describe('SessionRoot', () => {
 
       rerender(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} networkOffline={false} />)
 
-      expect(screen.queryByText(OFFLINE)).not.toBeInTheDocument()
+      // 브라우저 연결은 서버에 닿는다는 보장이 아니다
+      expect(screen.getByText(OFFLINE)).toBeInTheDocument()
     })
 
-    it('잠긴 동안 연결 상태가 바뀌어도 잠금 화면을 그대로 둔다', () => {
-      const { session } = createFakeSession({ status: 'locked', email: EMAIL, pendingSync: false })
+    it('잠긴 동안 오프라인이 되면 잠금 화면을 그대로 두고, 잠금 해제 뒤 경고를 보인다', async () => {
+      const { session, control } = createFakeSession({ status: 'locked', email: EMAIL, pendingSync: false })
+      session.unlock.mockImplementationOnce(async () => {
+        control.openVault(EMAIL)
+        return { offline: false }
+      })
       const { rerender } = render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} networkOffline={false} />)
 
       rerender(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} networkOffline />)
-      rerender(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} networkOffline={false} />)
-
       expect(screen.getByRole('button', { name: '잠금 해제' })).toBeInTheDocument()
-      expect(screen.queryByText(OFFLINE)).not.toBeInTheDocument()
+
+      type('마스터 비밀번호', PASSWORD)
+      fireEvent.click(screen.getByRole('button', { name: '잠금 해제' }))
+
+      expect(await screen.findByText(OFFLINE)).toBeInTheDocument()
     })
   })
 

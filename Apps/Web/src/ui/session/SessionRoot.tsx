@@ -39,14 +39,9 @@ export function SessionRoot({ session, clipboard, pageHidden, networkOffline = f
   // 잠기면 새 상태로 바꿔 평문 볼트를 들고 있던 이전 상태를 놓는다
   const [state, setState] = useState(() => session.state())
   const [notice, setNotice] = useState<string | null>(null)
-  // 잠금 해제 때 서버에 닿지 못해 기기에 저장한 볼트로 열었음
+  // 잠금 해제 때 서버에 닿지 못해 기기에 저장한 볼트로 열었음. 브라우저 연결은 서버에 닿는다는 보장이 아니므로
+  // 재연결만으로 내리지 않고 동기화 성공·로그인·잠금 해제 결과로만 바꾼다 (VLT-002)
   const [offline, setOffline] = useState(false)
-  // 브라우저가 다시 연결되면 잠금 해제 때의 오프라인 표시도 내린다. 대기 내용이 남아 있으면 pendingSync로 경고가 남는다 (VLT-002)
-  const [lastNetworkOffline, setLastNetworkOffline] = useState(networkOffline)
-  if (networkOffline !== lastNetworkOffline) {
-    setLastNetworkOffline(networkOffline)
-    if (!networkOffline) setOffline(false)
-  }
   // 대기 내용 재전송이 분명한 거절을 받았을 때의 문구 (VLT-002)
   const [syncError, setSyncError] = useState<ErrorMessage | null>(null)
   const [confirmingLogout, setConfirmingLogout] = useState(false)
