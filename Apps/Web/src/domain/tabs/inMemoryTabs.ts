@@ -2,6 +2,14 @@
 // 테스트에서 여러 탭을 흉내 낼 때와, 탭 간 기능이 없는 브라우저에서 탭 하나 전제로 돌 때 쓴다
 import type { TabChannel, TabLock, TabLockName, TabMessageKind, Tabs } from './tabs'
 
+function startNow<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return fn()
+  } catch (error) {
+    return Promise.reject(error)
+  }
+}
+
 /** 이름마다 한 번에 하나씩 실행하는 잠금. 같은 잠금을 쓰는 모든 탭에 걸린다 */
 function createSerialLock(): TabLock {
   const tails = new Map<TabLockName, Promise<unknown>>()
@@ -12,8 +20,9 @@ function createSerialLock(): TabLock {
       const count = waiting.get(name) ?? 0
       if (options.ifAvailable && count > 0) return null
       waiting.set(name, count + 1)
-      const previous = tails.get(name) ?? Promise.resolve()
-      const result = previous.then(fn)
+      // 기다리는 실행이 없으면 바로 시작한다. 탭 하나 전제였던 기존 동작과 같은 시점에 실행된다
+      const previous = tails.get(name)
+      const result = count === 0 || previous === undefined ? startNow(fn) : previous.then(fn)
       // 실패해도 다음 실행이 잠금을 얻게 한다
       tails.set(
         name,

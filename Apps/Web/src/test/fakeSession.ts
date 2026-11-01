@@ -14,6 +14,9 @@ export function createFakeSession(initial: SessionState = { status: 'signedOut' 
   const lockListeners = new Set<() => void>()
   const unlockListeners = new Set<() => void>()
   const syncListeners = new Set<(error: unknown) => void>()
+  const remoteListeners = new Set<() => void>()
+  // 기기 기록의 대기 표시. 다른 탭이 남긴 대기 내용을 흉내 낸다. null이면 이 탭의 대기 표시를 따른다
+  let devicePending: boolean | null = null
 
   const control = {
     /** 진행 중인 로그아웃의 서버 요청을 끝낸다 */
@@ -42,6 +45,14 @@ export function createFakeSession(initial: SessionState = { status: 'signedOut' 
     /** 대기 내용 재전송 결과를 알린다. null이면 모두 올렸다 */
     emitSync(error: unknown) {
       for (const listener of syncListeners) listener(error)
+    },
+    /** 다른 탭이 남긴 대기 내용처럼 기기 기록의 대기 표시만 바꾼다 */
+    setDevicePending(pending: boolean) {
+      devicePending = pending
+    },
+    /** 다른 탭 때문에 상태가 바뀌었다고 알린다 */
+    emitRemote() {
+      for (const listener of remoteListeners) listener()
     },
     signOut() {
       const wasUnlocked = current.status === 'unlocked'
@@ -80,6 +91,11 @@ export function createFakeSession(initial: SessionState = { status: 'signedOut' 
     onUnlock: (listener: () => void) => {
       unlockListeners.add(listener)
       return () => unlockListeners.delete(listener)
+    },
+    pendingOnDevice: vi.fn(async () => devicePending ?? (current.status !== 'signedOut' && current.pendingSync)),
+    onRemoteChange: (listener: () => void) => {
+      remoteListeners.add(listener)
+      return () => remoteListeners.delete(listener)
     },
     onSyncChange: (listener: (error: unknown) => void) => {
       syncListeners.add(listener)
