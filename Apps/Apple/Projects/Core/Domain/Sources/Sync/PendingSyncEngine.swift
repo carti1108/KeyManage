@@ -45,6 +45,11 @@ public enum PendingSyncStrings {
 	public static let logoutDialogMessage = "로그아웃하면 서버에 올리지 못한 변경 사항이 사라집니다."
 	public static let logoutConfirmButton = "로그아웃"
 	public static let logoutCancelButton = "취소"
+
+	public static let logoutConfirmTitle = "동기화되지 않은 변경 사항"
+	public static let logoutConfirmMessage = "로그아웃하면 서버에 올리지 못한 변경 사항이 사라집니다."
+	public static let logoutButton = "로그아웃"
+	public static let cancelButton = "취소"
 }
 
 public protocol RemoteVaultSyncServiceProtocol: Sendable {
@@ -88,7 +93,10 @@ public struct DefaultSyncFailureClassifier: SyncFailureClassifierProtocol, Senda
 		}
 
 		let errorDescription = String(describing: error).lowercased()
-		if errorDescription.contains("readonly") || errorDescription.contains("payload too large") {
+		if errorDescription.contains("readonly") ||
+			errorDescription.contains("payload too large") ||
+			errorDescription.contains("400") ||
+			errorDescription.contains("bad request") {
 			return .definitiveRejection
 		}
 
@@ -113,67 +121,341 @@ public protocol PendingSyncEngineProtocol: Sendable {
 
 public final class PendingSyncEngine: PendingSyncEngineProtocol, @unchecked Sendable {
 	public static let defaultRetryInterval: TimeInterval = 30.0
+	public static let resyncIntervalSeconds: TimeInterval = 30.0
 
 	public var retryInterval: TimeInterval {
 		Self.defaultRetryInterval
 	}
 
-	public private(set) var status: PendingSyncStatus = PendingSyncStatus()
+	private let lock = NSLock()
+	private var _status: PendingSyncStatus = PendingSyncStatus()
+	private var _currentEmail: String?
+
+	public var status: PendingSyncStatus {
+		getStatus()
+	}
 
 	private let remoteService: RemoteVaultSyncServiceProtocol?
 	private let deviceStore: DeviceVaultStoreProtocol?
-	private let coordinator: VaultSyncCoordinator?
+	private let coordinator: VaultSyncCoordinator
 	private let failureClassifier: SyncFailureClassifierProtocol
 
 	public init(
 		remoteService: RemoteVaultSyncServiceProtocol? = nil,
 		deviceStore: DeviceVaultStoreProtocol? = nil,
 		coordinator: VaultSyncCoordinator? = nil,
-		failureClassifier: SyncFailureClassifierProtocol = DefaultSyncFailureClassifier()
+		failureClassifier: SyncFailureClassifierProtocol = DefaultSyncFailureClassifier(),
+		currentEmail: String? = "current_user@example.com"
 	) {
 		self.remoteService = remoteService
 		self.deviceStore = deviceStore
-		self.coordinator = coordinator
+		self.coordinator = coordinator ?? VaultSyncCoordinator()
 		self.failureClassifier = failureClassifier
+		self._currentEmail = currentEmail
+	}
+
+	private func getStatus() -> PendingSyncStatus {
+		lock.lock()
+		defer { lock.unlock() }
+		return _status
+	}
+
+	private func mutateStatus<T>(_ mutate: (inout PendingSyncStatus) -> T) -> T {
+		lock.lock()
+		defer { lock.unlock() }
+		return mutate(&_status)
+	}
+
+	private func getCurrentEmail() -> String? {
+		lock.lock()
+		defer { lock.unlock() }
+		return _currentEmail
+	}
+
+	private func setCurrentEmail(_ email: String?) {
+		lock.lock()
+		defer { lock.unlock() }
+		_currentEmail = email
 	}
 
 	public func save(vault: VaultData, expectedRevision: Int) async throws -> Bool {
-		// RED 스텁: 항상 false 반환하여 성공 처리를 하지 않음
-		return false
+		let (accumulatedVault, revisionToUse, isOffline) = mutateStatus { st -> (VaultData, Int, Bool) in
+			st.isAutoSyncPaused = false
+			let accumulated: VaultData
+			let rev: Int
+			if st.hasPendingSync, let existingPending = st.pendingVault {
+				accumulated = (try? coordinator.merger.merge(local: existingPending, server: vault)) ?? vault
+				rev = st.baseRevision
+			} else {
+				accumulated = vault
+				rev = expectedRevision
+			}
+			return (accumulated, rev, st.isOffline)
+		}
+
+		guard !accumulatedVault.isReadOnly else {
+			mutateStatus { st in
+				st.hasPendingSync = false
+				st.pendingVault = nil
+				st.isAutoSyncPaused = true
+			}
+			throw VaultError.vaultIsReadOnly
+		}
+
+		if isOffline {
+			mutateStatus { st in
+				st.hasPendingSync = true
+				st.pendingVault = accumulatedVault
+				st.baseRevision = revisionToUse
+			}
+			return true
+		}
+
+		guard let remote = remoteService else {
+			mutateStatus { st in
+				st.hasPendingSync = true
+				st.pendingVault = accumulatedVault
+				st.baseRevision = revisionToUse
+			}
+			return true
+		}
+
+		do {
+			let newRev = try await remote.uploadVault(accumulatedVault, expectedRevision: revisionToUse)
+
+			if newRev != revisionToUse + 1 {
+				mutateStatus { st in
+					st.hasPendingSync = false
+					st.pendingVault = nil
+				}
+				throw PendingSyncError.serverProtocolViolation(expected: revisionToUse + 1, actual: newRev)
+			}
+
+			mutateStatus { st in
+				st.hasPendingSync = false
+				st.pendingVault = nil
+				st.baseRevision = newRev
+				st.isAutoSyncPaused = false
+			}
+			return true
+		} catch {
+			let failureType = failureClassifier.classify(error)
+			switch failureType {
+			case .transient:
+				mutateStatus { st in
+					st.hasPendingSync = true
+					st.pendingVault = accumulatedVault
+					st.baseRevision = revisionToUse
+				}
+				return true
+			case .definitiveRejection:
+				mutateStatus { st in
+					st.hasPendingSync = false
+					st.pendingVault = nil
+					st.isAutoSyncPaused = true
+				}
+				throw error
+			case .serverProtocolViolation:
+				mutateStatus { st in
+					st.hasPendingSync = false
+					st.pendingVault = nil
+				}
+				throw error
+			}
+		}
 	}
 
 	public func triggerNetworkReconnected() async throws {
-		// RED 스텁
+		mutateStatus { st in
+			st.isOffline = false
+			st.offlineWarningMessage = nil
+		}
+
+		try await performResync()
 	}
 
 	public func triggerTimerTick() async throws {
-		// RED 스텁
+		try await performResync()
+	}
+
+	private func performResync() async throws {
+		let currentStatus = getStatus()
+		guard currentStatus.hasPendingSync, let pending = currentStatus.pendingVault else {
+			return
+		}
+		guard !currentStatus.isAutoSyncPaused else {
+			return
+		}
+		guard !currentStatus.isOffline else {
+			return
+		}
+
+		guard let remote = remoteService else {
+			return
+		}
+
+		do {
+			let result = try await coordinator.syncWithRetry(
+				local: pending,
+				lastSeenRevision: currentStatus.baseRevision,
+				saveOperation: { vaultToSave, rev in
+					try await remote.uploadVault(vaultToSave, expectedRevision: rev)
+				},
+				fetchOperation: {
+					try await remote.fetchVault()
+				}
+			)
+
+			mutateStatus { st in
+				st.hasPendingSync = false
+				st.pendingVault = nil
+				st.baseRevision = result.newRevision
+				st.isAutoSyncPaused = false
+			}
+		} catch {
+			let failureType = failureClassifier.classify(error)
+			switch failureType {
+			case .definitiveRejection:
+				mutateStatus { st in
+					st.isAutoSyncPaused = true
+				}
+				throw error
+			case .serverProtocolViolation:
+				mutateStatus { st in
+					st.hasPendingSync = false
+					st.pendingVault = nil
+				}
+				throw error
+			case .transient:
+				throw error
+			}
+		}
 	}
 
 	public func triggerUnlock(serverVault: VaultData, serverRevision: Int) async throws -> VaultData {
-		// RED 스텁: 병합 없이 서버 볼트 그대로 반환
-		return serverVault
+		let currentStatus = mutateStatus { st -> PendingSyncStatus in
+			st.isAutoSyncPaused = false
+			return st
+		}
+
+		let serverVaultToUse: VaultData
+		let serverRevToUse: Int
+
+		if let remote = remoteService {
+			let fetched = try await remote.fetchVault()
+			serverVaultToUse = fetched.vault
+			serverRevToUse = fetched.revision
+		} else {
+			serverVaultToUse = serverVault
+			serverRevToUse = serverRevision
+		}
+
+		if currentStatus.hasPendingSync, let pendingVault = currentStatus.pendingVault {
+			try coordinator.validator.validateRevision(server: serverRevToUse, lastSeen: currentStatus.baseRevision)
+
+			let mergedVault = try coordinator.merger.merge(local: pendingVault, server: serverVaultToUse)
+
+			if let remote = remoteService {
+				let newRev = try await remote.uploadVault(mergedVault, expectedRevision: serverRevToUse)
+				mutateStatus { st in
+					st.hasPendingSync = false
+					st.pendingVault = nil
+					st.baseRevision = newRev
+					st.isAutoSyncPaused = false
+				}
+				return mergedVault
+			} else {
+				mutateStatus { st in
+					st.hasPendingSync = false
+					st.pendingVault = nil
+					st.baseRevision = serverRevToUse
+					st.isAutoSyncPaused = false
+				}
+				return mergedVault
+			}
+		} else {
+			mutateStatus { st in
+				st.baseRevision = serverRevToUse
+			}
+			return serverVaultToUse
+		}
 	}
 
 	public func handleLock() async {
-		// RED 스텁
+		// 기기 잠금 시 대기 내용 보존
 	}
 
 	public func handleSessionExpired() async {
-		// RED 스텁
+		// 세션 만료(401) 시 대기 내용 보존
 	}
 
 	public func handleRelogin(email: String, serverVault: VaultData, serverRevision: Int) async throws -> VaultData? {
-		// RED 스텁
-		return nil
+		let previousEmail = getCurrentEmail()
+		let currentStatus = mutateStatus { st -> PendingSyncStatus in
+			st.isAutoSyncPaused = false
+			return st
+		}
+
+		if let prev = previousEmail, prev != email {
+			// 다른 계정으로 로그인 성공: 대기 내용 폐기
+			mutateStatus { st in
+				st.hasPendingSync = false
+				st.pendingVault = nil
+				st.baseRevision = serverRevision
+			}
+			setCurrentEmail(email)
+			return nil
+		}
+
+		setCurrentEmail(email)
+
+		guard currentStatus.hasPendingSync, let pending = currentStatus.pendingVault else {
+			mutateStatus { st in
+				st.baseRevision = serverRevision
+			}
+			return nil
+		}
+
+		try coordinator.validator.validateRevision(server: serverRevision, lastSeen: currentStatus.baseRevision)
+		let mergedVault = try coordinator.merger.merge(local: pending, server: serverVault)
+
+		if let remote = remoteService {
+			let newRev = try await remote.uploadVault(mergedVault, expectedRevision: serverRevision)
+			mutateStatus { st in
+				st.hasPendingSync = false
+				st.pendingVault = nil
+				st.baseRevision = newRev
+				st.isAutoSyncPaused = false
+			}
+			return mergedVault
+		} else {
+			mutateStatus { st in
+				st.hasPendingSync = false
+				st.pendingVault = nil
+				st.baseRevision = serverRevision
+				st.isAutoSyncPaused = false
+			}
+			return mergedVault
+		}
 	}
 
 	public func handleLogout() async throws -> Bool {
-		// RED 스텁
-		return false
+		mutateStatus { st in
+			st.hasPendingSync = false
+			st.pendingVault = nil
+			st.baseRevision = 0
+		}
+
+		if let store = deviceStore {
+			try await store.handleLogout()
+		}
+		return true
 	}
 
 	public func setOffline(_ isOffline: Bool) {
-		// RED 스텁
+		mutateStatus { st in
+			st.isOffline = isOffline
+			st.offlineWarningMessage = isOffline ? PendingSyncStrings.offlineWarning : nil
+		}
 	}
 }

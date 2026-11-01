@@ -52,8 +52,17 @@ public protocol DeviceVaultStoreProtocol: Sendable {
 }
 
 public final class DeviceVaultStore: DeviceVaultStoreProtocol, @unchecked Sendable {
-	public private(set) var hasStorageSaveError: Bool = false
-	public private(set) var currentRecord: DeviceVaultRecord? = nil
+	private let lock = NSLock()
+	private var _hasStorageSaveError: Bool = false
+	private var _currentRecord: DeviceVaultRecord?
+
+	public var hasStorageSaveError: Bool {
+		getLockedState().hasError
+	}
+
+	public var currentRecord: DeviceVaultRecord? {
+		getLockedState().record
+	}
 
 	private let storage: DeviceVaultStorageProtocol?
 
@@ -61,27 +70,103 @@ public final class DeviceVaultStore: DeviceVaultStoreProtocol, @unchecked Sendab
 		self.storage = storage
 	}
 
+	private func getLockedState() -> (record: DeviceVaultRecord?, hasError: Bool) {
+		lock.lock()
+		defer { lock.unlock() }
+		return (_currentRecord, _hasStorageSaveError)
+	}
+
+	private func updateRecord(_ record: DeviceVaultRecord?, hasError: Bool) {
+		lock.lock()
+		defer { lock.unlock() }
+		_currentRecord = record
+		_hasStorageSaveError = hasError
+	}
+
+	private func setSaveError(_ hasError: Bool) {
+		lock.lock()
+		defer { lock.unlock() }
+		_hasStorageSaveError = hasError
+	}
+
 	public func loadRecord() async throws -> DeviceVaultRecord? {
-		return nil
+		if let storage = storage {
+			let record = try await storage.load()
+			updateRecord(record, hasError: false)
+			return record
+		} else {
+			return currentRecord
+		}
 	}
 
 	public func saveRecord(_ record: DeviceVaultRecord) async throws {
-		// RED 스텁: 저장 로직 미구현으로 테스트 실패
+		do {
+			if let storage = storage {
+				try await storage.save(record)
+			}
+			updateRecord(record, hasError: false)
+		} catch {
+			setSaveError(true)
+			throw error
+		}
 	}
 
 	public func handleAuthenticationSuccess(email: String) async throws {
-		// RED 스텁: 계정 변경 삭제 로직 미구현
+		var existing = currentRecord
+
+		if existing == nil, let storage = storage {
+			existing = try await storage.load()
+		}
+
+		if let current = existing, current.email != email {
+			do {
+				if let storage = storage {
+					try await storage.delete()
+				}
+				updateRecord(nil, hasError: false)
+			} catch let err as DeviceVaultStoreError {
+				throw err
+			} catch {
+				throw DeviceVaultStoreError.storageDeleteFailed(error.localizedDescription)
+			}
+		}
 	}
 
 	public func handleAuthenticationFailure(email: String) async {
-		// RED 스텁
+		// 다른 계정 인증 실패 시에는 이전 기록을 유지
 	}
 
 	public func handleLogout() async throws {
-		// RED 스텁: 로그아웃 삭제 로직 미구현
+		do {
+			if let storage = storage {
+				try await storage.delete()
+			}
+			updateRecord(nil, hasError: false)
+		} catch let err as DeviceVaultStoreError {
+			throw err
+		} catch {
+			throw DeviceVaultStoreError.storageDeleteFailed(error.localizedDescription)
+		}
 	}
 
 	public func evaluateKdfChange(newSalt: Data, newIterations: Int) async throws -> Bool {
+		var record = currentRecord
+
+		if record == nil, let storage = storage {
+			record = try await storage.load()
+		}
+
+		guard var rec = record else { return false }
+		if rec.kdfSalt != newSalt || rec.kdfIterations != newIterations {
+			rec.hasPendingSync = false
+			rec.kdfSalt = newSalt
+			rec.kdfIterations = newIterations
+			if let storage = storage {
+				try await storage.save(rec)
+			}
+			updateRecord(rec, hasError: false)
+			return true
+		}
 		return false
 	}
 }
