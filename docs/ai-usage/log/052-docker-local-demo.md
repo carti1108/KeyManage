@@ -1,6 +1,6 @@
 # 2026-11-01 · 로컬 Docker Compose 데모 실행 구성
 
-- 이슈·PR: 없음(PR 전)
+- 이슈·PR: PR #87
 - 커밋: 436fdb0, 55b2ffd, 03077a9, fdc233b, 1e56e2a, 0a1e598, ac0a596, 62ec6ab, 246b1af, 4943b1b, acb93e7, edbb605
 
 > **요약** 데모용 서버를 따로 운영하지 않고, 레포를 받은 사람이 `docker compose up`으로 자기 PC에 백엔드와 웹을 띄우게 했다. 데스크톱 앱은 각자의 로컬 HTTPS 서버(`https://localhost:8443`, mkcert 인증서)에 접속한다. 사람이 배포 방식을 데모 기준으로 고르고 mkcert 안내로 HTTPS 문제를 푸는 방향을 제시했다.
