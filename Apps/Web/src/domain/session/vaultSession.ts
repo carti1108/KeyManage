@@ -1,6 +1,6 @@
 // 로그인·가입·잠금·잠금 해제·로그아웃 상태 관리 (SEC-002, SEC-003)
 // 잠기면 암호화 키와 평문 볼트를 버리고, 이메일·KDF 값·토큰·암호화 볼트만 남긴다
-// 서버에 닿지 못한 저장은 동기화 대기로 두고 나중에 다시 보낸다 (VLT-001)
+// 서버에 닿지 못한 저장은 동기화 대기로 두고 나중에 다시 보낸다 (VLT-002)
 import { MasterPasswordChangedError, normalizeEmail, type AuthResult, type AuthService, type UnlockKdf } from '../auth/authService'
 import { fromBase64 } from '../crypto/base64'
 import { deriveKeys } from '../crypto/keys'
@@ -49,18 +49,18 @@ export type SessionState =
   | {
       readonly status: 'locked'
       readonly email: string
-      /** 서버에 올리지 못한 변경 사항이 암호화된 채 남아 있음 (VLT-001) */
+      /** 서버에 올리지 못한 변경 사항이 암호화된 채 남아 있음 (VLT-002) */
       readonly pendingSync: boolean
     }
   | {
       readonly status: 'unlocked'
       readonly email: string
       readonly vault: SyncedVault
-      /** 서버에 올리지 못한 변경 사항이 있음 (VLT-001) */
+      /** 서버에 올리지 못한 변경 사항이 있음 (VLT-002) */
       readonly pendingSync: boolean
       /** 세션 토큰이 있음. 없으면(오프라인으로 다시 열었을 때) 비밀번호를 다시 입력받아야 동기화한다 (SEC-003) */
       readonly signedIn: boolean
-      /** 마지막 기기 저장이 성공함. 실패하면 새로고침 때 올리지 못한 변경 사항이 사라질 수 있다 (VLT-001) */
+      /** 마지막 기기 저장이 성공함. 실패하면 새로고침 때 올리지 못한 변경 사항이 사라질 수 있다 (VLT-003) */
       readonly storedOnDevice: boolean
     }
 
@@ -94,7 +94,7 @@ interface Unlocked {
   readonly pendingSync: boolean
 }
 
-// 세션 만료로 로그아웃될 때 남긴 동기화 대기 내용. 같은 계정으로 다시 로그인하면 올린다 (VLT-001)
+// 세션 만료로 로그아웃될 때 남긴 동기화 대기 내용. 같은 계정으로 다시 로그인하면 올린다 (VLT-002)
 interface OrphanedPending {
   readonly email: string
   readonly payload: EncryptedVaultPayload
@@ -392,7 +392,7 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory, deviceS
     const adopted: { vault: SyncedVault; pendingSync: boolean; dropped?: unknown } = await adoptOrphan(email, result.encryptionKey, sync, prepared)
     ensureCurrent(startedAt)
     await open(email, result.session.accessToken, result.kdf, sync, adopted.vault, adopted.pendingSync)
-    // 올렸거나, 이 볼트의 대기로 옮겼거나, 서버가 받을 수 없어 버렸다. 다른 계정의 대기 내용이면 그 계정이 열렸으므로 버린다 (VLT-001)
+    // 올렸거나, 이 볼트의 대기로 옮겼거나, 서버가 받을 수 없어 버렸다. 다른 계정의 대기 내용이면 그 계정이 열렸으므로 버린다 (VLT-002)
     orphan = null
     if (adopted.dropped !== undefined) notifySync(adopted.dropped)
   }
@@ -578,7 +578,7 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory, deviceS
     },
 
     /**
-     * 먼저 이 기기에 반영한 뒤 서버에 보낸다. 서버에 닿지 못하면 동기화 대기로 두고 성공으로 끝난다 (VLT-001)
+     * 먼저 이 기기에 반영한 뒤 서버에 보낸다. 서버에 닿지 못하면 동기화 대기로 두고 성공으로 끝난다 (VLT-002)
      * @throws SessionStateError(잠김·취소), 보내기 전 검사 오류(ReadOnlyVaultError, VaultTooLargeError, InvalidVaultDataError),
      *   SessionExpiredError, 그 밖에 VaultSync.save의 분명한 거절. 분명한 거절이어도 변경 사항은 대기로 남는다
      */
@@ -600,7 +600,7 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory, deviceS
     },
 
     /**
-     * 서버에 올리지 못한 변경 사항이 기기에도 아직 저장되지 않았는지(쓰는 중이거나 실패). 떠남 확인용 (VLT-001).
+     * 서버에 올리지 못한 변경 사항이 기기에도 아직 저장되지 않았는지(쓰는 중이거나 실패). 떠남 확인용 (VLT-002).
      * 잠겼거나 세션 만료로 로그아웃된 뒤 남긴 것도 센다
      */
     hasUnsavedChanges(): boolean {

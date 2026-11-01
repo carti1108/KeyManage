@@ -1,5 +1,5 @@
 // @vitest-environment node
-// 저장이 서버에 닿지 못했을 때 동기화 대기로 두고 나중에 올린다 (VLT-001)
+// 저장이 서버에 닿지 못했을 때 동기화 대기로 두고 나중에 올린다 (VLT-002)
 import { describe, expect, it } from 'vitest'
 import { NOW, PASSWORD, fields, saveFromOtherDevice, serverItemIds, unlockedWithItem } from '../../test/sessionFixtures'
 import { NetworkError, ServerError, UnexpectedResponseError } from '../server/serverErrors'

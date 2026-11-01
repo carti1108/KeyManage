@@ -20,7 +20,7 @@ function App({ services }: { services?: Services }) {
     session
       .restore()
       .catch(() => {
-        // 기기 기록을 읽지 못하면 로그인 화면에서 시작한다. 쓰기 실패는 쓸 때 알린다 (VLT-001)
+        // 기기 기록을 읽지 못하면 로그인 화면에서 시작한다. 쓰기 실패는 쓸 때 알린다 (VLT-003)
       })
       .finally(() => {
         if (active) setRestored(true)
@@ -34,7 +34,7 @@ function App({ services }: { services?: Services }) {
   useEffect(() => startAutoLock(session), [session])
   // 잠기면 바로, 탭으로 돌아오면 비우지 못한 클립보드를 비운다 (COM-001)
   useEffect(() => startClipboardBurn(session, clipboard), [session, clipboard])
-  // 서버에 올리지 못한 변경 사항을 재연결·30초마다 다시 보내고, 대기 중에 탭을 떠나면 확인을 받는다 (VLT-001)
+  // 서버에 올리지 못한 변경 사항을 재연결·30초마다 다시 보내고, 대기 중에 탭을 떠나면 확인을 받는다 (VLT-002)
   useEffect(() => startPendingSync(session), [session])
 
   if (!restored) return null

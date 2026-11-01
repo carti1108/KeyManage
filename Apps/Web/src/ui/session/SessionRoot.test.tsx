@@ -330,7 +330,7 @@ describe('SessionRoot', () => {
     })
   })
 
-  describe('동기화 대기 (VLT-001)', () => {
+  describe('동기화 대기 (VLT-002)', () => {
     const OFFLINE = '오프라인 상태입니다. 변경 사항이 서버에 동기화되지 않습니다.'
 
     function pendingVault() {
