@@ -18,6 +18,8 @@ export interface Services {
   readonly session: VaultSession
   /** 복사하고 30초 뒤 비우는 클립보드 (COM-001) */
   readonly clipboard: ClipboardBurner
+  /** 같은 브라우저의 다른 탭과 나누는 잠금·알림 (ADR-WEB-001) */
+  readonly tabs: Tabs
 }
 
 /**
@@ -44,5 +46,6 @@ export function createServices(
       tabs,
     }),
     clipboard: createClipboardBurner({ clipboard: browserClipboard, scheduler: browserScheduler, now: () => Date.now() }),
+    tabs,
   }
 }
