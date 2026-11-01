@@ -234,11 +234,11 @@ public struct SequentialDigitsChecker: Sendable {
 	public static let noticeMessage = "123처럼 이어지는 숫자가 들어 있어 추측하기 쉽습니다."
 	public static let minimumSequenceLength = 3
 
+	private static let asciiDigits = Set("0123456789")
+
 	public static func hasSequentialDigits(_ password: String) -> Bool {
 		let characters = Array(password)
 		guard characters.count >= minimumSequenceLength else { return false }
-
-		let asciiDigits = Set("0123456789")
 
 		var run = 1
 		var step = 0
