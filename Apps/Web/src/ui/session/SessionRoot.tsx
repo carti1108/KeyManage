@@ -13,6 +13,7 @@ import { UnlockScreen } from '../screens/UnlockScreen'
 import { VaultHomeScreen } from '../screens/VaultHomeScreen'
 import type { ClipboardPort } from '../clipboard/clipboardPort'
 import { ClipboardNotice } from '../clipboard/ClipboardNotice'
+import { AutoLockSelect, type AutoLockSelectProps } from '../vault/AutoLockSelect'
 import { VaultScreen } from '../vault/VaultScreen'
 import { ReconnectPrompt } from './ReconnectPrompt'
 import type { RollbackOption, SessionPort } from './sessionPort'
@@ -28,9 +29,11 @@ export interface SessionRootProps {
   clipboard: ClipboardPort
   /** 탭이 백그라운드로 감 */
   pageHidden: boolean
+  /** 자동 잠금 시간과 바꾸기 (SEC-003). 없으면 선택 칸을 보이지 않는다 */
+  autoLock?: AutoLockSelectProps
 }
 
-export function SessionRoot({ session, clipboard, pageHidden }: SessionRootProps) {
+export function SessionRoot({ session, clipboard, pageHidden, autoLock }: SessionRootProps) {
   // 잠기면 새 상태로 바꿔 평문 볼트를 들고 있던 이전 상태를 놓는다
   const [state, setState] = useState(() => session.state())
   const [notice, setNotice] = useState<string | null>(null)
@@ -186,6 +189,7 @@ export function SessionRoot({ session, clipboard, pageHidden }: SessionRootProps
         onLock={() => session.lock()}
         onLogout={() => void requestLogout(state.pendingSync)}
       >
+        {autoLock && <AutoLockSelect {...autoLock} />}
         {logoutConfirm()}
         {syncError && <Alert title={syncError.title}>{syncError.body}</Alert>}
         {!state.storedOnDevice && <Alert>{DEVICE_STORAGE_FAILED}</Alert>}
