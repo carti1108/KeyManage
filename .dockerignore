@@ -1,0 +1,22 @@
+# Docker 빌드 컨텍스트 (ADR-0021). 이미지 빌드에 쓰는 것만 넣는다
+*
+!Docker/
+!Back/
+!Apps/Web/
+!docs/crypto-test-vectors.json
+
+# 넣은 폴더 안에서도 빌드 결과·의존성·로컬 데이터·비밀은 뺀다
+Back/.gradle
+Back/.idea
+Back/build
+Back/*/build
+Back/app/data
+Back/docs
+Apps/Web/node_modules
+Apps/Web/dist
+Apps/Web/docs
+Apps/Web/src-tauri
+Apps/Web/.env*
+**/*.pem
+**/*.key
+**/.DS_Store
