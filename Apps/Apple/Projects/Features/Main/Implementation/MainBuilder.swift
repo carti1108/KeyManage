@@ -33,7 +33,6 @@ public final class MainBuilder: Builder<MainDependency>, MainBuildable {
 			interactor: interactor,
 			viewController: viewController
 		)
-		interactor.router = router
 		return router
 	}
 }

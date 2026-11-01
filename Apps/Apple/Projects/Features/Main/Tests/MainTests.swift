@@ -141,4 +141,34 @@ struct MainTests {
 		#expect(interactor?.router === routing)
 		#expect(interactor?.lockManager === lockManager)
 	}
+
+	// MARK: - 5. MainViewModel 단위 테스트
+	@Test("MainViewModel.lockVault() 호출 시 onLockRequested 클로저 트리거 검증")
+	func mainViewModel_lockVault_triggersOnLockRequested() {
+		// Given
+		let viewModel = MainViewModel()
+		var lockCalled = false
+		viewModel.onLockRequested = { lockCalled = true }
+
+		// When
+		viewModel.lockVault()
+
+		// Then
+		#expect(lockCalled)
+	}
+
+	@Test("MainViewModel.selectTab(_:) 호출 시 상태 갱신 및 onTabSelected 클로저 발행 검증")
+	func mainViewModel_selectTab_updatesStateAndTriggersClosure() {
+		// Given
+		let viewModel = MainViewModel(selectedTab: .vault)
+		var selectedTab: MainTab?
+		viewModel.onTabSelected = { selectedTab = $0 }
+
+		// When
+		viewModel.selectTab(.settings)
+
+		// Then
+		#expect(viewModel.selectedTab == .settings)
+		#expect(selectedTab == .settings)
+	}
 }

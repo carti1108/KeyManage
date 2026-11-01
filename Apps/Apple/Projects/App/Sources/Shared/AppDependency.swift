@@ -10,12 +10,12 @@ import RootFeatureInterface
 @MainActor
 final class AppDependency: RootDependency, UnlockDependency, MainDependency {
 	let lockManager: VaultLockManagerProtocol
-	lazy var unlockBuilder: UnlockBuildable = {
+	var unlockBuilder: UnlockBuildable {
 		UnlockBuilder(dependency: self)
-	}()
-	lazy var mainBuilder: MainBuildable = {
+	}
+	var mainBuilder: MainBuildable {
 		MainBuilder(dependency: self)
-	}()
+	}
 
 	init(lockManager: VaultLockManagerProtocol = VaultLockManager()) {
 		self.lockManager = lockManager

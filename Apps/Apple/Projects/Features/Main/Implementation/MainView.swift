@@ -65,7 +65,12 @@ struct MainView: View {
 
 	#if os(iOS)
 	private var iOSLayout: some View {
-		TabView(selection: $viewModel.selectedTab) {
+		let tabBinding = Binding<MainTab>(
+			get: { viewModel.selectedTab },
+			set: { viewModel.selectTab($0) }
+		)
+
+		return TabView(selection: tabBinding) {
 			ForEach(MainTab.allCases) { tab in
 				NavigationView {
 					tabContent(for: tab)
@@ -81,6 +86,7 @@ struct MainView: View {
 							}
 						}
 				}
+				.navigationViewStyle(.stack)
 				.tabItem {
 					Label(tab.title, systemImage: iconName(for: tab))
 				}
