@@ -15,6 +15,11 @@ export const DEFAULT_AUTO_LOCK_MS = AUTO_LOCK_OPTIONS_MS.fiveMinutes
 
 const ALLOWED_TIMEOUTS: readonly number[] = Object.values(AUTO_LOCK_OPTIONS_MS)
 
+/** 정해진 자동 잠금 선택지인지 */
+export function isAutoLockOption(timeoutMs: number): boolean {
+  return ALLOWED_TIMEOUTS.includes(timeoutMs)
+}
+
 /** 정해진 선택지가 아닌 자동 잠금 시간. "잠그지 않음"은 없다 (SEC-003) */
 export class InvalidAutoLockTimeoutError extends Error {
   constructor(timeoutMs: number) {
@@ -60,7 +65,7 @@ export interface AutoLock {
 
 /** @throws InvalidAutoLockTimeoutError */
 export function createAutoLock({ timeoutMs, now, scheduler, onTimeout, isVisible = () => true }: AutoLockDeps): AutoLock {
-  if (!ALLOWED_TIMEOUTS.includes(timeoutMs)) throw new InvalidAutoLockTimeoutError(timeoutMs)
+  if (!isAutoLockOption(timeoutMs)) throw new InvalidAutoLockTimeoutError(timeoutMs)
   const immediate = timeoutMs === AUTO_LOCK_OPTIONS_MS.immediately
 
   let running = false
@@ -90,7 +95,9 @@ export function createAutoLock({ timeoutMs, now, scheduler, onTimeout, isVisible
   return {
     start() {
       running = true
-      restartTimer()
+      // "즉시"는 숨겨지는 순간 잠근다. 이미 숨겨진 채 시작(설정 변경으로 다시 연결)하면 숨김 알림이 다시 오지 않으므로 바로 잠근다
+      if (immediate && !isVisible()) fire('hidden')
+      else restartTimer()
     },
     stop() {
       running = false

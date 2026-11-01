@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { ServerError } from '../../domain/server/serverErrors'
 import { MasterPasswordChangedError } from '../../domain/auth/authService'
 import { DeviceStorageError } from '../../domain/device/deviceRecord'
@@ -579,5 +579,26 @@ describe('다른 탭과 함께 쓸 때 (ADR-WEB-001)', () => {
     act(() => control.emitRemote())
 
     expect(screen.getByText(OFFLINE)).toBeInTheDocument()
+  })
+})
+
+describe('SessionRoot 자동 잠금 설정 (SEC-003)', () => {
+  it('볼트가 열린 화면에 현재 자동 잠금 시간을 보이고, 바꾸면 알린다', () => {
+    const { session, control } = createFakeSession()
+    const onChange = vi.fn()
+    render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} autoLock={{ timeoutMs: 60_000, onChange }} />)
+    act(() => control.openVault())
+
+    const select = screen.getByRole('combobox', { name: '자동 잠금' })
+    expect(select).toHaveValue('60000')
+    fireEvent.change(select, { target: { value: '900000' } })
+    expect(onChange).toHaveBeenCalledWith(900_000)
+  })
+
+  it('잠긴 화면에는 자동 잠금 설정을 보이지 않는다', () => {
+    const { session } = createFakeSession({ status: 'locked', email: EMAIL, pendingSync: false })
+    render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} autoLock={{ timeoutMs: 60_000, onChange: () => undefined }} />)
+
+    expect(screen.queryByRole('combobox', { name: '자동 잠금' })).not.toBeInTheDocument()
   })
 })
