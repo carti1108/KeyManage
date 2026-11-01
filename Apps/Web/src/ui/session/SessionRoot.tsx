@@ -29,15 +29,24 @@ export interface SessionRootProps {
   clipboard: ClipboardPort
   /** 탭이 백그라운드로 감 */
   pageHidden: boolean
+  /** 브라우저가 오프라인임 (VLT-002). 없으면 연결된 것으로 본다 */
+  networkOffline?: boolean
   /** 자동 잠금 시간과 바꾸기 (SEC-003). 없으면 선택 칸을 보이지 않는다 */
   autoLock?: AutoLockSelectProps
 }
 
-export function SessionRoot({ session, clipboard, pageHidden, autoLock }: SessionRootProps) {
+export function SessionRoot({ session, clipboard, pageHidden, networkOffline = false, autoLock }: SessionRootProps) {
   // 잠기면 새 상태로 바꿔 평문 볼트를 들고 있던 이전 상태를 놓는다
   const [state, setState] = useState(() => session.state())
   const [notice, setNotice] = useState<string | null>(null)
+  // 잠금 해제 때 서버에 닿지 못해 기기에 저장한 볼트로 열었음
   const [offline, setOffline] = useState(false)
+  // 브라우저가 다시 연결되면 잠금 해제 때의 오프라인 표시도 내린다. 대기 내용이 남아 있으면 pendingSync로 경고가 남는다 (VLT-002)
+  const [lastNetworkOffline, setLastNetworkOffline] = useState(networkOffline)
+  if (networkOffline !== lastNetworkOffline) {
+    setLastNetworkOffline(networkOffline)
+    if (!networkOffline) setOffline(false)
+  }
   // 대기 내용 재전송이 분명한 거절을 받았을 때의 문구 (VLT-002)
   const [syncError, setSyncError] = useState<ErrorMessage | null>(null)
   const [confirmingLogout, setConfirmingLogout] = useState(false)
@@ -185,7 +194,7 @@ export function SessionRoot({ session, clipboard, pageHidden, autoLock }: Sessio
       <VaultHomeScreen
         email={state.email}
         readOnly={state.vault.readOnly}
-        offline={offline || state.pendingSync}
+        offline={offline || networkOffline || state.pendingSync}
         onLock={() => session.lock()}
         onLogout={() => void requestLogout(state.pendingSync)}
       >

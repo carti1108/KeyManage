@@ -5,12 +5,15 @@ import { startClipboardBurn } from './clipboardWiring'
 import { startPendingSync } from './pendingSyncWiring'
 import { createServices, type Services } from './services'
 import { useAutoLockSetting } from './useAutoLockSetting'
+import { useNetworkOffline } from './useNetworkOffline'
 import { usePageHidden } from './usePageHidden'
 
 // 조립 지점(Composition Root): 화면은 ui에 두고, 여기서는 어댑터를 만들어 포트로 화면에 넘기는 일만 한다 (ADR-0004)
 function App({ services }: { services?: Services }) {
   const [{ session, clipboard, tabs, autoLockSetting }] = useState(() => services ?? createServices())
   const pageHidden = usePageHidden()
+  // 볼트가 열린 동안 브라우저가 끊기면 오프라인 경고를 보인다. 재연결 재전송은 startPendingSync가 맡는다 (VLT-002)
+  const networkOffline = useNetworkOffline()
   // 기기 기록을 읽기 전에 로그인 화면을 그리지 않는다. 기록이 있으면 잠금 화면으로 시작한다 (SEC-003, ADR-0019)
   const [restored, setRestored] = useState(false)
 
@@ -44,6 +47,7 @@ function App({ services }: { services?: Services }) {
       session={session}
       clipboard={clipboard}
       pageHidden={pageHidden}
+      networkOffline={networkOffline}
       autoLock={{ timeoutMs: autoLock.timeoutMs, onChange: autoLock.change }}
     />
   )

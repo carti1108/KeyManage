@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import { IDBFactory } from 'fake-indexeddb'
 import { describe, expect, it } from 'vitest'
 import { createIndexedDbDeviceStore } from '../adapters/browser/indexedDbDeviceStore'
@@ -32,6 +32,29 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: '볼트가 잠겼습니다' })).toBeInTheDocument()
     expect(screen.getByText('user@example.com')).toBeInTheDocument()
+  })
+
+  it('잠긴 동안 브라우저 연결이 끊기고 돌아와도 잠금 화면을 그대로 둔다 (VLT-002)', async () => {
+    const factory = new IDBFactory()
+    await createIndexedDbDeviceStore(factory).save({
+      version: DEVICE_RECORD_VERSION,
+      email: 'user@example.com',
+      kdf: { salt: 'AAAAAAAAAAAAAAAAAAAAAA==', iterations: 600_000 },
+      payload: { version: 1, cipher: 'AES-256-GCM', iv: 'aXY=', ciphertext: 'Y3Q=', tag: 'dGFn' },
+      revision: 1,
+      lastSeenRevision: 1,
+      pendingSync: true,
+    })
+    render(<App services={createServices(API, createIndexedDbDeviceStore(factory))} />)
+    expect(await screen.findByRole('heading', { name: '볼트가 잠겼습니다' })).toBeInTheDocument()
+
+    act(() => {
+      window.dispatchEvent(new Event('offline'))
+      window.dispatchEvent(new Event('online'))
+    })
+
+    expect(screen.getByRole('heading', { name: '볼트가 잠겼습니다' })).toBeInTheDocument()
+    expect(screen.queryByText('오프라인 상태입니다. 변경 사항이 서버에 동기화되지 않습니다.')).not.toBeInTheDocument()
   })
 
   it('기기 저장소를 읽지 못해도 로그인 화면으로 시작한다', async () => {
