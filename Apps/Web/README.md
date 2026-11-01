@@ -55,31 +55,8 @@ npm run tauri:build -- --no-bundle         # 릴리스 실행 파일만 빌드 (
 
 ### 릴리스 빌드 로컬 확인
 
-배포 서버 없이 릴리스 앱의 서버 통신을 확인하는 절차다. 2026-11-01에 Windows에서 이 절차로 가입·로그인·항목 저장과 브라우저와의 동기화를 확인했다.
+배포 서버 없이 릴리스 앱의 서버 통신을 확인하는 절차다. 2026-11-01에 Windows에서 같은 구성(mkcert 인증서 + Caddy 프록시)을 손으로 띄워 가입·로그인·항목 저장과 브라우저와의 동기화를 확인했다.
 
-1. 로컬 HTTPS 인증서를 만든다. [mkcert](https://github.com/FiloSottile/mkcert)는 이 PC에만 신뢰되는 루트 인증서를 등록한다(지울 때는 `mkcert -uninstall`).
-
-   ```bash
-   mkcert -install
-   mkcert -cert-file localhost.pem -key-file localhost-key.pem localhost 127.0.0.1
-   ```
-
-2. [Caddy](https://caddyserver.com/)로 `https://localhost:8443`을 백엔드 8080으로 넘긴다. `Caddyfile`:
-
-   ```caddyfile
-   {
-   	auto_https disable_redirects
-   	admin off
-   }
-
-   https://localhost:8443 {
-   	tls localhost.pem localhost-key.pem
-   	reverse_proxy localhost:8080
-   }
-   ```
-
-   `caddy run --config Caddyfile --adapter caddyfile`로 띄운다.
-
-3. 백엔드를 앱 출처만 허용하도록 띄운다(`Back/`에서): `KEYMANAGE_HTTP_ALLOWED_ORIGINS=http://tauri.localhost ./gradlew :app:bootRun`
-4. 서버 주소를 넣어 빌드하고 실행한다: `VITE_API_BASE_URL=https://localhost:8443 npm run tauri:build -- --no-bundle` 뒤 `src-tauri/target/release/keymanage-desktop.exe`
-5. 앱에서 가입·로그인·항목 저장을 하고, 브라우저(`npm run dev`)에서 같은 계정으로 항목이 보이는지 확인한다.
+1. 루트 [README의 "데스크톱 앱까지 쓰기"](../../README.md#데스크톱-앱까지-쓰기)대로 인증서를 만들고 Docker Compose로 `https://localhost:8443`을 띄운다. 이 구성은 백엔드 CORS에 앱 출처(`http://tauri.localhost`)를 이미 넣는다([ADR-0021](../../docs/adr/ADR-0021-local-docker-compose-demo.md)).
+2. 서버 주소를 넣어 빌드하고 실행한다: `VITE_API_BASE_URL=https://localhost:8443 npm run tauri:build -- --no-bundle` 뒤 `src-tauri/target/release/keymanage-desktop.exe`
+3. 앱에서 가입·로그인·항목 저장을 하고, 브라우저(`https://localhost:8443`)에서 같은 계정으로 항목이 보이는지 확인한다.
