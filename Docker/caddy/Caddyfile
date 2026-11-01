@@ -12,6 +12,13 @@
 (keymanage) {
 	encode zstd gzip
 
+	# 웹은 앱 자신의 스크립트·스타일과 같은 출처 API만 쓴다. 데스크톱 릴리스 CSP와 같은 기준이다 (ADR-0013)
+	header {
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+	}
+
 	# API는 백엔드로 넘긴다. Host는 그대로 넘기고, X-Forwarded-For에는 접속 IP를 적는다
 	handle /api/* {
 		reverse_proxy backend:8080
