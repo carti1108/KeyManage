@@ -1,6 +1,6 @@
 import { act, render, screen } from '@testing-library/react'
 import { IDBFactory } from 'fake-indexeddb'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createIndexedDbDeviceStore } from '../adapters/browser/indexedDbDeviceStore'
 import { DEVICE_RECORD_VERSION } from '../domain/device/deviceRecord'
 import App from './App'
@@ -9,6 +9,8 @@ import { createServices } from './services'
 const API = 'http://localhost:8080'
 
 describe('App', () => {
+  afterEach(() => vi.restoreAllMocks())
+
   it('기기 기록이 없으면 로그인 화면을 보여 준다', async () => {
     render(<App services={createServices(API, createIndexedDbDeviceStore(new IDBFactory()))} />)
 
@@ -48,10 +50,12 @@ describe('App', () => {
     render(<App services={createServices(API, createIndexedDbDeviceStore(factory))} />)
     expect(await screen.findByRole('heading', { name: '볼트가 잠겼습니다' })).toBeInTheDocument()
 
-    act(() => {
-      window.dispatchEvent(new Event('offline'))
-      window.dispatchEvent(new Event('online'))
-    })
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    act(() => window.dispatchEvent(new Event('offline')))
+    expect(screen.getByRole('heading', { name: '볼트가 잠겼습니다' })).toBeInTheDocument()
+
+    onLine.mockReturnValue(true)
+    act(() => window.dispatchEvent(new Event('online')))
 
     expect(screen.getByRole('heading', { name: '볼트가 잠겼습니다' })).toBeInTheDocument()
     expect(screen.queryByText('오프라인 상태입니다. 변경 사항이 서버에 동기화되지 않습니다.')).not.toBeInTheDocument()
