@@ -86,5 +86,8 @@ public struct KMGaugeBar: View {
             }
             .frame(height: 6)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("비밀번호 강도: \(statusText)")
+        .accessibilityValue("\(clampedScore)점")
     }
 }

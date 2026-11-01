@@ -1,9 +1,11 @@
 import SwiftUI
 
+@MainActor
 public final class KMBurnBadgeModel: ObservableObject {
     @Published public var remainingSeconds: Int
     public let totalSeconds: Int
     public var onBurned: (() -> Void)?
+    private var hasBurned: Bool = false
 
     public init(
         remainingSeconds: Int = 30,
@@ -23,7 +25,8 @@ public final class KMBurnBadgeModel: ObservableObject {
         if remainingSeconds > 0 {
             remainingSeconds -= 1
         }
-        if remainingSeconds == 0 {
+        if remainingSeconds == 0 && !hasBurned {
+            hasBurned = true
             onBurned?()
         }
     }
@@ -72,10 +75,13 @@ public struct KMBurnBadge: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
         .background(DesignToken.View.card)
-        .cornerRadius(12)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(DesignToken.View.border, lineWidth: 1)
         )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("클립보드 자동 소각")
+        .accessibilityValue("\(max(0, remainingSeconds))초 남음")
     }
 }

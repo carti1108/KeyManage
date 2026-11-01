@@ -44,4 +44,19 @@ final class KMBurnBadgeTests: XCTestCase {
 
         XCTAssertFalse(burnedFired, "Callback must not fire when remainingSeconds is positive")
     }
+
+    func testOnBurnedCallbackOnlyFiresOnceAtZero() {
+        var burnCount = 0
+        let model = KMBurnBadgeModel(remainingSeconds: 1, totalSeconds: 30) {
+            burnCount += 1
+        }
+
+        model.remainingSeconds = 0
+        model.tick()
+        XCTAssertEqual(burnCount, 1)
+
+        model.tick()
+        model.tick()
+        XCTAssertEqual(burnCount, 1, "onBurned must fire at most once")
+    }
 }

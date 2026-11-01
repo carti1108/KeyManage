@@ -81,6 +81,7 @@ public struct KMButton: View {
                 } else if let icon = icon {
                     Image(systemName: icon)
                         .font(.system(size: size.fontSize, weight: .medium))
+                        .accessibilityHidden(true)
                 }
 
                 Text(title)
@@ -90,15 +91,28 @@ public struct KMButton: View {
             .frame(height: size.height)
             .background(backgroundColor)
             .foregroundColor(foregroundColor)
-            .cornerRadius(6)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
             .overlay(
                 RoundedRectangle(cornerRadius: 6)
                     .stroke(borderColor, lineWidth: variant == .outline ? 1 : 0)
             )
             .opacity(isDisabled ? 0.5 : 1.0)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(KMButtonStyle(isInteractive: isInteractive))
         .disabled(!isInteractive)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(isLoading ? "\(title), 로딩 중" : title)
+        .accessibilityAddTraits(.isButton)
+    }
+
+    private struct KMButtonStyle: ButtonStyle {
+        let isInteractive: Bool
+        func makeBody(configuration: Configuration) -> some View {
+            configuration.label
+                .opacity(configuration.isPressed && isInteractive ? 0.8 : 1.0)
+                .scaleEffect(configuration.isPressed && isInteractive ? 0.98 : 1.0)
+                .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+        }
     }
 
     private var backgroundColor: Color {

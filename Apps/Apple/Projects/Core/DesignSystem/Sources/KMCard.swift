@@ -20,6 +20,7 @@ public struct KMCard<Content: View>: View {
     private let content: () -> Content
 
     @State private var isHovered: Bool = false
+    @State private var isPressed: Bool = false
 
     public init(
         padding: KMCardPadding = .md,
@@ -37,13 +38,14 @@ public struct KMCard<Content: View>: View {
         }
         .padding(padding.value)
         .background(DesignToken.View.card)
-        .cornerRadius(8)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(
             RoundedRectangle(cornerRadius: 8)
                 .stroke(DesignToken.View.border, lineWidth: 1)
         )
-        .scaleEffect(isInteractive && isHovered ? 1.01 : 1.0)
+        .scaleEffect(isInteractive ? (isPressed ? 0.99 : (isHovered ? 1.01 : 1.0)) : 1.0)
         .animation(.easeOut(duration: 0.15), value: isHovered)
+        .animation(.easeOut(duration: 0.1), value: isPressed)
         .onHover { hovering in
             if isInteractive {
                 isHovered = hovering

@@ -1,4 +1,5 @@
 import XCTest
+import SwiftUI
 @testable import KeyManageDesignSystem
 
 @MainActor
@@ -57,5 +58,32 @@ final class KMPasswordFieldTests: XCTestCase {
 
         XCTAssertTrue(engine.isSecured, "Password field must automatically revert to secured mode after 10s of inactivity")
         XCTAssertEqual(engine.autoMaskSecondsRemaining, 0)
+    }
+
+    func testPasswordFieldViewIntegration() {
+        var text = "mySecret"
+        var copyCount = 0
+        var textChangeCount = 0
+
+        let engine = KMPasswordFieldEngine(
+            text: text,
+            onCopy: { copyCount += 1 },
+            onTextChange: { _ in textChangeCount += 1 }
+        )
+
+        let field = KMPasswordField(
+            text: Binding(get: { text }, set: { text = $0 }),
+            engine: engine
+        )
+
+        XCTAssertTrue(field.isSecured)
+        engine.toggleSecured()
+        XCTAssertFalse(field.isSecured, "View isSecured must reflect engine state")
+
+        engine.copyAction()
+        XCTAssertEqual(copyCount, 1, "Copy callback must execute exactly once")
+
+        engine.updateText("mySecretNew")
+        XCTAssertEqual(textChangeCount, 1, "Text change callback must execute exactly once")
     }
 }

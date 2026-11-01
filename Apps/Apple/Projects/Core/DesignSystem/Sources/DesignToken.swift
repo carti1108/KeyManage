@@ -19,15 +19,29 @@ public enum DesignToken {
         public let lightHex: String
         public let darkHex: String
 
+        private static let rgbaRegex = try? NSRegularExpression(
+            pattern: #"rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d\.]+)\s*\)"#
+        )
+
         public init(lightHex: String = "", darkHex: String = "") {
             self.lightHex = lightHex
             self.darkHex = darkHex
         }
 
-        public func color(mode: Mode = .dark) -> Color {
+        public func color(mode: Mode) -> Color {
             let hex = (mode == .dark) ? darkHex : lightHex
             let c = Self.parseColor(from: hex)
             return Color(.sRGB, red: c.r, green: c.g, blue: c.b, opacity: c.a)
+        }
+
+        public func color() -> Color {
+            #if canImport(UIKit)
+            return Color(uiColor: dynamicPlatformColor())
+            #elseif canImport(AppKit)
+            return Color(nsColor: dynamicPlatformColor())
+            #else
+            return color(mode: .dark)
+            #endif
         }
 
         public func platformColor(mode: Mode = .dark) -> PlatformColor {
@@ -40,12 +54,24 @@ public enum DesignToken {
             #endif
         }
 
+        public func dynamicPlatformColor() -> PlatformColor {
+            #if canImport(UIKit)
+            return UIColor { traitCollection in
+                let mode: Mode = (traitCollection.userInterfaceStyle == .light) ? .light : .dark
+                return self.platformColor(mode: mode)
+            }
+            #elseif canImport(AppKit)
+            return NSColor(name: nil) { appearance in
+                let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                return self.platformColor(mode: isDark ? .dark : .light)
+            }
+            #endif
+        }
+
         private static func parseColor(from hexString: String) -> (r: Double, g: Double, b: Double, a: Double) {
             var str = hexString.trimmingCharacters(in: .whitespacesAndNewlines)
-            if str.hasPrefix("rgba") {
-                let pattern = #"rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d\.]+)\s*\)"#
-                if let regex = try? NSRegularExpression(pattern: pattern),
-                   let match = regex.firstMatch(in: str, range: NSRange(str.startIndex..., in: str)) {
+            if str.hasPrefix("rgba"), let regex = rgbaRegex {
+                if let match = regex.firstMatch(in: str, range: NSRange(str.startIndex..., in: str)) {
                     let rStr = (str as NSString).substring(with: match.range(at: 1))
                     let gStr = (str as NSString).substring(with: match.range(at: 2))
                     let bStr = (str as NSString).substring(with: match.range(at: 3))
@@ -116,22 +142,23 @@ public enum DesignToken {
         public static var ring: Color { Colors.ring.color() }
     }
 
+    @MainActor
     public enum UI {
-        public static var background: PlatformColor { Colors.background.platformColor() }
-        public static var foreground: PlatformColor { Colors.foreground.platformColor() }
-        public static var card: PlatformColor { Colors.card.platformColor() }
-        public static var cardForeground: PlatformColor { Colors.cardForeground.platformColor() }
-        public static var primary: PlatformColor { Colors.primary.platformColor() }
-        public static var primaryForeground: PlatformColor { Colors.primaryForeground.platformColor() }
-        public static var accent: PlatformColor { Colors.accent.platformColor() }
-        public static var accentForeground: PlatformColor { Colors.accentForeground.platformColor() }
-        public static var muted: PlatformColor { Colors.muted.platformColor() }
-        public static var mutedForeground: PlatformColor { Colors.mutedForeground.platformColor() }
-        public static var destructive: PlatformColor { Colors.destructive.platformColor() }
-        public static var destructiveForeground: PlatformColor { Colors.destructiveForeground.platformColor() }
-        public static var border: PlatformColor { Colors.border.platformColor() }
-        public static var input: PlatformColor { Colors.input.platformColor() }
-        public static var ring: PlatformColor { Colors.ring.platformColor() }
+        public static var background: PlatformColor { Colors.background.dynamicPlatformColor() }
+        public static var foreground: PlatformColor { Colors.foreground.dynamicPlatformColor() }
+        public static var card: PlatformColor { Colors.card.dynamicPlatformColor() }
+        public static var cardForeground: PlatformColor { Colors.cardForeground.dynamicPlatformColor() }
+        public static var primary: PlatformColor { Colors.primary.dynamicPlatformColor() }
+        public static var primaryForeground: PlatformColor { Colors.primaryForeground.dynamicPlatformColor() }
+        public static var accent: PlatformColor { Colors.accent.dynamicPlatformColor() }
+        public static var accentForeground: PlatformColor { Colors.accentForeground.dynamicPlatformColor() }
+        public static var muted: PlatformColor { Colors.muted.dynamicPlatformColor() }
+        public static var mutedForeground: PlatformColor { Colors.mutedForeground.dynamicPlatformColor() }
+        public static var destructive: PlatformColor { Colors.destructive.dynamicPlatformColor() }
+        public static var destructiveForeground: PlatformColor { Colors.destructiveForeground.dynamicPlatformColor() }
+        public static var border: PlatformColor { Colors.border.dynamicPlatformColor() }
+        public static var input: PlatformColor { Colors.input.dynamicPlatformColor() }
+        public static var ring: PlatformColor { Colors.ring.dynamicPlatformColor() }
     }
 
     public enum Typography {
@@ -139,6 +166,16 @@ public enum DesignToken {
         public static var body: Font { .system(.body, design: .default) }
         public static var passwordMonospaced: Font { .system(.body, design: .monospaced) }
         public static let isPasswordMonospaced: Bool = true
+
+        #if canImport(UIKit)
+        public static var passwordMonospacedUI: UIFont {
+            UIFont.monospacedSystemFont(ofSize: 16, weight: .medium)
+        }
+        #elseif canImport(AppKit)
+        public static var passwordMonospacedUI: NSFont {
+            NSFont.monospacedSystemFont(ofSize: 16, weight: .medium)
+        }
+        #endif
     }
 
     public enum Icon {
