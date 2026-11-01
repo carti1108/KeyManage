@@ -6,6 +6,12 @@ import UnlockFeatureInterface
 @MainActor
 protocol UnlockViewControllable: ViewControllable {}
 
+@MainActor
+protocol UnlockPresentableListener: AnyObject {
+	func unlock(withMasterPassword password: String)
+	func unlockWithBiometrics()
+}
+
 #if os(macOS)
 import AppKit
 typealias PlatformHostingController<Content: View> = NSHostingController<Content>

@@ -1,15 +1,15 @@
 import Foundation
 
 @MainActor
-public final class UnlockViewModel: ObservableObject {
-	@Published public var password: String = ""
-	@Published public var errorMessage: String?
-	@Published public var isLoading: Bool = false
-	public let isBiometricsEnabled: Bool
-	public var onUnlockPassword: ((String) -> Void)?
-	public var onUnlockBiometrics: (() -> Void)?
+final class UnlockViewModel: ObservableObject {
+	@Published var password: String = ""
+	@Published var errorMessage: String?
+	@Published var isLoading: Bool = false
+	let isBiometricsEnabled: Bool
+	var onUnlockPassword: ((String) -> Void)?
+	var onUnlockBiometrics: (() -> Void)?
 
-	public init(
+	init(
 		isBiometricsEnabled: Bool = false,
 		errorMessage: String? = nil,
 		isLoading: Bool = false,
@@ -23,15 +23,15 @@ public final class UnlockViewModel: ObservableObject {
 		self.onUnlockBiometrics = onUnlockBiometrics
 	}
 
-	public func unlockWithPassword() {
+	func unlockWithPassword() {
 		onUnlockPassword?(password)
 	}
 
-	public func unlockWithBiometrics() {
+	func unlockWithBiometrics() {
 		onUnlockBiometrics?()
 	}
 
-	public func clearPassword() {
+	func clearPassword() {
 		password = ""
 	}
 }

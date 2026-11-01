@@ -6,17 +6,11 @@ import UnlockFeatureInterface
 // MARK: - Presentable Protocols
 
 @MainActor
-public protocol UnlockPresentable: AnyObject {
+protocol UnlockPresentable: AnyObject {
 	var listener: UnlockPresentableListener? { get set }
 	func setErrorMessage(_ message: String?)
 	func setLoading(_ isLoading: Bool)
 	func clearInputPassword()
-}
-
-@MainActor
-public protocol UnlockPresentableListener: AnyObject {
-	func unlock(withMasterPassword password: String)
-	func unlockWithBiometrics()
 }
 
 // MARK: - Interactor

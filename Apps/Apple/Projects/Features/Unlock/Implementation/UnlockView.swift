@@ -2,15 +2,15 @@ import SwiftUI
 import KeyManageDomain
 import KeyManageDesignSystem
 
-public struct UnlockView: View {
-	@ObservedObject public var viewModel: UnlockViewModel
+struct UnlockView: View {
+	@ObservedObject var viewModel: UnlockViewModel
 
-	public init(viewModel: UnlockViewModel) {
+	init(viewModel: UnlockViewModel) {
 		self.viewModel = viewModel
 	}
 
 	#if DEBUG
-	public init(
+	init(
 		errorMessage: String? = nil,
 		isLoading: Bool = false,
 		isBiometricsEnabled: Bool = false,
@@ -27,7 +27,7 @@ public struct UnlockView: View {
 	}
 	#endif
 
-	public var body: some View {
+	var body: some View {
 		VStack(spacing: 24) {
 			Text(VaultLockUIStrings.lockedTitle)
 				.font(.title2.bold())
