@@ -17,3 +17,7 @@
 
 * [`log/`](log/README.md): 작업 단위별 상세 기록 (`001-slug.md`, `002-slug.md` ...)
 * [`REPORT.md`](REPORT.md): `log/`의 사실들을 바탕으로 종합 집계한 최종 보고서
+
+## 항목 틀
+
+새 항목은 [`templates/ai-log.md`](../templates/ai-log.md)를 복사해 쓴다. 기존 항목은 템플릿에 맞춰 고치지 않는다.
