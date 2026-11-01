@@ -1,7 +1,7 @@
 # Apple 클라이언트 볼트 모델·병합·동기화 A/B 비교 실험 종합 분석 보고서
 
 - **작성일**: 2026-10-31
-- **관련 근거**: [ADR-0017](../../docs/adr/ADR-0017-single-agent-vs-subagent-experiment.md), [VLT-001](../../docs/policies/VLT/VLT-001-cross-platform-vault-sync.md), [vault-spec 4장](../../docs/vault-spec.md)
+- **관련 근거**: [ADR-0017](../adr/ADR-0017-single-agent-vs-subagent-experiment.md), [VLT-001](../../../../docs/policies/VLT/VLT-001-cross-platform-vault-sync.md), [vault-spec 4장](../../../../docs/vault-spec.md)
 - **실험 환경**: Apple Swift 6, Tuist 4.x, Google Antigravity (Gemini), macOS Sequoia
 
 ---

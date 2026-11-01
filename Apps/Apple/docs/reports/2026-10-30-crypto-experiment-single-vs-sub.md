@@ -1,7 +1,7 @@
 # Apple 클라이언트 암호 모듈 A/B 비교 실험 종합 분석 보고서
 
 - **작성일**: 2026-10-30
-- **관련 근거**: [ADR-0017](../../docs/adr/ADR-0017-single-agent-vs-subagent-experiment.md), [PR #43](https://github.com/carti1108/KeyManage/pull/43), [Issue #40](https://github.com/carti1108/KeyManage/issues/40)
+- **관련 근거**: [ADR-0017](../adr/ADR-0017-single-agent-vs-subagent-experiment.md), [PR #43](https://github.com/carti1108/KeyManage/pull/43), [Issue #40](https://github.com/carti1108/KeyManage/issues/40)
 - **실험 환경**: Apple Swift 6, Tuist 4.x, Google Antigravity (Gemini), macOS Sequoia
 
 ---

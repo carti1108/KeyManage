@@ -1,6 +1,6 @@
 # Apple 워크플로우 강제 게이트 (Workflow Gate)
 
-본 규칙은 Apple 플랫폼(`Apps/Apple`, `docs/iOS`) 개발 작업 시 반드시 준수해야 하는 강제 게이트입니다.
+본 규칙은 Apple 플랫폼(`Apps/Apple`, `Apps/Apple/docs`) 개발 작업 시 반드시 준수해야 하는 강제 게이트입니다.
 
 ---
 
@@ -13,7 +13,7 @@
      1) `Build & Infra` (Tuist, Package, ProjectDescriptionHelpers, Gitignore)
      2) `Core Layer` (Domain, Data, DesignSystem)
      3) `Feature Layer` (Interface, Implementation, Testing, Tests, Example)
-     4) `Governance & Policy` (`docs/iOS`, `docs/policies` 무결성 대조)
+     4) `Governance & Policy` (`Apps/Apple/docs`, `docs/policies` 무결성 대조)
 2. **리뷰 피드백(P1~P2) 전수 해결 및 무결함 증명**:
    - `P1(Blocker)` 및 `P2(Required)` 지적 사항이 100% 코드로 반영되어야 함.
    - 잔여 P1/P2 이슈가 0건임을 확인해야 함.

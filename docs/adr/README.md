@@ -8,35 +8,26 @@
 
 1. **내용 불변 (Append-only)**: 한 번 채택된 ADR의 내용은 수정하지 않습니다. 결정이 바뀌면 새 ADR을 작성하고 기존 ADR의 상태를 `대체됨 (→ ADR-xxxx)`으로 변경합니다.
 2. **대안 검토 필수**: "고려했던 대안과 기각 이유"가 없는 ADR은 작성할 수 없습니다.
-3. **파일명 규칙**: `ADR-<번호>-<영문-슬러그>.md` (네 자리 순번, 영역 구분 없는 프로젝트 전체 순번).
+3. **파일명 규칙**: `ADR-<번호>-<영문-슬러그>.md` (네 자리 순번). 공통 ADR만 이 순번을 쓴다.
 4. **1결정 1파일**: 파일 하나에 하나의 결정만 작성합니다.
+5. **공통과 플랫폼 구분**: 이 폴더에는 시스템 전체에 영향을 주는 결정만 둔다. 한 플랫폼에만 해당하는 결정은 그 플랫폼의 `docs/adr/`에 `ADR-WEB-NNN`, `ADR-APL-NNN`, `ADR-BE-NNN`처럼 플랫폼 접두어 번호로 쓴다. 위치는 [문서 지도](../README.md)에 있다.
 
 ---
 
 ## ADR 목록
 
+플랫폼 전용 결정이던 ADR-0002·0003·0007(백엔드), ADR-0012·0013·0018~0020(웹), ADR-0014~0017(Apple)은 각 플랫폼의 `docs/adr/`로 옮겼다. 번호는 그대로이므로 이 표에는 빈 번호가 있다.
+
 | 번호 | 제목 | 상태 | 날짜 |
 |---|---|---|---|
 | [ADR-0001](ADR-0001-zero-knowledge-security-architecture.md) | 영지식(Zero-Knowledge) 클라이언트 암호화 아키텍처 채택 | 채택 | 2026-10-27 |
-| [ADR-0002](ADR-0002-hexagonal-multi-module-backend.md) | Kotlin/Spring Boot 기반 포트-어댑터 멀티 모듈 백엔드 채택 | 채택 | 2026-10-27 |
-| [ADR-0003](ADR-0003-file-based-vault-storage-adapter.md) | 파일 기반 단일 암호화 볼트 저장소 어댑터 채택 | 채택 | 2026-10-27 |
 | [ADR-0004](ADR-0004-complete-boundary-isolation-and-dependency-inversion.md) | 영역 간 완전 격리 및 백엔드 교체형 DIP 아키텍처 채택 | 채택 | 2026-10-28 |
 | [ADR-0005](ADR-0005-client-only-password-generation-and-audit.md) | 비밀번호 생성·진단의 클라이언트 전용 수행 | 채택 | 2026-10-28 |
 | [ADR-0006](ADR-0006-optimistic-locking-vault-sync.md) | 볼트 동기화 충돌 해결을 낙관적 잠금과 클라이언트 병합으로 전환 | 채택 | 2026-10-28 |
-| [ADR-0007](ADR-0007-file-vault-atomic-write-single-instance.md) | 파일 볼트 저장소의 원자적 쓰기와 단일 인스턴스 제약 | 채택 | 2026-10-28 |
 | [ADR-0008](ADR-0008-auth-hash-and-server-session.md) | 마스터 키 분리 기반 인증 해시와 서버 저장형 세션 채택 | 채택 | 2026-10-28 |
 | [ADR-0009](ADR-0009-verification-delegation-pipeline.md) | AI 작업의 검증 위임 체계 (CI·뮤테이션 테스트·독립 리뷰) | 채택 | 2026-10-28 |
 | [ADR-0010](ADR-0010-client-composition-ios-and-shared-web.md) | 클라이언트 구성: iOS 네이티브와 웹 코드 공유(브라우저·데스크톱) 우선 | 채택 | 2026-10-28 |
 | [ADR-0011](ADR-0011-password-preprocessing-and-header-aad.md) | 마스터 비밀번호 전처리와 볼트 암호문 헤더 인증 | 채택 | 2026-10-29 |
-| [ADR-0012](ADR-0012-desktop-shell-tauri.md) | 데스크톱 앱 틀로 Tauri v2, 웹 클라이언트는 Vite + React 정적 앱 채택 | 채택 | 2026-10-29 |
-| [ADR-0013](ADR-0013-desktop-network-csp.md) | 데스크톱 앱의 서버 요청은 웹뷰 fetch로 보내고, CSP에는 빌드할 때 정한 서버 주소 하나만 연다 | 채택 | 2026-10-29 |
-| [ADR-0014](ADR-0014-apple-multiplatform-microribs.md) | microRIBs 기반 Apple 멀티플랫폼(iOS·macOS) 아키텍처 및 형제 계층 구조 채택 | 채택 | 2026-10-30 |
-| [ADR-0015](ADR-0015-tuist-micro-features-modularization.md) | Tuist 기반 Micro-Features 5계층 모듈화 아키텍처 채택 | 채택 | 2026-10-30 |
-| [ADR-0016](ADR-0016-apple-collaboration-experiment-delegation-and-role-separation.md) | Apple 클라이언트 협업 방식 비교 실험 (일괄 위임 + 역할 분리) | 채택 | 2026-10-30 |
-| [ADR-0017](ADR-0017-single-agent-vs-subagent-experiment.md) | 단일 에이전트 vs 서브에이전트 비교 실험 (Antigravity·Gemini 고정) | 채택 | 2026-10-30 |
-| [ADR-0018](ADR-0018-web-device-storage-scope.md) | 웹 클라이언트는 기기에 암호화된 볼트와 동기화 상태만 저장하고 세션 토큰은 저장하지 않는다 | 대체됨 (→ ADR-0019) | 2026-10-31 |
-| [ADR-0019](ADR-0019-web-device-storage-single-account.md) | 웹 기기 저장은 한 계정만 두고, 인증 해시는 잠금 해제 요청 하나 안에서만 쓴다 | 대체됨 (→ ADR-0020) | 2026-11-01 |
-| [ADR-0020](ADR-0020-web-device-storage-review-hardening.md) | 웹 기기 저장: 다른 계정 인증 시 이전 기록 삭제, KDF 변경에도 되돌림 검사 유지, 읽지 못한 기록 재확인 | 채택 | 2026-11-01 |
 
 ---
 
