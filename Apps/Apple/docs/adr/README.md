@@ -17,3 +17,4 @@ Apple 클라이언트에만 해당하는 기술·구조 결정을 모은다. 시
 | [ADR-0015](ADR-0015-tuist-micro-features-modularization.md) | Tuist 기반 Micro-Features 5계층 모듈화 아키텍처 채택 | 채택 | 2026-10-30 |
 | [ADR-0016](ADR-0016-apple-collaboration-experiment-delegation-and-role-separation.md) | Apple 클라이언트 협업 방식 비교 실험 (일괄 위임 + 역할 분리) | 채택 | 2026-10-30 |
 | [ADR-0017](ADR-0017-single-agent-vs-subagent-experiment.md) | 단일 에이전트 vs 서브에이전트 비교 실험 (Antigravity·Gemini 고정) | 채택 | 2026-10-30 |
+| [ADR-APL-001](ADR-APL-001-apple-device-storage-and-keychain.md) | Apple 클라이언트 기기 볼트 저장소 및 Keychain 연동 | 채택 | 2026-11-01 |
