@@ -29,14 +29,18 @@ export interface SessionRootProps {
   clipboard: ClipboardPort
   /** 탭이 백그라운드로 감 */
   pageHidden: boolean
+  /** 브라우저가 오프라인임 (VLT-002). 없으면 연결된 것으로 본다 */
+  networkOffline?: boolean
   /** 자동 잠금 시간과 바꾸기 (SEC-003). 없으면 선택 칸을 보이지 않는다 */
   autoLock?: AutoLockSelectProps
 }
 
-export function SessionRoot({ session, clipboard, pageHidden, autoLock }: SessionRootProps) {
+export function SessionRoot({ session, clipboard, pageHidden, networkOffline = false, autoLock }: SessionRootProps) {
   // 잠기면 새 상태로 바꿔 평문 볼트를 들고 있던 이전 상태를 놓는다
   const [state, setState] = useState(() => session.state())
   const [notice, setNotice] = useState<string | null>(null)
+  // 잠금 해제 때 서버에 닿지 못해 기기에 저장한 볼트로 열었음. 브라우저 연결은 서버에 닿는다는 보장이 아니므로
+  // 재연결만으로 내리지 않고 동기화 성공·로그인·잠금 해제 결과로만 바꾼다 (VLT-002)
   const [offline, setOffline] = useState(false)
   // 대기 내용 재전송이 분명한 거절을 받았을 때의 문구 (VLT-002)
   const [syncError, setSyncError] = useState<ErrorMessage | null>(null)
@@ -185,7 +189,7 @@ export function SessionRoot({ session, clipboard, pageHidden, autoLock }: Sessio
       <VaultHomeScreen
         email={state.email}
         readOnly={state.vault.readOnly}
-        offline={offline || state.pendingSync}
+        offline={offline || networkOffline || state.pendingSync}
         onLock={() => session.lock()}
         onLogout={() => void requestLogout(state.pendingSync)}
       >

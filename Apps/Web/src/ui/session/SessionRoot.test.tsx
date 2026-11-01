@@ -442,6 +442,78 @@ describe('SessionRoot', () => {
     })
   })
 
+  describe('브라우저 연결 상태 (VLT-002)', () => {
+    const OFFLINE = '오프라인 상태입니다. 변경 사항이 서버에 동기화되지 않습니다.'
+
+    function openVault(pendingSync = false, networkOffline = false) {
+      const fake = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync, signedIn: true, storedOnDevice: true })
+      const view = render(<SessionRoot session={fake.session} clipboard={clipboard()} pageHidden={false} networkOffline={networkOffline} />)
+      const setNetworkOffline = (offline: boolean) =>
+        view.rerender(<SessionRoot session={fake.session} clipboard={clipboard()} pageHidden={false} networkOffline={offline} />)
+      return { ...fake, setNetworkOffline }
+    }
+
+    it('볼트가 열린 동안 오프라인으로 바뀌면 경고를 보인다', () => {
+      const { setNetworkOffline } = openVault()
+      expect(screen.queryByText(OFFLINE)).not.toBeInTheDocument()
+
+      setNetworkOffline(true)
+
+      expect(screen.getByText(OFFLINE)).toBeInTheDocument()
+    })
+
+    it('다시 연결되고 대기 내용이 없으면 경고를 내린다', () => {
+      const { setNetworkOffline } = openVault(false, true)
+      expect(screen.getByText(OFFLINE)).toBeInTheDocument()
+
+      setNetworkOffline(false)
+
+      expect(screen.queryByText(OFFLINE)).not.toBeInTheDocument()
+    })
+
+    it('다시 연결돼도 대기 내용이 남아 있으면 미동기화 경고를 유지한다', () => {
+      const { setNetworkOffline } = openVault(true, true)
+
+      setNetworkOffline(false)
+
+      expect(screen.getByText(OFFLINE)).toBeInTheDocument()
+    })
+
+    it('서버에 닿지 못해 연 볼트는 브라우저가 다시 연결돼도 동기화에 성공할 때까지 경고를 유지한다', async () => {
+      const { session, control } = createFakeSession({ status: 'locked', email: EMAIL, pendingSync: false })
+      session.unlock.mockImplementationOnce(async () => {
+        control.openVault(EMAIL)
+        return { offline: true }
+      })
+      const { rerender } = render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} networkOffline />)
+      type('마스터 비밀번호', PASSWORD)
+      fireEvent.click(screen.getByRole('button', { name: '잠금 해제' }))
+      expect(await screen.findByText(OFFLINE)).toBeInTheDocument()
+
+      rerender(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} networkOffline={false} />)
+
+      // 브라우저 연결은 서버에 닿는다는 보장이 아니다
+      expect(screen.getByText(OFFLINE)).toBeInTheDocument()
+    })
+
+    it('잠긴 동안 오프라인이 되면 잠금 화면을 그대로 두고, 잠금 해제 뒤 경고를 보인다', async () => {
+      const { session, control } = createFakeSession({ status: 'locked', email: EMAIL, pendingSync: false })
+      session.unlock.mockImplementationOnce(async () => {
+        control.openVault(EMAIL)
+        return { offline: false }
+      })
+      const { rerender } = render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} networkOffline={false} />)
+
+      rerender(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} networkOffline />)
+      expect(screen.getByRole('button', { name: '잠금 해제' })).toBeInTheDocument()
+
+      type('마스터 비밀번호', PASSWORD)
+      fireEvent.click(screen.getByRole('button', { name: '잠금 해제' }))
+
+      expect(await screen.findByText(OFFLINE)).toBeInTheDocument()
+    })
+  })
+
   describe('기기 저장과 세션 없이 연 볼트 (ADR-0019)', () => {
     const RECONNECT = '서버와 동기화하려면 마스터 비밀번호를 다시 입력해 주세요.'
 
