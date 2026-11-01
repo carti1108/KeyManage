@@ -224,10 +224,12 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory, deviceS
   }
 
   /**
-   * 잠긴 탭의 암호화 볼트·revision·대기 표시를 기기 기록 값으로 바꾼다. 같은 계정·KDF의 기록일 때만 바꾼다.
-   * 기록을 읽지 못하면 메모리 값을 그대로 둔다 (ADR-WEB-001)
+   * 잠긴 탭이 기기 기록을 다시 읽어 다른 탭의 로그아웃·계정 전환·비밀번호 변경을 따른다 (ADR-WEB-001).
+   * replaceMemory면 암호화 볼트·revision·대기 표시도 기록 값으로 바꾼다. 단 메모리가 마지막으로 본 기록 그대로이고
+   * 기기 쓰기가 밀려 있지 않을 때만 바꾼다. 기기에 쓰지 못한 대기 내용은 잠금을 풀 때 키로 병합한다.
+   * 기록을 읽지 못하면 메모리 값을 그대로 둔다
    */
-  async function refreshLockedFromDevice(): Promise<void> {
+  async function refreshLockedFromDevice(replaceMemory: boolean): Promise<void> {
     await tabs.lock.run('device', async () => {
       const target = account
       if (target === null || unlocked !== null) return
@@ -245,6 +247,7 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory, deviceS
       }
       if (record.email !== target.email) return signOutLocally()
       if (!sameKdf(record.kdf, target.kdf)) return passwordChangedElsewhere()
+      if (!replaceMemory || lastSeen === null || !samePayload(lastSeen.payload, target.payload) || device.isBehind()) return
       lastSeen = record
       revisionMemory.raise(record.lastSeenRevision)
       if (samePayload(record.payload, target.payload) && record.revision === target.revision && record.pendingSync === target.pendingSync) return
@@ -266,7 +269,7 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory, deviceS
   function onTabMessage(kind: TabMessageKind) {
     // 로그인 전(로그인 중 포함) 탭은 다른 탭의 알림을 따르지 않는다
     if (account === null) return
-    if (kind === 'record-changed') void (unlocked === null ? refreshLockedFromDevice() : persist())
+    if (kind === 'record-changed') void (unlocked === null ? refreshLockedFromDevice(true) : persist())
     else if (kind === 'locked') {
       if (lockThisTab()) notify(remoteListeners)
     } else if (kind === 'logged-out') signOutLocally()
@@ -568,8 +571,8 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory, deviceS
       if (account === null) throw new SessionStateError('로그인 전에는 잠금을 해제할 수 없음')
       if (unlocked !== null) return { offline: false }
       const startedAt = epoch
-      // 동결 등으로 다른 탭의 알림을 놓쳤을 수 있으니 기기 기록을 다시 읽어 최신 볼트로 연다 (ADR-WEB-001)
-      await refreshLockedFromDevice()
+      // 동결 등으로 다른 탭의 알림을 놓쳤을 수 있으니 기기 기록을 다시 읽는다. 기록의 볼트는 연 뒤 쓸 때 병합한다 (ADR-WEB-001)
+      await refreshLockedFromDevice(false)
       ensureCurrent(startedAt)
       if (account === null) throw new SessionStateError('다른 탭에서 로그아웃됨')
       if (unlocked !== null) return { offline: false }

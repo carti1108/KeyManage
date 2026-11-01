@@ -1,7 +1,7 @@
 // @vitest-environment node
 // 같은 계정을 연 여러 탭이 기기 기록을 덮어쓰지 않고 맞춘다 (ADR-WEB-001)
 import { describe, expect, it, vi } from 'vitest'
-import { NOW, PASSWORD, fields, setup } from '../../test/sessionFixtures'
+import { FakeDeviceStore, NOW, PASSWORD, fields, setup } from '../../test/sessionFixtures'
 import { fromBase64 } from '../crypto/base64'
 import { deriveKeys } from '../crypto/keys'
 import { openVault } from '../crypto/vaultCipher'
@@ -289,5 +289,67 @@ describe('다른 탭에 알리기 (ADR-WEB-001)', () => {
 
     await vi.waitFor(() => expect(itemIds(unlockedData(a.session))).toEqual(['b']))
     expect(changes).toHaveBeenCalled()
+  })
+})
+
+/** 공유 기기 저장소 위에서 이 탭의 쓰기만 실패시킬 수 있는 저장소 (저장 공간 부족 등) */
+class TabDeviceStore extends FakeDeviceStore {
+  failWrites = false
+  private readonly shared: FakeDeviceStore
+  constructor(shared: FakeDeviceStore) {
+    super()
+    this.shared = shared
+  }
+  override async load(): Promise<unknown> {
+    return this.shared.load()
+  }
+  override async save(record: DeviceRecord): Promise<void> {
+    if (this.failWrites) throw new Error('저장 공간 부족')
+    return this.shared.save(record)
+  }
+  override async clear(): Promise<void> {
+    return this.shared.clear()
+  }
+}
+
+describe('기기에 쓰지 못한 대기 내용 (ADR-WEB-001)', () => {
+  it('쓰기 실패 뒤 잠갔다 풀어도 메모리의 대기 내용을 잃지 않는다', async () => {
+    const shared = new FakeDeviceStore()
+    const deviceStore = new TabDeviceStore(shared)
+    const tab = setup({ deviceStore })
+    await tab.session.login(EMAIL, PASSWORD)
+    tab.vaultApi.offline = true
+    deviceStore.failWrites = true
+
+    await saveItem(tab.session, 'x')
+    tab.session.lock('thisTab')
+    deviceStore.failWrites = false
+    await tab.session.unlock(PASSWORD)
+
+    expect(itemIds(unlockedData(tab.session))).toEqual(['x'])
+    expect(await recordItemIds(shared.record)).toEqual(['x'])
+  })
+
+  it('쓰기에 실패한 잠긴 탭은 다른 탭의 기록으로 대기 내용을 덮지 않고, 풀 때 합친다', async () => {
+    const hub = createInMemoryTabHub()
+    const shared = new FakeDeviceStore()
+    const storeB = new TabDeviceStore(shared)
+    const a = setup({ deviceStore: shared, tabs: hub.connect() })
+    const b = setup({ authApi: a.authApi, vaultApi: a.vaultApi, deviceStore: storeB, tabs: hub.connect() })
+    await a.session.login(EMAIL, PASSWORD)
+    await b.session.restore()
+    await b.session.unlock(PASSWORD)
+    a.vaultApi.offline = true
+    storeB.failWrites = true
+
+    await saveItem(b.session, 'y')
+    b.session.lock('thisTab')
+    await saveItem(a.session, 'a')
+    await settle()
+    storeB.failWrites = false
+    await b.session.unlock(PASSWORD)
+
+    expect(itemIds(unlockedData(b.session))).toEqual(['a', 'y'])
+    expect(await recordItemIds(shared.record)).toEqual(['a', 'y'])
   })
 })
