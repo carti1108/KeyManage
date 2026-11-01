@@ -33,6 +33,7 @@
 | [`Apps/Web/docs/`](../Apps/Web/docs/README.md) | 웹·데스크톱(Tauri) 클라이언트 ADR과 구현 명세 |
 | [`Apps/Apple/docs/`](../Apps/Apple/docs/README.md) | Apple(iOS·macOS) 클라이언트 ADR, 구현 계약, 실험 보고서 |
 | [`Back/docs/`](../Back/docs/README.md) | 백엔드 ADR |
+| [`Apps/Android/docs/`](../Apps/Android/docs/README.md) | Android 클라이언트(아직 없음)를 만들 때 쓸 플랫폼 바인딩 |
 
 이 표는 문서를 찾기 위한 지도다. 공통 문서의 본문은 플랫폼 문서를 근거로 삼지 않는다.
 
