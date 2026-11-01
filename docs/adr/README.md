@@ -34,7 +34,9 @@
 | [ADR-0015](ADR-0015-tuist-micro-features-modularization.md) | Tuist 기반 Micro-Features 5계층 모듈화 아키텍처 채택 | 채택 | 2026-10-30 |
 | [ADR-0016](ADR-0016-apple-collaboration-experiment-delegation-and-role-separation.md) | Apple 클라이언트 협업 방식 비교 실험 (일괄 위임 + 역할 분리) | 채택 | 2026-10-30 |
 | [ADR-0017](ADR-0017-single-agent-vs-subagent-experiment.md) | 단일 에이전트 vs 서브에이전트 비교 실험 (Antigravity·Gemini 고정) | 채택 | 2026-10-30 |
-| [ADR-0018](ADR-0018-web-device-storage-scope.md) | 웹 클라이언트는 기기에 암호화된 볼트와 동기화 상태만 저장하고 세션 토큰은 저장하지 않는다 | 채택 | 2026-10-31 |
+| [ADR-0018](ADR-0018-web-device-storage-scope.md) | 웹 클라이언트는 기기에 암호화된 볼트와 동기화 상태만 저장하고 세션 토큰은 저장하지 않는다 | 대체됨 (→ ADR-0019) | 2026-10-31 |
+| [ADR-0019](ADR-0019-web-device-storage-single-account.md) | 웹 기기 저장은 한 계정만 두고, 인증 해시는 잠금 해제 요청 하나 안에서만 쓴다 | 대체됨 (→ ADR-0020) | 2026-11-01 |
+| [ADR-0020](ADR-0020-web-device-storage-review-hardening.md) | 웹 기기 저장: 다른 계정 인증 시 이전 기록 삭제, KDF 변경에도 되돌림 검사 유지, 읽지 못한 기록 재확인 | 채택 | 2026-11-01 |
 
 ---
 

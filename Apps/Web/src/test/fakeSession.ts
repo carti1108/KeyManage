@@ -19,7 +19,7 @@ export function createFakeSession(initial: SessionState = { status: 'signedOut' 
     /** 진행 중인 로그아웃의 서버 요청을 끝낸다 */
     finishLogout: () => {},
     openVault(email = 'me@example.com', vault: SyncedVault = fakeVault()) {
-      current = { status: 'unlocked', email, vault, pendingSync: false }
+      current = { status: 'unlocked', email, vault, pendingSync: false, signedIn: true, storedOnDevice: true }
       for (const listener of unlockListeners) listener()
     },
     closeVault() {
@@ -30,6 +30,10 @@ export function createFakeSession(initial: SessionState = { status: 'signedOut' 
     /** 동기화 대기 표시를 바꾼다. 실제 세션처럼 알림은 보내지 않는다 */
     setPending(pendingSync: boolean) {
       if (current.status !== 'signedOut') current = { ...current, pendingSync }
+    },
+    /** 기기 저장 성공 여부를 바꾼다. 실제 세션처럼 알림은 보내지 않는다 */
+    setStoredOnDevice(storedOnDevice: boolean) {
+      if (current.status === 'unlocked') current = { ...current, storedOnDevice }
     },
     /** 실제 세션처럼 저장 내용을 먼저 반영하고 대기로 둔다. 그 뒤 분명한 거절을 던지는 저장을 흉내 낼 때 쓴다 */
     commitPending(data: VaultData) {
@@ -58,6 +62,10 @@ export function createFakeSession(initial: SessionState = { status: 'signedOut' 
     save: vi.fn(async (data: VaultData) => {
       if (current.status !== 'unlocked') throw new Error('잠금 해제 상태가 아님')
       current = { ...current, vault: { ...current.vault, revision: current.vault.revision + 1, data } }
+    }),
+    // 실제 세션처럼 다시 로그인하면 세션이 생기고, 저장은 알림 없이 화면이 다시 읽는다
+    reconnect: vi.fn(async (_password: string, _options?: { acceptRollback?: boolean }) => {
+      if (current.status === 'unlocked') current = { ...current, signedIn: true }
     }),
     lock: vi.fn(() => control.closeVault()),
     // 실제 세션처럼 이 기기의 세션을 먼저 지우고, 서버 응답은 테스트가 정할 때 끝낸다

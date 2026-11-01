@@ -1,6 +1,8 @@
 // 웹 클라이언트 코드(키 유도·암호화·세션·동기화)를 실제 백엔드에 붙여 끝까지 이어지는 흐름을 확인한다.
 // 백엔드를 먼저 띄워야 한다: Back에서 ./gradlew :app:bootRun, 그다음 npm run test:integration
+import { IDBFactory } from 'fake-indexeddb'
 import { beforeAll, describe, expect, it } from 'vitest'
+import { createIndexedDbDeviceStore } from '../adapters/browser/indexedDbDeviceStore'
 import { createServices } from '../app/services'
 import { ServerError } from '../domain/server/serverErrors'
 import { SessionStateError, WrongMasterPasswordError, type VaultSession } from '../domain/session/vaultSession'
@@ -12,7 +14,8 @@ const API = env?.KEYMANAGE_API_URL ?? 'http://localhost:8080'
 const PASSWORD = 'integration-master-password'
 
 // 기기마다 따로 만든다. 되돌림 감지 기준도 기기마다 따로 둔다
-const device = (): VaultSession => createServices(API).session
+// 기기마다 따로 둔 메모리 IndexedDB로 실제 기기 저장 어댑터를 쓴다. Node에는 IndexedDB가 없다 (ADR-0020)
+const device = (): VaultSession => createServices(API, createIndexedDbDeviceStore(new IDBFactory())).session
 
 function unlocked(session: VaultSession) {
   const state = session.state()

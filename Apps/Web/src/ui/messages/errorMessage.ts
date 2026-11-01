@@ -1,10 +1,11 @@
 // 오류를 사용자 문구로 바꾼다. 문구는 정책이 정한 그대로 쓴다 (SEC-002, SEC-003, COM-001)
-import { InvalidEmailError } from '../../domain/auth/authService'
+import { InvalidEmailError, MasterPasswordChangedError } from '../../domain/auth/authService'
+import { DeviceStorageError } from '../../domain/device/deviceRecord'
 import { InvalidPasswordError } from '../../domain/crypto/keys'
 import { NetworkError, ServerError } from '../../domain/server/serverErrors'
 import { InvalidVaultDataError } from '../../domain/vault/vaultData'
 import { ReadOnlyVaultError, RevisionRollbackError, VaultSyncConflictError, VaultTooLargeError } from '../../domain/vault/vaultSync'
-import { READ_ONLY_NOTICE, ROLLBACK_WARNING } from './vaultNotices'
+import { DEVICE_STORAGE_FAILED, PASSWORD_CHANGED, READ_ONLY_NOTICE, ROLLBACK_WARNING } from './vaultNotices'
 import { SessionExpiredError, VaultSetupError, WrongMasterPasswordError } from '../../domain/session/vaultSession'
 
 export interface ErrorMessage {
@@ -28,6 +29,8 @@ export function describeError(error: unknown): ErrorMessage {
   if (error instanceof ServerError) return SERVER_MESSAGES[error.code] ?? { body: UNKNOWN }
   if (error instanceof SessionExpiredError) return { body: SESSION_EXPIRED }
   if (error instanceof WrongMasterPasswordError) return { body: '마스터 비밀번호가 올바르지 않습니다.' }
+  if (error instanceof MasterPasswordChangedError) return { body: PASSWORD_CHANGED }
+  if (error instanceof DeviceStorageError) return { body: DEVICE_STORAGE_FAILED }
   if (error instanceof VaultSetupError) return { body: '계정은 만들었지만 볼트를 준비하지 못했습니다. 다시 로그인해 주세요.' }
   if (error instanceof InvalidEmailError) return { body: '올바른 이메일 주소를 입력해 주세요.' }
   if (error instanceof InvalidPasswordError) return { body: '마스터 비밀번호에 쓸 수 없는 문자가 있습니다.' }

@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { ServerError } from '../../domain/server/serverErrors'
+import { MasterPasswordChangedError } from '../../domain/auth/authService'
+import { DeviceStorageError } from '../../domain/device/deviceRecord'
 import { SessionExpiredError, WrongMasterPasswordError } from '../../domain/session/vaultSession'
 import { RevisionRollbackError, VaultSyncConflictError } from '../../domain/vault/vaultSync'
 import { createFakeClipboard } from '../../test/fakeClipboard'
@@ -257,7 +259,7 @@ describe('SessionRoot', () => {
 
   describe('열린 볼트', () => {
     it('항목을 저장하면 세션에 저장하고 새 볼트로 화면을 다시 그린다', async () => {
-      const { session } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: false })
+      const { session } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: false, signedIn: true, storedOnDevice: true })
       render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
 
       fireEvent.click(screen.getByRole('button', { name: '항목 추가' }))
@@ -270,7 +272,7 @@ describe('SessionRoot', () => {
     })
 
     it('잠그기를 누르면 잠금 화면으로 바뀐다', async () => {
-      const { session } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: false })
+      const { session } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: false, signedIn: true, storedOnDevice: true })
       render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
 
       fireEvent.click(screen.getByRole('button', { name: '잠그기' }))
@@ -280,7 +282,7 @@ describe('SessionRoot', () => {
     })
 
     it('자동 잠금처럼 바깥에서 잠겨도 잠금 화면으로 바뀐다', () => {
-      const { session, control } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: false })
+      const { session, control } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: false, signedIn: true, storedOnDevice: true })
       render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
 
       act(() => control.closeVault())
@@ -289,7 +291,7 @@ describe('SessionRoot', () => {
     })
 
     it('서버 로그아웃 요청이 실패해도 이 기기는 로그아웃 화면으로 간다', async () => {
-      const { session, control } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: false })
+      const { session, control } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: false, signedIn: true, storedOnDevice: true })
       session.logout.mockImplementationOnce(async () => {
         control.signOut()
         throw new ServerError(500, 'INTERNAL_ERROR')
@@ -302,7 +304,7 @@ describe('SessionRoot', () => {
     })
 
     it('새 버전 앱의 볼트는 읽기 전용 안내를 보인다', () => {
-      const { session } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault({ readOnly: true }), pendingSync: false })
+      const { session } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault({ readOnly: true }), pendingSync: false, signedIn: true, storedOnDevice: true })
       render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
 
       expect(screen.getByText('새 버전 앱에서 저장한 볼트입니다. 앱을 업데이트하기 전까지는 읽기만 할 수 있습니다.')).toBeInTheDocument()
@@ -317,7 +319,7 @@ describe('SessionRoot', () => {
     })
 
     it('페이지가 가려지면 가림 화면으로 볼트 내용을 덮는다', () => {
-      const { session } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: false })
+      const { session } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: false, signedIn: true, storedOnDevice: true })
       const { rerender } = render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
       expect(screen.queryByTestId('privacy-cover')).not.toBeInTheDocument()
 
@@ -332,7 +334,7 @@ describe('SessionRoot', () => {
     const OFFLINE = '오프라인 상태입니다. 변경 사항이 서버에 동기화되지 않습니다.'
 
     function pendingVault() {
-      const fake = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: true })
+      const fake = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: true, signedIn: true, storedOnDevice: true })
       render(<SessionRoot session={fake.session} clipboard={clipboard()} pageHidden={false} />)
       return fake
     }
@@ -437,6 +439,107 @@ describe('SessionRoot', () => {
 
       expect(session.logout).toHaveBeenCalledOnce()
       expect(await screen.findByRole('button', { name: '로그인' })).toBeInTheDocument()
+    })
+  })
+
+  describe('기기 저장과 세션 없이 연 볼트 (ADR-0019)', () => {
+    const RECONNECT = '서버와 동기화하려면 마스터 비밀번호를 다시 입력해 주세요.'
+
+    function tokenlessVault() {
+      const fake = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: false, signedIn: false, storedOnDevice: true })
+      render(<SessionRoot session={fake.session} clipboard={clipboard()} pageHidden={false} />)
+      return fake
+    }
+
+    it('세션 없이 열렸으면 다시 입력하라는 안내를 보이고, 입력하면 다시 로그인한 뒤 안내를 내린다', async () => {
+      const { session } = tokenlessVault()
+
+      expect(screen.getByText(RECONNECT)).toBeInTheDocument()
+      type('마스터 비밀번호', PASSWORD)
+      fireEvent.click(screen.getByRole('button', { name: '동기화' }))
+
+      expect(session.reconnect).toHaveBeenCalledWith(PASSWORD, {})
+      expect(await screen.findByRole('button', { name: '잠그기' })).toBeInTheDocument()
+      expect(screen.queryByText(RECONNECT)).not.toBeInTheDocument()
+    })
+
+    it('다시 로그인에 실패하면 정책 문구를 보이고 입력 칸을 비운다', async () => {
+      const { session } = tokenlessVault()
+      session.reconnect.mockRejectedValueOnce(new WrongMasterPasswordError())
+
+      type('마스터 비밀번호', 'wrong')
+      fireEvent.click(screen.getByRole('button', { name: '동기화' }))
+
+      expect(await screen.findByText('마스터 비밀번호가 올바르지 않습니다.')).toBeInTheDocument()
+      expect(screen.getByLabelText('마스터 비밀번호')).toHaveValue('')
+    })
+
+    it('잠금을 풀 때 비밀번호가 바뀌었으면 로그인 화면에서 알린다', async () => {
+      const { session, control } = createFakeSession({ status: 'locked', email: EMAIL, pendingSync: false })
+      session.unlock.mockImplementationOnce(async () => {
+        control.signOut()
+        throw new MasterPasswordChangedError()
+      })
+      render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
+
+      type('마스터 비밀번호', PASSWORD)
+      fireEvent.click(screen.getByRole('button', { name: '잠금 해제' }))
+
+      expect(await screen.findByText('마스터 비밀번호가 바뀌었습니다. 새 비밀번호로 로그인해 주세요.')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: '로그인' })).toBeInTheDocument()
+    })
+
+    it('기기 저장이 실패한 동안에는 저장해도 경고를 계속 보인다', async () => {
+      const { session } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: true, signedIn: true, storedOnDevice: false })
+      render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
+      const warning = '이 기기에 볼트를 저장하지 못했습니다. 새로고침하면 서버에 올리지 못한 변경 사항이 사라질 수 있습니다.'
+
+      expect(screen.getByText(warning)).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: '항목 추가' }))
+      type('서비스 이름', 'GitHub')
+      fireEvent.click(screen.getByRole('button', { name: '저장' }))
+      fireEvent.click(await screen.findByRole('button', { name: '목록으로' }))
+
+      expect(screen.getByText(warning)).toBeInTheDocument()
+    })
+
+    it('기기 저장 실패 알림은 저장 오류 칸에 따로 띄우지 않고 상태 경고 하나로만 보인다', () => {
+      const { session, control } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: true, signedIn: true, storedOnDevice: true })
+      render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
+      const warning = '이 기기에 볼트를 저장하지 못했습니다. 새로고침하면 서버에 올리지 못한 변경 사항이 사라질 수 있습니다.'
+
+      act(() => {
+        control.setStoredOnDevice(false)
+        control.emitSync(new DeviceStorageError(new Error('저장 공간 부족')))
+      })
+
+      expect(screen.getAllByText(warning)).toHaveLength(1)
+    })
+
+    it('로그아웃했지만 기기 기록을 지우지 못하면 로그인 화면에서 알린다', async () => {
+      const { session, control } = createFakeSession({ status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: false, signedIn: true, storedOnDevice: true })
+      session.logout.mockImplementationOnce(async () => {
+        control.signOut()
+        throw new DeviceStorageError(new Error('삭제 실패'))
+      })
+      render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
+
+      fireEvent.click(screen.getByRole('button', { name: '로그아웃' }))
+
+      expect(
+        await screen.findByText('로그아웃했지만 이 기기에 남은 볼트 기록을 지우지 못했습니다. 브라우저의 사이트 데이터를 직접 지워 주세요.'),
+      ).toBeInTheDocument()
+    })
+
+    it('다시 로그인할 때 서버 볼트가 되돌아갔으면 확인을 받고, 받아들이면 다시 요청한다', async () => {
+      const { session } = tokenlessVault()
+      session.reconnect.mockRejectedValueOnce(new RevisionRollbackError(5, 3))
+
+      type('마스터 비밀번호', PASSWORD)
+      fireEvent.click(screen.getByRole('button', { name: '동기화' }))
+      fireEvent.click(await screen.findByRole('button', { name: '서버 볼트 받아들이기' }))
+
+      expect(session.reconnect).toHaveBeenLastCalledWith(PASSWORD, { acceptRollback: true })
     })
   })
 })
