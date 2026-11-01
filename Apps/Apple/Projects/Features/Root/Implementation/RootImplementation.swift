@@ -68,6 +68,7 @@ public struct RootView: View {
 @MainActor
 protocol RootViewControllable: ViewControllable {
 	func replaceActiveView(with viewControllable: ViewControllable)
+	func clearActiveView()
 }
 
 #if os(macOS)
@@ -97,6 +98,12 @@ final class RootViewController: NSViewController, RootViewControllable {
 		])
 		currentChild = child
 	}
+
+	func clearActiveView() {
+		currentChild?.view.removeFromSuperview()
+		currentChild?.removeFromParent()
+		currentChild = nil
+	}
 }
 #elseif os(iOS)
 import UIKit
@@ -110,8 +117,11 @@ final class RootViewController: UIViewController, RootViewControllable {
 	}
 
 	func replaceActiveView(with viewControllable: ViewControllable) {
-		currentChild?.view.removeFromSuperview()
-		currentChild?.removeFromParent()
+		if let current = currentChild {
+			current.willMove(toParent: nil)
+			current.view.removeFromSuperview()
+			current.removeFromParent()
+		}
 
 		let child = viewControllable.uiViewController
 		addChild(child)
@@ -123,7 +133,16 @@ final class RootViewController: UIViewController, RootViewControllable {
 			child.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
 			child.view.bottomAnchor.constraint(equalTo: view.bottomAnchor)
 		])
+		child.didMove(toParent: self)
 		currentChild = child
+	}
+
+	func clearActiveView() {
+		guard let current = currentChild else { return }
+		current.willMove(toParent: nil)
+		current.view.removeFromSuperview()
+		current.removeFromParent()
+		currentChild = nil
 	}
 }
 #endif
@@ -145,10 +164,8 @@ final class RootRouter: ViewableRouter<RootInteractable, RootViewControllable>, 
 	}
 
 	func routeToUnlock() {
-		if let existingUnlock = self.unlockRouting {
-			detachChild(existingUnlock)
-			self.unlockRouting = nil
-		}
+		guard unlockRouting == nil else { return }
+
 		let unlock = unlockBuilder.build(withListener: interactor)
 		self.unlockRouting = unlock
 		attachChild(unlock)
@@ -159,6 +176,7 @@ final class RootRouter: ViewableRouter<RootInteractable, RootViewControllable>, 
 		if let existingUnlock = self.unlockRouting {
 			detachChild(existingUnlock)
 			self.unlockRouting = nil
+			viewController.clearActiveView()
 		}
 	}
 }

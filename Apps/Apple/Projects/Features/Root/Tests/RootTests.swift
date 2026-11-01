@@ -24,10 +24,16 @@ final class RootViewControllableSpy: RootViewControllable {
 #endif
 	var replaceActiveViewCallCount = 0
 	var replacedViewControllable: ViewControllable?
+	var clearActiveViewCallCount = 0
 
 	func replaceActiveView(with viewControllable: ViewControllable) {
 		replaceActiveViewCallCount += 1
 		replacedViewControllable = viewControllable
+	}
+
+	func clearActiveView() {
+		clearActiveViewCallCount += 1
+		replacedViewControllable = nil
 	}
 }
 
@@ -162,6 +168,53 @@ struct RootFeatureTests {
 		#elseif os(iOS)
 		#expect(viewController.replacedViewControllable?.uiViewController === unlockRouting.viewControllable.uiViewController)
 		#endif
+	}
+
+	// MARK: - 5-1. RootRouter routeToMain 호출 시 Unlock RIB 분리 및 뷰 정리 검증
+	@Test("RootRouter.routeToMain() 호출 시 unlockRouting이 detach되고 활성 뷰가 정리된다")
+	func rootRouter_routeToMain_detachesUnlockAndClearsActiveView() {
+		// Given
+		let unlockRouting = MockUnlockRouting()
+		let unlockBuilder = MockUnlockBuilder(stubbedRouting: unlockRouting)
+		let interactor = RootInteractableMock()
+		let viewController = RootViewControllableSpy()
+		let router = RootRouter(
+			interactor: interactor,
+			viewController: viewController,
+			unlockBuilder: unlockBuilder
+		)
+		router.routeToUnlock()
+		#expect(router.children.contains { $0 === unlockRouting })
+
+		// When
+		router.routeToMain()
+
+		// Then
+		#expect(!router.children.contains { $0 === unlockRouting })
+		#expect(router.unlockRouting == nil)
+		#expect(viewController.clearActiveViewCallCount == 1)
+	}
+
+	// MARK: - 5-2. RootRouter routeToUnlock 중복 호출 시 멱등성 검증
+	@Test("RootRouter.routeToUnlock() 이미 부착된 상태에서 재호출 시 중복 빌드 및 부착을 건너뛴다")
+	func rootRouter_routeToUnlock_whenAlreadyAttached_isIdempotent() {
+		// Given
+		let unlockRouting = MockUnlockRouting()
+		let unlockBuilder = MockUnlockBuilder(stubbedRouting: unlockRouting)
+		let interactor = RootInteractableMock()
+		let viewController = RootViewControllableSpy()
+		let router = RootRouter(
+			interactor: interactor,
+			viewController: viewController,
+			unlockBuilder: unlockBuilder
+		)
+		router.routeToUnlock()
+
+		// When
+		router.routeToUnlock()
+
+		// Then
+		#expect(unlockBuilder.buildCallCount == 1)
 	}
 
 	// MARK: - 6. RootBuilder 의존성 바인딩 검증
