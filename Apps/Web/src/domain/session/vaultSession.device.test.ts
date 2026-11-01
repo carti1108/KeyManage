@@ -197,6 +197,39 @@ describe('다시 열기 (SEC-003)', () => {
     expect(ctx.deviceStore.record).toMatchObject({ pendingSync: false })
   })
 
+  it('기기 기록을 끝내 읽지 못하면 로그인해도 기기에 쓰지 않고 저장 실패를 알린다', async () => {
+    const ctx = await pendingOnDevice()
+    ctx.vaultApi.offline = false
+    const before = ctx.deviceStore.stored
+    ctx.deviceStore.failLoads = 3
+    const next = setup({ authApi: ctx.authApi, vaultApi: ctx.vaultApi, deviceStore: ctx.deviceStore })
+    await next.session.restore().catch(() => undefined)
+
+    await next.session.login('user@example.com', PASSWORD)
+
+    expect(ctx.deviceStore.stored).toEqual(before)
+    expect(next.session.state()).toMatchObject({ storedOnDevice: false })
+  })
+
+  it('늦게 읽힌 기기 기록에 같은 계정의 대기 내용이 있으면 덮어쓰지 않고, 새로고침하면 병합해 올린다', async () => {
+    const ctx = await pendingOnDevice()
+    ctx.vaultApi.offline = false
+    const before = ctx.deviceStore.stored
+    // 시작할 때와 로그인할 때는 읽지 못하고, 처음 쓰기 직전에야 읽힌다
+    ctx.deviceStore.failLoads = 2
+    const next = setup({ authApi: ctx.authApi, vaultApi: ctx.vaultApi, deviceStore: ctx.deviceStore })
+    await next.session.restore().catch(() => undefined)
+
+    await next.session.login('user@example.com', PASSWORD)
+
+    expect(ctx.deviceStore.stored).toEqual(before)
+    expect(next.session.state()).toMatchObject({ storedOnDevice: false })
+
+    const reopened = await restart(ctx)
+    await reopened.session.unlock(PASSWORD)
+    expect(await serverItemIds(ctx.vaultApi)).toEqual(['a', 'b'])
+  })
+
   it('재시작 뒤에도 대기 내용을 이어 받아, 잠금을 풀면 올린다', async () => {
     const ctx = await pendingOnDevice()
     const { session, vaultApi } = await restart(ctx)

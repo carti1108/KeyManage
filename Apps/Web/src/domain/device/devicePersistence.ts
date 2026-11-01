@@ -30,6 +30,12 @@ export function createDevicePersistence(store: DeviceStore, onError: (error: unk
   }
 
   return {
+    /** 쓰지 않기로 했지만(기기 기록을 읽지 못함 등) 기기가 메모리보다 오래됐음을 알린다 */
+    markFailed(error: unknown) {
+      failed = true
+      behind = true
+      onError(error)
+    },
     save: (record: DeviceRecord) => enqueue(() => store.save(record)),
     clear: () => enqueue(() => store.clear()),
     /** 마지막으로 요청한 기록이 아직 기기에 반영되지 않음 (떠남 확인용) */

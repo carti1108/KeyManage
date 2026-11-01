@@ -205,7 +205,31 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory, deviceS
   }
 
   /** 계정 기록을 기기에 쓴다. 다른 계정의 기록은 덮어써 지워진다 (한 계정만, ADR-0019). 실패는 알리고 거절하지 않는다 */
+  /**
+   * 기기 기록을 아직 읽지 못했으면 쓰기 전에 다시 읽는다 (ADR-0020).
+   * @returns 써도 되는지. 읽지 못했거나 같은 계정의 다른 대기 내용이 남아 있으면 쓰지 않고 실패로 알린다
+   */
+  async function readyToWrite(email: string, payload: EncryptedVaultPayload): Promise<boolean> {
+    if (deviceRead) return true
+    let record: DeviceRecord | null
+    try {
+      record = parseDeviceRecord(await deviceStore.load())
+    } catch (error) {
+      device.markFailed(error)
+      return false
+    }
+    if (record !== null && record.email === email && record.pendingSync && !samePayload(record.payload, payload)) {
+      // 이 대기 내용은 지금 연 볼트에 병합하지 못했다. 덮어쓰지 않고 남겨, 새로고침하면 잠금 해제 때 병합해 올린다
+      device.markFailed(new DeviceStorageError(new Error('기기에 남은 대기 내용을 덮어쓰지 않음')))
+      return false
+    }
+    deviceRead = true
+    return true
+  }
+
   async function persist(): Promise<void> {
+    if (account === null) return
+    if (!(await readyToWrite(account.email, account.payload))) return
     if (account === null) return
     const { email, kdf, payload, revision, pendingSync } = account
     deviceIdentity = { email, kdf }
