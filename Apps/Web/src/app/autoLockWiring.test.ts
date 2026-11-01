@@ -155,9 +155,10 @@ describe('여러 탭의 자동 잠금 (SEC-003, ADR-WEB-001)', () => {
 
   it('다른 탭의 조작을 받으면 타이머를 다시 재고, 다시 알리지 않는다', () => {
     const { session, stop, other, hub } = wiredTabs()
+    session.unlockNow()
+    // 잠금 해제 때 보낸 알림 뒤부터 지켜본다
     const third: TabMessageKind[] = []
     hub.connect().channel.subscribe((kind) => third.push(kind))
-    session.unlockNow()
 
     vi.advanceTimersByTime(4 * MINUTE)
     other.channel.post('activity')
@@ -174,6 +175,34 @@ describe('여러 탭의 자동 잠금 (SEC-003, ADR-WEB-001)', () => {
     window.dispatchEvent(new Event('keydown'))
 
     expect(received).toEqual([])
+    stop()
+  })
+})
+
+describe('숨겨진 탭과 잠금 해제 (SEC-003, ADR-WEB-001)', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => {
+    setVisibility('visible')
+    vi.useRealTimers()
+  })
+
+  it('숨겨진 탭의 타이머가 끝나면 이 탭만 잠근다', () => {
+    const { session, stop } = wiredTabs()
+    session.unlockNow()
+
+    setVisibility('hidden')
+    vi.advanceTimersByTime(5 * MINUTE)
+
+    expect(session.scopes).toEqual(['thisTab'])
+    stop()
+  })
+
+  it('잠금을 풀면 다른 탭에 조작을 한 번 알린다', () => {
+    const { session, stop, received } = wiredTabs()
+
+    session.unlockNow()
+
+    expect(received).toEqual(['activity'])
     stop()
   })
 })

@@ -35,7 +35,7 @@ function fakeTime() {
   }
 }
 
-function setup(timeoutMs = DEFAULT_AUTO_LOCK_MS) {
+function setup(timeoutMs = DEFAULT_AUTO_LOCK_MS, isVisible = () => true) {
   const time = fakeTime()
   let locks = 0
   const causes: LockCause[] = []
@@ -43,6 +43,7 @@ function setup(timeoutMs = DEFAULT_AUTO_LOCK_MS) {
     timeoutMs,
     now: time.now,
     scheduler: time.scheduler,
+    isVisible,
     onTimeout: (cause) => {
       locks++
       causes.push(cause)
@@ -178,5 +179,15 @@ describe('자동 잠금 원인 (SEC-003, ADR-WEB-001)', () => {
 
     expect(first.causes).toEqual(['expired'])
     expect(second.causes).toEqual(['expired'])
+  })
+})
+
+describe('숨겨진 탭의 시간 초과 (SEC-003, ADR-WEB-001)', () => {
+  it('숨겨진 동안 타이머가 끝나면 이 탭만 잠그는 expired', () => {
+    const { time, causes } = setup(DEFAULT_AUTO_LOCK_MS, () => false)
+
+    time.advance(5 * MINUTE)
+
+    expect(causes).toEqual(['expired'])
   })
 })
