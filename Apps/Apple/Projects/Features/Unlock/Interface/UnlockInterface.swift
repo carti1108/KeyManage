@@ -1,9 +1,14 @@
 import Foundation
 import MicroRIBs
+import KeyManageDomain
+
+public typealias VaultLockError = LockError
 
 /// The dependency protocol for UnlockFeature.
 @MainActor
-public protocol UnlockDependency: Dependency {}
+public protocol UnlockDependency: Dependency {
+	var lockManager: VaultLockManagerProtocol { get }
+}
 
 /// The listener protocol for UnlockFeature.
 @MainActor

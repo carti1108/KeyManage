@@ -4,6 +4,7 @@ import ProjectDescriptionHelpers
 let project = Project.makeFeature(
 	name: "UnlockFeature",
 	interfaceDependencies: [
+		.project(target: "KeyManageDomain", path: "../../Core/Domain"),
 		.external(name: "MicroRIBs")
 	],
 	implementationDependencies: [
