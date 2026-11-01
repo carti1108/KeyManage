@@ -12,6 +12,9 @@ final class UnlockComponent: Component<UnlockDependency> {
 	var lockManager: VaultLockManagerProtocol {
 		dependency.lockManager
 	}
+	var biometricKeyStore: BiometricKeyStoreProtocol? {
+		dependency.biometricKeyStore
+	}
 }
 
 // MARK: - Presentable Protocols
@@ -45,6 +48,7 @@ final class UnlockInteractor: Interactor, UnlockInteractable, UnlockPresentableL
 	weak var listener: UnlockListener?
 	weak var presenter: UnlockPresentable?
 	let lockManager: VaultLockManagerProtocol
+	let biometricKeyStore: BiometricKeyStoreProtocol?
 
 	var errorMessage: String?
 	var isLoading: Bool = false
@@ -56,9 +60,11 @@ final class UnlockInteractor: Interactor, UnlockInteractable, UnlockPresentableL
 
 	init(
 		lockManager: VaultLockManagerProtocol,
+		biometricKeyStore: BiometricKeyStoreProtocol? = nil,
 		presenter: UnlockPresentable? = nil
 	) {
 		self.lockManager = lockManager
+		self.biometricKeyStore = biometricKeyStore
 		self.presenter = presenter
 		super.init()
 	}
@@ -69,16 +75,17 @@ final class UnlockInteractor: Interactor, UnlockInteractable, UnlockPresentableL
 
 	func unlock(withMasterPassword password: String) {
 		guard !password.isEmpty else { return }
+		self.password = password
 		isLoading = true
 		presenter?.setLoading(true)
 		defer {
+			self.password = ""
 			isLoading = false
 			presenter?.setLoading(false)
 		}
 
 		do {
 			try lockManager.unlockWithMasterPassword(password: password, now: Date())
-			self.password = ""
 			self.errorMessage = nil
 			presenter?.clearInputPassword()
 			presenter?.setErrorMessage(nil)
@@ -95,6 +102,7 @@ final class UnlockInteractor: Interactor, UnlockInteractable, UnlockPresentableL
 
 	func unlockWithBiometrics() {
 		guard lockManager.isBiometricsEnabled else { return }
+
 		isLoading = true
 		presenter?.setLoading(true)
 		defer {
@@ -103,8 +111,15 @@ final class UnlockInteractor: Interactor, UnlockInteractable, UnlockPresentableL
 		}
 
 		do {
-			let stateHash = lockManager.currentBiometryStateHash ?? Data()
-			let recoveredKey = lockManager.encryptionKey ?? Data(repeating: 0x01, count: 32)
+			let stateHash: Data
+			let recoveredKey: Data
+			if let biometricKeyStore = biometricKeyStore {
+				(stateHash, recoveredKey) = try biometricKeyStore.evaluateAndRecoverKey()
+			} else {
+				stateHash = lockManager.currentBiometryStateHash ?? Data()
+				recoveredKey = lockManager.encryptionKey ?? Data()
+			}
+
 			try lockManager.unlockWithBiometrics(
 				evaluatedStateHash: stateHash,
 				recoveredEncryptionKey: recoveredKey,
@@ -171,6 +186,7 @@ public struct UnlockView: View {
 		self.viewModel = viewModel
 	}
 
+	#if DEBUG
 	public init(
 		errorMessage: String? = nil,
 		isLoading: Bool = false,
@@ -186,12 +202,14 @@ public struct UnlockView: View {
 			onUnlockBiometrics: onUnlockBiometrics
 		))
 	}
+	#endif
 
 	public var body: some View {
 		VStack(spacing: 24) {
 			Text(VaultLockUIStrings.lockedTitle)
 				.font(.title2.bold())
 				.foregroundColor(DesignToken.View.foreground)
+				.accessibilityAddTraits(.isHeader)
 
 			KMCard(padding: .lg) {
 				VStack(alignment: .leading, spacing: 16) {
@@ -205,6 +223,7 @@ public struct UnlockView: View {
 						Text(errorMessage)
 							.font(.footnote)
 							.foregroundColor(DesignToken.View.destructive)
+							.accessibilityLabel("오류 안내: \(errorMessage)")
 					}
 
 					KMButton(
@@ -241,50 +260,14 @@ protocol UnlockViewControllable: ViewControllable {}
 
 #if os(macOS)
 import AppKit
-
-@MainActor
-final class UnlockViewController: NSHostingController<UnlockView>, UnlockViewControllable, UnlockPresentable {
-	weak var listener: UnlockPresentableListener?
-	let viewModel: UnlockViewModel
-
-	init(
-		isBiometricsEnabled: Bool = false,
-		listener: UnlockPresentableListener? = nil
-	) {
-		self.listener = listener
-		let model = UnlockViewModel(isBiometricsEnabled: isBiometricsEnabled)
-		self.viewModel = model
-		super.init(rootView: UnlockView(viewModel: model))
-
-		model.onUnlockPassword = { [weak self] password in
-			self?.listener?.unlock(withMasterPassword: password)
-		}
-		model.onUnlockBiometrics = { [weak self] in
-			self?.listener?.unlockWithBiometrics()
-		}
-	}
-
-	@MainActor required init?(coder: NSCoder) {
-		fatalError("init(coder:) has not been implemented")
-	}
-
-	func setErrorMessage(_ message: String?) {
-		viewModel.errorMessage = message
-	}
-
-	func setLoading(_ isLoading: Bool) {
-		viewModel.isLoading = isLoading
-	}
-
-	func clearInputPassword() {
-		viewModel.clearPassword()
-	}
-}
+typealias PlatformHostingController<Content: View> = NSHostingController<Content>
 #elseif os(iOS)
 import UIKit
+typealias PlatformHostingController<Content: View> = UIHostingController<Content>
+#endif
 
 @MainActor
-final class UnlockViewController: UIHostingController<UnlockView>, UnlockViewControllable, UnlockPresentable {
+final class UnlockViewController: PlatformHostingController<UnlockView>, UnlockViewControllable, UnlockPresentable {
 	weak var listener: UnlockPresentableListener?
 	let viewModel: UnlockViewModel
 
@@ -321,7 +304,6 @@ final class UnlockViewController: UIHostingController<UnlockView>, UnlockViewCon
 		viewModel.clearPassword()
 	}
 }
-#endif
 
 // MARK: - Router
 
@@ -342,7 +324,10 @@ public final class UnlockBuilder: Builder<UnlockDependency>, UnlockBuildable {
 
 	public func build(withListener listener: UnlockListener) -> UnlockRouting {
 		let component = UnlockComponent(dependency: dependency)
-		let interactor = UnlockInteractor(lockManager: component.lockManager)
+		let interactor = UnlockInteractor(
+			lockManager: component.lockManager,
+			biometricKeyStore: component.biometricKeyStore
+		)
 		interactor.listener = listener
 
 		let viewController = UnlockViewController(

@@ -83,6 +83,89 @@ struct UnlockFeatureTests {
 		#expect(interactor.errorMessage == nil)
 	}
 
+	// MARK: - 4-1. 생체 인증 비활성화 시 해제 미시도
+	@Test("생체 인증 비활성화 상태에서 생체 인증 시도 시 lockManager 호출 없이 조기 종료 검증")
+	func unlockWithBiometrics_whenBiometricsDisabled_doesNotAttemptUnlock() {
+		// Given
+		let lockManager = MockVaultLockManager()
+		lockManager.isBiometricsEnabled = false
+		let interactor = UnlockInteractor(lockManager: lockManager)
+		let listener = UnlockListenerMock()
+		interactor.listener = listener
+
+		// When
+		interactor.unlockWithBiometrics()
+
+		// Then
+		#expect(lockManager.unlockWithBiometricsCallCount == 0)
+		#expect(listener.didUnlockVaultCallCount == 0)
+	}
+
+	// MARK: - 4-2. 생체 인증 14일 만료 시 마스터 비밀번호 재요구
+	@Test("생체 인증 14일 만료 시 LockError.biometricsExpiredRequirePassword 에러 노출 및 리스너 미호출 검증")
+	func unlockWithBiometrics_whenBiometricsExpired_showsRequirePasswordError() {
+		// Given
+		let lockManager = MockVaultLockManager()
+		lockManager.isBiometricsEnabled = true
+		lockManager.unlockWithBiometricsError = LockError.biometricsExpiredRequirePassword
+		let interactor = UnlockInteractor(lockManager: lockManager)
+		let listener = UnlockListenerMock()
+		interactor.listener = listener
+
+		// When
+		interactor.unlockWithBiometrics()
+
+		// Then
+		#expect(lockManager.unlockWithBiometricsCallCount == 1)
+		#expect(listener.didUnlockVaultCallCount == 0)
+		#expect(interactor.errorMessage == "보안을 위해 마스터 비밀번호를 다시 입력해 주세요.")
+	}
+
+	// MARK: - 4-3. 생체 정보 변경 시 무효화
+	@Test("생체 정보 변경으로 무효화 시 LockError.biometricsInvalidatedRequirePassword 에러 노출 및 리스너 미호출 검증")
+	func unlockWithBiometrics_whenBiometricsInvalidated_showsReauthenticationError() {
+		// Given
+		let lockManager = MockVaultLockManager()
+		lockManager.isBiometricsEnabled = true
+		lockManager.unlockWithBiometricsError = LockError.biometricsInvalidatedRequirePassword
+		let interactor = UnlockInteractor(lockManager: lockManager)
+		let listener = UnlockListenerMock()
+		interactor.listener = listener
+
+		// When
+		interactor.unlockWithBiometrics()
+
+		// Then
+		#expect(lockManager.unlockWithBiometricsCallCount == 1)
+		#expect(listener.didUnlockVaultCallCount == 0)
+		#expect(interactor.errorMessage == "생체 정보가 변경되었습니다. 마스터 비밀번호를 입력해 주세요.")
+	}
+
+	// MARK: - 4-4. BiometricKeyStore 주입 시 복원된 키와 해시 사용 검증
+	@Test("BiometricKeyStore 주입 시 평가된 해시 및 복원된 암호화 키를 사용하여 잠금 해제 검증")
+	func unlockWithBiometrics_withBiometricKeyStore_usesRecoveredKeyAndHash() {
+		// Given
+		let lockManager = MockVaultLockManager()
+		lockManager.isBiometricsEnabled = true
+		let keyStore = MockBiometricKeyStore()
+		keyStore.stubbedHash = Data([0xDE, 0xAD])
+		keyStore.stubbedKey = Data([0xBE, 0xEF])
+		let interactor = UnlockInteractor(lockManager: lockManager, biometricKeyStore: keyStore)
+		let listener = UnlockListenerMock()
+		interactor.listener = listener
+
+		// When
+		interactor.unlockWithBiometrics()
+
+		// Then
+		#expect(keyStore.evaluateAndRecoverKeyCallCount == 1)
+		#expect(lockManager.unlockWithBiometricsCallCount == 1)
+		#expect(lockManager.unlockWithBiometricsReceivedHash == Data([0xDE, 0xAD]))
+		#expect(lockManager.unlockWithBiometricsReceivedKey == Data([0xBE, 0xEF]))
+		#expect(listener.didUnlockVaultCallCount == 1)
+		#expect(interactor.errorMessage == nil)
+	}
+
 	// MARK: - 5. UnlockBuilder 의존성 바인딩 검증
 	@Test("UnlockBuilder가 lockManager 의존성을 올바르게 바인딩하여 Router/Interactor를 생성한다")
 	func builder_wiresLockManagerDependencySuccessfully() {

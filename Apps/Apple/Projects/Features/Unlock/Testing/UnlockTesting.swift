@@ -197,6 +197,25 @@ public final class UnlockRoutingMock: UnlockRouting {
 	}
 }
 
+// MARK: - MockBiometricKeyStore
+
+public final class MockBiometricKeyStore: BiometricKeyStoreProtocol, @unchecked Sendable {
+	public var evaluateAndRecoverKeyCallCount = 0
+	public var stubbedHash: Data = Data([0x01, 0x02, 0x03, 0x04])
+	public var stubbedKey: Data = Data(repeating: 0x42, count: 32)
+	public var error: Error?
+
+	public init() {}
+
+	public func evaluateAndRecoverKey() throws -> (biometryHash: Data, encryptionKey: Data) {
+		evaluateAndRecoverKeyCallCount += 1
+		if let error = error {
+			throw error
+		}
+		return (stubbedHash, stubbedKey)
+	}
+}
+
 // MARK: - Internal Mocks (전역 심볼 충돌 방지를 위해 internal 격리)
 
 #if os(macOS)
