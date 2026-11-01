@@ -1,0 +1,2 @@
+# 컨테이너(Linux) 안에서 읽는 파일이므로 Windows에서 받아도 LF로 둔다
+* text eol=lf
