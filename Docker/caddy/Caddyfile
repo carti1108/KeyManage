@@ -32,8 +32,13 @@
 	}
 }
 
-http://:8080 {
+# 정해진 Host로 온 요청만 받는다. 다른 Host는 아래에서 거절한다 (DNS 리바인딩 방지)
+http://localhost:8080, http://127.0.0.1:8080 {
 	import keymanage
+}
+
+http://:8080 {
+	respond "Misdirected Request" 421
 }
 
 import /etc/caddy/enabled/*.caddy

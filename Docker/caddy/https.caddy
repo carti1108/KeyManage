@@ -1,5 +1,11 @@
 # 8443 https 사이트. 인증서는 받은 사람이 mkcert로 만들어 /certs에 읽기 전용으로 마운트한다 (ADR-0021)
-https://:8443 {
+# 백엔드 CORS가 https://localhost:8443만 허용하므로 Host도 localhost만 받는다
+https://localhost:8443 {
 	tls /certs/localhost.pem /certs/localhost-key.pem
 	import keymanage
+}
+
+https://:8443 {
+	tls /certs/localhost.pem /certs/localhost-key.pem
+	respond "Misdirected Request" 421
 }
