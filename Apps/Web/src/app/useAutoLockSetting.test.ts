@@ -264,4 +264,20 @@ describe('자동 잠금 시간 설정과 타이머 연결 (SEC-003, ADR-WEB-002)
     for (const off of offs) expect(off).toHaveBeenCalledTimes(1)
   })
 
+  it('처음 읽은 뒤 구독하기 전에 다른 탭이 바꾼 값도 반영한다', () => {
+    const storage = memoryStorage()
+    // 첫 렌더의 read와 구독 사이에 다른 탭이 값을 바꾼 상황을 흉내 낸다
+    const wrap = (setting: AutoLockSettingStore): AutoLockSettingStore => ({
+      ...setting,
+      read: () => createLocalStorageAutoLockSetting(() => storage).read(),
+      subscribe(listener) {
+        storage.setItem(AUTO_LOCK_STORAGE_KEY, String(AUTO_LOCK_OPTIONS_MS.oneMinute))
+        return setting.subscribe(listener)
+      },
+    })
+    const { hook } = setup({}, { wrap })
+
+    expect(hook.result.current.timeoutMs).toBe(AUTO_LOCK_OPTIONS_MS.oneMinute)
+    hook.unmount()
+  })
 })
