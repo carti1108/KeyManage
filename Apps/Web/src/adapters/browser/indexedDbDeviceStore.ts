@@ -32,6 +32,16 @@ function completed(transaction: IDBTransaction): Promise<void> {
   })
 }
 
+/**
+ * 브라우저가 저장 공간이 부족할 때 기기 기록을 지우지 않도록 요청한다 (ADR-0019).
+ * 브라우저가 거절하거나 지원하지 않아도 기록은 쓸 수 있으므로 결과를 기다리지 않는다
+ */
+export function requestPersistentStorage(): void {
+  globalThis.navigator?.storage?.persist?.().catch(() => {
+    // 요청 자체가 실패해도(일부 웹뷰) 기기 저장은 그대로 동작한다. 지워질 수 있다는 위험만 남는다
+  })
+}
+
 export function createIndexedDbDeviceStore(factory: IDBFactory = globalThis.indexedDB): DeviceStore {
   let database: Promise<IDBDatabase> | null = null
 
