@@ -49,3 +49,4 @@
 | 041 | 2026-11-01 | [플랫폼 ADR과 문서를 각 플랫폼 폴더로 분리 (#69 PR B)](041-platform-docs-split.md) |
 | 042 | 2026-11-01 | [문서 템플릿과 한국어 STE 규칙, 정책 10개 변환 (#70 PR 1)](042-policy-template-and-ste.md) |
 | 043 | 2026-11-01 | [공통 명세 3개 정리와 플랫폼 바인딩 분리 (#70 PR 2)](043-common-spec-readability.md) |
+| 044 | 2026-11-01 | [문서 지도·작성 가이드 분리와 README 정리 (#70 PR 3)](044-readme-readability.md) |
