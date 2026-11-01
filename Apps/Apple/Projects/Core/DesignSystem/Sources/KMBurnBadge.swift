@@ -16,12 +16,16 @@ public final class KMBurnBadgeModel: ObservableObject {
     }
 
     public var progress: Double {
-        // RED STUB: returns 0.0
-        return 0.0
+        return Double(max(0, remainingSeconds)) / Double(max(1, totalSeconds))
     }
 
     public func tick() {
-        // RED STUB: does nothing
+        if remainingSeconds > 0 {
+            remainingSeconds -= 1
+        }
+        if remainingSeconds == 0 {
+            onBurned?()
+        }
     }
 }
 
@@ -41,12 +45,37 @@ public struct KMBurnBadge: View {
     }
 
     public var progress: Double {
-        // RED STUB: returns 0.0
-        return 0.0
+        return Double(max(0, remainingSeconds)) / Double(max(1, totalSeconds))
     }
 
     public var body: some View {
-        // RED STUB
-        EmptyView()
+        HStack(spacing: 6) {
+            ZStack {
+                Circle()
+                    .stroke(DesignToken.View.muted, lineWidth: 2)
+                    .frame(width: 16, height: 16)
+
+                Circle()
+                    .trim(from: 0, to: CGFloat(min(max(progress, 0), 1)))
+                    .stroke(
+                        remainingSeconds <= 5 ? DesignToken.View.destructive : DesignToken.View.accent,
+                        style: StrokeStyle(lineWidth: 2, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
+                    .frame(width: 16, height: 16)
+            }
+
+            Text("\(max(0, remainingSeconds))s")
+                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .foregroundColor(remainingSeconds <= 5 ? DesignToken.View.destructive : DesignToken.View.foreground)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(DesignToken.View.card)
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(DesignToken.View.border, lineWidth: 1)
+        )
     }
 }

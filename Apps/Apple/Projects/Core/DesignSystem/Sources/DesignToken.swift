@@ -25,37 +25,77 @@ public enum DesignToken {
         }
 
         public func color(mode: Mode = .dark) -> Color {
-            // RED STUB: minimal stub
-            return .clear
+            let hex = (mode == .dark) ? darkHex : lightHex
+            let c = Self.parseColor(from: hex)
+            return Color(.sRGB, red: c.r, green: c.g, blue: c.b, opacity: c.a)
         }
 
         public func platformColor(mode: Mode = .dark) -> PlatformColor {
-            // RED STUB: minimal stub
+            let hex = (mode == .dark) ? darkHex : lightHex
+            let c = Self.parseColor(from: hex)
             #if canImport(UIKit)
-            return .clear
+            return UIColor(red: CGFloat(c.r), green: CGFloat(c.g), blue: CGFloat(c.b), alpha: CGFloat(c.a))
             #elseif canImport(AppKit)
-            return .clear
+            return NSColor(srgbRed: CGFloat(c.r), green: CGFloat(c.g), blue: CGFloat(c.b), alpha: CGFloat(c.a))
             #endif
+        }
+
+        private static func parseColor(from hexString: String) -> (r: Double, g: Double, b: Double, a: Double) {
+            var str = hexString.trimmingCharacters(in: .whitespacesAndNewlines)
+            if str.hasPrefix("rgba") {
+                let pattern = #"rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d\.]+)\s*\)"#
+                if let regex = try? NSRegularExpression(pattern: pattern),
+                   let match = regex.firstMatch(in: str, range: NSRange(str.startIndex..., in: str)) {
+                    let rStr = (str as NSString).substring(with: match.range(at: 1))
+                    let gStr = (str as NSString).substring(with: match.range(at: 2))
+                    let bStr = (str as NSString).substring(with: match.range(at: 3))
+                    let aStr = (str as NSString).substring(with: match.range(at: 4))
+                    let r = (Double(rStr) ?? 0) / 255.0
+                    let g = (Double(gStr) ?? 0) / 255.0
+                    let b = (Double(bStr) ?? 0) / 255.0
+                    let a = Double(aStr) ?? 1.0
+                    return (r, g, b, a)
+                }
+            }
+            if str.hasPrefix("#") {
+                str.removeFirst()
+            }
+            var hexNumber: UInt64 = 0
+            let scanner = Scanner(string: str)
+            if scanner.scanHexInt64(&hexNumber) {
+                if str.count == 6 {
+                    let r = Double((hexNumber & 0xFF0000) >> 16) / 255.0
+                    let g = Double((hexNumber & 0x00FF00) >> 8) / 255.0
+                    let b = Double(hexNumber & 0x0000FF) / 255.0
+                    return (r, g, b, 1.0)
+                } else if str.count == 8 {
+                    let r = Double((hexNumber & 0xFF000000) >> 24) / 255.0
+                    let g = Double((hexNumber & 0x00FF0000) >> 16) / 255.0
+                    let b = Double((hexNumber & 0x0000FF00) >> 8) / 255.0
+                    let a = Double(hexNumber & 0x000000FF) / 255.0
+                    return (r, g, b, a)
+                }
+            }
+            return (0, 0, 0, 1)
         }
     }
 
     public enum Colors {
-        // RED STUB: minimal stub placeholder values
-        public static let background = ColorToken()
-        public static let foreground = ColorToken()
-        public static let card = ColorToken()
-        public static let cardForeground = ColorToken()
-        public static let primary = ColorToken()
-        public static let primaryForeground = ColorToken()
-        public static let accent = ColorToken()
-        public static let accentForeground = ColorToken()
-        public static let muted = ColorToken()
-        public static let mutedForeground = ColorToken()
-        public static let destructive = ColorToken()
-        public static let destructiveForeground = ColorToken()
-        public static let border = ColorToken()
-        public static let input = ColorToken()
-        public static let ring = ColorToken()
+        public static let background = ColorToken(lightHex: "#F8FAFC", darkHex: "#0F172A")
+        public static let foreground = ColorToken(lightHex: "#0F172A", darkHex: "#F8FAFC")
+        public static let card = ColorToken(lightHex: "#FFFFFF", darkHex: "#1E293B")
+        public static let cardForeground = ColorToken(lightHex: "#0F172A", darkHex: "#F8FAFC")
+        public static let primary = ColorToken(lightHex: "#1E3A5F", darkHex: "#38BDF8")
+        public static let primaryForeground = ColorToken(lightHex: "#FFFFFF", darkHex: "#0F172A")
+        public static let accent = ColorToken(lightHex: "#059669", darkHex: "#10B981")
+        public static let accentForeground = ColorToken(lightHex: "#FFFFFF", darkHex: "#0F172A")
+        public static let muted = ColorToken(lightHex: "#F1F5F9", darkHex: "#1E293B")
+        public static let mutedForeground = ColorToken(lightHex: "#64748B", darkHex: "#94A3B8")
+        public static let destructive = ColorToken(lightHex: "#DC2626", darkHex: "#EF4444")
+        public static let destructiveForeground = ColorToken(lightHex: "#FFFFFF", darkHex: "#FFFFFF")
+        public static let border = ColorToken(lightHex: "#E2E8F0", darkHex: "rgba(255, 255, 255, 0.08)")
+        public static let input = ColorToken(lightHex: "#E2E8F0", darkHex: "#334155")
+        public static let ring = ColorToken(lightHex: "#38BDF8", darkHex: "#38BDF8")
     }
 
     public enum View {
@@ -95,22 +135,20 @@ public enum DesignToken {
     }
 
     public enum Typography {
-        // RED STUB
-        public static let fontName: String = ""
-        public static var body: Font { .body }
-        public static var passwordMonospaced: Font { .body }
-        public static let isPasswordMonospaced: Bool = false
+        public static let fontName: String = "SF Pro"
+        public static var body: Font { .system(.body, design: .default) }
+        public static var passwordMonospaced: Font { .system(.body, design: .monospaced) }
+        public static let isPasswordMonospaced: Bool = true
     }
 
     public enum Icon {
-        // RED STUB: minimal stub placeholder values
-        public static let passwordShow: String = ""
-        public static let passwordHide: String = ""
-        public static let clipboardCopy: String = ""
-        public static let copyComplete: String = ""
-        public static let regenerate: String = ""
-        public static let vaultLock: String = ""
-        public static let warning: String = ""
-        public static let offlineBanner: String = ""
+        public static let passwordShow: String = "eye"
+        public static let passwordHide: String = "eye.slash"
+        public static let clipboardCopy: String = "doc.on.doc"
+        public static let copyComplete: String = "checkmark.circle.fill"
+        public static let regenerate: String = "arrow.clockwise"
+        public static let vaultLock: String = "lock.fill"
+        public static let warning: String = "exclamationmark.triangle.fill"
+        public static let offlineBanner: String = "wifi.slash"
     }
 }

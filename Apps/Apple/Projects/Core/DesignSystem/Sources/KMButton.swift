@@ -13,8 +13,27 @@ public enum KMButtonSize: String, CaseIterable, Sendable {
     case lg
 
     public var height: CGFloat {
-        // RED STUB: minimal stub returns 0
-        return 0
+        switch self {
+        case .sm: return 32.0
+        case .md: return 40.0
+        case .lg: return 48.0
+        }
+    }
+
+    public var horizontalPadding: CGFloat {
+        switch self {
+        case .sm: return 12.0
+        case .md: return 16.0
+        case .lg: return 20.0
+        }
+    }
+
+    public var fontSize: CGFloat {
+        switch self {
+        case .sm: return 13.0
+        case .md: return 14.0
+        case .lg: return 16.0
+        }
     }
 }
 
@@ -46,12 +65,64 @@ public struct KMButton: View {
     }
 
     public var isInteractive: Bool {
-        // RED STUB: returns true even when disabled or loading
-        return true
+        return !isDisabled && !isLoading
     }
 
     public var body: some View {
-        // RED STUB
-        EmptyView()
+        Button(action: {
+            if isInteractive {
+                action()
+            }
+        }) {
+            HStack(spacing: 8) {
+                if isLoading {
+                    ProgressView()
+                        .controlSize(size == .sm ? .small : .regular)
+                } else if let icon = icon {
+                    Image(systemName: icon)
+                        .font(.system(size: size.fontSize, weight: .medium))
+                }
+
+                Text(title)
+                    .font(.system(size: size.fontSize, weight: .medium))
+            }
+            .padding(.horizontal, size.horizontalPadding)
+            .frame(height: size.height)
+            .background(backgroundColor)
+            .foregroundColor(foregroundColor)
+            .cornerRadius(6)
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(borderColor, lineWidth: variant == .outline ? 1 : 0)
+            )
+            .opacity(isDisabled ? 0.5 : 1.0)
+        }
+        .buttonStyle(.plain)
+        .disabled(!isInteractive)
+    }
+
+    private var backgroundColor: Color {
+        switch variant {
+        case .primary: return DesignToken.View.primary
+        case .outline: return .clear
+        case .destructive: return DesignToken.View.destructive
+        case .ghost: return .clear
+        }
+    }
+
+    private var foregroundColor: Color {
+        switch variant {
+        case .primary: return DesignToken.View.primaryForeground
+        case .outline: return DesignToken.View.foreground
+        case .destructive: return DesignToken.View.destructiveForeground
+        case .ghost: return DesignToken.View.foreground
+        }
+    }
+
+    private var borderColor: Color {
+        switch variant {
+        case .outline: return DesignToken.View.border
+        default: return .clear
+        }
     }
 }

@@ -22,27 +22,69 @@ public struct KMGaugeBar: View {
     }
 
     public var clampedScore: Int {
-        // RED STUB: returns 0
-        return 0
+        return min(max(score, 0), 100)
     }
 
     public var level: KMGaugeLevel? {
-        // RED STUB: returns nil
-        return nil
+        switch clampedScore {
+        case 0...59:
+            return .weak
+        case 60...79:
+            return .moderate
+        case 80...100:
+            return .strong
+        default:
+            return .weak
+        }
     }
 
     public var statusText: String {
-        // RED STUB: returns empty string
-        return ""
+        return level?.rawValue ?? ""
     }
 
     public var colorToken: DesignToken.ColorToken {
-        // RED STUB: returns empty color token
-        return DesignToken.ColorToken()
+        switch level {
+        case .weak:
+            return DesignToken.Colors.destructive
+        case .moderate:
+            return DesignToken.Colors.primary
+        case .strong:
+            return DesignToken.Colors.accent
+        case .none:
+            return DesignToken.Colors.destructive
+        }
     }
 
     public var body: some View {
-        // RED STUB
-        EmptyView()
+        VStack(alignment: .leading, spacing: 6) {
+            if showLabel {
+                HStack {
+                    Text(statusText)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(colorToken.color())
+                    Spacer()
+                    Text("\(clampedScore)%")
+                        .font(.system(size: 13, weight: .medium, design: .monospaced))
+                        .foregroundColor(DesignToken.View.mutedForeground)
+                }
+            }
+
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(DesignToken.View.muted)
+                        .frame(height: 6)
+
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(colorToken.color())
+                        .frame(
+                            width: geometry.size.width * CGFloat(Double(clampedScore) / 100.0),
+                            height: 6
+                        )
+                        .animation(animated ? .easeInOut(duration: 0.3) : nil, value: clampedScore)
+                }
+            }
+            .frame(height: 6)
+        }
     }
 }
