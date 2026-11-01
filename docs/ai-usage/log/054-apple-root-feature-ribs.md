@@ -64,3 +64,4 @@
 | `RootRouter.routeToMain()` 및 멱등성 관련 단위 테스트 누락 (P2) | Argon 코드 리뷰어 (Medium) | `rootRouter_routeToMain_detachesUnlockAndClearsActiveView()` 및 `rootRouter_routeToUnlock_whenAlreadyAttached_isIdempotent()` 2개 테스트 추가 |
 | RIBs 구성요소 한 파일 집중 안티패턴 및 Interactable 배치 오류 | 사용자 피드백 | Uber RIBs 공식 템플릿 표준에 따라 `Interactable`을 `Router.swift`에 배치하고 각 컴포넌트별로 파일 분리 및 `Project+Feature.swift` 의존성 일원화 |
 | `KMPasswordField` iOS 17 전용 2인자 `.onChange`로 인한 iOS 15 빌드 실패 | 사용자 빌드 검증 | `#if os(macOS)` 컴파일러 분기 적용하여 iOS 15 호환 1인자 클로저 복원 |
+| `UnlockPresentableListener`의 Interactor 위치 및 Implementation 내부 불필요한 public 노출 (P2) | Argon 코드 리뷰어 (Medium) | `UnlockPresentableListener`를 `UnlockViewController.swift`로 이동하고 내부 뷰/뷰모델/프로토콜 가시성을 `internal`로 캡슐화 |
