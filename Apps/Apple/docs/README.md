@@ -25,5 +25,6 @@
 ## 3. 문서 목록
 
 * [`adr/`](adr/README.md): Apple 플랫폼 ADR (ADR-0014~0017, 새 결정은 `ADR-APL-NNN`)
+* [`platform-bindings.md`](platform-bindings.md): 암호 라이브러리, 색상 토큰, 글꼴, 아이콘 이름
 * [`reports/`](reports/): 단일 에이전트와 서브에이전트 비교 실험 보고서
 * AI 활용 기록은 공통 로그 [`docs/ai-usage/log/`](../../../docs/ai-usage/log/README.md)에 쓴다.

@@ -48,3 +48,4 @@
 | 040 | 2026-11-01 | [문서 경계 기준과 VLT 정책 분할 (#69 PR A)](040-docs-boundaries-and-policy-split.md) |
 | 041 | 2026-11-01 | [플랫폼 ADR과 문서를 각 플랫폼 폴더로 분리 (#69 PR B)](041-platform-docs-split.md) |
 | 042 | 2026-11-01 | [문서 템플릿과 한국어 STE 규칙, 정책 10개 변환 (#70 PR 1)](042-policy-template-and-ste.md) |
+| 043 | 2026-11-01 | [공통 명세 3개 정리와 플랫폼 바인딩 분리 (#70 PR 2)](043-common-spec-readability.md) |
