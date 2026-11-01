@@ -83,6 +83,22 @@ if has_lock_module:
     ]
     check_invariants("3단계: 자동 잠금(SEC-003)", autolock_rules)
 
+# 4. 비밀번호 생성 및 엔트로피 점수 모듈 (GEN-001) — 모듈이 존재할 때만 감사
+has_generator_module = os.path.isdir(os.path.join(sources_dir, "Generator"))
+
+if has_generator_module:
+    generator_rules = [
+        ("길이 상한(64자) 및 하한(8자) 경계값 검증", r"(minimumLength|maximumLength|64)"),
+        ("거부 샘플링 1,000회 반복 검증", r"1_?000"),
+        ("플랫폼 공통 샘플('123456' -> 19점) 검증", r"123456"),
+        ("플랫폼 공통 샘플('abc~~~~~' -> 40점) 검증", r"abc~~~~~"),
+        ("표준 에러 문구('비밀번호 길이는 최소 8자 이상 64자 이하이어야 합니다.') 검증", r"비밀번호 길이는 최소 8자 이상 64자 이하이어야 합니다\."),
+        ("표준 에러 문구('최소 1개 이상의 문자 종류를 선택해야 합니다.') 검증", r"최소 1개 이상의 문자 종류를 선택해야 합니다\."),
+        ("표준 취약 경고 문구('현재 비밀번호는 보안에 취약합니다. 80점 이상의 강력한 비밀번호로 재생성하세요.') 검증", r"현재 비밀번호는 보안에 취약합니다\. 80점 이상의 강력한 비밀번호로 재생성하세요\."),
+        ("표준 연속 숫자 안내 문구('123처럼 이어지는 숫자가 들어 있어 추측하기 쉽습니다.') 검증", r"123처럼 이어지는 숫자가 들어 있어 추측하기 쉽습니다\."),
+    ]
+    check_invariants("4단계: 비밀번호 생성기(GEN-001)", generator_rules)
+
 if violations:
     print("정책 합격 기준(Policy Acceptance Audit) 위반 발견:")
     for v in violations:
