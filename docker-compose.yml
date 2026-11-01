@@ -33,7 +33,7 @@ services:
       - "127.0.0.1:8080:8080"
       - "127.0.0.1:8443:8443"
     volumes:
-      # mkcert로 만든 localhost.pem, localhost-key.pem. 없으면 8080만 뜬다.
+      # mkcert로 만든 localhost.pem, localhost-key.pem. 없으면 8080만 뜬다. 폴더는 .gitkeep으로 레포에 미리 있다
       - ./certs:/certs:ro
     networks:
       keymanage:

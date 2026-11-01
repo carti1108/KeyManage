@@ -68,4 +68,5 @@ pnpm-debug.log*
 Tools/figma-builder/node_modules/
 
 # 로컬 Docker 데모 (ADR-0021): mkcert로 만든 localhost 인증서와 키
-/certs/
+/certs/*
+!/certs/.gitkeep
