@@ -1,0 +1,32 @@
+# 로컬 데모 프록시 (ADR-0021)
+# - :8080  http. 웹 전용이다. 인증서가 없어도 뜬다
+# - :8443  https. 웹과 데스크톱 앱이 쓴다. 엔트리포인트가 인증서를 찾으면 https.caddy를 켠다
+{
+	# 관리 API를 끈다. 설정은 이 파일로만 바꾼다
+	admin off
+	persist_config off
+	# 8443의 인증서는 직접 지정한다. 80 포트 리다이렉트와 인증서 발급을 하지 않는다
+	auto_https disable_redirects
+}
+
+(keymanage) {
+	encode zstd gzip
+
+	# API는 백엔드로 넘긴다. Host는 그대로 넘기고, X-Forwarded-For에는 접속 IP를 적는다
+	handle /api/* {
+		reverse_proxy backend:8080
+	}
+
+	# 나머지는 웹 정적 파일이다. 없는 경로는 index.html로 돌린다
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+http://:8080 {
+	import keymanage
+}
+
+import /etc/caddy/enabled/*.caddy

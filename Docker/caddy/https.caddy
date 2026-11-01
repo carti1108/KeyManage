@@ -1,0 +1,5 @@
+# 8443 https 사이트. 인증서는 받은 사람이 mkcert로 만들어 /certs에 읽기 전용으로 마운트한다 (ADR-0021)
+https://:8443 {
+	tls /certs/localhost.pem /certs/localhost-key.pem
+	import keymanage
+}
