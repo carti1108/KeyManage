@@ -60,3 +60,4 @@
 | 052 | 2026-11-01 | [로컬 Docker Compose 데모 실행 구성](052-docker-local-demo.md) |
 | 053 | 2026-11-01 | [웹 정책 불일치 2건 수정(가입 안내, 오프라인 배너)](053-web-policy-gaps.md) |
 | 054 | 2026-11-01 | [Apple RootFeature microRIBs 루트 라우팅 및 앱 조립 (#86)](054-apple-root-feature-ribs.md) |
+| 055 | 2026-11-02 | [Apple MainFeature microRIBs 메인 대시보드 셸 및 루트 라우팅 연동 (#90)](055-apple-main-feature-ribs.md) |
