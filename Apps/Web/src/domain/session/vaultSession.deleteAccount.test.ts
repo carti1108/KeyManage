@@ -323,3 +323,28 @@ describe('다른 기기에서 삭제된 뒤 (SEC-005 규칙 6, 예외 1)', () =>
     expect(reopened.session.state().status).toBe('signedOut')
   }, 20_000)
 })
+
+describe('계정 삭제와 겹친 다른 탭 로그아웃 (SEC-005 규칙 5)', () => {
+  it('서버가 지운 뒤 다른 탭 로그아웃으로 이미 로그아웃됐어도 삭제는 완료로 끝난다', async () => {
+    const hub = createInMemoryTabHub()
+    const server = newServer()
+    const deviceStore = new FakeDeviceStore()
+    const a = device(server, deviceStore, hub.connect())
+    const b = device(server, deviceStore, hub.connect())
+    await a.session.login(EMAIL, PASSWORD)
+    await b.session.restore()
+    await b.session.unlock(PASSWORD)
+    const release = gate(server.authApi)
+    const deleting = a.session.deleteAccount(PASSWORD)
+    await vi.waitFor(() => expect(server.authApi.deletions).toHaveLength(1))
+
+    await b.session.logout()
+    await vi.waitFor(() => expect(a.session.state().status).toBe('signedOut'))
+    release()
+
+    await expect(deleting).resolves.toBeUndefined()
+    expect(server.authApi.deleted).toBe(true)
+    expect(a.session.state().status).toBe('signedOut')
+    expect(deviceStore.stored).toBeUndefined()
+  }, 20_000)
+})

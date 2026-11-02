@@ -135,3 +135,16 @@ describe('DeleteAccountAction (SEC-005)', () => {
     expect(screen.getByText('배경 저장').closest('[inert]')).toBeNull()
   })
 })
+
+describe('DeleteAccountAction 확인 문구 정규화 (SEC-005)', () => {
+  it('자모가 분리된(NFD) 확인 문구도 NFC로 맞춘 뒤 같으면 삭제 버튼이 켜지고 공백 규칙은 그대로다', () => {
+    renderAction()
+    const dialog = open()
+
+    fill(dialog, { phrase: '계정 삭제'.normalize('NFD') })
+    expect(deleteButton(dialog)).toBeEnabled()
+
+    fill(dialog, { phrase: `${'계정 삭제'.normalize('NFD')} ` })
+    expect(deleteButton(dialog)).toBeDisabled()
+  })
+})
