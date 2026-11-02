@@ -209,6 +209,15 @@ struct UnlockFeatureTests {
 				fatalError("Not used")
 			}
 			func deleteAccount(accessToken: String, authHash: String) async throws {}
+			func register(request: RegisterRequestPayload) async throws -> RegisterResponsePayload {
+				fatalError("Not used")
+			}
+			func login(request: LoginRequestPayload) async throws -> LoginResponsePayload {
+				fatalError("Not used")
+			}
+			func getVault(accessToken: String) async throws -> GetVaultResponsePayload? {
+				nil
+			}
 		}
 
 		let networkClient = TestAuthNetworkClient()

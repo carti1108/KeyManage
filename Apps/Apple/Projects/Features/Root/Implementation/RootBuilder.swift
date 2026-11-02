@@ -3,6 +3,7 @@ import MicroRIBs
 import KeyManageDomain
 import UnlockFeatureInterface
 import MainFeatureInterface
+import AuthFeatureInterface
 import RootFeatureInterface
 
 // MARK: - Component
@@ -17,6 +18,9 @@ final class RootComponent: Component<RootDependency> {
 	}
 	var mainBuilder: MainBuildable {
 		dependency.mainBuilder
+	}
+	var authBuilder: AuthBuildable {
+		dependency.authBuilder
 	}
 }
 
@@ -38,7 +42,8 @@ public final class RootBuilder: Builder<RootDependency>, RootBuildable {
 			interactor: interactor,
 			viewController: viewController,
 			unlockBuilder: component.unlockBuilder,
-			mainBuilder: component.mainBuilder
+			mainBuilder: component.mainBuilder,
+			authBuilder: component.authBuilder
 		)
 		interactor.router = router
 		return router

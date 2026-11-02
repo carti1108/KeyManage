@@ -71,8 +71,65 @@ public struct DeleteAccountRequestPayload: Codable, Sendable, Equatable {
 	}
 }
 
+public struct RegisterRequestPayload: Codable, Sendable, Equatable {
+	public let email: String
+	public let authHash: String
+	public let kdfSalt: String
+	public let kdfIterations: Int
+
+	public init(email: String, authHash: String, kdfSalt: String, kdfIterations: Int) {
+		self.email = email
+		self.authHash = authHash
+		self.kdfSalt = kdfSalt
+		self.kdfIterations = kdfIterations
+	}
+}
+
+public struct RegisterResponsePayload: Codable, Sendable, Equatable {
+	public let accessToken: String
+	public let expiresAt: String
+
+	public init(accessToken: String, expiresAt: String) {
+		self.accessToken = accessToken
+		self.expiresAt = expiresAt
+	}
+}
+
+public struct LoginRequestPayload: Codable, Sendable, Equatable {
+	public let email: String
+	public let authHash: String
+
+	public init(email: String, authHash: String) {
+		self.email = email
+		self.authHash = authHash
+	}
+}
+
+public struct LoginResponsePayload: Codable, Sendable, Equatable {
+	public let accessToken: String
+	public let expiresAt: String
+
+	public init(accessToken: String, expiresAt: String) {
+		self.accessToken = accessToken
+		self.expiresAt = expiresAt
+	}
+}
+
+public struct GetVaultResponsePayload: Codable, Sendable, Equatable {
+	public let revision: Int
+	public let payload: EncryptedVaultPayload
+
+	public init(revision: Int, payload: EncryptedVaultPayload) {
+		self.revision = revision
+		self.payload = payload
+	}
+}
+
 public protocol AuthNetworkClientProtocol: Sendable {
 	func prelogin(email: String) async throws -> PreloginResponse
+	func register(request: RegisterRequestPayload) async throws -> RegisterResponsePayload
+	func login(request: LoginRequestPayload) async throws -> LoginResponsePayload
+	func getVault(accessToken: String) async throws -> GetVaultResponsePayload?
 	func changePassword(
 		accessToken: String,
 		request: ChangePasswordRequestPayload

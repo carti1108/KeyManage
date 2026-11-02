@@ -104,6 +104,7 @@ public final class MockVaultListViewControllable: VaultListViewControllable {
 
 public final class MockVaultLockManager: VaultLockManagerProtocol, @unchecked Sendable {
 	public var isLocked: Bool = true
+	public var hasActiveSession: Bool = true
 	public var isPrivacyCoverActive: Bool = false
 	public var autoLockTimeout: AutoLockTimeout = .fiveMinutes
 	public var lastInteractionTime: Date = Date()

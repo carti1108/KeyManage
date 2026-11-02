@@ -4,11 +4,17 @@ import MicroRIBs
 import KeyManageDomain
 import UnlockFeatureInterface
 import MainFeatureInterface
+import AuthFeatureInterface
+import AuthFeatureTesting
 import RootFeatureInterface
 
 // MARK: - MockVaultLockManager
 
 public final class MockVaultLockManager: VaultLockManagerProtocol, @unchecked Sendable {
+	public var stubbedHasActiveSession: Bool = true
+	public var hasActiveSession: Bool {
+		stubbedHasActiveSession
+	}
 	public var isLocked: Bool = true
 	public var isPrivacyCoverActive: Bool = false
 	public var autoLockTimeout: AutoLockTimeout = .fiveMinutes
@@ -224,6 +230,7 @@ public final class RootListenerMock: RootListener {
 
 @MainActor
 public final class RootRoutingMock: RootRouting {
+	public var routeToAuthCallCount = 0
 	public var routeToUnlockCallCount = 0
 	public var routeToMainCallCount = 0
 
@@ -241,6 +248,10 @@ public final class RootRoutingMock: RootRouting {
 	) {
 		self.viewControllable = viewControllable ?? InternalMockViewControllable()
 		self.interactable = interactable ?? InternalMockInteractable()
+	}
+
+	public func routeToAuth() {
+		routeToAuthCallCount += 1
 	}
 
 	public func routeToUnlock() {
@@ -333,15 +344,18 @@ public final class RootDependencyMock: RootDependency {
 	public var lockManager: VaultLockManagerProtocol
 	public var unlockBuilder: UnlockBuildable
 	public var mainBuilder: MainBuildable
+	public var authBuilder: AuthBuildable
 
 	public init(
 		lockManager: VaultLockManagerProtocol = MockVaultLockManager(),
 		unlockBuilder: UnlockBuildable = MockUnlockBuilder(),
-		mainBuilder: MainBuildable = MockMainBuilder()
+		mainBuilder: MainBuildable = MockMainBuilder(),
+		authBuilder: AuthBuildable = MockAuthBuildable()
 	) {
 		self.lockManager = lockManager
 		self.unlockBuilder = unlockBuilder
 		self.mainBuilder = mainBuilder
+		self.authBuilder = authBuilder
 	}
 }
 

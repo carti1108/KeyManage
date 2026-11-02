@@ -8,6 +8,7 @@ import UnlockFeatureInterface
 public final class MockVaultLockManager: VaultLockManagerProtocol, @unchecked Sendable {
 	public var isLocked: Bool = true
 	public var isPrivacyCoverActive: Bool = false
+	public var hasActiveSession: Bool = true
 	public var autoLockTimeout: AutoLockTimeout = .fiveMinutes
 	public var lastInteractionTime: Date = Date()
 

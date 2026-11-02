@@ -11,14 +11,19 @@ import SettingsFeatureInterface
 import SettingsFeatureImplementation
 import PasswordGeneratorFeatureInterface
 import PasswordGeneratorFeatureImplementation
+import AuthFeatureInterface
+import AuthFeatureImplementation
 import RootFeatureInterface
 
 @MainActor
-final class AppDependency: RootDependency, UnlockDependency, MainDependency, VaultListDependency, SettingsDependency, PasswordGeneratorDependency {
+final class AppDependency: RootDependency, UnlockDependency, MainDependency, VaultListDependency, SettingsDependency, PasswordGeneratorDependency, AuthDependency {
 	let lockManager: VaultLockManagerProtocol
 	let clipboardManager: ClipboardManagerProtocol
 	let networkClient: AuthNetworkClientProtocol
 
+	var authBuilder: AuthBuildable {
+		AuthBuilder(dependency: self)
+	}
 	var unlockBuilder: UnlockBuildable {
 		UnlockBuilder(dependency: self)
 	}

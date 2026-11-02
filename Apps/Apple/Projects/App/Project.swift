@@ -30,6 +30,8 @@ let project = Project(
 				.project(target: "PasswordGeneratorFeatureImplementation", path: "../Features/PasswordGenerator"),
 				.project(target: "RootFeatureInterface", path: "../Features/Root"),
 				.project(target: "RootFeatureImplementation", path: "../Features/Root"),
+				.project(target: "AuthFeatureInterface", path: "../Features/Auth"),
+				.project(target: "AuthFeatureImplementation", path: "../Features/Auth"),
 				.external(name: "MicroRIBs")
 			]
 		),
@@ -60,6 +62,8 @@ let project = Project(
 				.project(target: "PasswordGeneratorFeatureImplementation", path: "../Features/PasswordGenerator"),
 				.project(target: "RootFeatureInterface", path: "../Features/Root"),
 				.project(target: "RootFeatureImplementation", path: "../Features/Root"),
+				.project(target: "AuthFeatureInterface", path: "../Features/Auth"),
+				.project(target: "AuthFeatureImplementation", path: "../Features/Auth"),
 				.external(name: "MicroRIBs")
 			]
 		)
