@@ -15,17 +15,17 @@
 
 ## 주요 기능
 
-- **영지식(Zero-Knowledge) 종단간 암·복호화 ([SEC-001](docs/policies/SEC/SEC-001-client-side-zero-knowledge-encryption.md))**: `PBKDF2-HMAC-SHA256`(60만 회 이상)·`HKDF-SHA256`·`AES-256-GCM` 기반으로 클라이언트 내부에서만 키 유도와 암·복호화를 수행하고 서버는 암호문만 보관합니다.
-- **인증 해시 분리 및 이중 해싱 계정 인증 ([SEC-002](docs/policies/SEC/SEC-002-account-auth-and-session.md))**: 볼트 암호화 키와 분리된 인증 해시(`authKey`)만 서버로 전송하며, 서버는 `Argon2id`와 서버 비밀키(Pepper)로 재해싱하여 검증합니다.
-- **자동 유휴 잠금 및 생체 인증 접근 제어 ([SEC-003](docs/policies/SEC/SEC-003-unlock-and-auto-lock.md))**: 5단계 유휴 타임아웃(즉시~1시간) 경과 시 메모리의 민감 키·평문을 즉시 제로화(Zeroing)하고 생체 인증(Face ID / Touch ID) 및 마스터 비밀번호로 해제합니다.
-- **마스터 비밀번호 변경 및 원격 KDF 변경 감지 ([SEC-004](docs/policies/SEC/SEC-004-master-password-change.md))**: 새 솔트·키로 볼트를 재암호화해 서버 세션과 함께 원자적으로 교체하며, 타 기기 잠금 해제 실패 시 원격 KDF 변경을 감지해 재로그인을 안내합니다.
-- **계정 삭제 및 서버·기기 기록 영구 소거 ([SEC-005](docs/policies/SEC/SEC-005-account-deletion.md))**: 확인 문구(`계정 삭제`)와 마스터 비밀번호 재검증 후 서버 계정·볼트·세션 및 로컬 기기 저장소를 즉시 파기합니다.
-- **낙관적 잠금 기반 볼트 동기화 및 3-way 병합 ([VLT-001](docs/policies/VLT/VLT-001-cross-platform-vault-sync.md))**: 단조 증가 `revision`으로 동시 수정 충돌(`409 Conflict`)을 감지하고 항목별 `updatedAt` 및 삭제 기록(`deletedAt`) 기준으로 최대 3회 자동 병합·재시도합니다.
-- **오프라인 대기 큐 및 재연결 동기화 ([VLT-002](docs/policies/VLT/VLT-002-offline-pending-sync.md))**: 네트워크 단절 시 변경분을 로컬 대기 큐(`pendingSync`)에 보존하고 연결 복구 또는 수동 새로고침 시 서버와 동기화합니다.
-- **암호화 기기 저장소 영속 보존 ([VLT-003](docs/policies/VLT/VLT-003-device-vault-persistence.md))**: 앱 재시작 및 오프라인 환경에서도 잠금 해제 후 볼트를 열람할 수 있도록 로컬 저장소(IndexedDB / Keychain·File)에 암호문으로만 보관합니다.
-- **독립 암호화 백업 내보내기 및 복원 ([VLT-004](docs/policies/VLT/VLT-004-encrypted-backup-export-restore.md))**: 백업 비밀번호로 보호된 `AES-256-GCM` 백업 컨테이너(`.json`)를 내보내고 무결성 검증 후 항목 병합 복원을 수행합니다.
-- **CSPRNG 비밀번호 생성기 및 엔트로피 진단 ([GEN-001](docs/policies/GEN/GEN-001-password-generation-and-entropy-scoring.md))**: 거부 샘플링 기반 암호학적 난수 생성기(8~64자, 4대 문자군)와 Shannon 엔트로피 점수(0~100점)·연속 숫자 패턴 경고를 제공합니다.
-- **보안 클립보드 버퍼 및 30초 자동 소각 ([COM-001](docs/policies/COM/COM-001-clipboard-auto-burn.md))**: 복사된 비밀번호를 30초 경과 또는 볼트 잠금·백그라운드 전환 시 시스템 클립보드에서 자동 소거합니다.
+- **영지식(Zero-Knowledge) 종단간 암·복호화 ([SEC-001](docs/policies/SEC/SEC-001-client-side-zero-knowledge-encryption.md))**
+- **인증 해시 분리 및 이중 해싱 계정 인증 ([SEC-002](docs/policies/SEC/SEC-002-account-auth-and-session.md))**
+- **자동 유휴 잠금 및 생체 인증 접근 제어 ([SEC-003](docs/policies/SEC/SEC-003-unlock-and-auto-lock.md))**
+- **마스터 비밀번호 변경 및 원격 KDF 변경 감지 ([SEC-004](docs/policies/SEC/SEC-004-master-password-change.md))**
+- **계정 삭제 및 서버·기기 기록 영구 소거 ([SEC-005](docs/policies/SEC/SEC-005-account-deletion.md))**
+- **낙관적 잠금 기반 볼트 동기화 및 3-way 병합 ([VLT-001](docs/policies/VLT/VLT-001-cross-platform-vault-sync.md))**
+- **오프라인 대기 큐 및 재연결 동기화 ([VLT-002](docs/policies/VLT/VLT-002-offline-pending-sync.md))**
+- **암호화 기기 저장소 영속 보존 ([VLT-003](docs/policies/VLT/VLT-003-device-vault-persistence.md))**
+- **독립 암호화 백업 내보내기 및 복원 ([VLT-004](docs/policies/VLT/VLT-004-encrypted-backup-export-restore.md))**
+- **CSPRNG 비밀번호 생성기 및 엔트로피 진단 ([GEN-001](docs/policies/GEN/GEN-001-password-generation-and-entropy-scoring.md))**
+- **보안 클립보드 버퍼 및 30초 자동 소각 ([COM-001](docs/policies/COM/COM-001-clipboard-auto-burn.md))**
 
 ---
 
