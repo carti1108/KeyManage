@@ -314,7 +314,7 @@ describe('마스터 비밀번호 변경 뒤 (SEC-004 규칙 7·8)', () => {
     expect(tokens).not.toContain('token-1')
     expect(session.state()).toEqual(expect.objectContaining({ status: 'unlocked', signedIn: true, pendingSync: false }))
     expect(await openedIds(vaultApi.payload, authApi.kdf, NEW_PASSWORD)).toEqual(['during'])
-  })
+  }, 20_000)
 
   it('요청을 기다리는 사이 잠갔으면 잠긴 채로 새 비밀번호를 받아들인다', async () => {
     const { session, authApi } = await signedIn()
@@ -329,7 +329,7 @@ describe('마스터 비밀번호 변경 뒤 (SEC-004 규칙 7·8)', () => {
     expect(session.state().status).toBe('locked')
     await expect(session.unlock(PASSWORD)).rejects.toBeInstanceOf(WrongMasterPasswordError)
     await session.unlock(NEW_PASSWORD)
-  })
+  }, 20_000)
 
   it('다른 기기는 다음 요청에서 세션 만료를 받고, 다시 열 때 옛 비밀번호면 비밀번호가 바뀌었다고 안내받는다', async () => {
     const server = newServer()

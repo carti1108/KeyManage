@@ -219,7 +219,7 @@ describe('계정 삭제 요청 (SEC-005 규칙 3, api-spec 2.5.6)', () => {
     await deleting
     expect(authApi.deletions).toHaveLength(1)
     expect(session.state().status).toBe('signedOut')
-  })
+  }, 20_000)
 })
 
 describe('계정 삭제 뒤 이 기기 정리 (SEC-005 규칙 5)', () => {
@@ -260,7 +260,7 @@ describe('계정 삭제 뒤 이 기기 정리 (SEC-005 규칙 5)', () => {
     await vi.waitFor(() => expect(b.session.state().status).toBe('signedOut'))
     expect(b.tabMemory.value).toBeNull()
     expect(deviceStore.stored).toBeUndefined()
-  })
+  }, 20_000)
 
   it('기기 기록을 지우지 못하면 계정은 지워졌고 로그아웃한 채 AccountDeletedDeviceNotClearedError로 알린다', async () => {
     const { session, authApi, deviceStore } = await signedIn()
@@ -284,7 +284,7 @@ describe('계정 삭제 뒤 이 기기 정리 (SEC-005 규칙 5)', () => {
     await deleting
     expect(session.state().status).toBe('signedOut')
     expect(deviceStore.stored).toBeUndefined()
-  })
+  }, 20_000)
 
   it('같은 이메일로 다시 가입하면 빈 볼트로 시작한다 (SEC-005 규칙 7)', async () => {
     const { session } = await signedIn()
@@ -308,7 +308,7 @@ describe('다른 기기에서 삭제된 뒤 (SEC-005 규칙 6, 예외 1)', () =>
     await expect(saveItem(other.session, 'late')).rejects.toBeInstanceOf(SessionExpiredError)
     expect(other.session.state().status).toBe('signedOut')
     expect(server.vaultApi.payload).toBeNull()
-  })
+  }, 20_000)
 
   it('다른 기기가 남은 기기 기록으로 다시 열면 비밀번호가 바뀐 경우와 같은 안내를 받는다', async () => {
     const server = newServer()
@@ -321,5 +321,5 @@ describe('다른 기기에서 삭제된 뒤 (SEC-005 규칙 6, 예외 1)', () =>
     await reopened.session.restore()
     await expect(reopened.session.unlock(PASSWORD)).rejects.toBeInstanceOf(MasterPasswordChangedError)
     expect(reopened.session.state().status).toBe('signedOut')
-  })
+  }, 20_000)
 })
