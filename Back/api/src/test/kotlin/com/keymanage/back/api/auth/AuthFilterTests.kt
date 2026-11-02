@@ -54,6 +54,7 @@ class AuthFilterTests {
             override fun find(tokenHash: String): Session? = throw IllegalStateException("저장소 손상")
             override fun delete(tokenHash: String) = Unit
             override fun deleteAllOf(email: Email, except: VaultId) = Unit
+            override fun deleteAllOf(email: Email) = Unit
         }
         val filter = AuthTokenFilter(AuthenticateUseCase(broken, fixture.accounts, fixture.clock))
         val request = MockHttpServletRequest("GET", "/api/v1/vault").apply { addHeader("Authorization", "Bearer x") }
