@@ -4,6 +4,17 @@
 
 ---
 
+## 0. 작업 시작 전 최신화 및 PR 전 Rebase 강제 (Freshness & Rebase Gate)
+
+1. **작업 시작 전 (Pre-Work)**:
+   - 새 기능/수정/문서 작업 시작 전, 반드시 `git checkout main && git pull origin main`으로 로컬 `main`을 최신화한 후 작업 브랜치를 분기하거나 리베이스해야 함.
+2. **커밋 시점 최신성 검사 (`.githooks/pre-commit`)**:
+   - 커밋 시점에 로컬 브랜치가 `origin/main`보다 1커밋이라도 뒤처져 있으면 커밋이 자동 차단됨 (`git pull --rebase origin main` 필수).
+3. **PR 생성 및 푸시 전 Rebase 검사 (`.githooks/pre-push`)**:
+   - `git push` 시점에 현재 브랜치의 merge-base가 최신 `origin/main`과 일치하지 않으면 푸시가 자동 차단됨 (`git fetch origin main && git rebase origin/main` 필수).
+
+---
+
 ## 1. 공통 정적 게이트 (0초~1초 미만 즉시 실행)
 
 커밋 승인 요청 또는 PR 생성 전, 그리고 `.githooks/pre-commit` 이벤트 시점에 다음 정적 검증이 `exit 0`을 통과해야 합니다.

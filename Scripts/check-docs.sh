@@ -14,7 +14,7 @@
 # 문서 폴더는 docs/ 또는 Docs/ 중 있는 것을 쓴다. adr/, policies/, ai-usage/는 있는 것만 검사한다.
 # 정책 접두어는 policies/README.md의 "영역과 접두어" 표와 실제 정책 파일 이름에서 읽는다(코드에 고정하지 않는다).
 #
-# 검사 대상: README.md, CLAUDE.md, AGENTS.md, 문서 폴더 아래 모든 .md. 단, 과거 기록인
+# 검사 대상: README.md, CLAUDE.md, AGENTS.md, AGENT.md, 문서 폴더 아래 모든 .md. 단, 과거 기록인
 # ai-usage/log/NNN-*.md 본문은 옛 경로와 번호가 그대로 남아 있으므로 링크·번호 검사에서 제외한다(목록 표 검사에는 쓰인다).
 #
 # 목록 표의 열: 정책 번호·제목·상태[·영역], ADR 번호·제목·상태·날짜. ADR·정책 파일 이름의 영문 슬러그는 있어도 없어도 된다.
@@ -105,7 +105,7 @@ for folder, ok, readme in (
         sys.exit(2)
 
 LOG_ENTRY = re.compile(r".*[\\/]" + re.escape(docs) + r"[\\/]ai-usage[\\/]log[\\/]\d{3}-[^\\/]+\.md$")
-scope = [os.path.join(root, f) for f in ("README.md", "CLAUDE.md", "AGENTS.md") if os.path.isfile(os.path.join(root, f))]
+scope = [os.path.join(root, f) for f in ("README.md", "CLAUDE.md", "AGENTS.md", "AGENT.md") if os.path.isfile(os.path.join(root, f))]
 scope += sorted(glob.glob(os.path.join(root, docs, "**", "*.md"), recursive=True))
 # 플랫폼 문서 폴더(루트에서 두 단계 아래까지의 docs/, 예: Apps/Web/docs/, Back/docs/). 빌드 산출물·의존성 폴더는 건너뛴다.
 SKIP_DIRS = {"node_modules", ".git", "build", "dist", "target", ".gradle", "Derived", "DerivedData"}
