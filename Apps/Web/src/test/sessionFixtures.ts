@@ -101,6 +101,8 @@ export class FakeAuthApi implements AuthApi {
     // 없는 이메일의 prelogin은 서버 비밀키로 만든 가짜 salt를 준다 (api-spec 2.5.1)
     this.kdf = { ...this.kdf, salt: 'ZmFrZS1zYWx0LTE2Ynl0ZQ==' }
     for (let n = 1; n <= this.issued; n += 1) this.revoked.add(`token-${n}`)
+    // 다시 가입하면 폐기되지 않은 새 토큰을 받는다
+    this.issued += 1
     if (this.vaultApi !== null) {
       this.vaultApi.payload = null
       this.vaultApi.revision = 0
