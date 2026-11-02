@@ -15,6 +15,8 @@ dependencies {
     implementation("org.bouncycastle:bcprov-jdk18on:1.86")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    // 실제 파일 저장소로 유스케이스를 돌려 볼 때 도메인의 가짜 해셔·시계를 쓴다
+    testImplementation(testFixtures(project(":domain")))
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
