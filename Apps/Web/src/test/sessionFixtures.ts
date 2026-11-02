@@ -3,6 +3,7 @@ import type { AuthApi, ChangePasswordRequest, ChangedPassword, KdfParams, LoginR
 import { createAuthService } from '../domain/auth/authService'
 import type { EncryptedVaultPayload } from '../domain/crypto/vaultCipher'
 import { DeviceStorageError, type DeviceRecord, type DeviceStore } from '../domain/device/deviceRecord'
+import type { TabMemory } from '../domain/device/tabMemory'
 import { vectors } from '../domain/crypto/testVectors'
 import { NetworkError, ServerError } from '../domain/server/serverErrors'
 import { createVaultSession } from '../domain/session/vaultSession'
@@ -139,9 +140,11 @@ interface SetupDeps {
   readonly deviceStore?: FakeDeviceStore
   /** 같은 브라우저의 다른 탭과 공유하는 잠금·알림. 없으면 탭 하나 */
   readonly tabs?: Tabs
+  /** 이 탭만의 기억(새로고침해도 남음). 없으면 세션의 기본값 */
+  readonly tabMemory?: TabMemory
 }
 
-export function setup({ authApi = new FakeAuthApi(), vaultApi = new FakeVaultApi(), deviceStore = new FakeDeviceStore(), tabs = createSingleTabFallback() }: SetupDeps = {}) {
+export function setup({ authApi = new FakeAuthApi(), vaultApi = new FakeVaultApi(), deviceStore = new FakeDeviceStore(), tabs = createSingleTabFallback(), tabMemory }: SetupDeps = {}) {
   authApi.vaultApi ??= vaultApi
   const revisionMemory = createRevisionMemory()
   let locks = 0
@@ -152,6 +155,7 @@ export function setup({ authApi = new FakeAuthApi(), vaultApi = new FakeVaultApi
     revisionMemory,
     deviceStore,
     tabs,
+    ...(tabMemory === undefined ? {} : { tabMemory }),
   })
   session.onLock(() => locks++)
   session.onUnlock(() => unlocks++)
