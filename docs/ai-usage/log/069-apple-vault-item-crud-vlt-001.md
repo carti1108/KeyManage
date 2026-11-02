@@ -1,7 +1,7 @@
-# 2026-11-02 · Apple VLT-001 볼트 아이템 추가, 수정, 삭제(CRUD) 모달 구현
+# 2026-11-02 · Apple VLT-001 볼트 아이템 추가, 수정, 삭제(CRUD) 모달 구현 (#114)
 
-- 이슈·PR: [진행 중]
-- 커밋: 62e076a
+- 이슈·PR: #114
+- 커밋: c10bea7
 
 > **요약** VLT-001(볼트 동기화 및 툼스톤 삭제 정책), ADR-0014(Apple microRIBs)에 따라 Apple 플랫폼의 볼트 아이템 추가, 수정, 삭제(CRUD) 모달 폼과 도메인 파이프라인을 구현했다. `VaultLockManager`에 볼트 아이템 추가(`addVaultItem`), 수정(`updateVaultItem`), 툼스톤 삭제(`deleteVaultItem`)를 추가하고, 데이터 변경 즉시 AES-256-GCM 재암호화 및 5MB 페이로드 상한 검증을 연동했다. `VaultListFeature`에 신규 항목 추가 및 수정 모달 시트, VLT-001 표준 삭제 확인 팝업, `PasswordGenerator` 기반 16자 강력한 비밀번호 자동 생성 버튼을 구축했다. RED Test Writer 서브에이전트가 19개 도메인 단위 테스트(`VaultItemCRUDTests.swift`)를 작성하고, `VaultListTests.swift`에 14개 피처 단위 테스트를 보강하여 전수 검증을 완료했다.
 
