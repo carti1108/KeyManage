@@ -95,9 +95,17 @@ export function ChangePasswordAction({ readOnly, offline, onChange }: ChangePass
   }
 
   return (
-    <section className="flex flex-col gap-2" aria-label="계정">
-      <div className="flex flex-wrap gap-2">
-        <Button ref={openButton} variant="outline" size="sm" icon={<KeyRound aria-hidden className="size-4" />} disabled={readOnly || pending} onClick={start}>
+    <section className="flex flex-col gap-1.5 w-full" aria-label="계정">
+      <div className="flex flex-col gap-1.5 w-full">
+        <Button
+          ref={openButton}
+          variant="outline"
+          size="sm"
+          className="w-full justify-start gap-2 h-7 px-2 text-xs font-normal whitespace-nowrap"
+          icon={<KeyRound aria-hidden className="size-3.5 shrink-0" />}
+          disabled={readOnly || pending}
+          onClick={start}
+        >
           {CHANGE_PASSWORD_DIALOG.title}
         </Button>
       </div>
