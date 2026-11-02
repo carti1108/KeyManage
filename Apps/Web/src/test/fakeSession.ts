@@ -98,6 +98,8 @@ export function createFakeSession(initial: SessionState = { status: 'signedOut' 
     restoreBackup: vi.fn(async (_backup: VaultBackup, _password: string, _now: Date) => 0),
     // 실제 세션처럼 바꿔도 알림은 보내지 않는다. 화면이 직접 다시 읽는다
     changeMasterPassword: vi.fn(async (_currentPassword: string, _newPassword: string) => {}),
+    // 실제 세션처럼 지우면 로그아웃하며 잠금 알림을 보낸다
+    deleteAccount: vi.fn(async (_password: string) => control.signOut()),
     pendingOnDevice: vi.fn(async () => devicePending ?? (current.status !== 'signedOut' && current.pendingSync)),
     onRemoteChange: (listener: () => void) => {
       remoteListeners.add(listener)
