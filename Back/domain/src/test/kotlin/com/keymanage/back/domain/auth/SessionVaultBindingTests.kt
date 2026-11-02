@@ -4,6 +4,7 @@ import com.keymanage.back.domain.vault.EncryptedVault
 import com.keymanage.back.domain.vault.InMemoryVaultRepository
 import com.keymanage.back.domain.vault.Revision
 import com.keymanage.back.domain.vault.SaveVaultUseCase
+import com.keymanage.back.domain.vault.VaultId
 import java.io.IOException
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -78,9 +79,9 @@ class SessionVaultBindingTests {
         val oldToken = LoginUseCase(accounts, hasher, issuer, limiter).execute(email, authHashOf(1)).token
         var authenticatedBeforeDelete: Result<Account>? = null
         val observing = object : SessionRepository by sessions {
-            override fun deleteAllOf(email: Email) {
+            override fun deleteAllOf(email: Email, except: VaultId) {
                 authenticatedBeforeDelete = runCatching { authenticate.execute(oldToken) }
-                sessions.deleteAllOf(email)
+                sessions.deleteAllOf(email, except)
             }
         }
 
@@ -93,7 +94,7 @@ class SessionVaultBindingTests {
     fun `확정 뒤 세션 삭제가 실패해도 변경은 성공하고 남은 옛 세션은 무효다`() {
         val oldToken = LoginUseCase(accounts, hasher, issuer, limiter).execute(email, authHashOf(1)).token
         val failing = object : SessionRepository by sessions {
-            override fun deleteAllOf(email: Email) = throw IOException("세션 폴더 오류")
+            override fun deleteAllOf(email: Email, except: VaultId) = throw IOException("세션 폴더 오류")
         }
 
         val result = change(changeUseCase(sessionRepository = failing))

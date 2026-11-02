@@ -186,7 +186,7 @@ class FileSystemAccountReplaceTests {
         val others = Session("c".repeat(64), Email.of("other@example.com"), expiresAt, newVaultId)
         (mine + others).forEach(repository::save)
 
-        repository.deleteAllOf(email)
+        repository.deleteAllOf(email, except = newVaultId)
 
         mine.forEach { assertNull(repository.find(it.tokenHash)) }
         assertNotNull(repository.find(others.tokenHash))
@@ -194,7 +194,7 @@ class FileSystemAccountReplaceTests {
 
     @Test
     fun `세션 폴더가 없어도 계정 세션 삭제는 실패하지 않는다`() {
-        sessions().deleteAllOf(email)
+        sessions().deleteAllOf(email, except = newVaultId)
 
         assertFalse(Files.exists(sessionsDir()))
     }
@@ -207,7 +207,7 @@ class FileSystemAccountReplaceTests {
         sessionsDir().resolve("e".repeat(64) + ".json").writeText("{")
         sessionsDir().resolve("unrelated.txt").writeText("x")
 
-        repository.deleteAllOf(email)
+        repository.deleteAllOf(email, except = newVaultId)
 
         assertNull(repository.find(session.tokenHash))
         assertTrue(Files.exists(sessionsDir().resolve("unrelated.txt")))
