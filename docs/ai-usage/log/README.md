@@ -70,3 +70,4 @@
 | 062 | 2026-11-02 | [Apple SettingsFeature microRIBs 환경설정 및 백업/자동잠금 연동 (#103)](062-apple-settings-feature-ribs.md) |
 | 063 | 2026-11-02 | [Web 와이어프레임(03~06) 기반 UI 레이아웃 정렬 및 컴포넌트 구조화 (#106)](063-web-wireframe-layout-alignment.md) |
 | 064 | 2026-11-02 | [Apple PasswordGeneratorFeature microRIBs 비밀번호 생성기 구현 (#105)](064-apple-password-generator-ribs.md) |
+| 065 | 2026-11-02 | [마스터 비밀번호 변경 (SEC-004)](065-master-password-change.md) |
