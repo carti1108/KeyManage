@@ -20,6 +20,8 @@ let project = Project(
 				.project(target: "KeyManageUIAdapter", path: "../Core/UIAdapter"),
 				.project(target: "UnlockFeatureInterface", path: "../Features/Unlock"),
 				.project(target: "UnlockFeatureImplementation", path: "../Features/Unlock"),
+				.project(target: "MainFeatureInterface", path: "../Features/Main"),
+				.project(target: "MainFeatureImplementation", path: "../Features/Main"),
 				.project(target: "RootFeatureInterface", path: "../Features/Root"),
 				.project(target: "RootFeatureImplementation", path: "../Features/Root"),
 				.external(name: "MicroRIBs")
@@ -40,6 +42,8 @@ let project = Project(
 				.project(target: "KeyManageUIAdapter", path: "../Core/UIAdapter"),
 				.project(target: "UnlockFeatureInterface", path: "../Features/Unlock"),
 				.project(target: "UnlockFeatureImplementation", path: "../Features/Unlock"),
+				.project(target: "MainFeatureInterface", path: "../Features/Main"),
+				.project(target: "MainFeatureImplementation", path: "../Features/Main"),
 				.project(target: "RootFeatureInterface", path: "../Features/Root"),
 				.project(target: "RootFeatureImplementation", path: "../Features/Root"),
 				.external(name: "MicroRIBs")

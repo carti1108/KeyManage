@@ -2,6 +2,7 @@ import Foundation
 import MicroRIBs
 import KeyManageDomain
 import UnlockFeatureInterface
+import MainFeatureInterface
 import RootFeatureInterface
 
 // MARK: - Component
@@ -13,6 +14,9 @@ final class RootComponent: Component<RootDependency> {
 	}
 	var unlockBuilder: UnlockBuildable {
 		dependency.unlockBuilder
+	}
+	var mainBuilder: MainBuildable {
+		dependency.mainBuilder
 	}
 }
 
@@ -33,7 +37,8 @@ public final class RootBuilder: Builder<RootDependency>, RootBuildable {
 		let router = RootRouter(
 			interactor: interactor,
 			viewController: viewController,
-			unlockBuilder: component.unlockBuilder
+			unlockBuilder: component.unlockBuilder,
+			mainBuilder: component.mainBuilder
 		)
 		interactor.router = router
 		return router

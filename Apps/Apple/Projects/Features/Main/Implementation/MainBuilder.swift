@@ -1,0 +1,38 @@
+import Foundation
+import MicroRIBs
+import KeyManageDomain
+import MainFeatureInterface
+
+// MARK: - Component
+
+@MainActor
+final class MainComponent: Component<MainDependency> {
+	var lockManager: VaultLockManagerProtocol {
+		dependency.lockManager
+	}
+}
+
+// MARK: - Builder
+
+@MainActor
+public final class MainBuilder: Builder<MainDependency>, MainBuildable {
+	public override init(dependency: MainDependency) {
+		super.init(dependency: dependency)
+	}
+
+	public func build(withListener listener: MainListener) -> MainRouting {
+		let component = MainComponent(dependency: dependency)
+		let viewController = MainViewController()
+		let interactor = MainInteractor(
+			lockManager: component.lockManager,
+			presenter: viewController
+		)
+		viewController.listener = interactor
+		interactor.listener = listener
+		let router = MainRouter(
+			interactor: interactor,
+			viewController: viewController
+		)
+		return router
+	}
+}
