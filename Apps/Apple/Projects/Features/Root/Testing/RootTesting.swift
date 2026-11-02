@@ -282,6 +282,7 @@ public final class MockMainRouting: MainRouting {
 	public var loadCallCount = 0
 	public var attachChildCallCount = 0
 	public var detachChildCallCount = 0
+	public var routeToVaultListCallCount = 0
 
 	public init(
 		viewControllable: ViewControllable = InternalMockViewControllable(),
@@ -289,6 +290,10 @@ public final class MockMainRouting: MainRouting {
 	) {
 		self.viewControllable = viewControllable
 		self.interactable = interactable
+	}
+
+	public func routeToVaultList() {
+		routeToVaultListCallCount += 1
 	}
 
 	public func load() {

@@ -2,7 +2,103 @@ import Foundation
 import Combine
 import MicroRIBs
 import KeyManageDomain
+import VaultListFeatureInterface
 import MainFeatureInterface
+
+// MARK: - MockVaultListBuilder
+
+@MainActor
+public final class MockVaultListBuilder: VaultListBuildable {
+	public var buildCallCount = 0
+	public var receivedListener: VaultListListener?
+	public var routingToReturn: VaultListRouting
+
+	public init(routingToReturn: VaultListRouting = MockVaultListRouting()) {
+		self.routingToReturn = routingToReturn
+	}
+
+	public func build(withListener listener: VaultListListener) -> VaultListRouting {
+		buildCallCount += 1
+		receivedListener = listener
+		return routingToReturn
+	}
+}
+
+@MainActor
+public final class MockVaultListRouting: VaultListRouting {
+	public let viewControllable: ViewControllable
+	public var interactable: Interactable
+	public var children: [Routing] = []
+	public var loadCallCount = 0
+	public var attachChildCallCount = 0
+	public var detachChildCallCount = 0
+
+	public var lifecycle: AsyncStream<RouterLifecycle> {
+		lifecycleSubject.stream
+	}
+	private let lifecycleSubject = PassthroughAsyncSubject<RouterLifecycle>()
+
+	public init(
+		viewControllable: ViewControllable = MockVaultListViewControllable(),
+		interactable: Interactable = MockVaultListInteractable()
+	) {
+		self.viewControllable = viewControllable
+		self.interactable = interactable
+	}
+
+	public func load() {
+		loadCallCount += 1
+		lifecycleSubject.send(.didLoad)
+	}
+
+	public func attachChild(_ child: Routing) {
+		attachChildCallCount += 1
+		children.append(child)
+	}
+
+	public func detachChild(_ child: Routing) {
+		detachChildCallCount += 1
+		children.removeAll { $0 === child }
+	}
+}
+
+@MainActor
+public final class MockVaultListInteractable: Interactable {
+	public var isActive: Bool {
+		isActiveSubject.value
+	}
+	public var isActiveStream: AsyncStream<Bool> {
+		isActiveSubject.stream
+	}
+	private let isActiveSubject = CurrentValueAsyncStream<Bool>(false)
+
+	public init() {}
+	public func activate() { isActiveSubject.send(true) }
+	public func deactivate() { isActiveSubject.send(false) }
+}
+
+#if os(macOS)
+import AppKit
+public typealias MainTestingPlatformVC = NSViewController
+#elseif os(iOS)
+import UIKit
+public typealias MainTestingPlatformVC = UIViewController
+#endif
+
+@MainActor
+public final class MockVaultListViewControllable: VaultListViewControllable {
+#if os(macOS)
+	public var nsViewController: NSViewController = NSViewController()
+	public init(nsViewController: NSViewController = NSViewController()) {
+		self.nsViewController = nsViewController
+	}
+#elseif os(iOS)
+	public var uiViewController: UIViewController = UIViewController()
+	public init(uiViewController: UIViewController = UIViewController()) {
+		self.uiViewController = uiViewController
+	}
+#endif
+}
 
 // MARK: - MockVaultLockManager
 
@@ -123,6 +219,7 @@ public final class MockMainRouting: MainRouting {
 	public var loadCallCount = 0
 	public var attachChildCallCount = 0
 	public var detachChildCallCount = 0
+	public var routeToVaultListCallCount = 0
 
 	public init(
 		viewControllable: ViewControllable = MockMainViewControllable(),
@@ -130,6 +227,10 @@ public final class MockMainRouting: MainRouting {
 	) {
 		self.viewControllable = viewControllable
 		self.interactable = interactable
+	}
+
+	public func routeToVaultList() {
+		routeToVaultListCallCount += 1
 	}
 
 	public func load() {

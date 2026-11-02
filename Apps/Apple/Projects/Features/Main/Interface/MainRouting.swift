@@ -1,4 +1,6 @@
 import MicroRIBs
 
 @MainActor
-public protocol MainRouting: ViewableRouting {}
+public protocol MainRouting: ViewableRouting {
+	func routeToVaultList()
+}

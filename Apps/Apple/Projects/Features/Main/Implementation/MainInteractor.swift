@@ -1,6 +1,7 @@
 import Foundation
 import MicroRIBs
 import KeyManageDomain
+import VaultListFeatureInterface
 import MainFeatureInterface
 
 // MARK: - Presentable Protocols
@@ -29,6 +30,11 @@ final class MainInteractor: Interactor, MainInteractable, MainPresentableListene
 		super.init()
 	}
 
+	override func didBecomeActive() {
+		super.didBecomeActive()
+		router?.routeToVaultList()
+	}
+
 	func requestLockVault() {
 		lockManager.lock()
 		listener?.didRequestLockVault()
@@ -38,3 +44,7 @@ final class MainInteractor: Interactor, MainInteractable, MainPresentableListene
 		presenter?.selectTab(tab)
 	}
 }
+
+// MARK: - VaultListListener Conformance
+
+extension MainInteractor: VaultListListener {}
