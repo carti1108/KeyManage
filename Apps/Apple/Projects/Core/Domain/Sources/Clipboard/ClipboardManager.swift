@@ -4,6 +4,7 @@ import Foundation
 public enum ClipboardStrings {
 	public static let copySuccessTitle = "클립보드 보안 소각"
 	public static let copySuccessMessage = "보안을 위해 복사된 내용이 30초 후 클립보드에서 자동 삭제됩니다."
+	public static let autoBurnNoticeMessage = copySuccessMessage
 	public static let copyFailedMessage = "클립보드에 복사하지 못했습니다."
 	public static let clearFailedMessage = "클립보드를 비우지 못했습니다."
 }

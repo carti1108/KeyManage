@@ -26,6 +26,8 @@ let project = Project(
 				.project(target: "VaultListFeatureImplementation", path: "../Features/VaultList"),
 				.project(target: "SettingsFeatureInterface", path: "../Features/Settings"),
 				.project(target: "SettingsFeatureImplementation", path: "../Features/Settings"),
+				.project(target: "PasswordGeneratorFeatureInterface", path: "../Features/PasswordGenerator"),
+				.project(target: "PasswordGeneratorFeatureImplementation", path: "../Features/PasswordGenerator"),
 				.project(target: "RootFeatureInterface", path: "../Features/Root"),
 				.project(target: "RootFeatureImplementation", path: "../Features/Root"),
 				.external(name: "MicroRIBs")
@@ -52,6 +54,8 @@ let project = Project(
 				.project(target: "VaultListFeatureImplementation", path: "../Features/VaultList"),
 				.project(target: "SettingsFeatureInterface", path: "../Features/Settings"),
 				.project(target: "SettingsFeatureImplementation", path: "../Features/Settings"),
+				.project(target: "PasswordGeneratorFeatureInterface", path: "../Features/PasswordGenerator"),
+				.project(target: "PasswordGeneratorFeatureImplementation", path: "../Features/PasswordGenerator"),
 				.project(target: "RootFeatureInterface", path: "../Features/Root"),
 				.project(target: "RootFeatureImplementation", path: "../Features/Root"),
 				.external(name: "MicroRIBs")

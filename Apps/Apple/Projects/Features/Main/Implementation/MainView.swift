@@ -115,7 +115,11 @@ struct MainView: View {
 				placeholder(for: tab)
 			}
 		case .generator:
-			placeholder(for: tab)
+			if let vc = viewModel.passwordGeneratorViewControllable {
+				ViewControllableRepresentable(viewControllable: vc)
+			} else {
+				placeholder(for: tab)
+			}
 		}
 	}
 

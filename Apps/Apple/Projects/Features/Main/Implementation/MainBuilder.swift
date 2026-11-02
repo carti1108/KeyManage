@@ -3,6 +3,7 @@ import MicroRIBs
 import KeyManageDomain
 import VaultListFeatureInterface
 import SettingsFeatureInterface
+import PasswordGeneratorFeatureInterface
 import MainFeatureInterface
 
 // MARK: - Component
@@ -17,6 +18,9 @@ final class MainComponent: Component<MainDependency> {
 	}
 	var settingsBuilder: SettingsBuildable {
 		dependency.settingsBuilder
+	}
+	var passwordGeneratorBuilder: PasswordGeneratorBuildable {
+		dependency.passwordGeneratorBuilder
 	}
 }
 
@@ -41,7 +45,8 @@ public final class MainBuilder: Builder<MainDependency>, MainBuildable {
 			interactor: interactor,
 			viewController: viewController,
 			vaultListBuilder: component.vaultListBuilder,
-			settingsBuilder: component.settingsBuilder
+			settingsBuilder: component.settingsBuilder,
+			passwordGeneratorBuilder: component.passwordGeneratorBuilder
 		)
 		return router
 	}

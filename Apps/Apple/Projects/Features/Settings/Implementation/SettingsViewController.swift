@@ -47,7 +47,8 @@ final class SettingsViewController: SettingsPlatformHostingController<SettingsVi
 		}
 	}
 
-	@MainActor @objc required dynamic init?(coder aDecoder: NSCoder) {
+	@available(*, unavailable)
+	required init?(coder: NSCoder) {
 		fatalError("init(coder:) has not been implemented")
 	}
 

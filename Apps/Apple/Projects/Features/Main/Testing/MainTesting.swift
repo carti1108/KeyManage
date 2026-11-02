@@ -221,6 +221,7 @@ public final class MockMainRouting: MainRouting {
 	public var detachChildCallCount = 0
 	public var routeToVaultListCallCount = 0
 	public var routeToSettingsCallCount = 0
+	public var routeToPasswordGeneratorCallCount = 0
 
 	public init(
 		viewControllable: ViewControllable = MockMainViewControllable(),
@@ -236,6 +237,10 @@ public final class MockMainRouting: MainRouting {
 
 	public func routeToSettings() {
 		routeToSettingsCallCount += 1
+	}
+
+	public func routeToPasswordGenerator() {
+		routeToPasswordGeneratorCallCount += 1
 	}
 
 	public func load() {
@@ -288,6 +293,7 @@ public final class MockMainViewControllable: MainViewControllable {
 	public var nsViewController: NSViewController
 	public var setVaultListCallCount = 0
 	public var setSettingsCallCount = 0
+	public var setPasswordGeneratorCallCount = 0
 
 	public init(viewController: NSViewController = NSViewController()) {
 		self.nsViewController = viewController
@@ -300,6 +306,10 @@ public final class MockMainViewControllable: MainViewControllable {
 	public func setSettingsViewControllable(_ viewControllable: ViewControllable) {
 		setSettingsCallCount += 1
 	}
+
+	public func setPasswordGeneratorViewControllable(_ viewControllable: ViewControllable) {
+		setPasswordGeneratorCallCount += 1
+	}
 }
 #elseif os(iOS)
 import UIKit
@@ -309,6 +319,7 @@ public final class MockMainViewControllable: MainViewControllable {
 	public var uiViewController: UIViewController
 	public var setVaultListCallCount = 0
 	public var setSettingsCallCount = 0
+	public var setPasswordGeneratorCallCount = 0
 
 	public init(viewController: UIViewController = UIViewController()) {
 		self.uiViewController = viewController
@@ -320,6 +331,10 @@ public final class MockMainViewControllable: MainViewControllable {
 
 	public func setSettingsViewControllable(_ viewControllable: ViewControllable) {
 		setSettingsCallCount += 1
+	}
+
+	public func setPasswordGeneratorViewControllable(_ viewControllable: ViewControllable) {
+		setPasswordGeneratorCallCount += 1
 	}
 }
 #endif

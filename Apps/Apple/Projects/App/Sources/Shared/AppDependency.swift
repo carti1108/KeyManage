@@ -9,10 +9,12 @@ import VaultListFeatureInterface
 import VaultListFeatureImplementation
 import SettingsFeatureInterface
 import SettingsFeatureImplementation
+import PasswordGeneratorFeatureInterface
+import PasswordGeneratorFeatureImplementation
 import RootFeatureInterface
 
 @MainActor
-final class AppDependency: RootDependency, UnlockDependency, MainDependency, VaultListDependency, SettingsDependency {
+final class AppDependency: RootDependency, UnlockDependency, MainDependency, VaultListDependency, SettingsDependency, PasswordGeneratorDependency {
 	let lockManager: VaultLockManagerProtocol
 	let clipboardManager: ClipboardManagerProtocol
 
@@ -27,6 +29,9 @@ final class AppDependency: RootDependency, UnlockDependency, MainDependency, Vau
 	}
 	var settingsBuilder: SettingsBuildable {
 		SettingsBuilder(dependency: self)
+	}
+	var passwordGeneratorBuilder: PasswordGeneratorBuildable {
+		PasswordGeneratorBuilder(dependency: self)
 	}
 
 	init(
