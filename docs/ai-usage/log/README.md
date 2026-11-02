@@ -68,3 +68,4 @@
 | 060 | 2026-11-02 | [Apple VaultListFeature microRIBs 볼트 목록 및 소각 연동 (#97)](060-apple-vault-list-feature-ribs.md) |
 | 061 | 2026-11-02 | [Apple VLT-004 암호화 백업 내보내기와 복원 클라이언트 영지식 백업 (#101)](061-apple-encrypted-backup-vlt-004.md) |
 | 062 | 2026-11-02 | [Apple SettingsFeature microRIBs 환경설정 및 백업/자동잠금 연동 (#103)](062-apple-settings-feature-ribs.md) |
+| 063 | 2026-11-02 | [Web 와이어프레임(03~06) 기반 UI 레이아웃 정렬 및 컴포넌트 구조화 (#106)](063-web-wireframe-layout-alignment.md) |

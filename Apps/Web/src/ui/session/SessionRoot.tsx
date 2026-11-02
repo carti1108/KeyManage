@@ -196,25 +196,30 @@ export function SessionRoot({ session, clipboard, pageHidden, networkOffline = f
         offline={offline || networkOffline || state.pendingSync}
         onLock={() => session.lock()}
         onLogout={() => void requestLogout(state.pendingSync)}
+        onCopy={(text) => void clipboard.copy(text)}
+        sidebarFooter={
+          <>
+            {autoLock && <AutoLockSelect {...autoLock} />}
+            {backupFiles && (
+              <BackupActions
+                readOnly={state.vault.readOnly}
+                files={backupFiles}
+                onExport={(now) => session.exportBackup(now)}
+                onRestore={async (backup, password, now) => {
+                  try {
+                    const count = await session.restoreBackup(backup, password, now)
+                    setSyncError(null)
+                    return count
+                  } finally {
+                    // 저장처럼 알림 없이 볼트가 바뀌므로 직접 다시 읽는다
+                    refresh()
+                  }
+                }}
+              />
+            )}
+          </>
+        }
       >
-        {autoLock && <AutoLockSelect {...autoLock} />}
-        {backupFiles && (
-          <BackupActions
-            readOnly={state.vault.readOnly}
-            files={backupFiles}
-            onExport={(now) => session.exportBackup(now)}
-            onRestore={async (backup, password, now) => {
-              try {
-                const count = await session.restoreBackup(backup, password, now)
-                setSyncError(null)
-                return count
-              } finally {
-                // 저장처럼 알림 없이 볼트가 바뀌므로 직접 다시 읽는다
-                refresh()
-              }
-            }}
-          />
-        )}
         {logoutConfirm()}
         {syncError && <Alert title={syncError.title}>{syncError.body}</Alert>}
         {!state.storedOnDevice && <Alert>{DEVICE_STORAGE_FAILED}</Alert>}
@@ -238,6 +243,7 @@ export function SessionRoot({ session, clipboard, pageHidden, networkOffline = f
         <VaultScreen
           vault={state.vault}
           clipboard={clipboard}
+          layout="split"
           onSave={async (data) => {
             try {
               await session.save(data)

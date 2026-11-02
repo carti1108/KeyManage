@@ -1,5 +1,5 @@
 // 비밀번호 생성기 (GEN-001). 만든 비밀번호는 사용을 누르기 전까지 어디에도 저장하지 않는다
-import { RefreshCw } from 'lucide-react'
+import { Copy, RefreshCw } from 'lucide-react'
 import { useId, useState, type KeyboardEvent } from 'react'
 import {
   DEFAULT_GENERATOR_OPTIONS,
@@ -30,13 +30,14 @@ type Charsets = Omit<GeneratorOptions, 'length'>
 const parseLength = (text: string) => (/^\d+$/.test(text.trim()) ? Number(text) : Number.NaN)
 
 export interface PasswordGeneratorProps {
-  onUse: (password: string) => void
-  onClose: () => void
+  onUse?: (password: string) => void
+  onClose?: () => void
+  onCopy?: (password: string) => void
   /** 테스트에서 결과를 고정할 때만 바꾼다 */
   generate?: (options: GeneratorOptions) => string
 }
 
-export function PasswordGenerator({ onUse, onClose, generate = generatePassword }: PasswordGeneratorProps) {
+export function PasswordGenerator({ onUse, onClose, onCopy, generate = generatePassword }: PasswordGeneratorProps) {
   // 입력 중에 비울 수 있도록 길이는 글자로 들고 있는다
   const [length, setLength] = useState(String(DEFAULT_GENERATOR_OPTIONS.length))
   const [charsets, setCharsets] = useState<Charsets>(DEFAULT_GENERATOR_OPTIONS)
@@ -112,9 +113,11 @@ export function PasswordGenerator({ onUse, onClose, generate = generatePassword 
       </div>
       {shownProblem && <Alert>{PROBLEM_MESSAGES[shownProblem]}</Alert>}
       <div className="flex flex-wrap justify-end gap-2">
-        <Button variant="ghost" size="sm" onClick={onClose}>
-          닫기
-        </Button>
+        {onClose && (
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            닫기
+          </Button>
+        )}
         <Button
           variant="outline"
           size="sm"
@@ -126,9 +129,22 @@ export function PasswordGenerator({ onUse, onClose, generate = generatePassword 
         >
           다시 생성
         </Button>
-        <Button size="sm" onClick={() => onUse(password)} disabled={problem !== null}>
-          이 비밀번호 사용
-        </Button>
+        {onCopy && (
+          <Button
+            variant="outline"
+            size="sm"
+            icon={<Copy aria-hidden className="size-4" />}
+            onClick={() => onCopy(password)}
+            disabled={problem !== null}
+          >
+            복사
+          </Button>
+        )}
+        {onUse && (
+          <Button size="sm" onClick={() => onUse(password)} disabled={problem !== null}>
+            이 비밀번호 사용
+          </Button>
+        )}
       </div>
     </div>
   )

@@ -18,15 +18,15 @@ export interface AutoLockSelectProps {
 export function AutoLockSelect({ timeoutMs, onChange }: AutoLockSelectProps) {
   const id = useId()
   return (
-    <div className="flex items-center justify-end gap-2">
-      <label htmlFor={id} className="text-sm font-medium">
+    <div className="flex items-center justify-between gap-2 w-full">
+      <label htmlFor={id} className="text-xs text-muted-foreground whitespace-nowrap">
         자동 잠금
       </label>
       <select
         id={id}
         value={String(timeoutMs)}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="h-9 rounded-md border border-input bg-transparent px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="h-7 rounded-md border border-input bg-background/80 px-2 text-xs outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
       >
         {OPTIONS.map(({ ms, label }) => (
           <option key={ms} value={String(ms)}>

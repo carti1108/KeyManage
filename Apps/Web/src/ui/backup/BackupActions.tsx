@@ -119,13 +119,14 @@ export function BackupActions({ readOnly, files, onExport, onRestore, now = () =
   }
 
   return (
-    <section className="flex flex-col gap-2" aria-label="백업">
-      <div className="flex flex-wrap gap-2">
+    <section className="flex flex-col gap-1.5 w-full" aria-label="백업">
+      <div className="flex flex-col gap-1.5 w-full">
         <Button
           ref={exportButton}
           variant="outline"
           size="sm"
-          icon={<Download aria-hidden className="size-4" />}
+          className="w-full justify-start gap-2 h-7 px-2 text-xs font-normal whitespace-nowrap"
+          icon={<Download aria-hidden className="size-3.5 shrink-0" />}
           disabled={pending}
           onClick={() => start({ kind: 'confirmExport' })}
         >
@@ -135,7 +136,8 @@ export function BackupActions({ readOnly, files, onExport, onRestore, now = () =
           ref={restoreButton}
           variant="outline"
           size="sm"
-          icon={<ArchiveRestore aria-hidden className="size-4" />}
+          className="w-full justify-start gap-2 h-7 px-2 text-xs font-normal whitespace-nowrap"
+          icon={<ArchiveRestore aria-hidden className="size-3.5 shrink-0" />}
           disabled={readOnly || pending}
           onClick={() => void pickFile()}
         >
