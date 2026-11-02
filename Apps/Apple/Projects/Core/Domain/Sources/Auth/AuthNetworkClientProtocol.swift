@@ -125,11 +125,34 @@ public struct GetVaultResponsePayload: Codable, Sendable, Equatable {
 	}
 }
 
+public struct SaveVaultRequestPayload: Codable, Sendable, Equatable {
+	public let expectedRevision: Int
+	public let payload: EncryptedVaultPayload
+
+	public init(expectedRevision: Int, payload: EncryptedVaultPayload) {
+		self.expectedRevision = expectedRevision
+		self.payload = payload
+	}
+}
+
+public struct SaveVaultResponsePayload: Codable, Sendable, Equatable {
+	public let revision: Int
+
+	public init(revision: Int) {
+		self.revision = revision
+	}
+}
+
 public protocol AuthNetworkClientProtocol: Sendable {
 	func prelogin(email: String) async throws -> PreloginResponse
 	func register(request: RegisterRequestPayload) async throws -> RegisterResponsePayload
 	func login(request: LoginRequestPayload) async throws -> LoginResponsePayload
 	func getVault(accessToken: String) async throws -> GetVaultResponsePayload?
+	func saveVault(
+		accessToken: String,
+		expectedRevision: Int,
+		payload: EncryptedVaultPayload
+	) async throws -> Int
 	func changePassword(
 		accessToken: String,
 		request: ChangePasswordRequestPayload

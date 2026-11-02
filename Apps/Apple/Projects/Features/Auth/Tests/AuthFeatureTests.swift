@@ -32,6 +32,9 @@ private final class MockLockManagerForAuth: VaultLockManagerProtocol, @unchecked
 	var autoLockTimeout: AutoLockTimeout = .fiveMinutes
 	var isPrivacyCoverActive: Bool = false
 	var hasActiveSession: Bool = false
+	var hasPendingSync: Bool = false
+	var isOffline: Bool = false
+	var isSyncing: Bool = false
 	var decryptedVault: VaultData?
 	var isBiometricsEnabled: Bool = false
 	var lastMasterPasswordUnlockDate: Date?
@@ -75,6 +78,14 @@ private final class MockLockManagerForAuth: VaultLockManagerProtocol, @unchecked
 		hasActiveSession = true
 		isLocked = false
 	}
+
+	func sync(networkClient: AuthNetworkClientProtocol, now: Date) async throws -> (vault: VaultData, revision: Int) {
+		return (decryptedVault ?? VaultData(updatedAt: "", items: []), 1)
+	}
+
+	func setOffline(_ isOffline: Bool) {
+		self.isOffline = isOffline
+	}
 }
 
 private final class DummyAuthNetworkClient: AuthNetworkClientProtocol, @unchecked Sendable {
@@ -88,6 +99,7 @@ private final class DummyAuthNetworkClient: AuthNetworkClientProtocol, @unchecke
 		LoginResponsePayload(accessToken: "tok", expiresAt: "2026-11-27T11:20:00Z")
 	}
 	func getVault(accessToken: String) async throws -> GetVaultResponsePayload? { nil }
+	func saveVault(accessToken: String, expectedRevision: Int, payload: EncryptedVaultPayload) async throws -> Int { 1 }
 	func changePassword(accessToken: String, request: ChangePasswordRequestPayload) async throws -> ChangePasswordResponsePayload {
 		ChangePasswordResponsePayload(accessToken: "tok", expiresAt: "2026-11-27T11:20:00Z", revision: 1)
 	}

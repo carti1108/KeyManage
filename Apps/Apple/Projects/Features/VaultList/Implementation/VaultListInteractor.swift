@@ -12,6 +12,7 @@ protocol VaultListPresentable: AnyObject {
 	func showToast(message: String)
 	func setIsReadOnly(_ isReadOnly: Bool)
 	func dismissItemSheet()
+	func setSyncStatus(hasPending: Bool, isOffline: Bool, isSyncing: Bool)
 }
 
 // MARK: - Interactor
@@ -23,6 +24,7 @@ final class VaultListInteractor: Interactor, VaultListInteractable, VaultListPre
 	weak var presenter: VaultListPresentable?
 	let lockManager: VaultLockManagerProtocol
 	let clipboardManager: ClipboardManagerProtocol
+	let networkClient: AuthNetworkClientProtocol
 
 	private var currentSearchQuery: String = ""
 
@@ -33,10 +35,12 @@ final class VaultListInteractor: Interactor, VaultListInteractable, VaultListPre
 	init(
 		lockManager: VaultLockManagerProtocol,
 		clipboardManager: ClipboardManagerProtocol,
+		networkClient: AuthNetworkClientProtocol = URLSessionAuthNetworkClient(),
 		presenter: VaultListPresentable? = nil
 	) {
 		self.lockManager = lockManager
 		self.clipboardManager = clipboardManager
+		self.networkClient = networkClient
 		self.presenter = presenter
 		super.init()
 	}
@@ -45,6 +49,10 @@ final class VaultListInteractor: Interactor, VaultListInteractable, VaultListPre
 		super.didBecomeActive()
 		presenter?.setIsReadOnly(lockManager.decryptedVault?.isReadOnly ?? false)
 		refreshList()
+		updateSyncStatus()
+		Task { [weak self] in
+			await self?.didRequestSync()
+		}
 	}
 
 	func didSearch(query: String) {
@@ -116,6 +124,10 @@ final class VaultListInteractor: Interactor, VaultListInteractable, VaultListPre
 			}
 			presenter?.dismissItemSheet()
 			refreshList()
+			updateSyncStatus()
+			Task { [weak self] in
+				await self?.didRequestSync()
+			}
 		} catch let error as LocalizedError {
 			presenter?.showToast(message: error.errorDescription ?? error.localizedDescription)
 		} catch {
@@ -129,10 +141,37 @@ final class VaultListInteractor: Interactor, VaultListInteractable, VaultListPre
 			presenter?.showToast(message: "항목이 삭제되었습니다.")
 			presenter?.dismissItemSheet()
 			refreshList()
+			updateSyncStatus()
+			Task { [weak self] in
+				await self?.didRequestSync()
+			}
 		} catch let error as LocalizedError {
 			presenter?.showToast(message: error.errorDescription ?? error.localizedDescription)
 		} catch {
 			presenter?.showToast(message: error.localizedDescription)
 		}
+	}
+
+	func didRequestSync() async {
+		updateSyncStatus()
+		do {
+			_ = try await lockManager.sync(networkClient: networkClient)
+			refreshList()
+			updateSyncStatus()
+		} catch let error as LocalizedError {
+			updateSyncStatus()
+			presenter?.showToast(message: error.errorDescription ?? error.localizedDescription)
+		} catch {
+			updateSyncStatus()
+			presenter?.showToast(message: error.localizedDescription)
+		}
+	}
+
+	private func updateSyncStatus() {
+		presenter?.setSyncStatus(
+			hasPending: lockManager.hasPendingSync,
+			isOffline: lockManager.isOffline,
+			isSyncing: lockManager.isSyncing
+		)
 	}
 }

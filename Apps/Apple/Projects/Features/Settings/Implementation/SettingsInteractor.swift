@@ -14,6 +14,7 @@ protocol SettingsPresentable: AnyObject {
 	func dismissChangePasswordModal()
 	func dismissDeleteAccountModal()
 	func showDeleteAccountError(message: String)
+	func setHasPendingSync(_ hasPendingSync: Bool)
 }
 
 // MARK: - Interactor
@@ -41,6 +42,7 @@ final class SettingsInteractor: Interactor, SettingsInteractable, SettingsPresen
 	override func didBecomeActive() {
 		super.didBecomeActive()
 		presenter?.displayAutoLockTimeout(lockManager.autoLockTimeout)
+		presenter?.setHasPendingSync(lockManager.hasPendingSync)
 	}
 
 	override func willResignActive() {

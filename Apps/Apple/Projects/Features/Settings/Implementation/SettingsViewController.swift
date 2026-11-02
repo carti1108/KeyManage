@@ -123,4 +123,8 @@ final class SettingsViewController: SettingsPlatformHostingController<SettingsVi
 		viewModel.deleteAccountErrorMessage = message
 		viewModel.isDeletingAccount = false
 	}
+
+	func setHasPendingSync(_ hasPendingSync: Bool) {
+		viewModel.hasPendingSync = hasPendingSync
+	}
 }

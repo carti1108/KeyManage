@@ -8,6 +8,9 @@ final class VaultListViewModel: ObservableObject {
 	@Published var toastMessage: String? = nil
 	@Published var revealedPasswordIds: Set<String> = []
 	@Published var isReadOnly: Bool = false
+	@Published var hasPendingSync: Bool = false
+	@Published var isOffline: Bool = false
+	@Published var isSyncing: Bool = false
 
 	// 모달 및 폼 상태
 	@Published var isItemSheetPresented: Bool = false
@@ -29,10 +32,22 @@ final class VaultListViewModel: ObservableObject {
 	var onCopyUsername: ((VaultItem) -> Void)?
 	var onSaveItem: ((_ existingId: String?, _ serviceName: String, _ username: String, _ password: String, _ url: String?, _ notes: String?) -> Void)?
 	var onDeleteItem: ((String) -> Void)?
+	var onSync: (@MainActor () async -> Void)?
 
-	init(items: [VaultItem] = [], isReadOnly: Bool = false) {
+	init(
+		items: [VaultItem] = [],
+		isReadOnly: Bool = false,
+		hasPendingSync: Bool = false,
+		isOffline: Bool = false
+	) {
 		self.items = items
 		self.isReadOnly = isReadOnly
+		self.hasPendingSync = hasPendingSync
+		self.isOffline = isOffline
+	}
+
+	func triggerSync() async {
+		await onSync?()
 	}
 
 	func updateSearchQuery(_ query: String) {
@@ -132,11 +147,13 @@ final class VaultListViewModel: ObservableObject {
 		}
 	}
 
+	private static let toastDismissNanoseconds: UInt64 = 2_500_000_000
+
 	func showToast(_ message: String) {
 		toastDismissTask?.cancel()
 		toastMessage = message
 		toastDismissTask = Task { @MainActor [weak self] in
-			try? await Task.sleep(nanoseconds: 2_500_000_000)
+			try? await Task.sleep(nanoseconds: Self.toastDismissNanoseconds)
 			guard !Task.isCancelled else { return }
 			if self?.toastMessage == message {
 				self?.toastMessage = nil

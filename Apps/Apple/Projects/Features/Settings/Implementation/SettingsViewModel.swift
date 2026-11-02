@@ -5,6 +5,7 @@ import KeyManageDomain
 final class SettingsViewModel: ObservableObject {
 	@Published var selectedTimeout: AutoLockTimeout = .default
 	@Published var toastMessage: String?
+	@Published var hasPendingSync: Bool = false
 	@Published var isRestoreModalPresented: Bool = false
 	@Published var isLogoutConfirmPresented: Bool = false
 	@Published var isChangePasswordPresented: Bool = false
@@ -68,6 +69,10 @@ final class SettingsViewModel: ObservableObject {
 
 	func restoreBackup(fileData: Data, password: String) {
 		onRequestRestore?(fileData, password)
+	}
+
+	func showPendingLogoutConfirmation() {
+		isLogoutConfirmPresented = true
 	}
 
 	func confirmLogout() {

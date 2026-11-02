@@ -72,6 +72,15 @@ private final class MockAccountDeletionClient: AuthNetworkClientProtocol, @unche
 		if let error = shouldThrowError { throw error }
 		return nil
 	}
+
+	func saveVault(
+		accessToken: String,
+		expectedRevision: Int,
+		payload: EncryptedVaultPayload
+	) async throws -> Int {
+		if let error = shouldThrowError { throw error }
+		return expectedRevision + 1
+	}
 }
 
 // MARK: - Test Doubles (MockURLProtocol for URLSessionAuthNetworkClient)

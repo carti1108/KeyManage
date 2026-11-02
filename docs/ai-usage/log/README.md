@@ -78,3 +78,4 @@
 | 070 | 2026-11-02 | [Apple 시스템 네비게이션 표준 정렬 및 뷰포트 왜곡 수정 (#115)](070-apple-system-navigation-and-viewport-fix.md) |
 | 071 | 2026-11-02 | [Apple SEC-005 계정 삭제 (회원 탈퇴) UI 및 도메인 연동 (#116)](071-apple-sec-005-account-deletion.md) |
 | 072 | 2026-11-02 | [Apple SEC-002 원격 계정 로그인 및 회원가입 UI 연동 (#117)](072-apple-sec-002-auth-feature.md) |
+| 073 | 2026-11-02 | [Apple VLT-001 & VLT-002 원격 볼트 동기화 파이프라인 및 백그라운드 동기화 (#118)](073-apple-vault-sync-vlt-001.md) |

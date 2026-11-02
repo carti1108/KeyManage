@@ -13,6 +13,9 @@ final class VaultListComponent: Component<VaultListDependency> {
 	var clipboardManager: ClipboardManagerProtocol {
 		dependency.clipboardManager
 	}
+	var networkClient: AuthNetworkClientProtocol {
+		dependency.networkClient
+	}
 }
 
 // MARK: - Builder
@@ -29,6 +32,7 @@ public final class VaultListBuilder: Builder<VaultListDependency>, VaultListBuil
 		let interactor = VaultListInteractor(
 			lockManager: component.lockManager,
 			clipboardManager: component.clipboardManager,
+			networkClient: component.networkClient,
 			presenter: viewController
 		)
 		viewController.listener = interactor

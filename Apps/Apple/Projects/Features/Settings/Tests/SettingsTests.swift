@@ -57,6 +57,13 @@ final class SettingsPresenterSpy: SettingsPresentable {
 		showDeleteAccountErrorCallCount += 1
 		receivedDeleteAccountErrorMessage = message
 	}
+
+	var setHasPendingSyncCallCount = 0
+	var receivedHasPendingSync: Bool?
+	func setHasPendingSync(_ hasPendingSync: Bool) {
+		setHasPendingSyncCallCount += 1
+		receivedHasPendingSync = hasPendingSync
+	}
 }
 
 @MainActor
@@ -109,6 +116,9 @@ final class MockVaultLockManager: VaultLockManagerProtocol, @unchecked Sendable 
 	var lastMasterPasswordUnlockDate: Date? = nil
 	var currentBiometryStateHash: Data? = nil
 	var onClipboardClearNeeded: (@Sendable () -> Void)? = nil
+	var hasPendingSync: Bool = false
+	var isOffline: Bool = false
+	var isSyncing: Bool = false
 
 	var exportBackupCallCount = 0
 	var restoreBackupCallCount = 0
@@ -204,6 +214,17 @@ final class MockVaultLockManager: VaultLockManagerProtocol, @unchecked Sendable 
 			throw KeyManageBackupError.backupDecryptFailed
 		}
 		return result
+	}
+
+	func sync(
+		networkClient: AuthNetworkClientProtocol,
+		now: Date
+	) async throws -> (vault: VaultData, revision: Int) {
+		return (decryptedVault ?? VaultData(updatedAt: "", items: []), revision)
+	}
+
+	func setOffline(_ isOffline: Bool) {
+		self.isOffline = isOffline
 	}
 }
 
@@ -678,5 +699,58 @@ struct SettingsTests {
 		#expect(vm.isDeleteAccountPresented == false)
 		#expect(vm.deleteAccountPasswordInput.isEmpty)
 		#expect(vm.deleteAccountConfirmationInput.isEmpty)
+	}
+
+	// MARK: - 23. VLT-002 SettingsViewModel 대기 중 로그아웃 확인 및 계속 처리 검증
+	@Test("SettingsViewModel: hasPendingSync == true일 때 로그아웃 시도 시 showPendingLogoutConfirmation 경고창 노출 및 confirmLogout 호출 시 정상 로그아웃 처리 검증")
+	func settingsViewModel_whenHasPendingSync_showsConfirmationAndLogsOutOnContinue() {
+		// Given
+		let vm = SettingsViewModel()
+		vm.hasPendingSync = true
+		#expect(vm.isLogoutConfirmPresented == false)
+
+		var logoutCalled = false
+		vm.onRequestLogout = {
+			logoutCalled = true
+		}
+
+		// When 1: 로그아웃 시도 시 showPendingLogoutConfirmation 호출
+		vm.showPendingLogoutConfirmation()
+
+		// Then 1: 경고창(확인 대화상자) 노출 플래그 활성화
+		#expect(vm.isLogoutConfirmPresented == true)
+		#expect(logoutCalled == false)
+
+		// When 2: 경고창에서 계속(로그아웃 진행) 선택 시
+		vm.confirmLogout()
+
+		// Then 2: 정상 로그아웃 클로저 실행
+		#expect(logoutCalled == true)
+	}
+
+	@Test("SettingsViewModel: hasPendingSync == false일 때 showPendingLogoutConfirmation 및 confirmLogout 동작 검증")
+	func settingsViewModel_whenNoPendingSync_showsConfirmationAndLogsOut() {
+		// Given
+		let vm = SettingsViewModel()
+		vm.hasPendingSync = false
+		#expect(vm.isLogoutConfirmPresented == false)
+
+		var logoutCalled = false
+		vm.onRequestLogout = {
+			logoutCalled = true
+		}
+
+		// When 1: 로그아웃 시도
+		vm.showPendingLogoutConfirmation()
+
+		// Then 1: 확인 모달 표시
+		#expect(vm.isLogoutConfirmPresented == true)
+		#expect(logoutCalled == false)
+
+		// When 2: 로그아웃 확정
+		vm.confirmLogout()
+
+		// Then 2: 로그아웃 핸들러 트리거
+		#expect(logoutCalled == true)
 	}
 }

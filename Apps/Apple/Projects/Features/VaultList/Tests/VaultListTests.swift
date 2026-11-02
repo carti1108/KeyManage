@@ -41,6 +41,17 @@ final class VaultListPresenterSpy: VaultListPresentable {
 	func dismissItemSheet() {
 		dismissItemSheetCallCount += 1
 	}
+
+	var setSyncStatusCallCount = 0
+	var receivedHasPending: Bool?
+	var receivedIsOffline: Bool?
+	var receivedIsSyncing: Bool?
+	func setSyncStatus(hasPending: Bool, isOffline: Bool, isSyncing: Bool) {
+		setSyncStatusCallCount += 1
+		receivedHasPending = hasPending
+		receivedIsOffline = isOffline
+		receivedIsSyncing = isSyncing
+	}
 }
 
 @MainActor
@@ -93,6 +104,9 @@ final class VaultLockManagerMock: VaultLockManagerProtocol, @unchecked Sendable 
 	var currentBiometryStateHash: Data? = nil
 	var revision: Int = 1
 	var onClipboardClearNeeded: (@Sendable () -> Void)? = nil
+	var hasPendingSync: Bool = false
+	var isOffline: Bool = false
+	var isSyncing: Bool = false
 
 	var addVaultItemCallCount = 0
 	var updateVaultItemCallCount = 0
@@ -183,6 +197,17 @@ final class VaultLockManagerMock: VaultLockManagerProtocol, @unchecked Sendable 
 		}
 		try decryptedVault?.deleteItem(id: id, now: now)
 	}
+
+	func sync(
+		networkClient: AuthNetworkClientProtocol,
+		now: Date
+	) async throws -> (vault: VaultData, revision: Int) {
+		return (decryptedVault ?? VaultData(updatedAt: "", items: []), revision)
+	}
+
+	func setOffline(_ isOffline: Bool) {
+		self.isOffline = isOffline
+	}
 }
 
 final class ClipboardManagerSpy: ClipboardManagerProtocol, @unchecked Sendable {
@@ -207,14 +232,35 @@ final class ClipboardManagerSpy: ClipboardManagerProtocol, @unchecked Sendable {
 final class VaultListDependencyMock: VaultListDependency {
 	let lockManager: VaultLockManagerProtocol
 	let clipboardManager: ClipboardManagerProtocol
+	let networkClient: AuthNetworkClientProtocol
 
 	init(
 		lockManager: VaultLockManagerProtocol = VaultLockManagerMock(),
-		clipboardManager: ClipboardManagerProtocol = ClipboardManagerSpy()
+		clipboardManager: ClipboardManagerProtocol = ClipboardManagerSpy(),
+		networkClient: AuthNetworkClientProtocol = DummyNetworkClientForVaultList()
 	) {
 		self.lockManager = lockManager
 		self.clipboardManager = clipboardManager
+		self.networkClient = networkClient
 	}
+}
+
+private final class DummyNetworkClientForVaultList: AuthNetworkClientProtocol, @unchecked Sendable {
+	func prelogin(email: String) async throws -> PreloginResponse {
+		PreloginResponse(kdf: "PBKDF2", salt: "c2FsdA==", iterations: 600000)
+	}
+	func register(request: RegisterRequestPayload) async throws -> RegisterResponsePayload {
+		RegisterResponsePayload(accessToken: "tok", expiresAt: "2026-11-27T11:20:00Z")
+	}
+	func login(request: LoginRequestPayload) async throws -> LoginResponsePayload {
+		LoginResponsePayload(accessToken: "tok", expiresAt: "2026-11-27T11:20:00Z")
+	}
+	func getVault(accessToken: String) async throws -> GetVaultResponsePayload? { nil }
+	func saveVault(accessToken: String, expectedRevision: Int, payload: EncryptedVaultPayload) async throws -> Int { 1 }
+	func changePassword(accessToken: String, request: ChangePasswordRequestPayload) async throws -> ChangePasswordResponsePayload {
+		ChangePasswordResponsePayload(accessToken: "tok", expiresAt: "2026-11-27T11:20:00Z", revision: 1)
+	}
+	func deleteAccount(accessToken: String, authHash: String) async throws {}
 }
 
 // MARK: - VaultListTests Suite
@@ -515,5 +561,69 @@ struct VaultListTests {
 		#expect(deletedId == "test-id")
 		#expect(!vm.isDeleteAlertPresented)
 		#expect(!vm.isItemSheetPresented)
+	}
+
+	// MARK: - 15. VLT-001 / VLT-002 VaultListViewModel 동기화 프로퍼티 바인딩 및 triggerSync 검증
+	@Test("VaultListViewModel: hasPendingSync, isOffline, isSyncing 프로퍼티 바인딩 및 triggerSync() 동작 검증")
+	func vaultListViewModel_syncPropertiesAndTriggerSync() async {
+		// Given: 기본 생성 시 초기값 검증
+		let vm = VaultListViewModel()
+		#expect(vm.hasPendingSync == false)
+		#expect(vm.isOffline == false)
+		#expect(vm.isSyncing == false)
+
+		// When 1: 커스텀 초기화 검증
+		let customVM = VaultListViewModel(
+			items: [],
+			isReadOnly: false,
+			hasPendingSync: true,
+			isOffline: true
+		)
+		#expect(customVM.hasPendingSync == true)
+		#expect(customVM.isOffline == true)
+		#expect(customVM.isSyncing == false)
+
+		// When 2: 상태 프로퍼티 변경 바인딩
+		customVM.hasPendingSync = false
+		customVM.isOffline = false
+		customVM.isSyncing = true
+		#expect(customVM.hasPendingSync == false)
+		#expect(customVM.isOffline == false)
+		#expect(customVM.isSyncing == true)
+
+		// When 3: triggerSync 비동기 호출 시 onSync 핸들러 정상 실행
+		var syncCalled = false
+		customVM.onSync = {
+			syncCalled = true
+		}
+		await customVM.triggerSync()
+
+		// Then
+		#expect(syncCalled == true)
+	}
+
+	@Test("VaultListInteractor: didRequestSync() 호출 시 lockManager.sync 및 presenter.setSyncStatus 정상 반영 검증")
+	func vaultListInteractor_didRequestSync_updatesSyncStatus() async {
+		// Given
+		let lockManager = VaultLockManagerMock()
+		let clipboard = ClipboardManagerSpy()
+		let presenter = VaultListPresenterSpy()
+		let interactor = VaultListInteractor(
+			lockManager: lockManager,
+			clipboardManager: clipboard,
+			presenter: presenter
+		)
+
+		lockManager.hasPendingSync = true
+		lockManager.isOffline = false
+		lockManager.isSyncing = false
+
+		// When
+		await interactor.didRequestSync()
+
+		// Then
+		#expect(presenter.setSyncStatusCallCount >= 1)
+		#expect(presenter.receivedHasPending == true)
+		#expect(presenter.receivedIsOffline == false)
 	}
 }

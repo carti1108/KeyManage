@@ -107,9 +107,27 @@ public protocol VaultLockManagerProtocol: AnyObject, Sendable {
 		networkClient: AuthNetworkClientProtocol,
 		now: Date
 	) async throws
+
+	// VLT-001 & VLT-002 볼트 동기화
+	var hasPendingSync: Bool { get }
+	var isOffline: Bool { get }
+	var isSyncing: Bool { get }
+	@discardableResult
+	func sync(
+		networkClient: AuthNetworkClientProtocol,
+		now: Date
+	) async throws -> (vault: VaultData, revision: Int)
+	func setOffline(_ isOffline: Bool)
 }
 
 public extension VaultLockManagerProtocol {
+
+	func sync(
+		networkClient: AuthNetworkClientProtocol,
+		now: Date = Date()
+	) async throws -> (vault: VaultData, revision: Int) {
+		try await sync(networkClient: networkClient, now: now)
+	}
 
 	func register(
 		email: String,
@@ -393,6 +411,33 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 
 	public init() {}
 
+	private var _hasPendingSync: Bool = false
+	public var hasPendingSync: Bool {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+		return _hasPendingSync
+	}
+
+	private var _isOffline: Bool = false
+	public var isOffline: Bool {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+		return _isOffline
+	}
+
+	private var _isSyncing: Bool = false
+	public var isSyncing: Bool {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+		return _isSyncing
+	}
+
+	public func setOffline(_ isOffline: Bool) {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+		_isOffline = isOffline
+	}
+
 	public var hasActiveSession: Bool {
 		syncLock.lock()
 		defer { syncLock.unlock() }
@@ -644,6 +689,8 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 		_currentBiometryStateHash = nil
 		_lastMasterPasswordUnlockDate = nil
 		_isPrivacyCoverActive = false
+		_hasPendingSync = false
+		_isSyncing = false
 	}
 
 	public func exportBackup(now: Date = Date()) throws -> (fileName: String, data: Data) {
@@ -1079,6 +1126,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 		let newEncrypted = try VaultCipher.encrypt(plaintext: encoded, key: encKey)
 		_decryptedVault = vault
 		_encryptedVault = newEncrypted
+		_hasPendingSync = true
 		_lastInteractionTime = now
 		return newItem
 	}
@@ -1125,6 +1173,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 		let newEncrypted = try VaultCipher.encrypt(plaintext: encoded, key: encKey)
 		_decryptedVault = vault
 		_encryptedVault = newEncrypted
+		_hasPendingSync = true
 		_lastInteractionTime = now
 	}
 
@@ -1156,6 +1205,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 		let newEncrypted = try VaultCipher.encrypt(plaintext: encoded, key: encKey)
 		_decryptedVault = vault
 		_encryptedVault = newEncrypted
+		_hasPendingSync = true
 		_lastInteractionTime = now
 	}
 
@@ -1402,6 +1452,258 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 			revision: revision,
 			now: now
 		)
+	}
+
+	// MARK: - VLT-001 & VLT-002 동기화
+
+	private struct SyncPreparation {
+		let isOffline: Bool
+		let localVault: VaultData
+		let revision: Int
+		let token: String
+		let encKey: Data
+		let hasPending: Bool
+	}
+
+	private func prepareSync() throws -> SyncPreparation {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+
+		guard !_isLocked,
+		      let localVault = _decryptedVault,
+		      let token = _sessionToken,
+		      let encKey = _encryptionKey else {
+			throw VaultItemError.locked
+		}
+
+		guard !localVault.isReadOnly else {
+			throw VaultError.vaultIsReadOnly
+		}
+
+		if _isOffline {
+			_hasPendingSync = true
+			return SyncPreparation(
+				isOffline: true,
+				localVault: localVault,
+				revision: _revision,
+				token: token,
+				encKey: encKey,
+				hasPending: true
+			)
+		}
+
+		_isSyncing = true
+		return SyncPreparation(
+			isOffline: false,
+			localVault: localVault,
+			revision: _revision,
+			token: token,
+			encKey: encKey,
+			hasPending: _hasPendingSync
+		)
+	}
+
+	private func endSyncing() {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+		_isSyncing = false
+	}
+
+	private func applySyncSuccess(
+		vault: VaultData,
+		encryptedVault: EncryptedVaultPayload,
+		revision: Int
+	) {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+		if !_isLocked {
+			_decryptedVault = vault
+		}
+		_encryptedVault = encryptedVault
+		_revision = revision
+		_hasPendingSync = false
+	}
+
+	private func markPendingSync() {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+		_hasPendingSync = true
+	}
+
+	@discardableResult
+	public func sync(
+		networkClient: AuthNetworkClientProtocol,
+		now: Date = Date()
+	) async throws -> (vault: VaultData, revision: Int) {
+		let prep = try prepareSync()
+		if prep.isOffline {
+			return (prep.localVault, prep.revision)
+		}
+
+		defer {
+			endSyncing()
+		}
+
+		let localVault = prep.localVault
+		let token = prep.token
+		let encKey = prep.encKey
+		let currentExpectedRev = prep.revision
+		let hasPending = prep.hasPending
+
+		// 1. 볼트 크기 사전 검증
+		let localEncoded = try localVault.encode()
+		try VaultSyncValidator().validatePayloadSize(localEncoded.count)
+
+		// 2. 대기 변경사항이 없는 경우: 서버 원격 볼트 조회하여 최신본 동기화
+		if !hasPending {
+			do {
+				guard let remote = try await networkClient.getVault(accessToken: token) else {
+					return (localVault, currentExpectedRev)
+				}
+
+				if remote.revision < currentExpectedRev {
+					throw VaultSyncError.revisionRollbackDetected(lastSeen: currentExpectedRev, server: remote.revision)
+				}
+
+				if remote.revision == currentExpectedRev {
+					return (localVault, currentExpectedRev)
+				}
+
+				// 서버 revision이 앞서 있으므로 원격 복호화 후 3-way 병합
+				let decryptedRemote = try VaultCipher.decrypt(payload: remote.payload, key: encKey)
+				let serverVault = try VaultData.decode(from: decryptedRemote)
+				let mergedVault = try VaultMerger().merge(local: localVault, server: serverVault)
+
+				guard !mergedVault.isReadOnly else {
+					applySyncSuccess(vault: mergedVault, encryptedVault: remote.payload, revision: remote.revision)
+					throw VaultError.vaultIsReadOnly
+				}
+
+				// 병합본이 원격과 다르면 병합본 업로드 필요, 같으면 로컬 상태만 갱신
+				if mergedVault.items != serverVault.items {
+					let mergedEncoded = try mergedVault.encode()
+					let newEncrypted = try VaultCipher.encrypt(plaintext: mergedEncoded, key: encKey)
+					let newRev = try await networkClient.saveVault(
+						accessToken: token,
+						expectedRevision: remote.revision,
+						payload: newEncrypted
+					)
+
+					guard newRev == remote.revision + 1 else {
+						throw VaultSyncError.syncFailed("서버 revision 불일치: 기대 \(remote.revision + 1), 응답 \(newRev)")
+					}
+
+					applySyncSuccess(vault: mergedVault, encryptedVault: newEncrypted, revision: newRev)
+					return (mergedVault, newRev)
+				} else {
+					applySyncSuccess(vault: mergedVault, encryptedVault: remote.payload, revision: remote.revision)
+					return (mergedVault, remote.revision)
+				}
+			} catch let authError as AuthError {
+				if authError == .sessionExpired {
+					logout()
+					throw authError
+				}
+				return (localVault, currentExpectedRev)
+			} catch let syncErr as VaultSyncError {
+				throw syncErr
+			} catch let vaultErr as VaultError {
+				throw vaultErr
+			} catch is CancellationError {
+				throw CancellationError()
+			} catch {
+				return (localVault, currentExpectedRev)
+			}
+		}
+
+		// 3. 대기 변경사항(pending)이 있는 경우: 서버 업로드 및 충돌 시 3회 재시도 루프
+		var currentVault = localVault
+		var expectedRev = currentExpectedRev
+		var retries = 0
+
+		while true {
+			do {
+				let encoded = try currentVault.encode()
+				try VaultSyncValidator().validatePayloadSize(encoded.count)
+				let encrypted = try VaultCipher.encrypt(plaintext: encoded, key: encKey)
+
+				let newRev = try await networkClient.saveVault(
+					accessToken: token,
+					expectedRevision: expectedRev,
+					payload: encrypted
+				)
+
+				guard newRev == expectedRev + 1 else {
+					markPendingSync()
+					throw VaultSyncError.syncFailed("서버 revision 불일치: 기대 \(expectedRev + 1), 응답 \(newRev)")
+				}
+
+				applySyncSuccess(vault: currentVault, encryptedVault: encrypted, revision: newRev)
+				return (currentVault, newRev)
+			} catch is CancellationError {
+				throw CancellationError()
+			} catch let syncError as VaultSyncError {
+				switch syncError {
+				case .conflict:
+					fallthrough
+				case .syncFailed:
+					if case .syncFailed(let msg) = syncError {
+						if msg.contains("서버 revision") {
+							throw syncError
+						}
+						if !(msg.contains("409") || msg.lowercased().contains("conflict")) {
+							markPendingSync()
+							return (currentVault, expectedRev)
+						}
+					}
+					retries += 1
+					if retries > VaultSyncCoordinator.maxRetryAttempts {
+						markPendingSync()
+						throw VaultSyncError.conflictLimitExceeded(attempts: retries)
+					}
+
+					// 충돌 발생: 원격 볼트 수신 후 병합 재시도
+					guard let remote = try await networkClient.getVault(accessToken: token) else {
+						expectedRev = 0
+						continue
+					}
+
+					if remote.revision < expectedRev {
+						markPendingSync()
+						throw VaultSyncError.revisionRollbackDetected(lastSeen: expectedRev, server: remote.revision)
+					}
+
+					let decrypted = try VaultCipher.decrypt(payload: remote.payload, key: encKey)
+					let serverVault = try VaultData.decode(from: decrypted)
+					currentVault = try VaultMerger().merge(local: currentVault, server: serverVault)
+					guard !currentVault.isReadOnly else {
+						applySyncSuccess(vault: currentVault, encryptedVault: remote.payload, revision: remote.revision)
+						throw VaultError.vaultIsReadOnly
+					}
+					expectedRev = remote.revision
+					continue
+
+				case .payloadTooLarge, .revisionRollbackDetected:
+					throw syncError
+
+				default:
+					markPendingSync()
+					return (currentVault, expectedRev)
+				}
+			} catch let authError as AuthError {
+				if authError == .sessionExpired {
+					logout()
+					throw authError
+				}
+				markPendingSync()
+				return (currentVault, expectedRev)
+			} catch let vaultErr as VaultError {
+				throw vaultErr
+			} catch {
+				markPendingSync()
+				return (currentVault, expectedRev)
+			}
+		}
 	}
 
 	private func internalLock() {

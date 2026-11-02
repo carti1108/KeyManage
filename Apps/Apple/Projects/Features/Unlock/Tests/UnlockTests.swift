@@ -218,6 +218,13 @@ struct UnlockFeatureTests {
 			func getVault(accessToken: String) async throws -> GetVaultResponsePayload? {
 				nil
 			}
+			func saveVault(
+				accessToken: String,
+				expectedRevision: Int,
+				payload: EncryptedVaultPayload
+			) async throws -> Int {
+				1
+			}
 		}
 
 		let networkClient = TestAuthNetworkClient()
