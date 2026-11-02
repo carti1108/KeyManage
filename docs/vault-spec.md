@@ -154,3 +154,35 @@
 ## 5. 플랫폼 구현
 
 각 플랫폼이 이 규격을 어떤 라이브러리로 구현하는지는 그 플랫폼의 `docs/platform-bindings.md`에 적는다.
+
+---
+
+## 6. 백업 파일 (VLT-004)
+
+볼트를 내보낸 암호화 백업 파일의 JSON 구조다. 결정 이유는 [ADR-0022](adr/ADR-0022-encrypted-backup-file-format.md)에 있다.
+
+```json
+{
+  "format": "keymanage-backup",
+  "formatVersion": 1,
+  "createdAt": "2026-11-01T12:00:00Z",
+  "kdf": { "name": "PBKDF2-HMAC-SHA256", "iterations": 600000, "salt": "dGhpcyBpcyBhIHNhbHQxNg==" },
+  "vault": { "version": 1, "cipher": "AES-256-GCM", "iv": "…", "ciphertext": "…", "tag": "…" }
+}
+```
+
+| 필드 | 타입 | 뜻 |
+| :--- | :--- | :--- |
+| `format` | String | `"keymanage-backup"` 고정. 다르면 백업 파일이 아니다. |
+| `formatVersion` | Int | 백업 형식 버전. 지금은 1. 아는 버전보다 높으면 복원하지 않는다. |
+| `createdAt` | String | 내보낸 시각. ISO 8601 UTC. 표시용이며 병합에 쓰지 않는다. |
+| `kdf.name` | String | KDF 이름. 지금은 `PBKDF2-HMAC-SHA256`만 받는다. |
+| `kdf.iterations` | Int | 반복 횟수. 2장 범위를 벗어나면 거절한다. |
+| `kdf.salt` | String | salt. Standard Base64, 16바이트 |
+| `vault` | Object | 3장 `EncryptedVaultPayload` 그대로 |
+
+1. 키는 내보낸 시점의 마스터 비밀번호와 `kdf` 값으로 1·2장과 같은 방식으로 만든다.
+2. 이메일, revision, 세션 정보는 넣지 않는다.
+3. `vault` 필드는 압축 JSON으로 다시 직렬화한 크기가 5MB 이하여야 한다. 파일 전체는 머리 필드 몫으로 64KB 여유를 더한 크기까지 읽는다. 넘으면 백업 파일이 아닌 것으로 거절한다.
+4. 복호화한 볼트의 스키마 버전(4장)이 앱이 아는 버전보다 높으면 복원하지 않는다.
+5. 복원하면 백업에서 지워지지 않은 항목을 백업 시점 내용으로 되돌리고 `updatedAt`을 복원 시각으로 정한다. 지금 항목의 마지막 변경 시각이 더 늦으면(기기 시계 차이) 그보다 1초 뒤로 정한다. 백업 뒤에 새로 만든 항목과 백업에서 지워진 항목은 그대로 둔다(VLT-004). 4장 병합 규칙은 동기화에만 쓴다.
