@@ -10,80 +10,46 @@ struct VaultListView: View {
 	}
 
 	var body: some View {
-		VStack(spacing: 16) {
-			topBar
-			itemsList
-		}
-		.padding()
-		.background(DesignToken.View.background)
-		.overlay(alignment: .bottom) {
-			if let toast = viewModel.toastMessage {
-				toastView(toast)
-					.transition(.move(edge: .bottom).combined(with: .opacity))
-			}
-		}
-		.sheet(isPresented: $viewModel.isItemSheetPresented) {
-			itemFormModalView
-		}
-		.alert("항목 삭제", isPresented: $viewModel.isDeleteAlertPresented) {
-			Button("취소", role: .cancel) {
-				viewModel.itemToDelete = nil
-			}
-			Button("삭제", role: .destructive) {
-				viewModel.executeDeleteItem()
-			}
-		} message: {
-			Text("이 항목을 삭제할까요? 다른 기기에서도 삭제됩니다.")
-		}
-	}
-
-	// MARK: - Top Bar (Search + Add Button)
-
-	private var topBar: some View {
-		HStack(spacing: 12) {
-			searchBar
-
-			if !viewModel.isReadOnly {
-				KMButton(
-					"항목 추가",
-					variant: .primary,
-					size: .md,
-					action: { viewModel.startCreatingItem() }
-				)
-			}
-		}
-	}
-
-	// MARK: - Search Bar
-
-	private var searchBar: some View {
-		HStack {
-			Image(systemName: "magnifyingglass")
-				.foregroundColor(DesignToken.View.mutedForeground)
-
-			TextField("서비스명, 아이디 검색...", text: Binding(
-				get: { viewModel.searchQuery },
-				set: { viewModel.updateSearchQuery($0) }
-			))
-			.textFieldStyle(.plain)
-			.font(.body)
-
-			if !viewModel.searchQuery.isEmpty {
-				Button(action: { viewModel.updateSearchQuery("") }) {
-					Image(systemName: "xmark.circle.fill")
-						.foregroundColor(DesignToken.View.mutedForeground)
+		itemsList
+			.searchable(
+				text: Binding(
+					get: { viewModel.searchQuery },
+					set: { viewModel.updateSearchQuery($0) }
+				),
+				prompt: "서비스명, 아이디 검색..."
+			)
+			.toolbar {
+				ToolbarItem(placement: .primaryAction) {
+					if !viewModel.isReadOnly {
+						Button {
+							viewModel.startCreatingItem()
+						} label: {
+							Image(systemName: "plus")
+						}
+						.accessibilityLabel("항목 추가")
+					}
 				}
-				.buttonStyle(.plain)
 			}
-		}
-		.padding(.horizontal, 12)
-		.padding(.vertical, 8)
-		.background(DesignToken.View.card)
-		.cornerRadius(8)
-		.overlay(
-			RoundedRectangle(cornerRadius: 8)
-				.stroke(DesignToken.View.border, lineWidth: 1)
-		)
+			.background(DesignToken.View.background)
+			.overlay(alignment: .bottom) {
+				if let toast = viewModel.toastMessage {
+					toastView(toast)
+						.transition(.move(edge: .bottom).combined(with: .opacity))
+				}
+			}
+			.sheet(isPresented: $viewModel.isItemSheetPresented) {
+				itemFormModalView
+			}
+			.alert("항목 삭제", isPresented: $viewModel.isDeleteAlertPresented) {
+				Button("취소", role: .cancel) {
+					viewModel.itemToDelete = nil
+				}
+				Button("삭제", role: .destructive) {
+					viewModel.executeDeleteItem()
+				}
+			} message: {
+				Text("이 항목을 삭제할까요? 다른 기기에서도 삭제됩니다.")
+			}
 	}
 
 	// MARK: - Items List
@@ -99,12 +65,37 @@ struct VaultListView: View {
 							itemCard(item)
 						}
 					}
+					.padding(.horizontal)
+					.padding(.vertical, 8)
 				}
 			}
 		}
 	}
 
+	@ViewBuilder
 	private var emptyStateView: some View {
+		if #available(iOS 17.0, macOS 14.0, *) {
+			ContentUnavailableView {
+				Label(
+					viewModel.searchQuery.isEmpty ? "저장된 볼트 아이템이 없습니다" : "검색 결과가 없습니다",
+					systemImage: "tray"
+				)
+			} description: {
+				Text(viewModel.searchQuery.isEmpty ? "새로운 계정 정보를 안전하게 보관해 보세요." : "검색어를 확인하거나 새로운 항목을 추가해 보세요.")
+			} actions: {
+				if !viewModel.isReadOnly && viewModel.searchQuery.isEmpty {
+					Button("첫 항목 추가하기") {
+						viewModel.startCreatingItem()
+					}
+					.buttonStyle(.borderedProminent)
+				}
+			}
+		} else {
+			legacyEmptyStateView
+		}
+	}
+
+	private var legacyEmptyStateView: some View {
 		VStack(spacing: 12) {
 			Spacer()
 			Image(systemName: "tray")
@@ -114,12 +105,10 @@ struct VaultListView: View {
 				.font(.headline)
 				.foregroundColor(DesignToken.View.mutedForeground)
 			if !viewModel.isReadOnly && viewModel.searchQuery.isEmpty {
-				KMButton(
-					"첫 항목 추가하기",
-					variant: .outline,
-					size: .sm,
-					action: { viewModel.startCreatingItem() }
-				)
+				Button("첫 항목 추가하기") {
+					viewModel.startCreatingItem()
+				}
+				.buttonStyle(.borderedProminent)
 				.padding(.top, 4)
 			}
 			Spacer()
@@ -235,29 +224,56 @@ struct VaultListView: View {
 	// MARK: - Item Form Modal Sheet
 
 	private var itemFormModalView: some View {
-		VStack(spacing: 20) {
-			Text(viewModel.editingItem == nil ? "새 볼트 항목" : "항목 수정")
-				.font(.title2.bold())
-				.foregroundColor(DesignToken.View.foreground)
-
-			if let error = viewModel.formErrorMessage {
-				Text(error)
-					.font(.footnote)
-					.foregroundColor(.red)
-			}
-
+		modalNavigationContainer {
 			ScrollView {
-				itemFormFieldsView
-					.padding(.horizontal, 2)
-			}
+				VStack(spacing: 20) {
+					if let error = viewModel.formErrorMessage {
+						Text(error)
+							.font(.footnote)
+							.foregroundColor(.red)
+							.frame(maxWidth: .infinity, alignment: .leading)
+					}
 
-			itemFormButtonsView
+					itemFormFieldsView
+
+					if let editing = viewModel.editingItem {
+						Button(role: .destructive) {
+							viewModel.confirmDeleteItem(editing)
+						} label: {
+							HStack {
+								Image(systemName: "trash")
+								Text("이 항목 삭제")
+							}
+							.frame(maxWidth: .infinity)
+							.padding(.vertical, 10)
+						}
+						.buttonStyle(.bordered)
+						.tint(.red)
+						.padding(.top, 8)
+					}
+				}
+				.padding(20)
+			}
+			.navigationTitle(viewModel.editingItem == nil ? "새 볼트 항목" : "항목 수정")
+			#if os(iOS)
+			.navigationBarTitleDisplayMode(.inline)
+			#endif
+			.toolbar {
+				ToolbarItem(placement: .cancellationAction) {
+					Button("취소") {
+						viewModel.cancelEditing()
+					}
+				}
+				ToolbarItem(placement: .confirmationAction) {
+					Button("저장") {
+						viewModel.requestSaveItem()
+					}
+					.font(.body.weight(.bold))
+				}
+			}
 		}
-		.padding(24)
 		#if os(macOS)
-		.frame(minWidth: 440)
-		#else
-		.frame(maxWidth: .infinity)
+		.frame(minWidth: 440, minHeight: 480)
 		#endif
 		.alert("항목 삭제", isPresented: $viewModel.isDeleteAlertPresented) {
 			Button("취소", role: .cancel) {
@@ -268,6 +284,22 @@ struct VaultListView: View {
 			}
 		} message: {
 			Text("이 항목을 삭제할까요? 다른 기기에서도 삭제됩니다.")
+		}
+	}
+
+	@ViewBuilder
+	private func modalNavigationContainer<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+		if #available(iOS 16.0, macOS 13.0, *) {
+			NavigationStack {
+				content()
+			}
+		} else {
+			NavigationView {
+				content()
+			}
+			#if os(iOS)
+			.navigationViewStyle(.stack)
+			#endif
 		}
 	}
 
@@ -341,36 +373,6 @@ struct VaultListView: View {
 					RoundedRectangle(cornerRadius: 6)
 						.stroke(DesignToken.View.border, lineWidth: 1)
 				)
-		}
-	}
-
-	private var itemFormButtonsView: some View {
-		HStack(spacing: 12) {
-			KMButton(
-				"취소",
-				variant: .outline,
-				action: {
-					viewModel.cancelEditing()
-				}
-			)
-
-			Spacer()
-
-			if let editing = viewModel.editingItem {
-				KMButton(
-					"삭제",
-					variant: .destructive,
-					action: {
-						viewModel.confirmDeleteItem(editing)
-					}
-				)
-			}
-
-			KMButton(
-				"저장",
-				variant: .primary,
-				action: { viewModel.requestSaveItem() }
-			)
 		}
 	}
 

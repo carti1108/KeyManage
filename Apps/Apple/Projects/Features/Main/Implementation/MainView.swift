@@ -73,26 +73,39 @@ struct MainView: View {
 
 		return TabView(selection: tabBinding) {
 			ForEach(MainTab.allCases) { tab in
-				NavigationView {
+				navigationContainer {
 					tabContent(for: tab)
 						.navigationTitle(tab.title)
 						.toolbar {
-							ToolbarItem(placement: .navigationBarTrailing) {
-								KMButton(
-									"잠금",
-									variant: .outline,
-									size: .sm,
-									action: { viewModel.lockVault() }
-								)
+							ToolbarItem(placement: .topBarTrailing) {
+								Button {
+									viewModel.lockVault()
+								} label: {
+									Image(systemName: "lock")
+								}
+								.accessibilityLabel("볼트 잠금")
 							}
 						}
 				}
-				.navigationViewStyle(.stack)
 				.tabItem {
 					Label(tab.title, systemImage: iconName(for: tab))
 				}
 				.tag(tab)
 			}
+		}
+	}
+
+	@ViewBuilder
+	private func navigationContainer<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+		if #available(iOS 16.0, *) {
+			NavigationStack {
+				content()
+			}
+		} else {
+			NavigationView {
+				content()
+			}
+			.navigationViewStyle(.stack)
 		}
 	}
 	#endif

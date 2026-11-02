@@ -39,7 +39,9 @@ let project = Project(
 			product: .app,
 			bundleId: "com.keymanage.ios",
 			deploymentTargets: .iOS("15.0"),
-			infoPlist: .default,
+			infoPlist: .extendingDefault(with: [
+				"UILaunchScreen": [:]
+			]),
 			sources: ["Sources/iOS/**", "Sources/Shared/**"],
 			dependencies: [
 				.project(target: "KeyManageDomain", path: "../Core/Domain"),

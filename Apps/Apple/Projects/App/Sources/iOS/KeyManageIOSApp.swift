@@ -33,6 +33,7 @@ struct KeyManageIOSApp: App {
 	var body: some Scene {
 		WindowGroup {
 			RootViewControllerRepresentable(viewController: routing.viewControllable.uiViewController)
+				.ignoresSafeArea()
 		}
 	}
 }
