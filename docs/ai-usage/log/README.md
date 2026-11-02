@@ -72,3 +72,4 @@
 | 064 | 2026-11-02 | [Apple PasswordGeneratorFeature microRIBs 비밀번호 생성기 구현 (#105)](064-apple-password-generator-ribs.md) |
 | 065 | 2026-11-02 | [마스터 비밀번호 변경 (SEC-004)](065-master-password-change.md) |
 | 066 | 2026-11-02 | [Web 사이드바 마스터 비밀번호 변경 버튼 스타일 정합성 개선 (#109)](066-web-change-password-sidebar-styling.md) |
+| 067 | 2026-11-02 | [Apple SEC-004 마스터 비밀번호 변경 및 원격 KDF 변경 감지 (#110)](067-apple-sec-004-master-password-change.md) |

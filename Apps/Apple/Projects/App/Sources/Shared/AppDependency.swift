@@ -17,6 +17,7 @@ import RootFeatureInterface
 final class AppDependency: RootDependency, UnlockDependency, MainDependency, VaultListDependency, SettingsDependency, PasswordGeneratorDependency {
 	let lockManager: VaultLockManagerProtocol
 	let clipboardManager: ClipboardManagerProtocol
+	let networkClient: AuthNetworkClientProtocol
 
 	var unlockBuilder: UnlockBuildable {
 		UnlockBuilder(dependency: self)
@@ -36,9 +37,11 @@ final class AppDependency: RootDependency, UnlockDependency, MainDependency, Vau
 
 	init(
 		lockManager: VaultLockManagerProtocol = VaultLockManager(),
-		clipboardManager: ClipboardManagerProtocol = ClipboardManager(pasteboard: SystemPasteboard())
+		clipboardManager: ClipboardManagerProtocol = ClipboardManager(pasteboard: SystemPasteboard()),
+		networkClient: AuthNetworkClientProtocol = URLSessionAuthNetworkClient()
 	) {
 		self.lockManager = lockManager
 		self.clipboardManager = clipboardManager
+		self.networkClient = networkClient
 	}
 }

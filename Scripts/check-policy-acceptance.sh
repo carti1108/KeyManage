@@ -148,6 +148,20 @@ if os.path.isdir(apple_tests_dir):
         ]
         check_invariants("Apple", "8단계: 암호화 백업 내보내기와 복원(VLT-004)", apple_tests, apple_backup_rules)
 
+    if os.path.isdir(os.path.join(apple_sources_dir, "Auth")):
+        apple_password_change_rules = [
+            ("SEC-004 변경 흐름(changeMasterPassword) 검증", r"changeMasterPassword"),
+            ("SEC-004 새 salt 16바이트 경계값 검증", r"16"),
+            ("SEC-004 새 비밀번호 SEC-002 길이 미달 거절(tooShort) 검증", r"\btooShort\b"),
+            ("SEC-004 현재와 같음 거절(samePassword) 검증", r"\bsamePassword\b"),
+            ("SEC-004 오프라인 거절(offline) 검증", r"\boffline\b"),
+            ("SEC-004 변경 전 안내 본문 검증", r"비밀번호를 바꾸면 다른 기기는 모두 로그아웃되고, 새 비밀번호로 다시 로그인해야 합니다\. 다른 기기에서 아직 올리지 못한 변경 사항은 사라집니다\. 예전에 내보낸 백업은 예전 비밀번호로 엽니다\."),
+            ("SEC-004 현재와 같음 문구('새 비밀번호가 지금 비밀번호와 같습니다.') 검증", r"새 비밀번호가 지금 비밀번호와 같습니다\."),
+            ("SEC-004 오프라인 문구('인터넷에 연결된 상태에서만 비밀번호를 바꿀 수 있습니다.') 검증", r"인터넷에 연결된 상태에서만 비밀번호를 바꿀 수 있습니다\."),
+            ("SEC-004 완료 문구('마스터 비밀번호를 바꿨습니다.') 검증", r"마스터 비밀번호를 바꿨습니다\."),
+        ]
+        check_invariants("Apple", "9단계: 마스터 비밀번호 변경(SEC-004)", apple_tests, apple_password_change_rules)
+
 
 # ============================================================================
 # 2. Web 플랫폼 감사 (Apps/Web/src/**/*.test.ts*)

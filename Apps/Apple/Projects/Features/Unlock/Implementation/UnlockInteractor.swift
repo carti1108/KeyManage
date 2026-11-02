@@ -22,6 +22,7 @@ final class UnlockInteractor: Interactor, UnlockInteractable, UnlockPresentableL
 	weak var presenter: UnlockPresentable?
 	let lockManager: VaultLockManagerProtocol
 	let biometricKeyStore: BiometricKeyStoreProtocol?
+	let networkClient: AuthNetworkClientProtocol?
 
 	var errorMessage: String?
 	var isLoading: Bool = false
@@ -34,10 +35,12 @@ final class UnlockInteractor: Interactor, UnlockInteractable, UnlockPresentableL
 	init(
 		lockManager: VaultLockManagerProtocol,
 		biometricKeyStore: BiometricKeyStoreProtocol? = nil,
+		networkClient: AuthNetworkClientProtocol? = nil,
 		presenter: UnlockPresentable? = nil
 	) {
 		self.lockManager = lockManager
 		self.biometricKeyStore = biometricKeyStore
+		self.networkClient = networkClient
 		self.presenter = presenter
 		super.init()
 	}
@@ -63,13 +66,20 @@ final class UnlockInteractor: Interactor, UnlockInteractable, UnlockPresentableL
 			presenter?.clearInputPassword()
 			presenter?.setErrorMessage(nil)
 			unlockSuccess()
-		} catch let error as LocalizedError {
-			let msg = error.errorDescription ?? VaultLockUIStrings.invalidMasterPasswordMessage
+		} catch {
+			if let networkClient = networkClient {
+				Task { [weak self] in
+					guard let self = self, self.lockManager.isLocked else { return }
+					if let changed = try? await self.lockManager.checkIfPasswordChangedOnServer(networkClient: networkClient), changed {
+						guard self.lockManager.isLocked else { return }
+						self.errorMessage = MasterPasswordChangeStrings.passwordChangedReLoginNotice
+						self.presenter?.setErrorMessage(MasterPasswordChangeStrings.passwordChangedReLoginNotice)
+					}
+				}
+			}
+			let msg = (error as? LocalizedError)?.errorDescription ?? VaultLockUIStrings.invalidMasterPasswordMessage
 			self.errorMessage = msg
 			presenter?.setErrorMessage(msg)
-		} catch {
-			self.errorMessage = VaultLockUIStrings.invalidMasterPasswordMessage
-			presenter?.setErrorMessage(VaultLockUIStrings.invalidMasterPasswordMessage)
 		}
 	}
 

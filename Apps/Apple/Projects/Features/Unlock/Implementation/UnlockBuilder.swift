@@ -13,6 +13,9 @@ final class UnlockComponent: Component<UnlockDependency> {
 	var biometricKeyStore: BiometricKeyStoreProtocol? {
 		dependency.biometricKeyStore
 	}
+	var networkClient: AuthNetworkClientProtocol? {
+		dependency.networkClient
+	}
 }
 
 // MARK: - Builder
@@ -27,7 +30,8 @@ public final class UnlockBuilder: Builder<UnlockDependency>, UnlockBuildable {
 		let component = UnlockComponent(dependency: dependency)
 		let interactor = UnlockInteractor(
 			lockManager: component.lockManager,
-			biometricKeyStore: component.biometricKeyStore
+			biometricKeyStore: component.biometricKeyStore,
+			networkClient: component.networkClient
 		)
 		interactor.listener = listener
 

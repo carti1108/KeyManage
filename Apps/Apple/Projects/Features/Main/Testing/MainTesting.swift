@@ -121,6 +121,7 @@ public final class MockVaultLockManager: VaultLockManagerProtocol, @unchecked Se
 	public var isBiometricsEnabled: Bool = false
 	public var lastMasterPasswordUnlockDate: Date? = nil
 	public var currentBiometryStateHash: Data? = nil
+	public var revision: Int = 1
 
 	public var onClipboardClearNeeded: (@Sendable () -> Void)? = nil
 
@@ -190,6 +191,19 @@ public final class MockVaultLockManager: VaultLockManagerProtocol, @unchecked Se
 	public func logout() {
 		logoutCallCount += 1
 		isLocked = true
+	}
+
+	public func changeMasterPassword(
+		currentPassword: String,
+		newPassword: String,
+		networkClient: AuthNetworkClientProtocol,
+		now: Date
+	) async throws {}
+
+	public func checkIfPasswordChangedOnServer(
+		networkClient: AuthNetworkClientProtocol
+	) async throws -> Bool {
+		return false
 	}
 }
 

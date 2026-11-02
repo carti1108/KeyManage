@@ -7,6 +7,10 @@ final class SettingsViewModel: ObservableObject {
 	@Published var toastMessage: String?
 	@Published var isRestoreModalPresented: Bool = false
 	@Published var isLogoutConfirmPresented: Bool = false
+	@Published var isChangePasswordPresented: Bool = false
+	@Published var currentPasswordInput: String = ""
+	@Published var newPasswordInput: String = ""
+	@Published var confirmPasswordInput: String = ""
 	@Published var exportResult: (fileName: String, data: Data)?
 
 	private var toastDismissTask: Task<Void, Never>?
@@ -15,6 +19,7 @@ final class SettingsViewModel: ObservableObject {
 	var onRequestExport: (() -> Void)?
 	var onRequestRestore: ((Data, String) -> Void)?
 	var onRequestLogout: (() -> Void)?
+	var onRequestChangePassword: ((String, String, String) -> Void)?
 
 	func selectTimeout(_ timeout: AutoLockTimeout) {
 		selectedTimeout = timeout
@@ -31,6 +36,16 @@ final class SettingsViewModel: ObservableObject {
 
 	func confirmLogout() {
 		onRequestLogout?()
+	}
+
+	func requestChangePassword() {
+		onRequestChangePassword?(currentPasswordInput, newPasswordInput, confirmPasswordInput)
+	}
+
+	func resetChangePasswordFields() {
+		currentPasswordInput = ""
+		newPasswordInput = ""
+		confirmPasswordInput = ""
 	}
 
 	func showToast(_ message: String) {

@@ -80,6 +80,7 @@ final class VaultLockManagerMock: VaultLockManagerProtocol, @unchecked Sendable 
 	var isBiometricsEnabled: Bool = false
 	var lastMasterPasswordUnlockDate: Date? = nil
 	var currentBiometryStateHash: Data? = nil
+	var revision: Int = 1
 	var onClipboardClearNeeded: (@Sendable () -> Void)? = nil
 
 	init(decryptedVault: VaultData? = nil) {
@@ -103,6 +104,17 @@ final class VaultLockManagerMock: VaultLockManagerProtocol, @unchecked Sendable 
 	func unlockWithMasterPassword(password: String, now: Date) throws {}
 	func unlockWithBiometrics(evaluatedStateHash: Data, recoveredEncryptionKey: Data, now: Date) throws {}
 	func logout() { isLocked = true }
+
+	func changeMasterPassword(
+		currentPassword: String,
+		newPassword: String,
+		networkClient: AuthNetworkClientProtocol,
+		now: Date
+	) async throws {}
+
+	func checkIfPasswordChangedOnServer(
+		networkClient: AuthNetworkClientProtocol
+	) async throws -> Bool { false }
 }
 
 final class ClipboardManagerSpy: ClipboardManagerProtocol, @unchecked Sendable {
