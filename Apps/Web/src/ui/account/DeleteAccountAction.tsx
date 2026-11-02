@@ -26,6 +26,11 @@ interface Inputs {
 
 const EMPTY: Inputs = { password: '', phrase: '' }
 
+/** 한글 자모가 나뉘어 입력돼도(NFD) 같은 글자로 보도록 NFC로 맞춘 뒤 정확히 비교한다. 앞뒤 공백은 그대로 다르다 (SEC-005 값) */
+function matchesPhrase(phrase: string): boolean {
+  return phrase.normalize('NFC') === ACCOUNT_DELETION_PHRASE
+}
+
 export function DeleteAccountAction({ offline, onDelete }: DeleteAccountActionProps) {
   const [open, setOpen] = useState(false)
   const [inputs, setInputs] = useState<Inputs>(EMPTY)
@@ -71,7 +76,7 @@ export function DeleteAccountAction({ offline, onDelete }: DeleteAccountActionPr
   function submit(event: FormEvent) {
     event.preventDefault()
     const { password, phrase } = inputs
-    if (password === '' || phrase !== ACCOUNT_DELETION_PHRASE) return
+    if (password === '' || !matchesPhrase(phrase)) return
     // 비밀번호는 요청에만 담고 화면 상태에서는 바로 버린다. 실패하면 다시 입력받는다
     setInputs((value) => ({ ...value, password: '' }))
     void action.run(async () => {
@@ -125,7 +130,7 @@ interface DeleteAccountDialogProps {
 function DeleteAccountDialog({ inputs, passwordRef, onInputsChange, pending, onSubmit, onCancel, onKeyDown, error }: DeleteAccountDialogProps) {
   const titleId = useId()
   const bodyId = useId()
-  const confirmed = inputs.password !== '' && inputs.phrase === ACCOUNT_DELETION_PHRASE
+  const confirmed = inputs.password !== '' && matchesPhrase(inputs.phrase)
 
   return (
     <ModalDialog labelledBy={titleId} describedBy={bodyId} onKeyDown={onKeyDown}>

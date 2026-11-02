@@ -117,16 +117,22 @@ export function SessionRoot({ session, clipboard, pageHidden, networkOffline = f
   async function deleteAccount(password: string) {
     try {
       await session.deleteAccount(password)
-      setNotice(ACCOUNT_DELETED)
+      leaveForSignIn(ACCOUNT_DELETED)
     } catch (error) {
+      // 실패해 볼트 화면에 남으면 기존 동기화 경고·오프라인 표시를 그대로 둔다
       if (!(error instanceof AccountDeletedDeviceNotClearedError) && !sendsToSignIn(error)) throw error
-      setNotice(describeError(error).body)
+      leaveForSignIn(describeError(error).body)
     } finally {
-      setSyncError(null)
-      setConfirmingLogout(false)
-      setOffline(false)
       refresh()
     }
+  }
+
+  /** 로그인 화면으로 가며 볼트 화면의 경고를 지우고 이유를 남긴다 */
+  function leaveForSignIn(message: string) {
+    setNotice(message)
+    setSyncError(null)
+    setConfirmingLogout(false)
+    setOffline(false)
   }
 
   /**
