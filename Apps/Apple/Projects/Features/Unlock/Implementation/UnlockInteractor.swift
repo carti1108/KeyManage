@@ -8,9 +8,17 @@ import UnlockFeatureInterface
 @MainActor
 protocol UnlockPresentable: AnyObject {
 	var listener: UnlockPresentableListener? { get set }
+	func update(state: UnlockViewState)
 	func setErrorMessage(_ message: String?)
 	func setLoading(_ isLoading: Bool)
 	func clearInputPassword()
+}
+
+extension UnlockPresentable {
+	func update(state: UnlockViewState) {}
+	func setErrorMessage(_ message: String?) {}
+	func setLoading(_ isLoading: Bool) {}
+	func clearInputPassword() {}
 }
 
 // MARK: - Interactor
@@ -24,12 +32,23 @@ final class UnlockInteractor: Interactor, UnlockInteractable, UnlockPresentableL
 	let biometricKeyStore: BiometricKeyStoreProtocol?
 	let networkClient: AuthNetworkClientProtocol?
 
-	var errorMessage: String?
-	var isLoading: Bool = false
-	var password: String = ""
+	private(set) var state = UnlockViewState()
+
+	var errorMessage: String? {
+		get { state.errorMessage }
+		set { state.errorMessage = newValue }
+	}
+	var isLoading: Bool {
+		get { state.isLoading }
+		set { state.isLoading = newValue }
+	}
+	var password: String {
+		get { state.password }
+		set { state.password = newValue }
+	}
 	var inputPassword: String {
-		get { password }
-		set { password = newValue }
+		get { state.password }
+		set { state.password = newValue }
 	}
 
 	init(
@@ -42,7 +61,33 @@ final class UnlockInteractor: Interactor, UnlockInteractable, UnlockPresentableL
 		self.biometricKeyStore = biometricKeyStore
 		self.networkClient = networkClient
 		self.presenter = presenter
+		self.state = UnlockViewState(isBiometricsEnabled: lockManager.isBiometricsEnabled)
 		super.init()
+		presenter?.listener = self
+	}
+
+	override func didBecomeActive() {
+		super.didBecomeActive()
+		request(action: .viewDidLoad)
+	}
+
+	func request(action: UnlockViewAction) {
+		switch action {
+		case .viewDidLoad:
+			state.isBiometricsEnabled = lockManager.isBiometricsEnabled
+			presenter?.update(state: state)
+		case .updatePassword(let newPassword):
+			state.password = newPassword
+			presenter?.update(state: state)
+		case .unlockWithPassword(let password):
+			unlock(withMasterPassword: password)
+		case .unlockWithBiometrics:
+			unlockWithBiometrics()
+		case .clearPassword:
+			state.password = ""
+			presenter?.clearInputPassword()
+			presenter?.update(state: state)
+		}
 	}
 
 	func unlockSuccess() {
@@ -51,20 +96,24 @@ final class UnlockInteractor: Interactor, UnlockInteractable, UnlockPresentableL
 
 	func unlock(withMasterPassword password: String) {
 		guard !password.isEmpty else { return }
-		self.password = password
-		isLoading = true
+		state.password = password
+		state.isLoading = true
 		presenter?.setLoading(true)
+		presenter?.update(state: state)
 		defer {
-			self.password = ""
-			isLoading = false
+			state.password = ""
+			state.isLoading = false
 			presenter?.setLoading(false)
+			presenter?.update(state: state)
 		}
 
 		do {
 			try lockManager.unlockWithMasterPassword(password: password, now: Date())
-			self.errorMessage = nil
+			state.errorMessage = nil
+			state.password = ""
 			presenter?.clearInputPassword()
 			presenter?.setErrorMessage(nil)
+			presenter?.update(state: state)
 			unlockSuccess()
 		} catch {
 			if let networkClient = networkClient {
@@ -72,25 +121,29 @@ final class UnlockInteractor: Interactor, UnlockInteractable, UnlockPresentableL
 					guard let self = self, self.lockManager.isLocked else { return }
 					if let changed = try? await self.lockManager.checkIfPasswordChangedOnServer(networkClient: networkClient), changed {
 						guard self.lockManager.isLocked else { return }
-						self.errorMessage = MasterPasswordChangeStrings.passwordChangedReLoginNotice
+						self.state.errorMessage = MasterPasswordChangeStrings.passwordChangedReLoginNotice
 						self.presenter?.setErrorMessage(MasterPasswordChangeStrings.passwordChangedReLoginNotice)
+						self.presenter?.update(state: self.state)
 					}
 				}
 			}
 			let msg = (error as? LocalizedError)?.errorDescription ?? VaultLockUIStrings.invalidMasterPasswordMessage
-			self.errorMessage = msg
+			state.errorMessage = msg
 			presenter?.setErrorMessage(msg)
+			presenter?.update(state: state)
 		}
 	}
 
 	func unlockWithBiometrics() {
 		guard lockManager.isBiometricsEnabled else { return }
 
-		isLoading = true
+		state.isLoading = true
 		presenter?.setLoading(true)
+		presenter?.update(state: state)
 		defer {
-			isLoading = false
+			state.isLoading = false
 			presenter?.setLoading(false)
+			presenter?.update(state: state)
 		}
 
 		do {
@@ -108,16 +161,19 @@ final class UnlockInteractor: Interactor, UnlockInteractable, UnlockPresentableL
 				recoveredEncryptionKey: recoveredKey,
 				now: Date()
 			)
-			self.errorMessage = nil
+			state.errorMessage = nil
 			presenter?.setErrorMessage(nil)
+			presenter?.update(state: state)
 			unlockSuccess()
 		} catch let error as LocalizedError {
 			let msg = error.errorDescription ?? "생체 인증에 실패했습니다."
-			self.errorMessage = msg
+			state.errorMessage = msg
 			presenter?.setErrorMessage(msg)
+			presenter?.update(state: state)
 		} catch {
-			self.errorMessage = "생체 인증에 실패했습니다."
+			state.errorMessage = "생체 인증에 실패했습니다."
 			presenter?.setErrorMessage("생체 인증에 실패했습니다.")
+			presenter?.update(state: state)
 		}
 	}
 }

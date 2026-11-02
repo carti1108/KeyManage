@@ -8,12 +8,35 @@ import SettingsFeatureInterface
 
 @MainActor
 protocol SettingsPresentableListener: AnyObject {
+	func request(action: SettingsViewAction)
 	func didSelectAutoLockTimeout(_ timeout: AutoLockTimeout)
 	func didRequestExportBackup()
 	func didRequestRestoreBackup(fileData: Data, password: String)
 	func didRequestLogout()
 	func didRequestChangePassword(current: String, new: String, confirm: String)
 	func didRequestDeleteAccount(password: String, confirmationPhrase: String)
+}
+
+@MainActor
+extension SettingsPresentableListener {
+	func request(action: SettingsViewAction) {
+		switch action {
+		case .selectAutoLockTimeout(let timeout):
+			didSelectAutoLockTimeout(timeout)
+		case .requestExportBackup:
+			didRequestExportBackup()
+		case .requestRestoreBackup(let fileData, let password):
+			didRequestRestoreBackup(fileData: fileData, password: password)
+		case .requestLogout:
+			didRequestLogout()
+		case .requestChangePassword(let current, let new, let confirm):
+			didRequestChangePassword(current: current, new: new, confirm: confirm)
+		case .requestDeleteAccount(let password, let confirmationPhrase):
+			didRequestDeleteAccount(password: password, confirmationPhrase: confirmationPhrase)
+		default:
+			break
+		}
+	}
 }
 
 #if os(macOS)
@@ -35,29 +58,18 @@ final class SettingsViewController: SettingsPlatformHostingController<SettingsVi
 		self.viewModel = vm
 		super.init(rootView: SettingsView(viewModel: vm))
 
-		vm.onSelectTimeout = { [weak self] timeout in
-			self?.listener?.didSelectAutoLockTimeout(timeout)
-		}
-		vm.onRequestExport = { [weak self] in
-			self?.listener?.didRequestExportBackup()
-		}
-		vm.onRequestRestore = { [weak self] fileData, password in
-			self?.listener?.didRequestRestoreBackup(fileData: fileData, password: password)
-		}
-		vm.onRequestLogout = { [weak self] in
-			self?.listener?.didRequestLogout()
-		}
-		vm.onRequestChangePassword = { [weak self] current, new, confirm in
-			self?.listener?.didRequestChangePassword(current: current, new: new, confirm: confirm)
-		}
-		vm.onRequestDeleteAccount = { [weak self] password, confirmation in
-			self?.listener?.didRequestDeleteAccount(password: password, confirmationPhrase: confirmation)
+		vm.onAction = { [weak self] action in
+			self?.listener?.request(action: action)
 		}
 	}
 
 	@available(*, unavailable)
 	required init?(coder: NSCoder) {
 		fatalError("init(coder:) has not been implemented")
+	}
+
+	func update(state: SettingsViewState) {
+		viewModel.update(state: state)
 	}
 
 	func displayAutoLockTimeout(_ timeout: AutoLockTimeout) {

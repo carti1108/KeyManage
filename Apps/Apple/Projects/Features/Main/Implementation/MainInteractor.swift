@@ -11,7 +11,16 @@ import MainFeatureInterface
 @MainActor
 protocol MainPresentable: AnyObject {
 	var listener: MainPresentableListener? { get set }
+	func update(state: MainViewState)
 	func selectTab(_ tab: MainTab)
+}
+
+extension MainPresentable {
+	func update(state: MainViewState) {
+		selectTab(state.selectedTab)
+	}
+
+	func selectTab(_ tab: MainTab) {}
 }
 
 // MARK: - Interactor
@@ -23,6 +32,8 @@ final class MainInteractor: Interactor, MainInteractable, MainPresentableListene
 	weak var presenter: MainPresentable?
 	let lockManager: VaultLockManagerProtocol
 
+	private(set) var state = MainViewState()
+
 	init(
 		lockManager: VaultLockManagerProtocol,
 		presenter: MainPresentable? = nil
@@ -30,28 +41,42 @@ final class MainInteractor: Interactor, MainInteractable, MainPresentableListene
 		self.lockManager = lockManager
 		self.presenter = presenter
 		super.init()
+		presenter?.listener = self
 	}
 
 	override func didBecomeActive() {
 		super.didBecomeActive()
-		router?.routeToVaultList()
+		request(action: .viewDidLoad)
+	}
+
+	func request(action: MainViewAction) {
+		switch action {
+		case .viewDidLoad:
+			router?.routeToVaultList()
+			presenter?.update(state: state)
+		case .lockVault:
+			lockManager.lock()
+			listener?.didRequestLockVault()
+		case .selectTab(let tab):
+			state.selectedTab = tab
+			presenter?.update(state: state)
+			switch tab {
+			case .vault:
+				router?.routeToVaultList()
+			case .settings:
+				router?.routeToSettings()
+			case .generator:
+				router?.routeToPasswordGenerator()
+			}
+		}
 	}
 
 	func requestLockVault() {
-		lockManager.lock()
-		listener?.didRequestLockVault()
+		request(action: .lockVault)
 	}
 
 	func didSelectTab(_ tab: MainTab) {
-		presenter?.selectTab(tab)
-		switch tab {
-		case .vault:
-			router?.routeToVaultList()
-		case .settings:
-			router?.routeToSettings()
-		case .generator:
-			router?.routeToPasswordGenerator()
-		}
+		request(action: .selectTab(tab))
 	}
 }
 

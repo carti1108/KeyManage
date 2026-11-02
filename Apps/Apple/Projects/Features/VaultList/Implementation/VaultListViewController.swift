@@ -8,6 +8,7 @@ import VaultListFeatureInterface
 
 @MainActor
 protocol VaultListPresentableListener: AnyObject {
+	func request(action: VaultListViewAction)
 	func didSearch(query: String)
 	func didRequestCopyPassword(item: VaultItem)
 	func didRequestCopyUsername(item: VaultItem)
@@ -26,40 +27,18 @@ typealias VaultListPlatformHostingController<Content: View> = UIHostingControlle
 
 @MainActor
 final class VaultListViewController: VaultListPlatformHostingController<VaultListView>, VaultListViewControllable, VaultListPresentable {
-	weak var listener: VaultListPresentableListener?
+	weak var listener: VaultListPresentableListener? {
+		didSet {
+			viewModel.listener = listener
+		}
+	}
 	let viewModel: VaultListViewModel
 
 	init(listener: VaultListPresentableListener? = nil) {
 		self.listener = listener
-		let vm = VaultListViewModel()
+		let vm = VaultListViewModel(listener: listener, state: .init())
 		self.viewModel = vm
 		super.init(rootView: VaultListView(viewModel: vm))
-
-		vm.onSearch = { [weak self] query in
-			self?.listener?.didSearch(query: query)
-		}
-		vm.onCopyPassword = { [weak self] item in
-			self?.listener?.didRequestCopyPassword(item: item)
-		}
-		vm.onCopyUsername = { [weak self] item in
-			self?.listener?.didRequestCopyUsername(item: item)
-		}
-		vm.onSaveItem = { [weak self] existingId, serviceName, username, password, url, notes in
-			self?.listener?.didRequestSaveItem(
-				existingId: existingId,
-				serviceName: serviceName,
-				username: username,
-				password: password,
-				url: url,
-				notes: notes
-			)
-		}
-		vm.onDeleteItem = { [weak self] id in
-			self?.listener?.didRequestDeleteItem(id: id)
-		}
-		vm.onSync = { [weak self] in
-			await self?.listener?.didRequestSync()
-		}
 	}
 
 	@available(*, unavailable)
@@ -67,23 +46,35 @@ final class VaultListViewController: VaultListPlatformHostingController<VaultLis
 		fatalError("init(coder:) has not been implemented")
 	}
 
+	func update(state: VaultListViewState) {
+		viewModel.update(state: state)
+	}
+
 	func setSyncStatus(hasPending: Bool, isOffline: Bool, isSyncing: Bool) {
-		viewModel.hasPendingSync = hasPending
-		viewModel.isOffline = isOffline
-		viewModel.isSyncing = isSyncing
+		var next = viewModel.state
+		next.hasPendingSync = hasPending
+		next.isOffline = isOffline
+		next.isSyncing = isSyncing
+		viewModel.update(state: next)
 	}
 
 	func displayItems(_ items: [VaultItem]) {
-		viewModel.items = items
+		var next = viewModel.state
+		next.items = items
+		viewModel.update(state: next)
 	}
 
 	func setIsReadOnly(_ isReadOnly: Bool) {
-		viewModel.isReadOnly = isReadOnly
+		var next = viewModel.state
+		next.isReadOnly = isReadOnly
+		viewModel.update(state: next)
 	}
 
 	func dismissItemSheet() {
-		viewModel.isItemSheetPresented = false
-		viewModel.editingItem = nil
+		var next = viewModel.state
+		next.isItemSheetPresented = false
+		next.editingItem = nil
+		viewModel.update(state: next)
 	}
 
 	func showToast(message: String) {

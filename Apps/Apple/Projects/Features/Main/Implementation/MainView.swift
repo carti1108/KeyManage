@@ -23,8 +23,8 @@ struct MainView: View {
 	#if os(macOS)
 	private var macOSLayout: some View {
 		let selectionBinding = Binding<MainTab?>(
-			get: { viewModel.selectedTab },
-			set: { if let tab = $0 { viewModel.selectTab(tab) } }
+			get: { viewModel.state.selectedTab },
+			set: { if let tab = $0 { viewModel.request(action: .selectTab(tab)) } }
 		)
 
 		return NavigationView {
@@ -52,12 +52,12 @@ struct MainView: View {
 						"볼트 잠금",
 						variant: .destructive,
 						size: .sm,
-						action: { viewModel.lockVault() }
+						action: { viewModel.request(action: .lockVault) }
 					)
 				}
 			}
 
-			tabContent(for: viewModel.selectedTab)
+			tabContent(for: viewModel.state.selectedTab)
 		}
 	}
 	#endif
@@ -67,8 +67,8 @@ struct MainView: View {
 	#if os(iOS)
 	private var iOSLayout: some View {
 		let tabBinding = Binding<MainTab>(
-			get: { viewModel.selectedTab },
-			set: { viewModel.selectTab($0) }
+			get: { viewModel.state.selectedTab },
+			set: { viewModel.request(action: .selectTab($0)) }
 		)
 
 		return TabView(selection: tabBinding) {
@@ -79,7 +79,7 @@ struct MainView: View {
 						.toolbar {
 							ToolbarItem(placement: .topBarTrailing) {
 								Button {
-									viewModel.lockVault()
+									viewModel.request(action: .lockVault)
 								} label: {
 									Image(systemName: "lock")
 								}

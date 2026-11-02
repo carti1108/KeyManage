@@ -20,7 +20,7 @@ struct PasswordGeneratorView: View {
 			.padding(24)
 		}
 		.overlay(alignment: .bottom) {
-			if let toast = viewModel.toastMessage {
+			if let toast = viewModel.state.toastMessage {
 				toastOverlay(toast)
 			}
 		}
@@ -36,7 +36,7 @@ struct PasswordGeneratorView: View {
 					.foregroundColor(DesignToken.View.foreground)
 
 				HStack {
-					Text(viewModel.generatedPassword.isEmpty ? "비밀번호를 생성 중입니다..." : viewModel.generatedPassword)
+					Text(viewModel.state.generatedPassword.isEmpty ? "비밀번호를 생성 중입니다..." : viewModel.state.generatedPassword)
 						.font(.system(.title3, design: .monospaced))
 						.bold()
 						.foregroundColor(DesignToken.View.primary)
@@ -50,16 +50,16 @@ struct PasswordGeneratorView: View {
 							"재생성",
 							variant: .outline,
 							size: .sm,
-							action: { viewModel.regenerate() }
+							action: { viewModel.request(action: .regenerate) }
 						)
 
 						KMButton(
 							"복사",
 							variant: .primary,
 							size: .sm,
-							action: { viewModel.copyPassword() }
+							action: { viewModel.request(action: .copyPassword(viewModel.state.generatedPassword)) }
 						)
-						.disabled(viewModel.generatedPassword.isEmpty)
+						.disabled(viewModel.state.generatedPassword.isEmpty)
 					}
 				}
 				.padding(12)
@@ -80,15 +80,15 @@ struct PasswordGeneratorView: View {
 
 					Spacer()
 
-					Text(viewModel.securityLevel.title)
+					Text(viewModel.state.securityLevel.title)
 						.font(.caption.bold())
 						.padding(.horizontal, 8)
 						.padding(.vertical, 4)
-						.background(scoreColor(for: viewModel.securityLevel).opacity(0.15))
-						.foregroundColor(scoreColor(for: viewModel.securityLevel))
+						.background(scoreColor(for: viewModel.state.securityLevel).opacity(0.15))
+						.foregroundColor(scoreColor(for: viewModel.state.securityLevel))
 						.cornerRadius(4)
 
-					Text("\(viewModel.score)점 / 100점")
+					Text("\(viewModel.state.score)점 / 100점")
 						.font(.subheadline.bold())
 						.foregroundColor(DesignToken.View.mutedForeground)
 				}
@@ -101,20 +101,20 @@ struct PasswordGeneratorView: View {
 							.frame(height: 8)
 
 						RoundedRectangle(cornerRadius: 4)
-							.fill(scoreColor(for: viewModel.securityLevel))
-							.frame(width: max(0, min(geometry.size.width, geometry.size.width * CGFloat(viewModel.score) / 100.0)), height: 8)
+							.fill(scoreColor(for: viewModel.state.securityLevel))
+							.frame(width: max(0, min(geometry.size.width, geometry.size.width * CGFloat(viewModel.state.score) / 100.0)), height: 8)
 					}
 				}
 				.frame(height: 8)
 
 				// 안내 및 경고 문구
-				if viewModel.securityLevel == .danger {
+				if viewModel.state.securityLevel == .danger {
 					Text(EntropyScorer.warningMessage)
 						.font(.footnote)
 						.foregroundColor(DesignToken.View.destructive)
 				}
 
-				if let notice = viewModel.sequentialDigitsNotice {
+				if let notice = viewModel.state.sequentialDigitsNotice {
 					Text(notice)
 						.font(.footnote)
 						.foregroundColor(DesignToken.View.destructive)
@@ -138,15 +138,15 @@ struct PasswordGeneratorView: View {
 							.font(.subheadline)
 							.foregroundColor(DesignToken.View.foreground)
 						Spacer()
-						Text("\(Int(viewModel.length))자")
+						Text("\(Int(viewModel.state.length))자")
 							.font(.subheadline.bold())
 							.foregroundColor(DesignToken.View.primary)
 					}
 
 					Slider(
 						value: Binding(
-							get: { viewModel.length },
-							set: { viewModel.updateLength($0) }
+							get: { viewModel.state.length },
+							set: { viewModel.request(action: .updateLength($0)) }
 						),
 						in: Double(PasswordGenerationOptions.minimumLength)...Double(PasswordGenerationOptions.maximumLength),
 						step: 1
@@ -158,8 +158,8 @@ struct PasswordGeneratorView: View {
 				// 문자 종류 토글들
 				VStack(alignment: .leading, spacing: 12) {
 					Toggle(isOn: Binding(
-						get: { viewModel.includeUppercase },
-						set: { _ in viewModel.toggleUppercase() }
+						get: { viewModel.state.includeUppercase },
+						set: { _ in viewModel.request(action: .toggleUppercase) }
 					)) {
 						VStack(alignment: .leading) {
 							Text("대문자 (A-Z)")
@@ -171,8 +171,8 @@ struct PasswordGeneratorView: View {
 					}
 
 					Toggle(isOn: Binding(
-						get: { viewModel.includeLowercase },
-						set: { _ in viewModel.toggleLowercase() }
+						get: { viewModel.state.includeLowercase },
+						set: { _ in viewModel.request(action: .toggleLowercase) }
 					)) {
 						VStack(alignment: .leading) {
 							Text("소문자 (a-z)")
@@ -184,8 +184,8 @@ struct PasswordGeneratorView: View {
 					}
 
 					Toggle(isOn: Binding(
-						get: { viewModel.includeDigits },
-						set: { _ in viewModel.toggleDigits() }
+						get: { viewModel.state.includeDigits },
+						set: { _ in viewModel.request(action: .toggleDigits) }
 					)) {
 						VStack(alignment: .leading) {
 							Text("숫자 (0-9)")
@@ -197,8 +197,8 @@ struct PasswordGeneratorView: View {
 					}
 
 					Toggle(isOn: Binding(
-						get: { viewModel.includeSymbols },
-						set: { _ in viewModel.toggleSymbols() }
+						get: { viewModel.state.includeSymbols },
+						set: { _ in viewModel.request(action: .toggleSymbols) }
 					)) {
 						VStack(alignment: .leading) {
 							Text("특수문자")

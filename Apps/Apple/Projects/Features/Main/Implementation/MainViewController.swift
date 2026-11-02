@@ -7,8 +7,7 @@ import MainFeatureInterface
 
 @MainActor
 protocol MainPresentableListener: AnyObject {
-	func requestLockVault()
-	func didSelectTab(_ tab: MainTab)
+	func request(action: MainViewAction)
 }
 
 #if os(macOS)
@@ -21,20 +20,18 @@ typealias MainPlatformHostingController<Content: View> = UIHostingController<Con
 
 @MainActor
 final class MainViewController: MainPlatformHostingController<MainView>, MainViewControllable, MainPresentable {
-	weak var listener: MainPresentableListener?
+	weak var listener: MainPresentableListener? {
+		didSet {
+			viewModel.listener = listener
+		}
+	}
 	let viewModel: MainViewModel
 
 	init(listener: MainPresentableListener? = nil) {
 		self.listener = listener
-		let vm = MainViewModel()
+		let vm = MainViewModel(listener: listener, state: .init())
 		self.viewModel = vm
 		super.init(rootView: MainView(viewModel: vm))
-		vm.onLockRequested = { [weak self] in
-			self?.listener?.requestLockVault()
-		}
-		vm.onTabSelected = { [weak self] tab in
-			self?.listener?.didSelectTab(tab)
-		}
 	}
 
 	@available(*, unavailable)
@@ -42,8 +39,8 @@ final class MainViewController: MainPlatformHostingController<MainView>, MainVie
 		fatalError("init(coder:) has not been implemented")
 	}
 
-	func selectTab(_ tab: MainTab) {
-		viewModel.selectedTab = tab
+	func update(state: MainViewState) {
+		viewModel.update(state: state)
 	}
 
 	func setVaultListViewControllable(_ viewControllable: ViewControllable) {

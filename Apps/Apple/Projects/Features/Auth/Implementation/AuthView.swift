@@ -28,7 +28,7 @@ public struct AuthView: View {
 							.font(.largeTitle.bold())
 							.foregroundColor(DesignToken.View.foreground)
 
-						Text(viewModel.mode == .register ? AuthStrings.registerTitle : AuthStrings.loginTitle)
+						Text(viewModel.state.mode == .register ? AuthStrings.registerTitle : AuthStrings.loginTitle)
 							.font(.subheadline)
 							.foregroundColor(DesignToken.View.mutedForeground)
 					}
@@ -36,7 +36,7 @@ public struct AuthView: View {
 					// Card Container
 					VStack(alignment: .leading, spacing: 18) {
 						// Error banner
-						if let error = viewModel.errorMessage {
+						if let error = viewModel.state.errorMessage {
 							HStack(spacing: 10) {
 								Image(systemName: "exclamationmark.triangle.fill")
 									.foregroundColor(.red)
@@ -83,7 +83,7 @@ public struct AuthView: View {
 							SecureField(AuthStrings.passwordPlaceholder, text: $viewModel.password)
 								.textFieldStyle(.plain)
 								#if os(iOS)
-								.textContentType(viewModel.mode == .register ? .newPassword : .password)
+								.textContentType(viewModel.state.mode == .register ? .newPassword : .password)
 								#endif
 								.padding(12)
 								.background(DesignToken.View.card)
@@ -95,7 +95,7 @@ public struct AuthView: View {
 						}
 
 						// Confirmation Input (Register Mode Only)
-						if viewModel.mode == .register {
+						if viewModel.state.mode == .register {
 							VStack(alignment: .leading, spacing: 6) {
 								Text("비밀번호 확인")
 									.font(.subheadline.bold())
@@ -122,16 +122,16 @@ public struct AuthView: View {
 
 						// Submit Button
 						Button {
-							viewModel.submit()
+							viewModel.send(.submit)
 						} label: {
 							HStack {
 								Spacer()
-								if viewModel.isLoading {
+								if viewModel.state.isLoading {
 									ProgressView()
 										.progressViewStyle(.circular)
 										.tint(.white)
 								} else {
-									Text(viewModel.mode == .register ? AuthStrings.registerTitle : AuthStrings.loginTitle)
+									Text(viewModel.state.mode == .register ? AuthStrings.registerTitle : AuthStrings.loginTitle)
 										.font(.body.weight(.bold))
 										.foregroundColor(.white)
 								}
@@ -146,9 +146,9 @@ public struct AuthView: View {
 
 						// Switch Mode Button
 						Button {
-							viewModel.switchMode()
+							viewModel.send(.switchMode)
 						} label: {
-							Text(viewModel.mode == .register ? AuthStrings.switchToLoginPrompt : AuthStrings.switchToRegisterPrompt)
+							Text(viewModel.state.mode == .register ? AuthStrings.switchToLoginPrompt : AuthStrings.switchToRegisterPrompt)
 								.font(.subheadline)
 								.foregroundColor(DesignToken.View.primary)
 								.frame(maxWidth: .infinity, alignment: .center)

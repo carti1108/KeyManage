@@ -11,7 +11,7 @@ struct VaultListView: View {
 
 	var body: some View {
 		VStack(spacing: 0) {
-			if viewModel.hasPendingSync || viewModel.isOffline {
+			if viewModel.state.hasPendingSync || viewModel.state.isOffline {
 				HStack(spacing: 8) {
 					Image(systemName: "wifi.slash")
 						.foregroundColor(.orange)
@@ -29,8 +29,8 @@ struct VaultListView: View {
 		}
 		.searchable(
 			text: Binding(
-				get: { viewModel.searchQuery },
-				set: { viewModel.updateSearchQuery($0) }
+				get: { viewModel.state.searchQuery },
+				set: { viewModel.request(action: .search($0)) }
 			),
 			prompt: "서비스명, 아이디 검색..."
 		)
@@ -41,21 +41,21 @@ struct VaultListView: View {
 						await viewModel.triggerSync()
 					}
 				} label: {
-					if viewModel.isSyncing {
+					if viewModel.state.isSyncing {
 						ProgressView()
 							.controlSize(.small)
 					} else {
-						Image(systemName: viewModel.hasPendingSync ? "arrow.triangle.2.circlepath.circle" : "arrow.triangle.2.circlepath")
+						Image(systemName: viewModel.state.hasPendingSync ? "arrow.triangle.2.circlepath.circle" : "arrow.triangle.2.circlepath")
 					}
 				}
-				.disabled(viewModel.isSyncing)
+				.disabled(viewModel.state.isSyncing)
 				.accessibilityLabel("볼트 동기화")
 			}
 
 			ToolbarItem(placement: .primaryAction) {
-				if !viewModel.isReadOnly {
+				if !viewModel.state.isReadOnly {
 					Button {
-						viewModel.startCreatingItem()
+						viewModel.request(action: .startCreatingItem)
 					} label: {
 						Image(systemName: "plus")
 					}
@@ -63,38 +63,49 @@ struct VaultListView: View {
 				}
 			}
 		}
-			.background(DesignToken.View.background)
-			.overlay(alignment: .bottom) {
-				if let toast = viewModel.toastMessage {
-					toastView(toast)
-						.transition(.move(edge: .bottom).combined(with: .opacity))
-				}
+		.background(DesignToken.View.background)
+		.overlay(alignment: .bottom) {
+			if let toast = viewModel.state.toastMessage {
+				toastView(toast)
+					.transition(.move(edge: .bottom).combined(with: .opacity))
 			}
-			.sheet(isPresented: $viewModel.isItemSheetPresented) {
-				itemFormModalView
+		}
+		.sheet(
+			isPresented: Binding(
+				get: { viewModel.state.isItemSheetPresented },
+				set: { viewModel.request(action: .setItemSheetPresented($0)) }
+			)
+		) {
+			itemFormModalView
+		}
+		.alert(
+			"항목 삭제",
+			isPresented: Binding(
+				get: { viewModel.state.isDeleteAlertPresented },
+				set: { viewModel.request(action: .setDeleteAlertPresented($0)) }
+			)
+		) {
+			Button("취소", role: .cancel) {
+				viewModel.request(action: .cancelDeleteItem)
 			}
-			.alert("항목 삭제", isPresented: $viewModel.isDeleteAlertPresented) {
-				Button("취소", role: .cancel) {
-					viewModel.itemToDelete = nil
-				}
-				Button("삭제", role: .destructive) {
-					viewModel.executeDeleteItem()
-				}
-			} message: {
-				Text("이 항목을 삭제할까요? 다른 기기에서도 삭제됩니다.")
+			Button("삭제", role: .destructive) {
+				viewModel.request(action: .executeDeleteItem)
 			}
+		} message: {
+			Text("이 항목을 삭제할까요? 다른 기기에서도 삭제됩니다.")
+		}
 	}
 
 	// MARK: - Items List
 
 	private var itemsList: some View {
 		Group {
-			if viewModel.items.isEmpty {
+			if viewModel.state.items.isEmpty {
 				emptyStateView
 			} else {
 				ScrollView {
 					LazyVStack(spacing: 12) {
-						ForEach(viewModel.items, id: \.id) { item in
+						ForEach(viewModel.state.items, id: \.id) { item in
 							itemCard(item)
 						}
 					}
@@ -113,15 +124,15 @@ struct VaultListView: View {
 		if #available(iOS 17.0, macOS 14.0, *) {
 			ContentUnavailableView {
 				Label(
-					viewModel.searchQuery.isEmpty ? "저장된 볼트 아이템이 없습니다" : "검색 결과가 없습니다",
+					viewModel.state.searchQuery.isEmpty ? "저장된 볼트 아이템이 없습니다" : "검색 결과가 없습니다",
 					systemImage: "tray"
 				)
 			} description: {
-				Text(viewModel.searchQuery.isEmpty ? "새로운 계정 정보를 안전하게 보관해 보세요." : "검색어를 확인하거나 새로운 항목을 추가해 보세요.")
+				Text(viewModel.state.searchQuery.isEmpty ? "새로운 계정 정보를 안전하게 보관해 보세요." : "검색어를 확인하거나 새로운 항목을 추가해 보세요.")
 			} actions: {
-				if !viewModel.isReadOnly && viewModel.searchQuery.isEmpty {
+				if !viewModel.state.isReadOnly && viewModel.state.searchQuery.isEmpty {
 					Button("첫 항목 추가하기") {
-						viewModel.startCreatingItem()
+						viewModel.request(action: .startCreatingItem)
 					}
 					.buttonStyle(.borderedProminent)
 				}
@@ -137,12 +148,12 @@ struct VaultListView: View {
 			Image(systemName: "tray")
 				.font(.system(size: 44))
 				.foregroundColor(DesignToken.View.mutedForeground)
-			Text(viewModel.searchQuery.isEmpty ? "저장된 볼트 아이템이 없습니다" : "검색 결과가 없습니다")
+			Text(viewModel.state.searchQuery.isEmpty ? "저장된 볼트 아이템이 없습니다" : "검색 결과가 없습니다")
 				.font(.headline)
 				.foregroundColor(DesignToken.View.mutedForeground)
-			if !viewModel.isReadOnly && viewModel.searchQuery.isEmpty {
+			if !viewModel.state.isReadOnly && viewModel.state.searchQuery.isEmpty {
 				Button("첫 항목 추가하기") {
-					viewModel.startCreatingItem()
+					viewModel.request(action: .startCreatingItem)
 				}
 				.buttonStyle(.borderedProminent)
 				.padding(.top, 4)
@@ -171,15 +182,15 @@ struct VaultListView: View {
 							.lineLimit(1)
 					}
 
-					if !viewModel.isReadOnly {
-						Button(action: { viewModel.startEditingItem(item) }) {
+					if !viewModel.state.isReadOnly {
+						Button(action: { viewModel.request(action: .startEditingItem(item)) }) {
 							Image(systemName: "pencil")
 								.foregroundColor(DesignToken.View.mutedForeground)
 						}
 						.buttonStyle(.plain)
 						.help("수정")
 
-						Button(action: { viewModel.confirmDeleteItem(item) }) {
+						Button(action: { viewModel.request(action: .confirmDeleteItem(item)) }) {
 							Image(systemName: "trash")
 								.foregroundColor(.red)
 						}
@@ -203,7 +214,7 @@ struct VaultListView: View {
 							"아이디 복사",
 							variant: .outline,
 							size: .sm,
-							action: { viewModel.copyUsername(for: item) }
+							action: { viewModel.request(action: .copyUsername(item)) }
 						)
 					}
 				}
@@ -214,7 +225,7 @@ struct VaultListView: View {
 						Image(systemName: "key.fill")
 							.foregroundColor(DesignToken.View.mutedForeground)
 
-						if viewModel.isPasswordRevealed(id: item.id) {
+						if viewModel.state.isPasswordRevealed(id: item.id) {
 							Text(item.password.isEmpty ? "(비밀번호 없음)" : item.password)
 								.font(.system(.subheadline, design: .monospaced))
 								.foregroundColor(item.password.isEmpty ? DesignToken.View.mutedForeground : DesignToken.View.foreground)
@@ -227,8 +238,8 @@ struct VaultListView: View {
 						}
 
 						if !item.password.isEmpty {
-							Button(action: { viewModel.togglePasswordVisibility(id: item.id) }) {
-								Image(systemName: viewModel.isPasswordRevealed(id: item.id) ? "eye.slash" : "eye")
+							Button(action: { viewModel.request(action: .togglePasswordVisibility(id: item.id)) }) {
+								Image(systemName: viewModel.state.isPasswordRevealed(id: item.id) ? "eye.slash" : "eye")
 									.foregroundColor(DesignToken.View.mutedForeground)
 							}
 							.buttonStyle(.plain)
@@ -242,7 +253,7 @@ struct VaultListView: View {
 							"비밀번호 복사",
 							variant: .primary,
 							size: .sm,
-							action: { viewModel.copyPassword(for: item) }
+							action: { viewModel.request(action: .copyPassword(item)) }
 						)
 					}
 				}
@@ -263,7 +274,7 @@ struct VaultListView: View {
 		modalNavigationContainer {
 			ScrollView {
 				VStack(spacing: 20) {
-					if let error = viewModel.formErrorMessage {
+					if let error = viewModel.state.formErrorMessage {
 						Text(error)
 							.font(.footnote)
 							.foregroundColor(.red)
@@ -272,9 +283,9 @@ struct VaultListView: View {
 
 					itemFormFieldsView
 
-					if let editing = viewModel.editingItem {
+					if let editing = viewModel.state.editingItem {
 						Button(role: .destructive) {
-							viewModel.confirmDeleteItem(editing)
+							viewModel.request(action: .confirmDeleteItem(editing))
 						} label: {
 							HStack {
 								Image(systemName: "trash")
@@ -290,19 +301,19 @@ struct VaultListView: View {
 				}
 				.padding(20)
 			}
-			.navigationTitle(viewModel.editingItem == nil ? "새 볼트 항목" : "항목 수정")
+			.navigationTitle(viewModel.state.editingItem == nil ? "새 볼트 항목" : "항목 수정")
 			#if os(iOS)
 			.navigationBarTitleDisplayMode(.inline)
 			#endif
 			.toolbar {
 				ToolbarItem(placement: .cancellationAction) {
 					Button("취소") {
-						viewModel.cancelEditing()
+						viewModel.request(action: .cancelEditing)
 					}
 				}
 				ToolbarItem(placement: .confirmationAction) {
 					Button("저장") {
-						viewModel.requestSaveItem()
+						viewModel.request(action: .requestSaveItem)
 					}
 					.font(.body.weight(.bold))
 				}
@@ -311,12 +322,18 @@ struct VaultListView: View {
 		#if os(macOS)
 		.frame(minWidth: 440, minHeight: 480)
 		#endif
-		.alert("항목 삭제", isPresented: $viewModel.isDeleteAlertPresented) {
+		.alert(
+			"항목 삭제",
+			isPresented: Binding(
+				get: { viewModel.state.isDeleteAlertPresented },
+				set: { viewModel.request(action: .setDeleteAlertPresented($0)) }
+			)
+		) {
 			Button("취소", role: .cancel) {
-				viewModel.itemToDelete = nil
+				viewModel.request(action: .cancelDeleteItem)
 			}
 			Button("삭제", role: .destructive) {
-				viewModel.executeDeleteItem()
+				viewModel.request(action: .executeDeleteItem)
 			}
 		} message: {
 			Text("이 항목을 삭제할까요? 다른 기기에서도 삭제됩니다.")
@@ -343,13 +360,19 @@ struct VaultListView: View {
 		VStack(spacing: 12) {
 			formInputField(
 				title: "서비스 이름 *",
-				text: $viewModel.formServiceName,
+				text: Binding(
+					get: { viewModel.state.formServiceName },
+					set: { viewModel.request(action: .updateFormServiceName($0)) }
+				),
 				placeholder: "예: Google, GitHub"
 			)
 
 			formInputField(
 				title: "아이디 / 이메일",
-				text: $viewModel.formUsername,
+				text: Binding(
+					get: { viewModel.state.formUsername },
+					set: { viewModel.request(action: .updateFormUsername($0)) }
+				),
 				placeholder: "사용자 아이디 또는 이메일"
 			)
 
@@ -365,12 +388,15 @@ struct VaultListView: View {
 						"자동 생성",
 						variant: .outline,
 						size: .sm,
-						action: { viewModel.generatePasswordForForm() }
+						action: { viewModel.request(action: .generatePasswordForForm) }
 					)
 				}
 
 				KMPasswordField(
-					text: $viewModel.formPassword,
+					text: Binding(
+						get: { viewModel.state.formPassword },
+						set: { viewModel.request(action: .updateFormPassword($0)) }
+					),
 					placeholder: "비밀번호 입력 또는 자동 생성",
 					showCopyAction: false
 				)
@@ -378,13 +404,19 @@ struct VaultListView: View {
 
 			formInputField(
 				title: "웹사이트 URL",
-				text: $viewModel.formUrl,
+				text: Binding(
+					get: { viewModel.state.formUrl },
+					set: { viewModel.request(action: .updateFormUrl($0)) }
+				),
 				placeholder: "https://example.com"
 			)
 
 			formInputField(
 				title: "메모",
-				text: $viewModel.formNotes,
+				text: Binding(
+					get: { viewModel.state.formNotes },
+					set: { viewModel.request(action: .updateFormNotes($0)) }
+				),
 				placeholder: "추가 메모 (선택 사항)"
 			)
 		}

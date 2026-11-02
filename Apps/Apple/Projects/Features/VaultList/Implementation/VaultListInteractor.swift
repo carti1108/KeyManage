@@ -8,11 +8,21 @@ import VaultListFeatureInterface
 @MainActor
 protocol VaultListPresentable: AnyObject {
 	var listener: VaultListPresentableListener? { get set }
+	func update(state: VaultListViewState)
 	func displayItems(_ items: [VaultItem])
 	func showToast(message: String)
 	func setIsReadOnly(_ isReadOnly: Bool)
 	func dismissItemSheet()
 	func setSyncStatus(hasPending: Bool, isOffline: Bool, isSyncing: Bool)
+}
+
+extension VaultListPresentable {
+	func update(state: VaultListViewState) {}
+	func displayItems(_ items: [VaultItem]) {}
+	func showToast(message: String) {}
+	func setIsReadOnly(_ isReadOnly: Bool) {}
+	func dismissItemSheet() {}
+	func setSyncStatus(hasPending: Bool, isOffline: Bool, isSyncing: Bool) {}
 }
 
 // MARK: - Interactor
@@ -26,7 +36,8 @@ final class VaultListInteractor: Interactor, VaultListInteractable, VaultListPre
 	let clipboardManager: ClipboardManagerProtocol
 	let networkClient: AuthNetworkClientProtocol
 
-	private var currentSearchQuery: String = ""
+	private(set) var state = VaultListViewState()
+	private var toastDismissTask: Task<Void, Never>?
 
 	private var allItems: [VaultItem] {
 		(lockManager.decryptedVault?.items ?? []).filter { !$0.isDeleted }
@@ -43,51 +54,175 @@ final class VaultListInteractor: Interactor, VaultListInteractable, VaultListPre
 		self.networkClient = networkClient
 		self.presenter = presenter
 		super.init()
+		presenter?.listener = self
 	}
 
 	override func didBecomeActive() {
 		super.didBecomeActive()
-		presenter?.setIsReadOnly(lockManager.decryptedVault?.isReadOnly ?? false)
-		refreshList()
-		updateSyncStatus()
-		Task { [weak self] in
-			await self?.didRequestSync()
+		request(action: .viewDidLoad)
+	}
+
+	override func willResignActive() {
+		super.willResignActive()
+		toastDismissTask?.cancel()
+		toastDismissTask = nil
+	}
+
+	func request(action: VaultListViewAction) {
+		switch action {
+		case .viewDidLoad:
+			let readOnly = lockManager.decryptedVault?.isReadOnly ?? false
+			state.isReadOnly = readOnly
+			presenter?.setIsReadOnly(readOnly)
+			refreshList()
+			updateSyncStatus()
+			Task { [weak self] in
+				await self?.didRequestSync()
+			}
+		case .search(let query):
+			didSearch(query: query)
+		case .copyPassword(let item):
+			didRequestCopyPassword(item: item)
+		case .copyUsername(let item):
+			didRequestCopyUsername(item: item)
+		case .togglePasswordVisibility(let id):
+			if state.revealedPasswordIds.contains(id) {
+				state.revealedPasswordIds.remove(id)
+			} else {
+				state.revealedPasswordIds.insert(id)
+			}
+			presenter?.update(state: state)
+		case .startCreatingItem:
+			resetFormState()
+			state.isItemSheetPresented = true
+			presenter?.update(state: state)
+		case .startEditingItem(let item):
+			state.editingItem = item
+			state.formServiceName = item.serviceName
+			state.formUsername = item.username
+			state.formPassword = item.password
+			state.formUrl = item.url ?? ""
+			state.formNotes = item.notes ?? ""
+			state.formErrorMessage = nil
+			state.isItemSheetPresented = true
+			presenter?.update(state: state)
+		case .cancelEditing:
+			state.isItemSheetPresented = false
+			resetFormState()
+			presenter?.dismissItemSheet()
+			presenter?.update(state: state)
+		case .generatePasswordForForm:
+			if let generated = try? PasswordGenerator.generate() {
+				state.formPassword = generated
+				presenter?.update(state: state)
+			}
+		case .updateFormServiceName(let value):
+			state.formServiceName = value
+			presenter?.update(state: state)
+		case .updateFormUsername(let value):
+			state.formUsername = value
+			presenter?.update(state: state)
+		case .updateFormPassword(let value):
+			state.formPassword = value
+			presenter?.update(state: state)
+		case .updateFormUrl(let value):
+			state.formUrl = value
+			presenter?.update(state: state)
+		case .updateFormNotes(let value):
+			state.formNotes = value
+			presenter?.update(state: state)
+		case .setItemSheetPresented(let presented):
+			state.isItemSheetPresented = presented
+			if !presented {
+				resetFormState()
+			}
+			presenter?.update(state: state)
+		case .requestSaveItem:
+			let trimmedService = state.formServiceName.trimmingCharacters(in: .whitespacesAndNewlines)
+			guard !trimmedService.isEmpty else {
+				state.formErrorMessage = VaultItemError.emptyServiceName.errorDescription
+				presenter?.update(state: state)
+				return
+			}
+			didRequestSaveItem(
+				existingId: state.editingItem?.id,
+				serviceName: trimmedService,
+				username: state.formUsername,
+				password: state.formPassword,
+				url: state.formUrl.isEmpty ? nil : state.formUrl,
+				notes: state.formNotes.isEmpty ? nil : state.formNotes
+			)
+		case .saveItem(let existingId, let serviceName, let username, let password, let url, let notes):
+			didRequestSaveItem(
+				existingId: existingId,
+				serviceName: serviceName,
+				username: username,
+				password: password,
+				url: url,
+				notes: notes
+			)
+		case .confirmDeleteItem(let item):
+			state.itemToDelete = item
+			state.isDeleteAlertPresented = true
+			presenter?.update(state: state)
+		case .cancelDeleteItem:
+			state.itemToDelete = nil
+			state.isDeleteAlertPresented = false
+			presenter?.update(state: state)
+		case .setDeleteAlertPresented(let presented):
+			state.isDeleteAlertPresented = presented
+			if !presented {
+				state.itemToDelete = nil
+			}
+			presenter?.update(state: state)
+		case .executeDeleteItem:
+			guard let item = state.itemToDelete else { return }
+			state.itemToDelete = nil
+			state.isDeleteAlertPresented = false
+			didRequestDeleteItem(id: item.id)
+		case .deleteItem(let id):
+			didRequestDeleteItem(id: id)
+		case .requestSync:
+			Task { [weak self] in
+				await self?.didRequestSync()
+			}
 		}
 	}
 
 	func didSearch(query: String) {
-		currentSearchQuery = query
+		state.searchQuery = query
 		let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
 		if trimmed.isEmpty {
-			presenter?.displayItems(allItems)
+			state.items = allItems
 		} else {
-			let filtered = allItems.filter { item in
+			state.items = allItems.filter { item in
 				item.serviceName.localizedCaseInsensitiveContains(trimmed) ||
 				item.username.localizedCaseInsensitiveContains(trimmed)
 			}
-			presenter?.displayItems(filtered)
 		}
+		presenter?.displayItems(state.items)
+		presenter?.update(state: state)
 	}
 
 	private func refreshList() {
-		didSearch(query: currentSearchQuery)
+		didSearch(query: state.searchQuery)
 	}
 
 	func didRequestCopyPassword(item: VaultItem) {
 		do {
 			try clipboardManager.copy(item.password)
-			presenter?.showToast(message: "비밀번호가 복사되었습니다. (30초 후 자동 소각)")
+			presentToast(message: "비밀번호가 복사되었습니다. (30초 후 자동 소각)")
 		} catch {
-			presenter?.showToast(message: ClipboardStrings.copyFailedMessage)
+			presentToast(message: ClipboardStrings.copyFailedMessage)
 		}
 	}
 
 	func didRequestCopyUsername(item: VaultItem) {
 		do {
 			try clipboardManager.copy(item.username)
-			presenter?.showToast(message: "아이디가 복사되었습니다.")
+			presentToast(message: "아이디가 복사되었습니다.")
 		} catch {
-			presenter?.showToast(message: ClipboardStrings.copyFailedMessage)
+			presentToast(message: ClipboardStrings.copyFailedMessage)
 		}
 	}
 
@@ -111,7 +246,7 @@ final class VaultListInteractor: Interactor, VaultListInteractable, VaultListPre
 				updatedItem.url = url
 				updatedItem.notes = notes
 				try lockManager.updateVaultItem(item: updatedItem)
-				presenter?.showToast(message: "항목이 수정되었습니다.")
+				presentToast(message: "항목이 수정되었습니다.")
 			} else {
 				try lockManager.addVaultItem(
 					serviceName: serviceName,
@@ -120,8 +255,10 @@ final class VaultListInteractor: Interactor, VaultListInteractable, VaultListPre
 					url: url,
 					notes: notes
 				)
-				presenter?.showToast(message: "항목이 추가되었습니다.")
+				presentToast(message: "항목이 추가되었습니다.")
 			}
+			state.isItemSheetPresented = false
+			resetFormState()
 			presenter?.dismissItemSheet()
 			refreshList()
 			updateSyncStatus()
@@ -129,16 +266,18 @@ final class VaultListInteractor: Interactor, VaultListInteractable, VaultListPre
 				await self?.didRequestSync()
 			}
 		} catch let error as LocalizedError {
-			presenter?.showToast(message: error.errorDescription ?? error.localizedDescription)
+			presentToast(message: error.errorDescription ?? error.localizedDescription)
 		} catch {
-			presenter?.showToast(message: error.localizedDescription)
+			presentToast(message: error.localizedDescription)
 		}
 	}
 
 	func didRequestDeleteItem(id: String) {
 		do {
 			try lockManager.deleteVaultItem(id: id)
-			presenter?.showToast(message: "항목이 삭제되었습니다.")
+			presentToast(message: "항목이 삭제되었습니다.")
+			state.isItemSheetPresented = false
+			resetFormState()
 			presenter?.dismissItemSheet()
 			refreshList()
 			updateSyncStatus()
@@ -146,9 +285,9 @@ final class VaultListInteractor: Interactor, VaultListInteractable, VaultListPre
 				await self?.didRequestSync()
 			}
 		} catch let error as LocalizedError {
-			presenter?.showToast(message: error.errorDescription ?? error.localizedDescription)
+			presentToast(message: error.errorDescription ?? error.localizedDescription)
 		} catch {
-			presenter?.showToast(message: error.localizedDescription)
+			presentToast(message: error.localizedDescription)
 		}
 	}
 
@@ -160,18 +299,47 @@ final class VaultListInteractor: Interactor, VaultListInteractable, VaultListPre
 			updateSyncStatus()
 		} catch let error as LocalizedError {
 			updateSyncStatus()
-			presenter?.showToast(message: error.errorDescription ?? error.localizedDescription)
+			presentToast(message: error.errorDescription ?? error.localizedDescription)
 		} catch {
 			updateSyncStatus()
-			presenter?.showToast(message: error.localizedDescription)
+			presentToast(message: error.localizedDescription)
 		}
 	}
 
 	private func updateSyncStatus() {
+		state.hasPendingSync = lockManager.hasPendingSync
+		state.isOffline = lockManager.isOffline
+		state.isSyncing = lockManager.isSyncing
 		presenter?.setSyncStatus(
 			hasPending: lockManager.hasPendingSync,
 			isOffline: lockManager.isOffline,
 			isSyncing: lockManager.isSyncing
 		)
+		presenter?.update(state: state)
+	}
+
+	private func presentToast(message: String) {
+		toastDismissTask?.cancel()
+		state.toastMessage = message
+		presenter?.showToast(message: message)
+		presenter?.update(state: state)
+		toastDismissTask = Task { @MainActor [weak self] in
+			try? await Task.sleep(nanoseconds: 2_500_000_000)
+			guard let self, !Task.isCancelled else { return }
+			if self.state.toastMessage == message {
+				self.state.toastMessage = nil
+				self.presenter?.update(state: self.state)
+			}
+		}
+	}
+
+	private func resetFormState() {
+		state.formServiceName = ""
+		state.formUsername = ""
+		state.formPassword = ""
+		state.formUrl = ""
+		state.formNotes = ""
+		state.formErrorMessage = nil
+		state.editingItem = nil
 	}
 }
