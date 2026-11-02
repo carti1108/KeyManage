@@ -110,8 +110,12 @@ final class ClipboardManagerSpy: ClipboardManagerProtocol, @unchecked Sendable {
 	var isTimerActive: Bool = false
 	var copyCallCount = 0
 	var copiedTexts: [String] = []
+	var shouldThrowOnCopy = false
 
 	func copy(_ text: String) throws {
+		if shouldThrowOnCopy {
+			throw ClipboardError.copyFailed
+		}
 		copyCallCount += 1
 		copiedTexts.append(text)
 	}
@@ -261,5 +265,46 @@ struct VaultListTests {
 		#expect(interactor?.router === routing)
 		#expect(interactor?.lockManager === lockManager)
 		#expect(interactor?.clipboardManager === clipboardManager)
+	}
+
+	// MARK: - 7. 삭제된 볼트 아이템(isDeleted == true) 필터링 검증
+	@Test("interactor.didBecomeActive() 호출 시 isDeleted == true 인 툼스톤 아이템은 필터링되어 제외되는지 검증")
+	func vaultListInteractor_didBecomeActive_filtersOutDeletedItems() {
+		let activeItem = VaultItem(id: "1", serviceName: "GitHub", username: "octocat", password: "p1", createdAt: "2026-11-02T00:00:00Z", updatedAt: "2026-11-02T00:00:00Z")
+		let deletedItem = VaultItem(id: "2", serviceName: "Old", username: "old", password: "p2", createdAt: "2026-11-02T00:00:00Z", updatedAt: "2026-11-02T00:00:00Z", deletedAt: "2026-11-02T01:00:00Z")
+		let lockManager = VaultLockManagerMock(decryptedVault: VaultData(updatedAt: "2026-11-02T00:00:00Z", items: [activeItem, deletedItem]))
+		let presenter = VaultListPresenterSpy()
+		let interactor = VaultListInteractor(lockManager: lockManager, clipboardManager: ClipboardManagerSpy(), presenter: presenter)
+
+		interactor.didBecomeActive()
+
+		#expect(presenter.displayedItems == [activeItem])
+	}
+
+	// MARK: - 8. 클립보드 복사 에러 시 실패 토스트 검증
+	@Test("클립보드 복사 실패 시 ClipboardStrings.copyFailedMessage 토스트가 호출되는지 검증")
+	func vaultListInteractor_didRequestCopy_whenClipboardFails_showsErrorToast() {
+		let item = VaultItem(id: "1", serviceName: "GitHub", username: "octocat", password: "p1", createdAt: "2026-11-02T00:00:00Z", updatedAt: "2026-11-02T00:00:00Z")
+		let lockManager = VaultLockManagerMock()
+		let clipboard = ClipboardManagerSpy()
+		clipboard.shouldThrowOnCopy = true
+		let presenter = VaultListPresenterSpy()
+		let interactor = VaultListInteractor(lockManager: lockManager, clipboardManager: clipboard, presenter: presenter)
+
+		interactor.didRequestCopyPassword(item: item)
+
+		#expect(presenter.showToastCallCount == 1)
+		#expect(presenter.toastMessage == ClipboardStrings.copyFailedMessage)
+	}
+
+	// MARK: - 9. ViewModel 마스킹 토글 상태 관리 검증
+	@Test("VaultListViewModel 비밀번호 노출 토글 상태 관리 검증")
+	func vaultListViewModel_togglePasswordVisibility() {
+		let vm = VaultListViewModel()
+		#expect(!vm.isPasswordRevealed(id: "1"))
+		vm.togglePasswordVisibility(id: "1")
+		#expect(vm.isPasswordRevealed(id: "1"))
+		vm.togglePasswordVisibility(id: "1")
+		#expect(!vm.isPasswordRevealed(id: "1"))
 	}
 }

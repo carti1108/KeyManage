@@ -23,7 +23,7 @@ final class VaultListInteractor: Interactor, VaultListInteractable, VaultListPre
 	let clipboardManager: ClipboardManagerProtocol
 
 	private var allItems: [VaultItem] {
-		lockManager.decryptedVault?.items ?? []
+		(lockManager.decryptedVault?.items ?? []).filter { !$0.isDeleted }
 	}
 
 	init(
@@ -60,7 +60,7 @@ final class VaultListInteractor: Interactor, VaultListInteractable, VaultListPre
 			try clipboardManager.copy(item.password)
 			presenter?.showToast(message: "비밀번호가 복사되었습니다. (30초 후 자동 소각)")
 		} catch {
-			// ignore or handle
+			presenter?.showToast(message: ClipboardStrings.copyFailedMessage)
 		}
 	}
 
@@ -69,7 +69,7 @@ final class VaultListInteractor: Interactor, VaultListInteractable, VaultListPre
 			try clipboardManager.copy(item.username)
 			presenter?.showToast(message: "아이디가 복사되었습니다.")
 		} catch {
-			// ignore or handle
+			presenter?.showToast(message: ClipboardStrings.copyFailedMessage)
 		}
 	}
 }

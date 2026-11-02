@@ -136,6 +136,8 @@ struct VaultListView: View {
 							Text(item.password)
 								.font(.system(.subheadline, design: .monospaced))
 								.foregroundColor(DesignToken.View.foreground)
+								.lineLimit(1)
+								.truncationMode(.middle)
 						} else {
 							Text(String(repeating: "•", count: min(item.password.count, 12)))
 								.font(.subheadline)
