@@ -27,7 +27,7 @@ struct SettingsView: View {
 			.padding(24)
 		}
 		.overlay(alignment: .bottom) {
-			if let toast = viewModel.toastMessage {
+			if let toast = viewModel.state.toastMessage {
 				toastOverlay(toast)
 			}
 		}
@@ -39,15 +39,15 @@ struct SettingsView: View {
 		}
 		.sheet(isPresented: $viewModel.isDeleteAccountPresented) {
 			deleteAccountModalView
-				.interactiveDismissDisabled(viewModel.isDeletingAccount)
+				.interactiveDismissDisabled(viewModel.state.isDeletingAccount)
 		}
-		.alert(viewModel.hasPendingSync ? VaultSyncStrings.pendingLogoutConfirmTitle : "로그아웃", isPresented: $viewModel.isLogoutConfirmPresented) {
+		.alert(viewModel.state.hasPendingSync ? VaultSyncStrings.pendingLogoutConfirmTitle : "로그아웃", isPresented: $viewModel.isLogoutConfirmPresented) {
 			Button(VaultSyncStrings.cancelButton, role: .cancel) {}
 			Button(VaultSyncStrings.logoutButton, role: .destructive) {
-				viewModel.confirmLogout()
+				viewModel.send(.requestLogout)
 			}
 		} message: {
-			Text(viewModel.hasPendingSync ? VaultSyncStrings.pendingLogoutConfirmMessage : "로그아웃하시겠습니까? 세션이 종료되고 기기에서 민감 키가 소거됩니다.")
+			Text(viewModel.state.hasPendingSync ? VaultSyncStrings.pendingLogoutConfirmMessage : "로그아웃하시겠습니까? 세션이 종료되고 기기에서 민감 키가 소거됩니다.")
 		}
 		.fileImporter(
 			isPresented: $isFileImporterPresented,
@@ -73,8 +73,8 @@ struct SettingsView: View {
 						.foregroundColor(DesignToken.View.mutedForeground)
 
 					Picker("자동 잠금 시간", selection: Binding(
-						get: { viewModel.selectedTimeout },
-						set: { viewModel.selectTimeout($0) }
+						get: { viewModel.state.selectedTimeout },
+						set: { viewModel.send(.selectAutoLockTimeout($0)) }
 					)) {
 						ForEach(AutoLockTimeout.allCases, id: \.self) { timeout in
 							Text(timeoutTitle(for: timeout)).tag(timeout)
@@ -107,7 +107,7 @@ struct SettingsView: View {
 					KMButton(
 						KeyManageBackupStrings.exportButton,
 						variant: .outline,
-						action: { viewModel.exportBackup() }
+						action: { viewModel.send(.requestExportBackup) }
 					)
 				}
 
@@ -126,7 +126,7 @@ struct SettingsView: View {
 					KMButton(
 						KeyManageBackupStrings.restoreButton,
 						variant: .outline,
-						action: { viewModel.isRestoreModalPresented = true }
+						action: { viewModel.send(.setRestoreModalPresented(true)) }
 					)
 				}
 			}
@@ -154,7 +154,7 @@ struct SettingsView: View {
 					KMButton(
 						"비밀번호 변경",
 						variant: .outline,
-						action: { viewModel.isChangePasswordPresented = true }
+						action: { viewModel.send(.setChangePasswordPresented(true)) }
 					)
 				}
 			}
@@ -173,7 +173,7 @@ struct SettingsView: View {
 					KMButton(
 						"로그아웃",
 						variant: .outline,
-						action: { viewModel.showPendingLogoutConfirmation() }
+						action: { viewModel.send(.showPendingLogoutConfirmation) }
 					)
 
 					Spacer()
@@ -181,7 +181,7 @@ struct SettingsView: View {
 					KMButton(
 						AccountDeletionStrings.preNoticeTitle,
 						variant: .destructive,
-						action: { viewModel.startAccountDeletion() }
+						action: { viewModel.send(.startAccountDeletion) }
 					)
 				}
 			}
@@ -248,9 +248,9 @@ struct SettingsView: View {
 	}
 
 	private var isChangePasswordButtonDisabled: Bool {
-		viewModel.currentPasswordInput.isEmpty ||
-		viewModel.newPasswordInput.isEmpty ||
-		viewModel.confirmPasswordInput.isEmpty
+		viewModel.state.currentPasswordInput.isEmpty ||
+		viewModel.state.newPasswordInput.isEmpty ||
+		viewModel.state.confirmPasswordInput.isEmpty
 	}
 
 	private var changePasswordButtonsView: some View {
@@ -259,8 +259,7 @@ struct SettingsView: View {
 				"취소",
 				variant: .outline,
 				action: {
-					viewModel.isChangePasswordPresented = false
-					viewModel.resetChangePasswordFields()
+					viewModel.send(.setChangePasswordPresented(false))
 				}
 			)
 
@@ -309,7 +308,7 @@ struct SettingsView: View {
 					"취소",
 					variant: .outline,
 					action: {
-						viewModel.isRestoreModalPresented = false
+						viewModel.send(.setRestoreModalPresented(false))
 						resetRestoreState()
 					}
 				)
@@ -320,8 +319,8 @@ struct SettingsView: View {
 					isDisabled: selectedFileData == nil || restorePassword.isEmpty,
 					action: {
 						guard let data = selectedFileData, !restorePassword.isEmpty else { return }
-						viewModel.restoreBackup(fileData: data, password: restorePassword)
-						viewModel.isRestoreModalPresented = false
+						viewModel.send(.requestRestoreBackup(fileData: data, password: restorePassword))
+						viewModel.send(.setRestoreModalPresented(false))
 						resetRestoreState()
 					}
 				)
@@ -351,10 +350,10 @@ struct SettingsView: View {
 				selectedFileData = data
 				selectedFileName = url.lastPathComponent
 			} catch {
-				viewModel.showToast("파일 읽기 실패: \(error.localizedDescription)")
+				viewModel.send(.showToast("파일 읽기 실패: \(error.localizedDescription)"))
 			}
 		case .failure(let error):
-			viewModel.showToast("파일 선택 실패: \(error.localizedDescription)")
+			viewModel.send(.showToast("파일 선택 실패: \(error.localizedDescription)"))
 		}
 	}
 
@@ -410,7 +409,7 @@ struct SettingsView: View {
 						.padding(16)
 					}
 
-					if let error = viewModel.deleteAccountErrorMessage {
+					if let error = viewModel.state.deleteAccountErrorMessage {
 						Text(error)
 							.font(.footnote)
 							.foregroundColor(.red)
@@ -463,15 +462,15 @@ struct SettingsView: View {
 			.toolbar {
 				ToolbarItem(placement: .cancellationAction) {
 					Button(AccountDeletionStrings.cancelButtonTitle) {
-						viewModel.cancelAccountDeletion()
+						viewModel.send(.cancelAccountDeletion)
 					}
-					.disabled(viewModel.isDeletingAccount)
+					.disabled(viewModel.state.isDeletingAccount)
 				}
 				ToolbarItem(placement: .confirmationAction) {
 					Button(role: .destructive) {
 						viewModel.executeDeleteAccount()
 					} label: {
-						if viewModel.isDeletingAccount {
+						if viewModel.state.isDeletingAccount {
 							ProgressView()
 								.progressViewStyle(.circular)
 						} else {
@@ -480,7 +479,7 @@ struct SettingsView: View {
 						}
 					}
 					.tint(.red)
-					.disabled(!viewModel.canExecuteDeleteAccount || viewModel.isDeletingAccount)
+					.disabled(!viewModel.canExecuteDeleteAccount || viewModel.state.isDeletingAccount)
 				}
 			}
 		}

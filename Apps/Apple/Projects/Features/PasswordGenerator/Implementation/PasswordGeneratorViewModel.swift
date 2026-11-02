@@ -3,17 +3,12 @@ import KeyManageDomain
 
 @MainActor
 final class PasswordGeneratorViewModel: ObservableObject {
-	@Published var generatedPassword: String = ""
-	@Published var length: Double = Double(PasswordGenerationOptions.defaultLength)
-	@Published var includeUppercase: Bool = true
-	@Published var includeLowercase: Bool = true
-	@Published var includeDigits: Bool = true
-	@Published var includeSymbols: Bool = true
+	typealias State = PasswordGeneratorViewState
+	typealias Action = PasswordGeneratorViewAction
 
-	@Published var score: Int = 0
-	@Published var securityLevel: PasswordSecurityLevel = .secure
-	@Published var sequentialDigitsNotice: String?
-	@Published var toastMessage: String?
+	weak var listener: PasswordGeneratorPresentableListener?
+
+	@Published var state: State
 
 	private var toastDismissTask: Task<Void, Never>?
 
@@ -21,65 +16,145 @@ final class PasswordGeneratorViewModel: ObservableObject {
 	var onRequestRegenerate: (() -> Void)?
 	var onRequestCopy: ((String) -> Void)?
 
+	var generatedPassword: String {
+		get { state.generatedPassword }
+		set { state.generatedPassword = newValue }
+	}
+	var length: Double {
+		get { state.length }
+		set { state.length = newValue }
+	}
+	var includeUppercase: Bool {
+		get { state.includeUppercase }
+		set { state.includeUppercase = newValue }
+	}
+	var includeLowercase: Bool {
+		get { state.includeLowercase }
+		set { state.includeLowercase = newValue }
+	}
+	var includeDigits: Bool {
+		get { state.includeDigits }
+		set { state.includeDigits = newValue }
+	}
+	var includeSymbols: Bool {
+		get { state.includeSymbols }
+		set { state.includeSymbols = newValue }
+	}
+	var score: Int {
+		get { state.score }
+		set { state.score = newValue }
+	}
+	var securityLevel: PasswordSecurityLevel {
+		get { state.securityLevel }
+		set { state.securityLevel = newValue }
+	}
+	var sequentialDigitsNotice: String? {
+		get { state.sequentialDigitsNotice }
+		set { state.sequentialDigitsNotice = newValue }
+	}
+	var toastMessage: String? {
+		get { state.toastMessage }
+		set { state.toastMessage = newValue }
+	}
 	var currentOptions: PasswordGenerationOptions {
-		PasswordGenerationOptions(
-			length: Int(length),
-			includeUppercase: includeUppercase,
-			includeLowercase: includeLowercase,
-			includeDigits: includeDigits,
-			includeSymbols: includeSymbols
-		)
+		state.currentOptions
+	}
+
+	init(
+		listener: PasswordGeneratorPresentableListener? = nil,
+		state: State = .init()
+	) {
+		self.listener = listener
+		self.state = state
+	}
+
+	func update(state: State) {
+		self.state = state
+	}
+
+	func request(action: Action) {
+		if let listener {
+			listener.request(action: action)
+			return
+		}
+		applyLocalFallback(for: action)
 	}
 
 	func updateLength(_ newLength: Double) {
-		length = newLength
-		notifyOptionsChanged()
+		request(action: .updateLength(newLength))
 	}
 
 	func toggleUppercase() {
-		includeUppercase.toggle()
-		notifyOptionsChanged()
+		request(action: .toggleUppercase)
 	}
 
 	func toggleLowercase() {
-		includeLowercase.toggle()
-		notifyOptionsChanged()
+		request(action: .toggleLowercase)
 	}
 
 	func toggleDigits() {
-		includeDigits.toggle()
-		notifyOptionsChanged()
+		request(action: .toggleDigits)
 	}
 
 	func toggleSymbols() {
-		includeSymbols.toggle()
-		notifyOptionsChanged()
+		request(action: .toggleSymbols)
 	}
 
 	func regenerate() {
-		onRequestRegenerate?()
+		request(action: .regenerate)
 	}
 
 	func copyPassword() {
-		onRequestCopy?(generatedPassword)
+		request(action: .copyPassword(state.generatedPassword))
 	}
 
 	func showToast(_ message: String) {
 		toastDismissTask?.cancel()
-		toastMessage = message
+		state.toastMessage = message
 		toastDismissTask = Task { @MainActor [weak self] in
 			try? await Task.sleep(nanoseconds: 3_000_000_000)
 			guard !Task.isCancelled else { return }
-			self?.toastMessage = nil
+			self?.state.toastMessage = nil
 		}
 	}
 
 	func clearToast() {
 		toastDismissTask?.cancel()
-		toastMessage = nil
+		request(action: .clearToast)
 	}
 
-	private func notifyOptionsChanged() {
-		onOptionsChanged?(currentOptions)
+	private func applyLocalFallback(for action: Action) {
+		switch action {
+		case .viewDidLoad:
+			break
+		case .updateLength(let newLength):
+			state.length = newLength
+			onOptionsChanged?(state.currentOptions)
+		case .toggleUppercase:
+			state.includeUppercase.toggle()
+			onOptionsChanged?(state.currentOptions)
+		case .toggleLowercase:
+			state.includeLowercase.toggle()
+			onOptionsChanged?(state.currentOptions)
+		case .toggleDigits:
+			state.includeDigits.toggle()
+			onOptionsChanged?(state.currentOptions)
+		case .toggleSymbols:
+			state.includeSymbols.toggle()
+			onOptionsChanged?(state.currentOptions)
+		case .changeOptions(let options):
+			state.length = Double(options.length)
+			state.includeUppercase = options.includeUppercase
+			state.includeLowercase = options.includeLowercase
+			state.includeDigits = options.includeDigits
+			state.includeSymbols = options.includeSymbols
+			onOptionsChanged?(options)
+		case .regenerate:
+			onRequestRegenerate?()
+		case .copyPassword(let password):
+			onRequestCopy?(password)
+		case .clearToast:
+			state.toastMessage = nil
+		}
 	}
 }

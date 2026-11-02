@@ -8,8 +8,7 @@ protocol UnlockViewControllable: ViewControllable {}
 
 @MainActor
 protocol UnlockPresentableListener: AnyObject {
-	func unlock(withMasterPassword password: String)
-	func unlockWithBiometrics()
+	func request(action: UnlockViewAction)
 }
 
 #if os(macOS)
@@ -22,7 +21,11 @@ typealias PlatformHostingController<Content: View> = UIHostingController<Content
 
 @MainActor
 final class UnlockViewController: PlatformHostingController<UnlockView>, UnlockViewControllable, UnlockPresentable {
-	weak var listener: UnlockPresentableListener?
+	weak var listener: UnlockPresentableListener? {
+		didSet {
+			viewModel.listener = listener
+		}
+	}
 	let viewModel: UnlockViewModel
 
 	init(
@@ -30,31 +33,37 @@ final class UnlockViewController: PlatformHostingController<UnlockView>, UnlockV
 		listener: UnlockPresentableListener? = nil
 	) {
 		self.listener = listener
-		let model = UnlockViewModel(isBiometricsEnabled: isBiometricsEnabled)
+		let model = UnlockViewModel(
+			listener: listener,
+			state: UnlockViewState(isBiometricsEnabled: isBiometricsEnabled)
+		)
 		self.viewModel = model
 		super.init(rootView: UnlockView(viewModel: model))
-
-		model.onUnlockPassword = { [weak self] password in
-			self?.listener?.unlock(withMasterPassword: password)
-		}
-		model.onUnlockBiometrics = { [weak self] in
-			self?.listener?.unlockWithBiometrics()
-		}
 	}
 
 	@MainActor required init?(coder: NSCoder) {
 		fatalError("init(coder:) has not been implemented")
 	}
 
+	func update(state: UnlockViewState) {
+		viewModel.update(state: state)
+	}
+
 	func setErrorMessage(_ message: String?) {
-		viewModel.errorMessage = message
+		var next = viewModel.state
+		next.errorMessage = message
+		viewModel.update(state: next)
 	}
 
 	func setLoading(_ isLoading: Bool) {
-		viewModel.isLoading = isLoading
+		var next = viewModel.state
+		next.isLoading = isLoading
+		viewModel.update(state: next)
 	}
 
 	func clearInputPassword() {
-		viewModel.clearPassword()
+		var next = viewModel.state
+		next.password = ""
+		viewModel.update(state: next)
 	}
 }

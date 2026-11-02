@@ -8,9 +8,7 @@ import PasswordGeneratorFeatureInterface
 
 @MainActor
 protocol PasswordGeneratorPresentableListener: AnyObject {
-	func didChangeOptions(_ options: PasswordGenerationOptions)
-	func didRequestRegenerate()
-	func didRequestCopyPassword(_ password: String)
+	func request(action: PasswordGeneratorViewAction)
 }
 
 #if os(macOS)
@@ -23,24 +21,18 @@ typealias PasswordGeneratorPlatformHostingController<Content: View> = UIHostingC
 
 @MainActor
 final class PasswordGeneratorViewController: PasswordGeneratorPlatformHostingController<PasswordGeneratorView>, PasswordGeneratorViewControllable, PasswordGeneratorPresentable {
-	weak var listener: PasswordGeneratorPresentableListener?
+	weak var listener: PasswordGeneratorPresentableListener? {
+		didSet {
+			viewModel.listener = listener
+		}
+	}
 	let viewModel: PasswordGeneratorViewModel
 
 	init(listener: PasswordGeneratorPresentableListener? = nil) {
 		self.listener = listener
-		let vm = PasswordGeneratorViewModel()
+		let vm = PasswordGeneratorViewModel(listener: listener, state: .init())
 		self.viewModel = vm
 		super.init(rootView: PasswordGeneratorView(viewModel: vm))
-
-		vm.onOptionsChanged = { [weak self] options in
-			self?.listener?.didChangeOptions(options)
-		}
-		vm.onRequestRegenerate = { [weak self] in
-			self?.listener?.didRequestRegenerate()
-		}
-		vm.onRequestCopy = { [weak self] password in
-			self?.listener?.didRequestCopyPassword(password)
-		}
 	}
 
 	@available(*, unavailable)
@@ -48,11 +40,17 @@ final class PasswordGeneratorViewController: PasswordGeneratorPlatformHostingCon
 		fatalError("init(coder:) has not been implemented")
 	}
 
+	func update(state: PasswordGeneratorViewState) {
+		viewModel.update(state: state)
+	}
+
 	func displayGeneratedPassword(_ password: String, score: Int, level: PasswordSecurityLevel, notice: String?) {
-		viewModel.generatedPassword = password
-		viewModel.score = score
-		viewModel.securityLevel = level
-		viewModel.sequentialDigitsNotice = notice
+		var next = viewModel.state
+		next.generatedPassword = password
+		next.score = score
+		next.securityLevel = level
+		next.sequentialDigitsNotice = notice
+		viewModel.update(state: next)
 	}
 
 	func showToast(message: String) {

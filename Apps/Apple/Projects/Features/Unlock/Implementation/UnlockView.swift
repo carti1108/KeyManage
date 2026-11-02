@@ -37,12 +37,15 @@ struct UnlockView: View {
 			KMCard(padding: .lg) {
 				VStack(alignment: .leading, spacing: 16) {
 					KMPasswordField(
-						text: $viewModel.password,
+						text: Binding(
+							get: { viewModel.state.password },
+							set: { viewModel.request(action: .updatePassword($0)) }
+						),
 						placeholder: "마스터 비밀번호 입력",
 						showCopyAction: false
 					)
 
-					if let errorMessage = viewModel.errorMessage, !errorMessage.isEmpty {
+					if let errorMessage = viewModel.state.errorMessage, !errorMessage.isEmpty {
 						Text(errorMessage)
 							.font(.footnote)
 							.foregroundColor(DesignToken.View.destructive)
@@ -52,20 +55,20 @@ struct UnlockView: View {
 					KMButton(
 						VaultLockUIStrings.unlockButtonTitle,
 						variant: .primary,
-						isLoading: viewModel.isLoading,
-						isDisabled: viewModel.isLoading || viewModel.password.isEmpty
+						isLoading: viewModel.state.isLoading,
+						isDisabled: viewModel.state.isLoading || viewModel.state.password.isEmpty
 					) {
-						viewModel.unlockWithPassword()
+						viewModel.request(action: .unlockWithPassword(viewModel.state.password))
 					}
 
-					if viewModel.isBiometricsEnabled {
+					if viewModel.state.isBiometricsEnabled {
 						KMButton(
 							VaultLockUIStrings.biometricUnlockButtonTitle,
 							variant: .outline,
 							icon: DesignToken.Icon.vaultLock,
-							isDisabled: viewModel.isLoading
+							isDisabled: viewModel.state.isLoading
 						) {
-							viewModel.unlockWithBiometrics()
+							viewModel.request(action: .unlockWithBiometrics)
 						}
 					}
 				}
