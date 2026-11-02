@@ -26,6 +26,7 @@
 | [VLT-001](VLT/VLT-001-cross-platform-vault-sync.md) | 크로스 플랫폼 볼트 동기화 및 충돌 해결 정책 | 확정 | 볼트 저장 및 동기화 |
 | [VLT-002](VLT/VLT-002-offline-pending-sync.md) | 오프라인 동기화 대기 및 재전송 정책 | 확정 | 볼트 저장 및 동기화 |
 | [VLT-003](VLT/VLT-003-device-vault-persistence.md) | 기기 볼트 보존 정책 | 확정 | 볼트 저장 및 동기화 |
+| [VLT-004](VLT/VLT-004-encrypted-backup-export-restore.md) | 암호화 백업 내보내기와 복원 정책 | 확정 | 볼트 저장 및 동기화 |
 | [COM-001](COM/COM-001-clipboard-auto-burn.md) | 클립보드 자동 비우기 | 확정 | 공통 예외 및 클립보드 |
 | [COM-002](COM/COM-002-error-state-guidance.md) | 오류 상태 안내 정책 | 확정 | 공통 예외 및 클립보드 |
 
