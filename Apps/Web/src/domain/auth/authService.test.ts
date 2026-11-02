@@ -4,7 +4,7 @@ import { fromBase64 } from '../crypto/base64'
 import { InvalidKdfParamsError, MAX_ITERATIONS, MIN_ITERATIONS, deriveKeys } from '../crypto/keys'
 import { vectors } from '../crypto/testVectors'
 import { openVault, sealVault } from '../crypto/vaultCipher'
-import type { AuthApi, KdfParams, LoginRequest, RegisterRequest, Session } from './authApi'
+import type { AuthApi, ChangePasswordRequest, KdfParams, LoginRequest, RegisterRequest, Session } from './authApi'
 import { NetworkError, ServerError } from '../server/serverErrors'
 import { InvalidEmailError, MasterPasswordChangedError, createAuthService, normalizeEmail } from './authService'
 
@@ -17,6 +17,7 @@ class FakeAuthApi implements AuthApi {
   registered: RegisterRequest[] = []
   logins: LoginRequest[] = []
   loggedOut: string[] = []
+  changes: ChangePasswordRequest[] = []
 
   private readonly kdf: KdfParams
 
@@ -38,6 +39,10 @@ class FakeAuthApi implements AuthApi {
   }
   async logout(accessToken: string) {
     this.loggedOut.push(accessToken)
+  }
+  async changePassword(_accessToken: string, request: ChangePasswordRequest) {
+    this.changes.push(request)
+    return { ...session, revision: request.vault.expectedRevision + 1 }
   }
 }
 
