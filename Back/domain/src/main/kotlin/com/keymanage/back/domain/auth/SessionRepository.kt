@@ -18,4 +18,7 @@ interface SessionRepository {
      * 확정 직후 새 비밀번호로 발급된 세션(새 볼트 ID)은 남긴다
      */
     fun deleteAllOf(email: Email, except: VaultId)
+
+    /** 이 계정의 세션을 볼트 ID와 관계없이 모두 지운다. 계정 삭제 뒤에 쓴다 (SEC-005 규칙 4) */
+    fun deleteAllOf(email: Email)
 }
