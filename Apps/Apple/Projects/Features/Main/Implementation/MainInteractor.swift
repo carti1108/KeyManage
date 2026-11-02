@@ -3,6 +3,7 @@ import MicroRIBs
 import KeyManageDomain
 import VaultListFeatureInterface
 import SettingsFeatureInterface
+import PasswordGeneratorFeatureInterface
 import MainFeatureInterface
 
 // MARK: - Presentable Protocols
@@ -43,8 +44,13 @@ final class MainInteractor: Interactor, MainInteractable, MainPresentableListene
 
 	func didSelectTab(_ tab: MainTab) {
 		presenter?.selectTab(tab)
-		if tab == .settings {
+		switch tab {
+		case .vault:
+			router?.routeToVaultList()
+		case .settings:
 			router?.routeToSettings()
+		case .generator:
+			router?.routeToPasswordGenerator()
 		}
 	}
 }
@@ -60,3 +66,7 @@ extension MainInteractor: SettingsListener {
 		listener?.didRequestLockVault()
 	}
 }
+
+// MARK: - PasswordGeneratorListener Conformance
+
+extension MainInteractor: PasswordGeneratorListener {}

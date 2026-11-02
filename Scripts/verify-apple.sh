@@ -86,6 +86,26 @@ xcodebuild -workspace KeyManageApple.xcworkspace \
   -destination 'platform=macOS' \
   test CODE_SIGNING_ALLOWED=NO -quiet
 
+xcodebuild -workspace KeyManageApple.xcworkspace \
+  -scheme MainFeature \
+  -destination 'platform=macOS' \
+  test CODE_SIGNING_ALLOWED=NO -quiet
+
+xcodebuild -workspace KeyManageApple.xcworkspace \
+  -scheme VaultListFeature \
+  -destination 'platform=macOS' \
+  test CODE_SIGNING_ALLOWED=NO -quiet
+
+xcodebuild -workspace KeyManageApple.xcworkspace \
+  -scheme SettingsFeature \
+  -destination 'platform=macOS' \
+  test CODE_SIGNING_ALLOWED=NO -quiet
+
+xcodebuild -workspace KeyManageApple.xcworkspace \
+  -scheme PasswordGeneratorFeature \
+  -destination 'platform=macOS' \
+  test CODE_SIGNING_ALLOWED=NO -quiet
+
 echo "=========================================="
 echo " ✔ 모든 Apple 플랫폼 6중 기계적 검증 통과!"
 echo "=========================================="

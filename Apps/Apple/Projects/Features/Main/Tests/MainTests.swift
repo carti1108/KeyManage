@@ -4,6 +4,7 @@ import MicroRIBs
 import KeyManageDomain
 import VaultListFeatureInterface
 import SettingsFeatureInterface
+import PasswordGeneratorFeatureInterface
 import MainFeatureInterface
 @testable import MainFeatureImplementation
 @testable import MainFeatureTesting
@@ -61,8 +62,10 @@ final class MainViewControllableSpy: MainViewControllable {
 #endif
 	var setVaultListCallCount = 0
 	var setSettingsCallCount = 0
+	var setPasswordGeneratorCallCount = 0
 	var receivedVaultListViewControllable: ViewControllable?
 	var receivedSettingsViewControllable: ViewControllable?
+	var receivedPasswordGeneratorViewControllable: ViewControllable?
 
 	func setVaultListViewControllable(_ viewControllable: ViewControllable) {
 		setVaultListCallCount += 1
@@ -72,6 +75,11 @@ final class MainViewControllableSpy: MainViewControllable {
 	func setSettingsViewControllable(_ viewControllable: ViewControllable) {
 		setSettingsCallCount += 1
 		receivedSettingsViewControllable = viewControllable
+	}
+
+	func setPasswordGeneratorViewControllable(_ viewControllable: ViewControllable) {
+		setPasswordGeneratorCallCount += 1
+		receivedPasswordGeneratorViewControllable = viewControllable
 	}
 }
 
@@ -125,19 +133,71 @@ final class MockSettingsBuildableSpy: SettingsBuildable {
 }
 
 @MainActor
+final class MockPasswordGeneratorRoutingSpy: PasswordGeneratorRouting {
+	let viewControllable: ViewControllable
+	var interactable: Interactable
+	var children: [Routing] = []
+
+	var lifecycle: AsyncStream<RouterLifecycle> {
+		lifecycleSubject.stream
+	}
+	private let lifecycleSubject = PassthroughAsyncSubject<RouterLifecycle>()
+
+	init(
+		viewControllable: ViewControllable = MainViewControllableSpy(),
+		interactable: Interactable = MainInteractorSpy()
+	) {
+		self.viewControllable = viewControllable
+		self.interactable = interactable
+	}
+
+	func load() {
+		lifecycleSubject.send(.didLoad)
+	}
+
+	func attachChild(_ child: Routing) {
+		children.append(child)
+	}
+
+	func detachChild(_ child: Routing) {
+		children.removeAll { $0 === child }
+	}
+}
+
+@MainActor
+final class MockPasswordGeneratorBuildableSpy: PasswordGeneratorBuildable {
+	var buildCallCount = 0
+	var receivedListener: PasswordGeneratorListener?
+	var routingToReturn: PasswordGeneratorRouting
+
+	init(routingToReturn: PasswordGeneratorRouting = MockPasswordGeneratorRoutingSpy()) {
+		self.routingToReturn = routingToReturn
+	}
+
+	func build(withListener listener: PasswordGeneratorListener) -> PasswordGeneratorRouting {
+		buildCallCount += 1
+		receivedListener = listener
+		return routingToReturn
+	}
+}
+
+@MainActor
 final class MainDependencyMock: MainDependency {
 	let lockManager: VaultLockManagerProtocol
 	let vaultListBuilder: VaultListBuildable
 	let settingsBuilder: SettingsBuildable
+	let passwordGeneratorBuilder: PasswordGeneratorBuildable
 
 	init(
 		lockManager: VaultLockManagerProtocol = MockVaultLockManager(),
 		vaultListBuilder: VaultListBuildable = MockVaultListBuilder(),
-		settingsBuilder: SettingsBuildable = MockSettingsBuildableSpy()
+		settingsBuilder: SettingsBuildable = MockSettingsBuildableSpy(),
+		passwordGeneratorBuilder: PasswordGeneratorBuildable = MockPasswordGeneratorBuildableSpy()
 	) {
 		self.lockManager = lockManager
 		self.vaultListBuilder = vaultListBuilder
 		self.settingsBuilder = settingsBuilder
+		self.passwordGeneratorBuilder = passwordGeneratorBuilder
 	}
 }
 
@@ -309,5 +369,29 @@ struct MainTests {
 
 		// Then
 		#expect(listener.didRequestLockVaultCallCount == 1)
+	}
+
+	// MARK: - 8. PasswordGenerator 라우팅 검증
+	@Test("MainRouter.routeToPasswordGenerator() 호출 시 passwordGeneratorBuilder.build(withListener:) 실행 및 자식 RIB attach, 뷰컨트롤러 마운트 검증")
+	func mainRouter_routeToPasswordGenerator_attachesPasswordGeneratorRouting() {
+		// Given
+		let interactor = MainInteractorSpy()
+		let viewController = MainViewControllableSpy()
+		let generatorRouting = MockPasswordGeneratorRoutingSpy()
+		let generatorBuilder = MockPasswordGeneratorBuildableSpy(routingToReturn: generatorRouting)
+		let router = MainRouter(
+			interactor: interactor,
+			viewController: viewController,
+			passwordGeneratorBuilder: generatorBuilder
+		)
+
+		// When
+		router.routeToPasswordGenerator()
+
+		// Then
+		#expect(generatorBuilder.buildCallCount == 1)
+		#expect(router.children.contains { $0 === generatorRouting })
+		#expect(viewController.setPasswordGeneratorCallCount == 1)
+		#expect(viewController.receivedPasswordGeneratorViewControllable === generatorRouting.viewControllable)
 	}
 }

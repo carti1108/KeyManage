@@ -4,4 +4,5 @@ import MicroRIBs
 public protocol MainRouting: ViewableRouting {
 	func routeToVaultList()
 	func routeToSettings()
+	func routeToPasswordGenerator()
 }

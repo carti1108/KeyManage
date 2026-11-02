@@ -53,4 +53,8 @@ final class MainViewController: MainPlatformHostingController<MainView>, MainVie
 	func setSettingsViewControllable(_ viewControllable: ViewControllable) {
 		viewModel.settingsViewControllable = viewControllable
 	}
+
+	func setPasswordGeneratorViewControllable(_ viewControllable: ViewControllable) {
+		viewModel.passwordGeneratorViewControllable = viewControllable
+	}
 }
