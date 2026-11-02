@@ -208,6 +208,7 @@ struct UnlockFeatureTests {
 			func changePassword(accessToken: String, request: ChangePasswordRequestPayload) async throws -> ChangePasswordResponsePayload {
 				fatalError("Not used")
 			}
+			func deleteAccount(accessToken: String, authHash: String) async throws {}
 		}
 
 		let networkClient = TestAuthNetworkClient()

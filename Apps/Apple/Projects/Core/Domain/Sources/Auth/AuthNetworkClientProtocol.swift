@@ -63,10 +63,22 @@ public struct ChangePasswordResponsePayload: Codable, Sendable, Equatable {
 	}
 }
 
+public struct DeleteAccountRequestPayload: Codable, Sendable, Equatable {
+	public let authHash: String
+
+	public init(authHash: String) {
+		self.authHash = authHash
+	}
+}
+
 public protocol AuthNetworkClientProtocol: Sendable {
 	func prelogin(email: String) async throws -> PreloginResponse
 	func changePassword(
 		accessToken: String,
 		request: ChangePasswordRequestPayload
 	) async throws -> ChangePasswordResponsePayload
+	func deleteAccount(
+		accessToken: String,
+		authHash: String
+	) async throws
 }

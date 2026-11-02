@@ -45,6 +45,18 @@ final class SettingsPresenterSpy: SettingsPresentable {
 	func dismissChangePasswordModal() {
 		dismissChangePasswordModalCallCount += 1
 	}
+
+	var dismissDeleteAccountModalCallCount = 0
+	func dismissDeleteAccountModal() {
+		dismissDeleteAccountModalCallCount += 1
+	}
+
+	var showDeleteAccountErrorCallCount = 0
+	var receivedDeleteAccountErrorMessage: String?
+	func showDeleteAccountError(message: String) {
+		showDeleteAccountErrorCallCount += 1
+		receivedDeleteAccountErrorMessage = message
+	}
 }
 
 @MainActor
@@ -104,6 +116,10 @@ final class MockVaultLockManager: VaultLockManagerProtocol, @unchecked Sendable 
 	var receivedCurrentPassword: String?
 	var receivedNewPassword: String?
 	var shouldThrowChangePassword: Error?
+	var deleteAccountCallCount = 0
+	var receivedDeletePassword: String?
+	var receivedConfirmationPhrase: String?
+	var shouldThrowDeleteAccount: Error?
 	var exportResultToReturn: (fileName: String, data: Data)? = ("keymanage-backup-test.json", Data("{\"version\":1}".utf8))
 	var restoreResultToReturn: (restoredCount: Int, newVault: VaultData)? = (3, VaultData(updatedAt: "2026-11-02T00:00:00Z", items: []))
 	var shouldThrowExport: Error? = nil
@@ -145,6 +161,21 @@ final class MockVaultLockManager: VaultLockManagerProtocol, @unchecked Sendable 
 		networkClient: AuthNetworkClientProtocol
 	) async throws -> Bool {
 		false
+	}
+
+	func deleteAccount(
+		password: String,
+		confirmationPhrase: String,
+		networkClient: AuthNetworkClientProtocol,
+		now: Date
+	) async throws {
+		deleteAccountCallCount += 1
+		receivedDeletePassword = password
+		receivedConfirmationPhrase = confirmationPhrase
+		if let error = shouldThrowDeleteAccount {
+			throw error
+		}
+		isLocked = true
 	}
 
 	func logout() {
@@ -557,5 +588,94 @@ struct SettingsTests {
 		#expect(lockManager.changeMasterPasswordCallCount == 1)
 		#expect(presenter.dismissChangePasswordModalCallCount == 0)
 		#expect(presenter.receivedToastMessage == MasterPasswordChangeStrings.conflictMessage)
+	}
+
+	// MARK: - SEC-005 계정 삭제 테스트
+
+	@Test("didRequestDeleteAccount 호출 시 lockManager에 정상 전달되고 성공 토스트 및 로그아웃 요청 검증")
+	func didRequestDeleteAccount_whenSuccessful_dismissesModalAndShowsSuccessToastAndRequestsLogout() async {
+		// Given
+		let lockManager = MockVaultLockManager()
+		let presenter = SettingsPresenterSpy()
+		let listener = MockSettingsListener()
+		let interactor = SettingsInteractor(lockManager: lockManager, presenter: presenter)
+		interactor.listener = listener
+
+		// When
+		interactor.didRequestDeleteAccount(
+			password: "MasterPassword123!",
+			confirmationPhrase: AccountDeletionStrings.confirmationPhrase
+		)
+		try? await Task.sleep(nanoseconds: 50_000_000)
+
+		// Then
+		#expect(lockManager.deleteAccountCallCount == 1)
+		#expect(lockManager.receivedDeletePassword == "MasterPassword123!")
+		#expect(lockManager.receivedConfirmationPhrase == "계정 삭제")
+		#expect(presenter.dismissDeleteAccountModalCallCount == 1)
+		#expect(presenter.showToastCallCount == 1)
+		#expect(presenter.receivedToastMessage == AccountDeletionStrings.successMessage)
+		#expect(listener.logoutCallCount == 1)
+	}
+
+	@Test("didRequestDeleteAccount 호출 시 lockManager에서 에러 발생 시 프레젠터 에러 노출 및 로그아웃 미발생 검증")
+	func didRequestDeleteAccount_whenLockManagerThrows_showsErrorMessageWithoutLogout() async {
+		// Given
+		let lockManager = MockVaultLockManager()
+		lockManager.shouldThrowDeleteAccount = AccountDeletionError.invalidPassword
+		let presenter = SettingsPresenterSpy()
+		let listener = MockSettingsListener()
+		let interactor = SettingsInteractor(lockManager: lockManager, presenter: presenter)
+		interactor.listener = listener
+
+		// When
+		interactor.didRequestDeleteAccount(
+			password: "WrongPassword123!",
+			confirmationPhrase: AccountDeletionStrings.confirmationPhrase
+		)
+		try? await Task.sleep(nanoseconds: 50_000_000)
+
+		// Then
+		#expect(lockManager.deleteAccountCallCount == 1)
+		#expect(presenter.dismissDeleteAccountModalCallCount == 0)
+		#expect(presenter.showDeleteAccountErrorCallCount == 1)
+		#expect(presenter.receivedDeleteAccountErrorMessage == AccountDeletionStrings.invalidPasswordMessage)
+		#expect(listener.logoutCallCount == 0)
+	}
+
+	@Test("SettingsViewModel 계정 삭제 폼 상태 및 canExecuteDeleteAccount 불변식 검증")
+	func settingsViewModel_deleteAccountFormValidation_ensuresExactConfirmationPhrase() {
+		// Given
+		let vm = SettingsViewModel()
+
+		// When 1: 초기 상태
+		#expect(vm.isDeleteAccountPresented == false)
+		#expect(vm.canExecuteDeleteAccount == false)
+
+		// When 2: 시작
+		vm.startAccountDeletion()
+		#expect(vm.isDeleteAccountPresented == true)
+
+		// When 3: 비밀번호만 입력된 경우
+		vm.deleteAccountPasswordInput = "Password123!"
+		#expect(vm.canExecuteDeleteAccount == false)
+
+		// When 4: 확인 문구 공백 누락("계정삭제")
+		vm.deleteAccountConfirmationInput = "계정삭제"
+		#expect(vm.canExecuteDeleteAccount == false)
+
+		// When 5: 확인 문구 앞뒤 공백(" 계정 삭제")
+		vm.deleteAccountConfirmationInput = " 계정 삭제"
+		#expect(vm.canExecuteDeleteAccount == false)
+
+		// When 6: 정확한 확인 문구("계정 삭제") 일치 시에만 활성화
+		vm.deleteAccountConfirmationInput = AccountDeletionStrings.confirmationPhrase
+		#expect(vm.canExecuteDeleteAccount == true)
+
+		// When 7: 취소 시 초기화
+		vm.cancelAccountDeletion()
+		#expect(vm.isDeleteAccountPresented == false)
+		#expect(vm.deleteAccountPasswordInput.isEmpty)
+		#expect(vm.deleteAccountConfirmationInput.isEmpty)
 	}
 }

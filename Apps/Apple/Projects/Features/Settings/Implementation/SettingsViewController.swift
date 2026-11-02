@@ -13,6 +13,7 @@ protocol SettingsPresentableListener: AnyObject {
 	func didRequestRestoreBackup(fileData: Data, password: String)
 	func didRequestLogout()
 	func didRequestChangePassword(current: String, new: String, confirm: String)
+	func didRequestDeleteAccount(password: String, confirmationPhrase: String)
 }
 
 #if os(macOS)
@@ -48,6 +49,9 @@ final class SettingsViewController: SettingsPlatformHostingController<SettingsVi
 		}
 		vm.onRequestChangePassword = { [weak self] current, new, confirm in
 			self?.listener?.didRequestChangePassword(current: current, new: new, confirm: confirm)
+		}
+		vm.onRequestDeleteAccount = { [weak self] password, confirmation in
+			self?.listener?.didRequestDeleteAccount(password: password, confirmationPhrase: confirmation)
 		}
 	}
 
@@ -108,5 +112,15 @@ final class SettingsViewController: SettingsPlatformHostingController<SettingsVi
 	func dismissChangePasswordModal() {
 		viewModel.isChangePasswordPresented = false
 		viewModel.resetChangePasswordFields()
+	}
+
+	func dismissDeleteAccountModal() {
+		viewModel.isDeleteAccountPresented = false
+		viewModel.resetDeleteAccountFields()
+	}
+
+	func showDeleteAccountError(message: String) {
+		viewModel.deleteAccountErrorMessage = message
+		viewModel.isDeletingAccount = false
 	}
 }
