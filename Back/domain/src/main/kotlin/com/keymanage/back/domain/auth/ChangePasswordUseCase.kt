@@ -25,9 +25,10 @@ data class PasswordChanged(val session: IssuedSession, val revision: Revision)
 /**
  * 마스터 비밀번호 변경: KDF 값·인증 해시·볼트를 전부 바꾸거나 전부 그대로 둔다 (SEC-004, ADR-0023, ADR-BE-001).
  *
- * 입력 검사 -> 시도 제한 확인 -> 계정 잠금 -> 현재 인증 해시 검증 -> 옛 볼트 잠금 -> revision 비교
+ * 입력 검사 -> 시도 제한 확인 -> 새 인증 해시 해시(잠금 밖) -> 계정 잠금 -> 현재 인증 해시 검증 -> 옛 볼트 잠금 -> revision 비교
  * -> 새 볼트 ID로 볼트 쓰기 -> 계정 원자 교체(확정) -> 옛 볼트 삭제 -> 잠금 해제 -> 계정 세션 모두 폐기 -> 새 토큰 발급.
  * 확정 전에 실패하면 새로 쓴 볼트를 지우고 옛 계정·볼트는 그대로 둔다. 확정 뒤 옛 볼트를 지우지 못해도 성공이다(시작 때 정리).
+ * 세션은 발급 때의 볼트 ID에 묶이므로, 확정 순간 옛 세션과 변경과 겹쳐 발급된 옛 비밀번호 세션은 모두 무효가 된다.
  */
 class ChangePasswordUseCase(
     private val accounts: AccountRepository,
@@ -51,15 +52,29 @@ class ChangePasswordUseCase(
     fun execute(email: Email, change: PasswordChange): PasswordChanged {
         validate(change)
         limiter.checkAllowed(email)
+        // Argon2id 해시는 오래 걸리므로 계정·볼트 잠금 밖에서 미리 만든다
+        val newPasswordHash = hasher.hash(change.newAuthHash)
 
-        val revision = accounts.withLock(email) {
+        val replacement = accounts.withLock(email) {
             val account = accounts.find(email) ?: throw UnauthorizedException()
             verifyCurrent(account, change.currentAuthHash)
-            vaults.withLock(account.vaultId) { swap(account, change) }
+            vaults.withLock(account.vaultId) { swap(account, change, newPasswordHash) }
         }
 
-        sessions.deleteAllOf(email)
-        return PasswordChanged(issuer.issue(email), revision)
+        // 여기부터는 확정 뒤다. 옛 세션은 볼트 ID가 달라 이미 무효이므로 지우지 못해도 실패로 알리지 않는다
+        try {
+            sessions.deleteAllOf(email)
+        } catch (e: Exception) {
+            log.log(System.Logger.Level.WARNING, "비밀번호 변경 뒤 계정 세션을 지우지 못함", e)
+        }
+        val session = try {
+            issuer.issue(email, replacement.vaultId)
+        } catch (e: Exception) {
+            // 변경은 이미 확정됐다. 클라이언트가 세션 만료 흐름으로 새 비밀번호 로그인을 하도록 401로 알린다 (SEC-004 규칙 9)
+            log.log(System.Logger.Level.WARNING, "비밀번호 변경 뒤 새 세션을 발급하지 못함", e)
+            throw UnauthorizedException()
+        }
+        return PasswordChanged(session, replacement.revision)
     }
 
     private fun validate(change: PasswordChange) {
@@ -76,12 +91,12 @@ class ChangePasswordUseCase(
     }
 
     // 계정 잠금과 옛 볼트 잠금을 모두 잡은 상태에서 호출된다
-    private fun swap(account: Account, change: PasswordChange): Revision {
+    private fun swap(account: Account, change: PasswordChange, newPasswordHash: String): Swapped {
         val current = vaults.find(account.vaultId)?.revision ?: Revision.NONE
         if (current != change.expectedRevision) throw VaultConflictException(current)
 
         val newVault = StoredVault(newVaultId(), current.next(), change.vault)
-        val replacement = account.copy(kdf = change.newKdf, passwordHash = hasher.hash(change.newAuthHash), vaultId = newVault.id)
+        val replacement = account.copy(kdf = change.newKdf, passwordHash = newPasswordHash, vaultId = newVault.id)
         vaults.create(newVault)
         commit(account, replacement)
 
@@ -91,8 +106,10 @@ class ChangePasswordUseCase(
             // 이미 확정됐으므로 성공으로 처리한다. 남은 파일은 어느 계정도 가리키지 않아 다음 시작 때 지운다
             log.log(System.Logger.Level.WARNING, "비밀번호 변경 뒤 옛 볼트를 지우지 못함", e)
         }
-        return newVault.revision
+        return Swapped(newVault.id, newVault.revision)
     }
+
+    private data class Swapped(val vaultId: VaultId, val revision: Revision)
 
     private fun commit(account: Account, replacement: Account) {
         val replaced = try {

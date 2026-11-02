@@ -2,7 +2,9 @@ package com.keymanage.back.domain.auth
 
 import java.time.Clock
 
-/** 요청의 토큰으로 계정을 찾는다. 만료된 세션은 거절하면서 지운다 (SEC-002) */
+/**
+ * 요청의 토큰으로 계정을 찾는다. 만료된 세션과, 발급 뒤 계정의 볼트가 바뀐(비밀번호 변경) 세션은 거절하면서 지운다 (SEC-002, SEC-004)
+ */
 class AuthenticateUseCase(
     private val sessions: SessionRepository,
     private val accounts: AccountRepository,
@@ -17,6 +19,11 @@ class AuthenticateUseCase(
             sessions.delete(tokenHash)
             throw UnauthorizedException()
         }
-        return accounts.find(session.email) ?: throw UnauthorizedException()
+        val account = accounts.find(session.email) ?: throw UnauthorizedException()
+        if (account.vaultId != session.vaultId) {
+            sessions.delete(tokenHash)
+            throw UnauthorizedException()
+        }
+        return account
     }
 }

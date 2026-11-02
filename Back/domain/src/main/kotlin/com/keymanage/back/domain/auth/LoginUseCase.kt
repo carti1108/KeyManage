@@ -31,6 +31,7 @@ class LoginUseCase(
         }
 
         limiter.recordSuccess(email)
-        return issuer.issue(email)
+        // 검증한 계정의 볼트에 묶는다. 그사이 비밀번호가 바뀌었으면 이 세션은 인증 때 거절된다
+        return issuer.issue(email, account.vaultId)
     }
 }
