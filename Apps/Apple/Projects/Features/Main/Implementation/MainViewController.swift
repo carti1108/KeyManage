@@ -45,4 +45,12 @@ final class MainViewController: MainPlatformHostingController<MainView>, MainVie
 	func selectTab(_ tab: MainTab) {
 		viewModel.selectedTab = tab
 	}
+
+	func setVaultListViewControllable(_ viewControllable: ViewControllable) {
+		viewModel.vaultListViewControllable = viewControllable
+	}
+
+	func setSettingsViewControllable(_ viewControllable: ViewControllable) {
+		viewModel.settingsViewControllable = viewControllable
+	}
 }

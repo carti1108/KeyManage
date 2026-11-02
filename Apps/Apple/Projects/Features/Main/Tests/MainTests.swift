@@ -3,6 +3,7 @@ import Testing
 import MicroRIBs
 import KeyManageDomain
 import VaultListFeatureInterface
+import SettingsFeatureInterface
 import MainFeatureInterface
 @testable import MainFeatureImplementation
 @testable import MainFeatureTesting
@@ -47,6 +48,8 @@ final class MainInteractorSpy: MainInteractable {
 	func deactivate() {
 		isActiveSubject.send(false)
 	}
+
+	func settingsDidRequestLogout() {}
 }
 
 @MainActor
@@ -56,19 +59,85 @@ final class MainViewControllableSpy: MainViewControllable {
 #elseif os(iOS)
 	var uiViewController: UIViewController = UIViewController()
 #endif
+	var setVaultListCallCount = 0
+	var setSettingsCallCount = 0
+	var receivedVaultListViewControllable: ViewControllable?
+	var receivedSettingsViewControllable: ViewControllable?
+
+	func setVaultListViewControllable(_ viewControllable: ViewControllable) {
+		setVaultListCallCount += 1
+		receivedVaultListViewControllable = viewControllable
+	}
+
+	func setSettingsViewControllable(_ viewControllable: ViewControllable) {
+		setSettingsCallCount += 1
+		receivedSettingsViewControllable = viewControllable
+	}
+}
+
+@MainActor
+final class MockSettingsRoutingSpy: SettingsRouting {
+	let viewControllable: ViewControllable
+	var interactable: Interactable
+	var children: [Routing] = []
+
+	var lifecycle: AsyncStream<RouterLifecycle> {
+		lifecycleSubject.stream
+	}
+	private let lifecycleSubject = PassthroughAsyncSubject<RouterLifecycle>()
+
+	init(
+		viewControllable: ViewControllable = MainViewControllableSpy(),
+		interactable: Interactable = MainInteractorSpy()
+	) {
+		self.viewControllable = viewControllable
+		self.interactable = interactable
+	}
+
+	func load() {
+		lifecycleSubject.send(.didLoad)
+	}
+
+	func attachChild(_ child: Routing) {
+		children.append(child)
+	}
+
+	func detachChild(_ child: Routing) {
+		children.removeAll { $0 === child }
+	}
+}
+
+@MainActor
+final class MockSettingsBuildableSpy: SettingsBuildable {
+	var buildCallCount = 0
+	var receivedListener: SettingsListener?
+	var routingToReturn: SettingsRouting
+
+	init(routingToReturn: SettingsRouting = MockSettingsRoutingSpy()) {
+		self.routingToReturn = routingToReturn
+	}
+
+	func build(withListener listener: SettingsListener) -> SettingsRouting {
+		buildCallCount += 1
+		receivedListener = listener
+		return routingToReturn
+	}
 }
 
 @MainActor
 final class MainDependencyMock: MainDependency {
 	let lockManager: VaultLockManagerProtocol
 	let vaultListBuilder: VaultListBuildable
+	let settingsBuilder: SettingsBuildable
 
 	init(
 		lockManager: VaultLockManagerProtocol = MockVaultLockManager(),
-		vaultListBuilder: VaultListBuildable = MockVaultListBuilder()
+		vaultListBuilder: VaultListBuildable = MockVaultListBuilder(),
+		settingsBuilder: SettingsBuildable = MockSettingsBuildableSpy()
 	) {
 		self.lockManager = lockManager
 		self.vaultListBuilder = vaultListBuilder
+		self.settingsBuilder = settingsBuilder
 	}
 }
 
@@ -198,5 +267,47 @@ struct MainTests {
 		// Then
 		#expect(vaultListBuilder.buildCallCount == 1)
 		#expect(router.children.contains { $0 === vaultListRouting })
+		#expect(viewController.setVaultListCallCount == 1)
+		#expect(viewController.receivedVaultListViewControllable === vaultListRouting.viewControllable)
+	}
+
+	// MARK: - 7. Settings 라우팅 및 로그아웃 연동 검증
+	@Test("MainRouter.routeToSettings() 호출 시 settingsBuilder.build(withListener:) 실행 및 자식 RIB attach, 뷰컨트롤러 마운트 검증")
+	func mainRouter_routeToSettings_attachesSettingsRouting() {
+		// Given
+		let interactor = MainInteractorSpy()
+		let viewController = MainViewControllableSpy()
+		let settingsRouting = MockSettingsRoutingSpy()
+		let settingsBuilder = MockSettingsBuildableSpy(routingToReturn: settingsRouting)
+		let router = MainRouter(
+			interactor: interactor,
+			viewController: viewController,
+			settingsBuilder: settingsBuilder
+		)
+
+		// When
+		router.routeToSettings()
+
+		// Then
+		#expect(settingsBuilder.buildCallCount == 1)
+		#expect(router.children.contains { $0 === settingsRouting })
+		#expect(viewController.setSettingsCallCount == 1)
+		#expect(viewController.receivedSettingsViewControllable === settingsRouting.viewControllable)
+	}
+
+	@Test("interactor.settingsDidRequestLogout() 호출 시 listener.didRequestLockVault() 1회 호출 검증")
+	func mainInteractor_settingsDidRequestLogout_notifiesListener() {
+		// Given
+		let lockManager = MockVaultLockManager()
+		let presenter = MainPresenterSpy()
+		let interactor = MainInteractor(lockManager: lockManager, presenter: presenter)
+		let listener = MockMainListener()
+		interactor.listener = listener
+
+		// When
+		interactor.settingsDidRequestLogout()
+
+		// Then
+		#expect(listener.didRequestLockVaultCallCount == 1)
 	}
 }

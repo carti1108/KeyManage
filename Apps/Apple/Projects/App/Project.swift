@@ -24,6 +24,8 @@ let project = Project(
 				.project(target: "MainFeatureImplementation", path: "../Features/Main"),
 				.project(target: "VaultListFeatureInterface", path: "../Features/VaultList"),
 				.project(target: "VaultListFeatureImplementation", path: "../Features/VaultList"),
+				.project(target: "SettingsFeatureInterface", path: "../Features/Settings"),
+				.project(target: "SettingsFeatureImplementation", path: "../Features/Settings"),
 				.project(target: "RootFeatureInterface", path: "../Features/Root"),
 				.project(target: "RootFeatureImplementation", path: "../Features/Root"),
 				.external(name: "MicroRIBs")
@@ -48,6 +50,8 @@ let project = Project(
 				.project(target: "MainFeatureImplementation", path: "../Features/Main"),
 				.project(target: "VaultListFeatureInterface", path: "../Features/VaultList"),
 				.project(target: "VaultListFeatureImplementation", path: "../Features/VaultList"),
+				.project(target: "SettingsFeatureInterface", path: "../Features/Settings"),
+				.project(target: "SettingsFeatureImplementation", path: "../Features/Settings"),
 				.project(target: "RootFeatureInterface", path: "../Features/Root"),
 				.project(target: "RootFeatureImplementation", path: "../Features/Root"),
 				.external(name: "MicroRIBs")
