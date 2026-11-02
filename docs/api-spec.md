@@ -234,14 +234,15 @@ KDF 값, 인증 해시, 볼트를 한 번에 교체한다(SEC-004, ADR-0023). �
 | 요청 | `{ "currentAuthHash": "<32바이트 Base64>", "newAuthHash": "<32바이트 Base64>", "kdf": { "iterations": 600000, "salt": "<16바이트 Base64>" }, "vault": { "expectedRevision": 7, "payload": { ...EncryptedVaultPayload } } }` |
 | 응답 200 OK | `{ "accessToken": "<새 토큰>", "expiresAt": "2026-12-02T11:20:00Z", "revision": 8 }` |
 
-1. `kdf.iterations`는 SEC-001 범위(600,000~10,000,000), `kdf.salt`는 16바이트다. `vault`는 2.4 볼트 저장과 같은 규칙(5MB 한도, `payload`는 객체)을 따른다.
-2. 성공하면 이 계정의 기존 세션은 요청에 쓴 토큰을 포함해 모두 폐기되고, 응답의 새 토큰만 유효하다.
+1. `kdf.iterations`는 SEC-002 범위(600,000~10,000,000), `kdf.salt`는 16바이트다. `vault`는 2.4 볼트 저장과 같은 규칙(5MB 한도, `payload`는 객체)을 따른다.
+2. 성공하면 이 계정의 기존 세션은 요청에 쓴 토큰을 포함해 모두 폐기되고, 응답의 새 토큰만 유효하다. 교체와 겹쳐 발급된 세션도 무효다.
 3. 응답의 `revision`은 교체한 볼트의 revision이다. 이전 revision에서 이어 올린다.
 4. 현재 인증 해시 확인에는 2.5.3 로그인과 같은 계정·IP 시도 제한을 적용한다.
 
 | 상태 | 코드 | 메시지 | 조건 |
 | :--- | :--- | :--- | :--- |
 | 401 | `AUTH_FAILED` | 이메일 또는 마스터 비밀번호가 올바르지 않습니다. | 현재 인증 해시가 틀렸다. 아무것도 바꾸지 않는다. |
+| 401 | `UNAUTHORIZED` | (1장 공통 오류 코드) | 토큰이 무효다. 또는 교체는 확정됐지만 새 토큰을 발급하지 못했다. 이때 클라이언트는 새 비밀번호로 로그인한다. |
 | 409 | `VAULT_CONFLICT` | (2.4와 같음) | `expectedRevision`이 서버 revision과 다르다. 아무것도 바꾸지 않는다. |
 | 413 | `VAULT_TOO_LARGE` | (2.4와 같음) | 볼트가 5MB를 넘는다. |
 | 429 | `TOO_MANY_ATTEMPTS` | (1장 공통 오류 코드) | 계정 또는 IP 시도 제한을 넘었다. |
