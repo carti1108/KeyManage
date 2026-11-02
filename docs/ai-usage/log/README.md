@@ -77,3 +77,4 @@
 | 069 | 2026-11-02 | [Apple VLT-001 볼트 아이템 추가, 수정, 삭제(CRUD) 모달 구현 (#114)](069-apple-vault-item-crud-vlt-001.md) |
 | 070 | 2026-11-02 | [Apple 시스템 네비게이션 표준 정렬 및 뷰포트 왜곡 수정 (#115)](070-apple-system-navigation-and-viewport-fix.md) |
 | 071 | 2026-11-02 | [Apple SEC-005 계정 삭제 (회원 탈퇴) UI 및 도메인 연동 (#116)](071-apple-sec-005-account-deletion.md) |
+| 072 | 2026-11-02 | [Apple SEC-002 원격 계정 로그인 및 회원가입 UI 연동 (#117)](072-apple-sec-002-auth-feature.md) |

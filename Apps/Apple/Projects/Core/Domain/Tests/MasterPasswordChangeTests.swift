@@ -2,9 +2,9 @@ import Foundation
 import Testing
 @testable import KeyManageDomain
 
-// MARK: - Test Doubles (MockAuthNetworkClient)
+// MARK: - Test Doubles (MockPasswordChangeNetworkClient)
 
-final class MockAuthNetworkClient: AuthNetworkClientProtocol, @unchecked Sendable {
+private final class MockPasswordChangeNetworkClient: AuthNetworkClientProtocol, @unchecked Sendable {
 	var preloginCallCount: Int = 0
 	var changePasswordCallCount: Int = 0
 	var deleteAccountCallCount: Int = 0
@@ -82,6 +82,21 @@ final class MockAuthNetworkClient: AuthNetworkClientProtocol, @unchecked Sendabl
 		if let error = shouldThrowError {
 			throw error
 		}
+	}
+
+	func register(request: RegisterRequestPayload) async throws -> RegisterResponsePayload {
+		if let error = shouldThrowError { throw error }
+		return RegisterResponsePayload(accessToken: "test_token", expiresAt: "2026-11-27T11:20:00Z")
+	}
+
+	func login(request: LoginRequestPayload) async throws -> LoginResponsePayload {
+		if let error = shouldThrowError { throw error }
+		return LoginResponsePayload(accessToken: "test_token", expiresAt: "2026-11-27T11:20:00Z")
+	}
+
+	func getVault(accessToken: String) async throws -> GetVaultResponsePayload? {
+		if let error = shouldThrowError { throw error }
+		return nil
 	}
 }
 
@@ -183,7 +198,7 @@ struct MasterPasswordChangeTests {
 		// Given
 		let fixture = try makeFixture()
 		let manager = try makeUnlockedLockManager(fixture: fixture)
-		let mockClient = MockAuthNetworkClient(
+		let mockClient = MockPasswordChangeNetworkClient(
 			changePasswordResponseToReturn: ChangePasswordResponsePayload(
 				accessToken: "new_session_token_77777",
 				expiresAt: "2026-11-03T12:00:00Z",
@@ -238,7 +253,7 @@ struct MasterPasswordChangeTests {
 		// Given
 		let fixture = try makeFixture()
 		let manager = try makeUnlockedLockManager(fixture: fixture)
-		let mockClient = MockAuthNetworkClient()
+		let mockClient = MockPasswordChangeNetworkClient()
 
 		// When & Then
 		await #expect(throws: MasterPasswordChangeError.invalidCurrentPassword) {
@@ -256,7 +271,7 @@ struct MasterPasswordChangeTests {
 		// Given
 		let fixture = try makeFixture()
 		let manager = try makeUnlockedLockManager(fixture: fixture)
-		let mockClient = MockAuthNetworkClient()
+		let mockClient = MockPasswordChangeNetworkClient()
 		let shortPassword = "Short12345!" // 11 characters
 
 		// When & Then
@@ -275,7 +290,7 @@ struct MasterPasswordChangeTests {
 		// Given
 		let fixture = try makeFixture()
 		let manager = try makeUnlockedLockManager(fixture: fixture)
-		let mockClient = MockAuthNetworkClient()
+		let mockClient = MockPasswordChangeNetworkClient()
 
 		// When & Then
 		await #expect(throws: MasterPasswordChangeError.samePassword) {
@@ -293,7 +308,7 @@ struct MasterPasswordChangeTests {
 		// Given
 		let fixture = try makeFixture()
 		let manager = try makeUnlockedLockManager(fixture: fixture)
-		let mockClient = MockAuthNetworkClient()
+		let mockClient = MockPasswordChangeNetworkClient()
 		manager.lock()
 
 		// When & Then
@@ -312,7 +327,7 @@ struct MasterPasswordChangeTests {
 		// Given
 		let fixture = try makeFixture()
 		let uninitializedManager = VaultLockManager()
-		let mockClient = MockAuthNetworkClient()
+		let mockClient = MockPasswordChangeNetworkClient()
 
 		// When & Then
 		await #expect(throws: MasterPasswordChangeError.offline) {
@@ -330,7 +345,7 @@ struct MasterPasswordChangeTests {
 		// Given
 		let fixture = try makeFixture(isReadOnly: true)
 		let manager = try makeUnlockedLockManager(fixture: fixture)
-		let mockClient = MockAuthNetworkClient()
+		let mockClient = MockPasswordChangeNetworkClient()
 
 		// When & Then
 		await #expect(throws: MasterPasswordChangeError.readOnlyVault) {
@@ -349,7 +364,7 @@ struct MasterPasswordChangeTests {
 		let fixture = try makeFixture()
 		let manager = try makeUnlockedLockManager(fixture: fixture)
 		let networkError = MasterPasswordChangeError.networkError("네트워크 타임아웃 발생")
-		let mockClient = MockAuthNetworkClient(shouldThrowError: networkError)
+		let mockClient = MockPasswordChangeNetworkClient(shouldThrowError: networkError)
 
 		// When & Then
 		await #expect(throws: MasterPasswordChangeError.networkError("네트워크 타임아웃 발생")) {
@@ -383,7 +398,7 @@ struct MasterPasswordChangeTests {
 			0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x11,
 			0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99
 		])
-		let mockClient = MockAuthNetworkClient(
+		let mockClient = MockPasswordChangeNetworkClient(
 			preloginResponseToReturn: PreloginResponse(
 				kdf: "PBKDF2",
 				salt: differentSalt.base64EncodedString(),
@@ -405,7 +420,7 @@ struct MasterPasswordChangeTests {
 		// Given
 		let fixture = try makeFixture()
 		let manager = try makeUnlockedLockManager(fixture: fixture)
-		let mockClient = MockAuthNetworkClient(
+		let mockClient = MockPasswordChangeNetworkClient(
 			preloginResponseToReturn: PreloginResponse(
 				kdf: "PBKDF2",
 				salt: fixture.salt.base64EncodedString(),
@@ -427,7 +442,7 @@ struct MasterPasswordChangeTests {
 		// Given
 		let fixture = try makeFixture()
 		let manager = try makeUnlockedLockManager(fixture: fixture)
-		let mockClient = MockAuthNetworkClient(
+		let mockClient = MockPasswordChangeNetworkClient(
 			preloginResponseToReturn: PreloginResponse(
 				kdf: "PBKDF2",
 				salt: fixture.salt.base64EncodedString(),
@@ -448,7 +463,7 @@ struct MasterPasswordChangeTests {
 	func checkIfPasswordChangedOnServer_whenNoSession_returnsFalse() async throws {
 		// Given
 		let uninitializedManager = VaultLockManager()
-		let mockClient = MockAuthNetworkClient()
+		let mockClient = MockPasswordChangeNetworkClient()
 
 		// When
 		let changed = try await uninitializedManager.checkIfPasswordChangedOnServer(networkClient: mockClient)

@@ -91,9 +91,55 @@ public protocol VaultLockManagerProtocol: AnyObject, Sendable {
 		id: String,
 		now: Date
 	) throws
+
+	// SEC-002 계정 인증 및 세션
+	var hasActiveSession: Bool { get }
+	func register(
+		email: String,
+		password: String,
+		confirmation: String,
+		networkClient: AuthNetworkClientProtocol,
+		now: Date
+	) async throws
+	func login(
+		email: String,
+		password: String,
+		networkClient: AuthNetworkClientProtocol,
+		now: Date
+	) async throws
 }
 
 public extension VaultLockManagerProtocol {
+
+	func register(
+		email: String,
+		password: String,
+		confirmation: String,
+		networkClient: AuthNetworkClientProtocol,
+		now: Date = Date()
+	) async throws {
+		try await register(
+			email: email,
+			password: password,
+			confirmation: confirmation,
+			networkClient: networkClient,
+			now: now
+		)
+	}
+
+	func login(
+		email: String,
+		password: String,
+		networkClient: AuthNetworkClientProtocol,
+		now: Date = Date()
+	) async throws {
+		try await login(
+			email: email,
+			password: password,
+			networkClient: networkClient,
+			now: now
+		)
+	}
 
 	@discardableResult
 	func addVaultItem(
@@ -346,6 +392,12 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 	}
 
 	public init() {}
+
+	public var hasActiveSession: Bool {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+		return _sessionToken != nil && _salt != nil
+	}
 
 	public func setupSession(
 		email: String,
@@ -1105,6 +1157,251 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 		_decryptedVault = vault
 		_encryptedVault = newEncrypted
 		_lastInteractionTime = now
+	}
+
+	// MARK: - SEC-002 계정 인증 및 세션 (가입 및 로그인)
+
+	private static let emailRegex: NSRegularExpression = {
+		(try? NSRegularExpression(pattern: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) ?? (try! NSRegularExpression(pattern: ".*"))
+	}()
+
+	private func isValidEmail(_ email: String) -> Bool {
+		let range = NSRange(location: 0, length: email.utf16.count)
+		return Self.emailRegex.firstMatch(in: email, options: [], range: range) != nil
+	}
+
+	private func applyRegistration(
+		email: String,
+		accessToken: String,
+		salt: Data,
+		encryptedVault: EncryptedVaultPayload,
+		decryptedVault: VaultData,
+		encryptionKey: Data,
+		now: Date
+	) {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+
+		_email = email
+		_sessionToken = accessToken
+		_salt = salt
+		_iterations = PBKDF2KeyDeriver.defaultIterations
+		_encryptedVault = encryptedVault
+		_decryptedVault = decryptedVault
+		zeroizeData(&_encryptionKey)
+		_encryptionKey = encryptionKey
+		_isLocked = false
+		_isPrivacyCoverActive = false
+		_lastInteractionTime = now
+		_revision = 1
+	}
+
+	private func applyLogin(
+		email: String,
+		accessToken: String,
+		salt: Data,
+		iterations: Int,
+		encryptedVault: EncryptedVaultPayload,
+		decryptedVault: VaultData,
+		encryptionKey: Data,
+		revision: Int,
+		now: Date
+	) {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+
+		_email = email
+		_sessionToken = accessToken
+		_salt = salt
+		_iterations = iterations
+		_encryptedVault = encryptedVault
+		_decryptedVault = decryptedVault
+		zeroizeData(&_encryptionKey)
+		_encryptionKey = encryptionKey
+		_isLocked = false
+		_isPrivacyCoverActive = false
+		_lastInteractionTime = now
+		_revision = revision
+	}
+
+	public func register(
+		email: String,
+		password: String,
+		confirmation: String,
+		networkClient: AuthNetworkClientProtocol,
+		now: Date = Date()
+	) async throws {
+		let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+		guard !trimmedEmail.isEmpty, trimmedEmail.count <= 254, isValidEmail(trimmedEmail) else {
+			throw AuthError.invalidEmail
+		}
+
+		guard password.count >= 12 else {
+			throw AuthError.passwordTooShort
+		}
+
+		guard password == confirmation else {
+			throw AuthError.confirmationMismatch
+		}
+
+		var saltBytes = [UInt8](repeating: 0, count: 16)
+		let status = SecRandomCopyBytes(kSecRandomDefault, saltBytes.count, &saltBytes)
+		guard status == errSecSuccess else {
+			throw AuthError.other("Salt 생성 실패")
+		}
+		let saltData = Data(saltBytes)
+
+		var normalizedPassword: Data?
+		defer { zeroizeData(&normalizedPassword) }
+		do {
+			normalizedPassword = try PasswordPreprocessor.preprocess(password)
+		} catch {
+			throw AuthError.invalidCharacter
+		}
+
+		var derivedMasterKey: Data?
+		defer { zeroizeData(&derivedMasterKey) }
+		do {
+			derivedMasterKey = try PBKDF2KeyDeriver.deriveMasterKey(
+				password: normalizedPassword ?? Data(),
+				salt: saltData,
+				iterations: PBKDF2KeyDeriver.defaultIterations
+			)
+		} catch {
+			throw AuthError.other("키 유도 실패")
+		}
+
+		let keys: SeparatedKeys
+		do {
+			keys = try HKDFKeySeparator.separate(masterKey: derivedMasterKey ?? Data())
+		} catch {
+			throw AuthError.other("키 분리 실패")
+		}
+
+		var authKey: Data? = keys.authHash
+		let encKey: Data = keys.encryptionKey
+		defer {
+			zeroizeData(&authKey)
+		}
+
+		let request = RegisterRequestPayload(
+			email: trimmedEmail,
+			authHash: authKey?.base64EncodedString() ?? "",
+			kdfSalt: saltData.base64EncodedString(),
+			kdfIterations: PBKDF2KeyDeriver.defaultIterations
+		)
+
+		let response = try await networkClient.register(request: request)
+
+		let nowString = ISO8601DateFormatter().string(from: now)
+		let emptyVault = VaultData(version: 1, updatedAt: nowString, items: [])
+		let encoded = try JSONEncoder().encode(emptyVault)
+		let encPayload = try VaultCipher.encrypt(plaintext: encoded, key: encKey)
+
+		applyRegistration(
+			email: trimmedEmail,
+			accessToken: response.accessToken,
+			salt: saltData,
+			encryptedVault: encPayload,
+			decryptedVault: emptyVault,
+			encryptionKey: encKey,
+			now: now
+		)
+	}
+
+	public func login(
+		email: String,
+		password: String,
+		networkClient: AuthNetworkClientProtocol,
+		now: Date = Date()
+	) async throws {
+		let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+		guard !trimmedEmail.isEmpty, trimmedEmail.count <= 254, isValidEmail(trimmedEmail) else {
+			throw AuthError.invalidEmail
+		}
+
+		let prelogin = try await networkClient.prelogin(email: trimmedEmail)
+		guard prelogin.iterations >= 600_000, prelogin.iterations <= 10_000_000 else {
+			throw AuthError.loginFailed
+		}
+		guard let saltData = Data(base64Encoded: prelogin.salt), saltData.count == 16 else {
+			throw AuthError.loginFailed
+		}
+
+		var normalizedPassword: Data?
+		defer { zeroizeData(&normalizedPassword) }
+		do {
+			normalizedPassword = try PasswordPreprocessor.preprocess(password)
+		} catch {
+			throw AuthError.loginFailed
+		}
+
+		var derivedMasterKey: Data?
+		defer { zeroizeData(&derivedMasterKey) }
+		do {
+			derivedMasterKey = try PBKDF2KeyDeriver.deriveMasterKey(
+				password: normalizedPassword ?? Data(),
+				salt: saltData,
+				iterations: prelogin.iterations
+			)
+		} catch {
+			throw AuthError.loginFailed
+		}
+
+		let keys: SeparatedKeys
+		do {
+			keys = try HKDFKeySeparator.separate(masterKey: derivedMasterKey ?? Data())
+		} catch {
+			throw AuthError.loginFailed
+		}
+
+		var authKey: Data? = keys.authHash
+		let encKey: Data = keys.encryptionKey
+		defer {
+			zeroizeData(&authKey)
+		}
+
+		let request = LoginRequestPayload(
+			email: trimmedEmail,
+			authHash: authKey?.base64EncodedString() ?? ""
+		)
+
+		let response = try await networkClient.login(request: request)
+
+		let remoteVault = try await networkClient.getVault(accessToken: response.accessToken)
+		let decryptedVault: VaultData
+		let encryptedVault: EncryptedVaultPayload
+		let revision: Int
+
+		if let remoteVault = remoteVault {
+			encryptedVault = remoteVault.payload
+			revision = remoteVault.revision
+			do {
+				let plaintext = try VaultCipher.decrypt(payload: encryptedVault, key: encKey)
+				decryptedVault = try JSONDecoder().decode(VaultData.self, from: plaintext)
+			} catch {
+				throw AuthError.loginFailed
+			}
+		} else {
+			let nowString = ISO8601DateFormatter().string(from: now)
+			let empty = VaultData(version: 1, updatedAt: nowString, items: [])
+			let encoded = try JSONEncoder().encode(empty)
+			encryptedVault = try VaultCipher.encrypt(plaintext: encoded, key: encKey)
+			decryptedVault = empty
+			revision = 1
+		}
+
+		applyLogin(
+			email: trimmedEmail,
+			accessToken: response.accessToken,
+			salt: saltData,
+			iterations: prelogin.iterations,
+			encryptedVault: encryptedVault,
+			decryptedVault: decryptedVault,
+			encryptionKey: encKey,
+			revision: revision,
+			now: now
+		)
 	}
 
 	private func internalLock() {

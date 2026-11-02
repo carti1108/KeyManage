@@ -23,14 +23,137 @@ public final class URLSessionAuthNetworkClient: AuthNetworkClientProtocol, @unch
 		let (data, response): (Data, URLResponse)
 		do {
 			(data, response) = try await session.data(for: request)
+		} catch is CancellationError {
+			throw CancellationError()
+		} catch let urlError as URLError where urlError.code == .notConnectedToInternet || urlError.code == .networkConnectionLost {
+			throw AuthError.offline
 		} catch {
-			throw MasterPasswordChangeError.networkError("네트워크 연결 실패: \(error.localizedDescription)")
+			throw AuthError.offline
 		}
 
-		guard let httpResp = response as? HTTPURLResponse, (200...299).contains(httpResp.statusCode) else {
-			throw MasterPasswordChangeError.networkError("키 유도 정보 조회 실패")
+		guard let httpResp = response as? HTTPURLResponse else {
+			throw AuthError.networkError("응답을 수신하지 못했습니다.")
 		}
-		return try JSONDecoder().decode(PreloginResponse.self, from: data)
+
+		if (200...299).contains(httpResp.statusCode) {
+			return try JSONDecoder().decode(PreloginResponse.self, from: data)
+		}
+
+		if httpResp.statusCode == 401 || httpResp.statusCode == 404 {
+			throw AuthError.loginFailed
+		} else if httpResp.statusCode == 429 {
+			throw AuthError.tooManyAttempts
+		} else {
+			throw AuthError.networkError("서버 오류: HTTP \(httpResp.statusCode)")
+		}
+	}
+
+	public func register(request: RegisterRequestPayload) async throws -> RegisterResponsePayload {
+		let url = baseURL.appendingPathComponent("auth/register")
+		var urlRequest = URLRequest(url: url)
+		urlRequest.httpMethod = "POST"
+		urlRequest.setValue("application/json; charset=UTF-8", forHTTPHeaderField: "Content-Type")
+		urlRequest.httpBody = try JSONEncoder().encode(request)
+
+		let (data, response): (Data, URLResponse)
+		do {
+			(data, response) = try await session.data(for: urlRequest)
+		} catch is CancellationError {
+			throw CancellationError()
+		} catch let urlError as URLError where urlError.code == .notConnectedToInternet || urlError.code == .networkConnectionLost {
+			throw AuthError.offline
+		} catch {
+			throw AuthError.offline
+		}
+
+		guard let httpResp = response as? HTTPURLResponse else {
+			throw AuthError.networkError("응답을 수신하지 못했습니다.")
+		}
+
+		if (200...299).contains(httpResp.statusCode) {
+			return try JSONDecoder().decode(RegisterResponsePayload.self, from: data)
+		}
+
+		if httpResp.statusCode == 409 {
+			throw AuthError.emailAlreadyRegistered
+		} else if httpResp.statusCode == 403 {
+			throw AuthError.registrationDisabled
+		} else if httpResp.statusCode == 429 {
+			throw AuthError.tooManyAttempts
+		} else {
+			throw AuthError.networkError("서버 오류: HTTP \(httpResp.statusCode)")
+		}
+	}
+
+	public func login(request: LoginRequestPayload) async throws -> LoginResponsePayload {
+		let url = baseURL.appendingPathComponent("auth/login")
+		var urlRequest = URLRequest(url: url)
+		urlRequest.httpMethod = "POST"
+		urlRequest.setValue("application/json; charset=UTF-8", forHTTPHeaderField: "Content-Type")
+		urlRequest.httpBody = try JSONEncoder().encode(request)
+
+		let (data, response): (Data, URLResponse)
+		do {
+			(data, response) = try await session.data(for: urlRequest)
+		} catch is CancellationError {
+			throw CancellationError()
+		} catch let urlError as URLError where urlError.code == .notConnectedToInternet || urlError.code == .networkConnectionLost {
+			throw AuthError.offline
+		} catch {
+			throw AuthError.offline
+		}
+
+		guard let httpResp = response as? HTTPURLResponse else {
+			throw AuthError.networkError("응답을 수신하지 못했습니다.")
+		}
+
+		if (200...299).contains(httpResp.statusCode) {
+			return try JSONDecoder().decode(LoginResponsePayload.self, from: data)
+		}
+
+		if httpResp.statusCode == 401 {
+			throw AuthError.loginFailed
+		} else if httpResp.statusCode == 429 {
+			throw AuthError.tooManyAttempts
+		} else {
+			throw AuthError.networkError("서버 오류: HTTP \(httpResp.statusCode)")
+		}
+	}
+
+	public func getVault(accessToken: String) async throws -> GetVaultResponsePayload? {
+		let url = baseURL.appendingPathComponent("vault")
+		var urlRequest = URLRequest(url: url)
+		urlRequest.httpMethod = "GET"
+		urlRequest.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+
+		let (data, response): (Data, URLResponse)
+		do {
+			(data, response) = try await session.data(for: urlRequest)
+		} catch is CancellationError {
+			throw CancellationError()
+		} catch let urlError as URLError where urlError.code == .notConnectedToInternet || urlError.code == .networkConnectionLost {
+			throw AuthError.offline
+		} catch {
+			throw AuthError.offline
+		}
+
+		guard let httpResp = response as? HTTPURLResponse else {
+			throw AuthError.networkError("응답을 수신하지 못했습니다.")
+		}
+
+		if httpResp.statusCode == 404 {
+			return nil
+		}
+
+		if (200...299).contains(httpResp.statusCode) {
+			return try JSONDecoder().decode(GetVaultResponsePayload.self, from: data)
+		}
+
+		if httpResp.statusCode == 401 {
+			throw AuthError.sessionExpired
+		} else {
+			throw AuthError.networkError("서버 오류: HTTP \(httpResp.statusCode)")
+		}
 	}
 
 	public func changePassword(

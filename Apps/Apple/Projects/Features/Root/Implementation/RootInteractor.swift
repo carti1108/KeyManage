@@ -18,11 +18,17 @@ final class RootInteractor: Interactor, RootInteractable {
 
 	override func didBecomeActive() {
 		super.didBecomeActive()
-		if lockManager.isLocked {
+		if !lockManager.hasActiveSession {
+			router?.routeToAuth()
+		} else if lockManager.isLocked {
 			router?.routeToUnlock()
 		} else {
 			router?.routeToMain()
 		}
+	}
+
+	func authDidComplete() {
+		router?.routeToMain()
 	}
 
 	func didUnlockVault() {
@@ -30,10 +36,18 @@ final class RootInteractor: Interactor, RootInteractable {
 	}
 
 	func didLockVault() {
-		router?.routeToUnlock()
+		if !lockManager.hasActiveSession {
+			router?.routeToAuth()
+		} else {
+			router?.routeToUnlock()
+		}
 	}
 
 	func didRequestLockVault() {
-		router?.routeToUnlock()
+		if !lockManager.hasActiveSession {
+			router?.routeToAuth()
+		} else {
+			router?.routeToUnlock()
+		}
 	}
 }

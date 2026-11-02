@@ -3,6 +3,9 @@ import Foundation
 import MicroRIBs
 import KeyManageDomain
 import UnlockFeatureInterface
+import MainFeatureInterface
+import AuthFeatureInterface
+import AuthFeatureTesting
 @testable import RootFeatureImplementation
 @testable import RootFeatureTesting
 @testable import RootFeatureInterface
@@ -51,6 +54,7 @@ final class RootInteractableMock: RootInteractable {
 	var didUnlockVaultCallCount = 0
 	var didLockVaultCallCount = 0
 	var didRequestLockVaultCallCount = 0
+	var authDidCompleteCallCount = 0
 
 	func activate() {
 		isActive = true
@@ -60,6 +64,10 @@ final class RootInteractableMock: RootInteractable {
 	func deactivate() {
 		isActive = false
 		isActiveSubject.send(false)
+	}
+
+	func authDidComplete() {
+		authDidCompleteCallCount += 1
 	}
 
 	func didUnlockVault() {
@@ -80,6 +88,39 @@ final class RootInteractableMock: RootInteractable {
 @Suite("RootFeature microRIBs 루트 라우팅 트리 및 윈도우 조립 단위 테스트")
 @MainActor
 struct RootFeatureTests {
+
+	@Test("didBecomeActive 시 세션이 없으면 router.routeToAuth() 1회 호출 검증")
+	func initialRouting_whenNoActiveSession_attachesAuthRIB() {
+		// Given
+		let lockManager = MockVaultLockManager()
+		lockManager.stubbedHasActiveSession = false
+		let interactor = RootInteractor(lockManager: lockManager)
+		let router = RootRoutingMock()
+		interactor.router = router
+
+		// When
+		interactor.didBecomeActive()
+
+		// Then
+		#expect(router.routeToAuthCallCount == 1)
+		#expect(router.routeToUnlockCallCount == 0)
+		#expect(router.routeToMainCallCount == 0)
+	}
+
+	@Test("AuthListener.authDidComplete() 수신 시 router.routeToMain() 호출 검증")
+	func authListener_whenAuthCompleted_transitionsToMain() {
+		// Given
+		let lockManager = MockVaultLockManager()
+		let interactor = RootInteractor(lockManager: lockManager)
+		let router = RootRoutingMock()
+		interactor.router = router
+
+		// When
+		interactor.authDidComplete()
+
+		// Then
+		#expect(router.routeToMainCallCount == 1)
+	}
 
 	// MARK: - 1. 볼트 잠김 상태 시 최초 라우팅은 Unlock RIB 부착
 	@Test("didBecomeActive 시 볼트가 잠겨 있으면 router.routeToUnlock() 1회 호출 검증")
@@ -158,7 +199,8 @@ struct RootFeatureTests {
 		let router = RootRouter(
 			interactor: interactor,
 			viewController: viewController,
-			unlockBuilder: unlockBuilder
+			unlockBuilder: unlockBuilder,
+			authBuilder: MockAuthBuildable()
 		)
 
 		// When
@@ -186,7 +228,8 @@ struct RootFeatureTests {
 		let router = RootRouter(
 			interactor: interactor,
 			viewController: viewController,
-			unlockBuilder: unlockBuilder
+			unlockBuilder: unlockBuilder,
+			authBuilder: MockAuthBuildable()
 		)
 		router.routeToUnlock()
 		#expect(router.children.contains { $0 === unlockRouting })
@@ -211,7 +254,8 @@ struct RootFeatureTests {
 		let router = RootRouter(
 			interactor: interactor,
 			viewController: viewController,
-			unlockBuilder: unlockBuilder
+			unlockBuilder: unlockBuilder,
+			authBuilder: MockAuthBuildable()
 		)
 		router.routeToUnlock()
 
@@ -260,7 +304,8 @@ struct RootFeatureTests {
 			interactor: interactor,
 			viewController: viewController,
 			unlockBuilder: unlockBuilder,
-			mainBuilder: mainBuilder
+			mainBuilder: mainBuilder,
+			authBuilder: MockAuthBuildable()
 		)
 
 		// When
@@ -290,7 +335,8 @@ struct RootFeatureTests {
 			interactor: interactor,
 			viewController: viewController,
 			unlockBuilder: unlockBuilder,
-			mainBuilder: mainBuilder
+			mainBuilder: mainBuilder,
+			authBuilder: MockAuthBuildable()
 		)
 		router.routeToMain()
 
@@ -315,7 +361,8 @@ struct RootFeatureTests {
 			interactor: interactor,
 			viewController: viewController,
 			unlockBuilder: unlockBuilder,
-			mainBuilder: mainBuilder
+			mainBuilder: mainBuilder,
+			authBuilder: MockAuthBuildable()
 		)
 		router.attachChild(mainRouting)
 		#expect(router.children.contains { $0 === mainRouting })

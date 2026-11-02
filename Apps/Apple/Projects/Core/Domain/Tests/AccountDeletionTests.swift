@@ -57,6 +57,21 @@ private final class MockAccountDeletionClient: AuthNetworkClientProtocol, @unche
 			throw error
 		}
 	}
+
+	func register(request: RegisterRequestPayload) async throws -> RegisterResponsePayload {
+		if let error = shouldThrowError { throw error }
+		return RegisterResponsePayload(accessToken: "dummy_token", expiresAt: "2026-11-27T11:20:00Z")
+	}
+
+	func login(request: LoginRequestPayload) async throws -> LoginResponsePayload {
+		if let error = shouldThrowError { throw error }
+		return LoginResponsePayload(accessToken: "dummy_token", expiresAt: "2026-11-27T11:20:00Z")
+	}
+
+	func getVault(accessToken: String) async throws -> GetVaultResponsePayload? {
+		if let error = shouldThrowError { throw error }
+		return nil
+	}
 }
 
 // MARK: - Test Doubles (MockURLProtocol for URLSessionAuthNetworkClient)

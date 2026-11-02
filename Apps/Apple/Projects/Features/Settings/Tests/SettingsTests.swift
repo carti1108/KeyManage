@@ -92,6 +92,7 @@ final class SettingsViewControllableSpy: SettingsViewControllable {
 
 final class MockVaultLockManager: VaultLockManagerProtocol, @unchecked Sendable {
 	var isLocked: Bool = false
+	var hasActiveSession: Bool = true
 	var isPrivacyCoverActive: Bool = false
 	var autoLockTimeout: AutoLockTimeout = .fiveMinutes
 	var lastInteractionTime: Date = Date()
