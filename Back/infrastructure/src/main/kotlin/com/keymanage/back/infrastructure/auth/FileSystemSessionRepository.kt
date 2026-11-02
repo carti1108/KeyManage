@@ -74,6 +74,13 @@ class FileSystemSessionRepository internal constructor(
 
     override fun deleteAllOf(email: Email) = deleteMatching { it.email == email.value }
 
+    override fun allTokenHashes(): Set<String> {
+        if (Files.notExists(storageDir)) return emptySet()
+        return Files.newDirectoryStream(storageDir, "*.json").use { files ->
+            files.map { it.fileName.toString().removeSuffix(".json") }.filter(TOKEN_HASH::matches).toSet()
+        }
+    }
+
     private fun deleteMatching(predicate: (SessionFile) -> Boolean) {
         if (Files.notExists(storageDir)) return
         val files = Files.newDirectoryStream(storageDir, "*.json").use { it.toList() }

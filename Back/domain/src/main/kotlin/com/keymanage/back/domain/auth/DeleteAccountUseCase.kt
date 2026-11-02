@@ -1,5 +1,7 @@
 package com.keymanage.back.domain.auth
 
+import com.keymanage.back.domain.vault.PendingVaultDeletions
+import com.keymanage.back.domain.vault.VaultId
 import com.keymanage.back.domain.vault.VaultRepository
 
 /**
@@ -7,7 +9,7 @@ import com.keymanage.back.domain.vault.VaultRepository
  *
  * 시도 제한 확인 -> 계정 잠금 -> 인증 해시 검증 -> 계정 삭제(확정) -> 볼트 삭제 -> 세션 전부 삭제 -> 잠금 해제.
  * 확정 전에 실패하면 아무것도 지우지 않는다. 확정 뒤 볼트·세션을 지우지 못해도 성공이다:
- * 계정이 없으면 그 계정의 토큰은 인증되지 않고, 남은 볼트는 어느 계정도 가리키지 않아 시작 때 정리된다.
+ * 계정이 없으면 그 계정의 토큰은 인증되지 않는다. 지우지 못한 볼트는 삭제 예정 목록에 남겨 시작 때 지운다 (ADR-BE-002).
  * 세션 삭제까지 계정 잠금 안에서 하므로, 같은 이메일로 바로 다시 가입한 계정의 새 세션을 지우지 않는다.
  */
 class DeleteAccountUseCase(
@@ -16,6 +18,7 @@ class DeleteAccountUseCase(
     private val sessions: SessionRepository,
     private val hasher: PasswordHasher,
     private val limiter: LoginAttemptLimiter,
+    private val pendingDeletions: PendingVaultDeletions = PendingVaultDeletions.NONE,
 ) {
 
     /**
@@ -31,7 +34,7 @@ class DeleteAccountUseCase(
             verify(account, authHash)
             if (!accounts.deleteIfMatches(account)) throw IllegalStateException("계정 잠금 안에서 계정이 바뀜")
             // 여기부터는 확정 뒤다. 실패해도 경고만 남긴다
-            afterCommit("계정 삭제 뒤 볼트를 지우지 못함") { vaults.delete(account.vaultId) }
+            deleteVault(account.vaultId)
             afterCommit("계정 삭제 뒤 세션을 지우지 못함") { sessions.deleteAllOf(email) }
         }
     }
@@ -43,6 +46,16 @@ class DeleteAccountUseCase(
         }
         // 성공하면 시도 기록을 지운다. 같은 이메일로 다시 가입한 계정이 옛 실패를 물려받지 않는다
         limiter.recordSuccess(account.email)
+    }
+
+    // 지우지 못한 볼트는 마지막 계정이어도 시작 때 지우도록 삭제 예정 목록에 남긴다. 목록에도 못 쓰면 고아 정리에 맡긴다
+    private fun deleteVault(id: VaultId) {
+        try {
+            vaults.delete(id)
+        } catch (e: Exception) {
+            log.log(System.Logger.Level.WARNING, "계정 삭제 뒤 볼트를 지우지 못함", e)
+            afterCommit("지우지 못한 볼트를 삭제 예정 목록에 남기지 못함") { pendingDeletions.add(id) }
+        }
     }
 
     private fun afterCommit(message: String, step: () -> Unit) {

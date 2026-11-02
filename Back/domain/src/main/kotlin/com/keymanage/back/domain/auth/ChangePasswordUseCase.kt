@@ -1,6 +1,7 @@
 package com.keymanage.back.domain.auth
 
 import com.keymanage.back.domain.vault.EncryptedVault
+import com.keymanage.back.domain.vault.PendingVaultDeletions
 import com.keymanage.back.domain.vault.Revision
 import com.keymanage.back.domain.vault.SaveVaultUseCase
 import com.keymanage.back.domain.vault.StoredVault
@@ -38,6 +39,7 @@ class ChangePasswordUseCase(
     private val issuer: SessionIssuer,
     private val limiter: LoginAttemptLimiter,
     private val newVaultId: () -> VaultId = { VaultId.of(UUID.randomUUID().toString()) },
+    private val pendingDeletions: PendingVaultDeletions = PendingVaultDeletions.NONE,
 ) {
 
     /**
@@ -103,10 +105,20 @@ class ChangePasswordUseCase(
         try {
             vaults.delete(account.vaultId)
         } catch (e: Exception) {
-            // 이미 확정됐으므로 성공으로 처리한다. 남은 파일은 어느 계정도 가리키지 않아 다음 시작 때 지운다
+            // 이미 확정됐으므로 성공으로 처리한다. 남은 파일은 삭제 예정 목록에 남겨 다음 시작 때 지운다 (ADR-BE-002)
             log.log(System.Logger.Level.WARNING, "비밀번호 변경 뒤 옛 볼트를 지우지 못함", e)
+            recordPending(account.vaultId)
         }
         return Swapped(newVault.id, newVault.revision)
+    }
+
+    // 목록에도 쓰지 못하면 고아 정리(계정이 있을 때)에 맡긴다
+    private fun recordPending(id: VaultId) {
+        try {
+            pendingDeletions.add(id)
+        } catch (e: Exception) {
+            log.log(System.Logger.Level.WARNING, "지우지 못한 옛 볼트를 삭제 예정 목록에 남기지 못함", e)
+        }
     }
 
     private data class Swapped(val vaultId: VaultId, val revision: Revision)
