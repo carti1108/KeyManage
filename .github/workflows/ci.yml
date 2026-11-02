@@ -166,9 +166,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: 문서 검사
+      - name: 문서 거버넌스 및 링크 무결성 검사
         run: bash Scripts/check-docs.sh
+
+      - name: 멀티 플랫폼 정책 합격 기준 감사
+        run: bash Scripts/check-policy-acceptance.sh
+
+      - name: API 명세-코드 계약 드리프트 감사
+        run: bash Scripts/check-api-contract.sh
+
+      - name: 전 플랫폼 TDD 테스트 불변성 감사
+        run: bash Scripts/verify-tdd-integrity.sh
 
   # 플랫폼 간 암호 테스트 벡터: 백엔드 결과와 상관없이 항상 돌도록 따로 둔다
   crypto-vectors:
@@ -195,6 +206,8 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: jdx/mise-action@v2
         with:
