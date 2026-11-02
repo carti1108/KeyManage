@@ -71,7 +71,9 @@ export function SessionRoot({ session, clipboard, pageHidden, networkOffline = f
       if (error === null) {
         setOffline(false)
         setSyncError(null)
-      } else if (error instanceof SessionExpiredError) {
+      } else if (sendsToSignIn(error)) {
+        // 세션 만료·다른 탭의 비밀번호 변경은 로그인 화면으로 가므로 볼트 화면의 경고가 아니라 로그인 화면 안내로 보인다
+        setSyncError(null)
         setNotice(describeError(error).body)
       } else if (!(error instanceof DeviceStorageError)) {
         // 기기 저장 실패는 세션 상태(storedOnDevice)로 경고한다. 다음 저장이 성공할 때까지 남아야 한다
@@ -157,12 +159,14 @@ export function SessionRoot({ session, clipboard, pageHidden, networkOffline = f
           onLogin={async (email, password, options) => {
             await session.login(email, password, options)
             setNotice(null)
+            setSyncError(null)
             setOffline(false)
             refresh()
           }}
           onRegister={async (email, password) => {
             await session.register(email, password)
             setNotice(null)
+            setSyncError(null)
             setOffline(false)
             refresh()
           }}

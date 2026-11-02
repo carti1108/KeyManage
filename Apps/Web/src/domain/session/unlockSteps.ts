@@ -22,6 +22,30 @@ export async function verifyPassword(password: string, target: Account) {
 }
 
 /**
+ * 비밀번호로 이 기기의 볼트를 연다. 열지 못하면 서버의 KDF 값만 확인해, 다른 곳에서 비밀번호가 바뀌었으면
+ * 로그아웃 상태로 바꾸고 MasterPasswordChangedError를 던진다. 바뀐 비밀번호는 기기의 옛 KDF 값으로 열 수 없기 때문이다 (SEC-003 규칙 11).
+ * KDF 값이 같거나 서버에 닿지 못하면 WrongMasterPasswordError 그대로다. 그사이 다른 로그인·로그아웃이 있었으면 상태를 건드리지 않는다
+ */
+export async function verifyOrDetectChange(ctx: SessionContext, password: string, target: Account) {
+  const startedGeneration = ctx.generation
+  try {
+    return await verifyPassword(password, target)
+  } catch (error) {
+    if (!(error instanceof WrongMasterPasswordError)) throw error
+    let changed = false
+    try {
+      changed = await ctx.deps.auth.kdfChanged(target.email, target.kdf)
+    } catch {
+      // 오프라인·서버 오류면 바뀌었는지 알 수 없다. 비밀번호 틀림으로 둔다
+    }
+    if (!changed || ctx.generation !== startedGeneration) throw error
+    // 기기 기록은 새 비밀번호로 로그인에 성공할 때 버린다 (ADR-0020)
+    clear(ctx)
+    throw new MasterPasswordChangedError()
+  }
+}
+
+/**
  * 세션 토큰 없이 연 계정을 이미 만든 인증 해시로 로그인한다. 인증 해시는 이 요청 안에서 지운다 (ADR-0019)
  * @returns 세션 토큰. 로그인하지 못했으면 null과 그 사유(서버에 닿지 못함, 서버 거절 등)
  * @throws MasterPasswordChangedError(로그아웃 상태로 바꾼다)

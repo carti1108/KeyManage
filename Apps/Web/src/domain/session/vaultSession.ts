@@ -14,7 +14,7 @@ import { onTabMessage, open, refreshLockedFromDevice } from './deviceSync'
 import { enqueuePush } from './pendingPush'
 import { NO_TOKEN, createSessionContext, ensureCurrent, ensureCurrentOrRevoke, lockThisTab, notifySync, readDevice, resetSignIn, revoke, syncFor } from './sessionContext'
 import { beginSignIn, signIn } from './signIn'
-import { resumeSession, syncAfterUnlock, verifyPassword } from './unlockSteps'
+import { resumeSession, syncAfterUnlock, verifyOrDetectChange } from './unlockSteps'
 
 import {
   SessionExpiredError,
@@ -80,7 +80,7 @@ export function createVaultSession(deps: VaultSessionDeps) {
      * 저장해 둔 암호화 볼트를 복호화해 비밀번호를 확인하므로 오프라인에서도 동작한다.
      * 확인 뒤 바로 서버와 맞추며(대기 내용이 있으면 병합해 올림), 서버와 맞추지 못하면 저장해 둔 볼트로 연다
      * @returns offline: 서버와 맞추지 못했는지
-     * @throws WrongMasterPasswordError, SessionExpiredError(로그아웃됨), RevisionRollbackError(잠긴 상태 유지), SessionStateError
+     * @throws WrongMasterPasswordError, MasterPasswordChangedError(로그아웃됨), SessionExpiredError(로그아웃됨), RevisionRollbackError(잠긴 상태 유지), SessionStateError
      */
     async unlock(password: string, options: RollbackOption = {}): Promise<{ offline: boolean }> {
       if (ctx.account === null) throw new SessionStateError('로그인 전에는 잠금을 해제할 수 없음')
@@ -93,7 +93,7 @@ export function createVaultSession(deps: VaultSessionDeps) {
       if (ctx.unlocked !== null) return { offline: false }
       const locked = ctx.account
 
-      const { keys, data } = await verifyPassword(password, locked)
+      const { keys, data } = await verifyOrDetectChange(ctx, password, locked)
       // 토큰이 있으면 인증 해시가 필요 없어 바로 지운다. 없으면(기기 기록으로 다시 열었으면) 바로 로그인하고 지운다 (SEC-003, ADR-0019)
       let accessToken = locked.accessToken
       if (accessToken === null) {
@@ -126,7 +126,7 @@ export function createVaultSession(deps: VaultSessionDeps) {
       if (ctx.account.accessToken !== null) return
       const current = ctx.account
       const startedAt = ctx.epoch
-      const { keys } = await verifyPassword(password, current)
+      const { keys } = await verifyOrDetectChange(ctx, password, current)
       const { accessToken, failure } = await resumeSession(ctx, current, keys.authHash)
       // 왜 동기화하지 못하는지 알 수 있게 실제 사유(연결 실패, 서버 오류, 거절)를 그대로 낸다
       if (accessToken === null) throw failure ?? new NetworkError()

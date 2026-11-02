@@ -98,6 +98,16 @@ export function createAuthService(api: AuthApi) {
       }
     },
 
+    /**
+     * 서버의 KDF 값이 기기에 저장한 값과 다른지 prelogin으로만 확인한다. 비밀번호·인증 해시는 보내지 않는다.
+     * 기기 볼트를 열지 못했을 때 다른 곳에서 비밀번호가 바뀌었는지 가린다 (SEC-003 규칙 11)
+     * @throws 서버 통신 오류(NetworkError 등). 부른 쪽이 확인 실패로 다룬다
+     */
+    async kdfChanged(email: string, kdf: UnlockKdf): Promise<boolean> {
+      const params = await api.prelogin(email)
+      return params.kdf !== SUPPORTED_KDF || params.salt !== kdf.salt || params.iterations !== kdf.iterations
+    },
+
     logout(accessToken: string): Promise<void> {
       return api.logout(accessToken)
     },
