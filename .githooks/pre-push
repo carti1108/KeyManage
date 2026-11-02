@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# 원격 푸시 전 Rebase 무결성 검증 게이트 (.githooks/pre-push)
+#
+# PR 푸시 전 작업 브랜치가 최신 origin/main 위에 리베이스되어 있는지
+# git push 이벤트 시점에 기계적으로 검증하여 충돌(Conflict) 발생을 사전에 차단한다.
+
+set -euo pipefail
+
+if [ "${KM_SKIP_REBASE_CHECK:-0}" = "1" ]; then
+  exit 0
+fi
+
+ZERO_SHA="0000000000000000000000000000000000000000"
+
+# 원격 최신 커밋 상태 확인
+git fetch origin main --quiet 2>/dev/null || true
+if ! git rev-parse --verify origin/main >/dev/null 2>&1; then
+  exit 0
+fi
+ORIGIN_MAIN_SHA="$(git rev-parse origin/main)"
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  # 1. 브랜치 삭제 푸시인 경우 검사 건너뜀
+  if [ "${local_sha}" = "${ZERO_SHA}" ]; then
+    continue
+  fi
+
+  # 2. main 브랜치 자체를 푸시하거나 태그 푸시인 경우 검사 건너뜀
+  branch_name="${local_ref#refs/heads/}"
+  if [ "${branch_name}" = "main" ] || [[ "${local_ref}" == refs/tags/* ]]; then
+    continue
+  fi
+
+  # 3. 작업 브랜치와 origin/main의 공통 조상(merge-base) 계산
+  merge_base="$(git merge-base "${local_sha}" origin/main 2>/dev/null || true)"
+
+  # merge-base가 origin/main의 최신 HEAD와 다르면 아직 rebase되지 않은 상태
+  if [ -n "${merge_base}" ] && [ "${merge_base}" != "${ORIGIN_MAIN_SHA}" ]; then
+    echo ">> [pre-push 오류] 푸시하려는 브랜치('${branch_name}')가 최신 origin/main 위에 리베이스되어 있지 않습니다." >&2
+    echo ">> PR 생성/푸시 전 충돌 방지 규칙에 따라 아래 명령을 먼저 실행하세요:" >&2
+    echo ">>   git fetch origin main" >&2
+    echo ">>   git rebase origin/main" >&2
+    echo ">> (긴급 우회 시 KM_SKIP_REBASE_CHECK=1 git push)" >&2
+    exit 1
+  fi
+done
