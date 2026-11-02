@@ -20,10 +20,17 @@ function open() {
   return screen.getByRole('dialog', { name: '마스터 비밀번호 변경' })
 }
 
-function fill(dialog: HTMLElement, { current = CURRENT, next = NEXT, confirmation = next } = {}) {
+interface Inputs {
+  readonly current?: string
+  readonly next?: string
+  /** 없으면 새 비밀번호와 같다 */
+  readonly confirmation?: string
+}
+
+function fill(dialog: HTMLElement, { current = CURRENT, next = NEXT, confirmation }: Inputs = {}) {
   fireEvent.change(within(dialog).getByLabelText('현재 마스터 비밀번호'), { target: { value: current } })
   fireEvent.change(within(dialog).getByLabelText('새 마스터 비밀번호'), { target: { value: next } })
-  fireEvent.change(within(dialog).getByLabelText('새 마스터 비밀번호 확인'), { target: { value: confirmation } })
+  fireEvent.change(within(dialog).getByLabelText('새 마스터 비밀번호 확인'), { target: { value: confirmation ?? next } })
 }
 
 function submit(dialog: HTMLElement) {
