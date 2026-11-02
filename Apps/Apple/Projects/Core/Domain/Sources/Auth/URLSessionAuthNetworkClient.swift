@@ -75,4 +75,48 @@ public final class URLSessionAuthNetworkClient: AuthNetworkClientProtocol, @unch
 			throw MasterPasswordChangeError.networkError("서버 오류: HTTP \(httpResp.statusCode)")
 		}
 	}
+
+	public func deleteAccount(
+		accessToken: String,
+		authHash: String
+	) async throws {
+		let url = baseURL.appendingPathComponent("auth/delete-account")
+		var urlRequest = URLRequest(url: url)
+		urlRequest.httpMethod = "POST"
+		urlRequest.setValue("application/json; charset=UTF-8", forHTTPHeaderField: "Content-Type")
+		urlRequest.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+		let payload = DeleteAccountRequestPayload(authHash: authHash)
+		urlRequest.httpBody = try JSONEncoder().encode(payload)
+
+		let (data, response): (Data, URLResponse)
+		do {
+			(data, response) = try await session.data(for: urlRequest)
+		} catch is CancellationError {
+			throw CancellationError()
+		} catch let urlError as URLError where urlError.code == .notConnectedToInternet || urlError.code == .networkConnectionLost {
+			throw AccountDeletionError.offline
+		} catch {
+			throw AccountDeletionError.networkError(AccountDeletionStrings.offlineMessage)
+		}
+
+		guard let httpResp = response as? HTTPURLResponse else {
+			throw AccountDeletionError.networkError("응답을 수신하지 못했습니다.")
+		}
+
+		if (200...299).contains(httpResp.statusCode) {
+			return
+		}
+
+		if httpResp.statusCode == 401 {
+			if let errObj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+			   let code = errObj["code"] as? String, code == "AUTH_FAILED" {
+				throw AccountDeletionError.invalidPassword
+			}
+			throw AccountDeletionError.sessionExpired
+		} else if httpResp.statusCode == 429 {
+			throw AccountDeletionError.tooManyAttempts
+		} else {
+			throw AccountDeletionError.networkError("서버 오류: HTTP \(httpResp.statusCode)")
+		}
+	}
 }

@@ -58,6 +58,14 @@ public protocol VaultLockManagerProtocol: AnyObject, Sendable {
 		now: Date
 	) async throws
 
+	// SEC-005 계정 삭제
+	func deleteAccount(
+		password: String,
+		confirmationPhrase: String,
+		networkClient: AuthNetworkClientProtocol,
+		now: Date
+	) async throws
+
 	// SEC-003 규칙 11 서버 KDF 변경 감지
 	func checkIfPasswordChangedOnServer(
 		networkClient: AuthNetworkClientProtocol
@@ -121,6 +129,20 @@ public extension VaultLockManagerProtocol {
 		try await changeMasterPassword(
 			currentPassword: currentPassword,
 			newPassword: newPassword,
+			networkClient: networkClient,
+			now: now
+		)
+	}
+
+	func deleteAccount(
+		password: String,
+		confirmationPhrase: String,
+		networkClient: AuthNetworkClientProtocol,
+		now: Date = Date()
+	) async throws {
+		try await deleteAccount(
+			password: password,
+			confirmationPhrase: confirmationPhrase,
 			networkClient: networkClient,
 			now: now
 		)
@@ -324,6 +346,33 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 	}
 
 	public init() {}
+
+	public func setupSession(
+		email: String,
+		sessionToken: String?,
+		salt: Data?,
+		iterations: Int,
+		encryptedVault: EncryptedVaultPayload,
+		isBiometricsEnabled: Bool = false,
+		biometryStateHash: Data? = nil,
+		revision: Int = 1
+	) {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+
+		_email = email
+		_sessionToken = sessionToken
+		_salt = salt
+		_iterations = iterations
+		_encryptedVault = encryptedVault
+		_isBiometricsEnabled = isBiometricsEnabled
+		_currentBiometryStateHash = biometryStateHash
+		_revision = revision
+
+		_isLocked = false
+		_isPrivacyCoverActive = false
+		_lastInteractionTime = Date()
+	}
 
 	public func setupSession(
 		email: String,
@@ -852,6 +901,82 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 		let preloginResp = try await networkClient.prelogin(email: info.email)
 		let differs = (preloginResp.salt != info.saltBase64 || preloginResp.iterations != info.iterations)
 		return differs
+	}
+
+	// MARK: - SEC-005 계정 삭제
+
+	public func deleteAccount(
+		password: String,
+		confirmationPhrase: String,
+		networkClient: AuthNetworkClientProtocol,
+		now: Date = Date()
+	) async throws {
+		let snapshot = getCredentialsSnapshot()
+		guard !snapshot.isLocked else {
+			throw AccountDeletionError.vaultLocked
+		}
+
+		// 1. 확인 문구 일치 검증 (SEC-005 값: "계정 삭제", 앞뒤 공백 포함 엄격 일치)
+		guard confirmationPhrase == AccountDeletionStrings.confirmationPhrase else {
+			throw AccountDeletionError.confirmationMismatch
+		}
+
+		// 2. 서버 연결 상태 확인 (SEC-005 규칙 1: 서버에 연결된 상태에서만 가능)
+		guard let sessionToken = snapshot.sessionToken,
+		      let currentSalt = snapshot.salt,
+		      snapshot.iterations > 0,
+		      let encVault = snapshot.encryptedVault else {
+			throw AccountDeletionError.offline
+		}
+
+		// 3. 마스터 비밀번호로 현재 키 검증 및 authHash 계산
+		var normalizedPassword: Data?
+		defer { zeroizeData(&normalizedPassword) }
+		do {
+			normalizedPassword = try PasswordPreprocessor.preprocess(password)
+		} catch {
+			throw AccountDeletionError.invalidPassword
+		}
+
+		var derivedMasterKey: Data?
+		defer { zeroizeData(&derivedMasterKey) }
+		do {
+			derivedMasterKey = try PBKDF2KeyDeriver.deriveMasterKey(
+				password: normalizedPassword ?? Data(),
+				salt: currentSalt,
+				iterations: snapshot.iterations
+			)
+		} catch {
+			throw AccountDeletionError.invalidPassword
+		}
+
+		let currentKeys: SeparatedKeys
+		do {
+			currentKeys = try HKDFKeySeparator.separate(masterKey: derivedMasterKey ?? Data())
+		} catch {
+			throw AccountDeletionError.invalidPassword
+		}
+
+		var currentAuthKey: Data? = currentKeys.authHash
+		var currentEncKey: Data? = currentKeys.encryptionKey
+		defer {
+			zeroizeData(&currentAuthKey)
+			zeroizeData(&currentEncKey)
+		}
+
+		// 암호화된 볼트 복호화 시도로 로컬 비밀번호 정확성 1차 검증
+		do {
+			_ = try VaultCipher.decrypt(payload: encVault, key: currentEncKey ?? Data())
+		} catch {
+			throw AccountDeletionError.invalidPassword
+		}
+
+		// 4. 서버 계정 삭제 요청 (POST /api/v1/auth/delete-account)
+		let authHashBase64 = currentAuthKey?.base64EncodedString() ?? ""
+		try await networkClient.deleteAccount(accessToken: sessionToken, authHash: authHashBase64)
+
+		// 5. 성공 시 기기 세션 및 인메모리 자격증명 완전 소각
+		logout()
 	}
 
 	// MARK: - VLT-001 볼트 아이템 추가, 수정, 삭제 (CRUD)

@@ -7,10 +7,13 @@ import Testing
 final class MockAuthNetworkClient: AuthNetworkClientProtocol, @unchecked Sendable {
 	var preloginCallCount: Int = 0
 	var changePasswordCallCount: Int = 0
+	var deleteAccountCallCount: Int = 0
 
 	var receivedPreloginEmail: String?
 	var receivedAccessToken: String?
 	var receivedRequestPayload: ChangePasswordRequestPayload?
+	var receivedDeleteAccountAccessToken: String?
+	var receivedDeleteAccountAuthHash: String?
 
 	var preloginResponseToReturn: PreloginResponse?
 	var changePasswordResponseToReturn: ChangePasswordResponsePayload?
@@ -66,6 +69,19 @@ final class MockAuthNetworkClient: AuthNetworkClientProtocol, @unchecked Sendabl
 			expiresAt: "2026-11-03T12:00:00Z",
 			revision: request.vault.expectedRevision + 1
 		)
+	}
+
+	func deleteAccount(
+		accessToken: String,
+		authHash: String
+	) async throws {
+		deleteAccountCallCount += 1
+		receivedDeleteAccountAccessToken = accessToken
+		receivedDeleteAccountAuthHash = authHash
+
+		if let error = shouldThrowError {
+			throw error
+		}
 	}
 }
 

@@ -37,6 +37,10 @@ struct SettingsView: View {
 		.sheet(isPresented: $viewModel.isChangePasswordPresented) {
 			changePasswordModalView
 		}
+		.sheet(isPresented: $viewModel.isDeleteAccountPresented) {
+			deleteAccountModalView
+				.interactiveDismissDisabled(viewModel.isDeletingAccount)
+		}
 		.alert("로그아웃", isPresented: $viewModel.isLogoutConfirmPresented) {
 			Button("취소", role: .cancel) {}
 			Button("로그아웃", role: .destructive) {
@@ -165,11 +169,21 @@ struct SettingsView: View {
 					.font(.headline)
 					.foregroundColor(DesignToken.View.foreground)
 
-				KMButton(
-					"로그아웃",
-					variant: .destructive,
-					action: { viewModel.isLogoutConfirmPresented = true }
-				)
+				HStack(spacing: 12) {
+					KMButton(
+						"로그아웃",
+						variant: .outline,
+						action: { viewModel.isLogoutConfirmPresented = true }
+					)
+
+					Spacer()
+
+					KMButton(
+						AccountDeletionStrings.preNoticeTitle,
+						variant: .destructive,
+						action: { viewModel.startAccountDeletion() }
+					)
+				}
 			}
 			.padding(16)
 		}
@@ -369,5 +383,125 @@ struct SettingsView: View {
 			.cornerRadius(8)
 			.padding(.bottom, 24)
 			.transition(.opacity)
+	}
+
+	// MARK: - Delete Account Modal (SEC-005)
+
+	private var deleteAccountModalView: some View {
+		modalNavigationContainer {
+			ScrollView {
+				VStack(alignment: .leading, spacing: 20) {
+					// 경고 카드
+					KMCard {
+						VStack(alignment: .leading, spacing: 10) {
+							HStack(spacing: 8) {
+								Image(systemName: "exclamationmark.triangle.fill")
+									.foregroundColor(.red)
+								Text("되돌릴 수 없습니다")
+									.font(.headline)
+									.foregroundColor(.red)
+							}
+
+							Text(AccountDeletionStrings.preNoticeBody)
+								.font(.footnote)
+								.foregroundColor(DesignToken.View.foreground)
+								.fixedSize(horizontal: false, vertical: true)
+						}
+						.padding(16)
+					}
+
+					if let error = viewModel.deleteAccountErrorMessage {
+						Text(error)
+							.font(.footnote)
+							.foregroundColor(.red)
+					}
+
+					// 마스터 비밀번호 입력
+					VStack(alignment: .leading, spacing: 6) {
+						Text("마스터 비밀번호")
+							.font(.subheadline.bold())
+							.foregroundColor(DesignToken.View.foreground)
+
+						KMPasswordField(
+							text: $viewModel.deleteAccountPasswordInput,
+							placeholder: "현재 마스터 비밀번호 입력",
+							showCopyAction: false
+						)
+					}
+
+					// 확인 문구 입력 ('계정 삭제')
+					VStack(alignment: .leading, spacing: 6) {
+						Text("확인 문구 입력")
+							.font(.subheadline.bold())
+							.foregroundColor(DesignToken.View.foreground)
+
+						TextField(AccountDeletionStrings.confirmationPrompt, text: $viewModel.deleteAccountConfirmationInput)
+							.textFieldStyle(.plain)
+							#if os(iOS)
+							.textInputAutocapitalization(.never)
+							#endif
+							.disableAutocorrection(true)
+							.padding(10)
+							.background(DesignToken.View.card)
+							.cornerRadius(6)
+							.overlay(
+								RoundedRectangle(cornerRadius: 6)
+									.stroke(DesignToken.View.border, lineWidth: 1)
+							)
+
+						Text("진행하려면 '\(AccountDeletionStrings.confirmationPhrase)'를 정확히 입력해 주세요.")
+							.font(.caption)
+							.foregroundColor(DesignToken.View.mutedForeground)
+					}
+				}
+				.padding(20)
+			}
+			.navigationTitle(AccountDeletionStrings.preNoticeTitle)
+			#if os(iOS)
+			.navigationBarTitleDisplayMode(.inline)
+			#endif
+			.toolbar {
+				ToolbarItem(placement: .cancellationAction) {
+					Button(AccountDeletionStrings.cancelButtonTitle) {
+						viewModel.cancelAccountDeletion()
+					}
+					.disabled(viewModel.isDeletingAccount)
+				}
+				ToolbarItem(placement: .confirmationAction) {
+					Button(role: .destructive) {
+						viewModel.executeDeleteAccount()
+					} label: {
+						if viewModel.isDeletingAccount {
+							ProgressView()
+								.progressViewStyle(.circular)
+						} else {
+							Text(AccountDeletionStrings.deleteButtonTitle)
+								.font(.body.weight(.bold))
+						}
+					}
+					.tint(.red)
+					.disabled(!viewModel.canExecuteDeleteAccount || viewModel.isDeletingAccount)
+				}
+			}
+		}
+		#if os(macOS)
+		.frame(minWidth: 460, minHeight: 440)
+		#endif
+	}
+
+	@ViewBuilder
+	private func modalNavigationContainer<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+		if #available(iOS 16.0, macOS 13.0, *) {
+			NavigationStack {
+				content()
+			}
+		} else {
+			NavigationView {
+				content()
+			}
+			#if os(iOS)
+			.navigationViewStyle(.stack)
+			#endif
+		}
 	}
 }

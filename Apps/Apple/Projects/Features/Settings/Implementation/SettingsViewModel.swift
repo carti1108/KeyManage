@@ -13,6 +13,13 @@ final class SettingsViewModel: ObservableObject {
 	@Published var confirmPasswordInput: String = ""
 	@Published var exportResult: (fileName: String, data: Data)?
 
+	// SEC-005 계정 삭제
+	@Published var isDeleteAccountPresented: Bool = false
+	@Published var deleteAccountPasswordInput: String = ""
+	@Published var deleteAccountConfirmationInput: String = ""
+	@Published var deleteAccountErrorMessage: String?
+	@Published var isDeletingAccount: Bool = false
+
 	private var toastDismissTask: Task<Void, Never>?
 
 	var onSelectTimeout: ((AutoLockTimeout) -> Void)?
@@ -20,6 +27,35 @@ final class SettingsViewModel: ObservableObject {
 	var onRequestRestore: ((Data, String) -> Void)?
 	var onRequestLogout: (() -> Void)?
 	var onRequestChangePassword: ((String, String, String) -> Void)?
+	var onRequestDeleteAccount: ((String, String) -> Void)?
+
+	var canExecuteDeleteAccount: Bool {
+		deleteAccountConfirmationInput == AccountDeletionStrings.confirmationPhrase &&
+		!deleteAccountPasswordInput.isEmpty
+	}
+
+	func startAccountDeletion() {
+		resetDeleteAccountFields()
+		isDeleteAccountPresented = true
+	}
+
+	func cancelAccountDeletion() {
+		resetDeleteAccountFields()
+		isDeleteAccountPresented = false
+	}
+
+	func executeDeleteAccount() {
+		guard canExecuteDeleteAccount else { return }
+		isDeletingAccount = true
+		onRequestDeleteAccount?(deleteAccountPasswordInput, deleteAccountConfirmationInput)
+	}
+
+	func resetDeleteAccountFields() {
+		deleteAccountPasswordInput = ""
+		deleteAccountConfirmationInput = ""
+		deleteAccountErrorMessage = nil
+		isDeletingAccount = false
+	}
 
 	func selectTimeout(_ timeout: AutoLockTimeout) {
 		selectedTimeout = timeout

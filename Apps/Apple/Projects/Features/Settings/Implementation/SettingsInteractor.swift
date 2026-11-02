@@ -12,6 +12,8 @@ protocol SettingsPresentable: AnyObject {
 	func showExportResult(fileName: String, data: Data)
 	func showToast(message: String)
 	func dismissChangePasswordModal()
+	func dismissDeleteAccountModal()
+	func showDeleteAccountError(message: String)
 }
 
 // MARK: - Interactor
@@ -23,6 +25,7 @@ final class SettingsInteractor: Interactor, SettingsInteractable, SettingsPresen
 	weak var presenter: SettingsPresentable?
 	let lockManager: VaultLockManagerProtocol
 	let networkClient: AuthNetworkClientProtocol
+	private var deleteAccountTask: Task<Void, Never>?
 
 	init(
 		lockManager: VaultLockManagerProtocol,
@@ -38,6 +41,12 @@ final class SettingsInteractor: Interactor, SettingsInteractable, SettingsPresen
 	override func didBecomeActive() {
 		super.didBecomeActive()
 		presenter?.displayAutoLockTimeout(lockManager.autoLockTimeout)
+	}
+
+	override func willResignActive() {
+		super.willResignActive()
+		deleteAccountTask?.cancel()
+		deleteAccountTask = nil
 	}
 
 	func didSelectAutoLockTimeout(_ timeout: AutoLockTimeout) {
@@ -102,5 +111,28 @@ final class SettingsInteractor: Interactor, SettingsInteractable, SettingsPresen
 	func didRequestLogout() {
 		lockManager.logout()
 		listener?.settingsDidRequestLogout()
+	}
+
+	func didRequestDeleteAccount(password: String, confirmationPhrase: String) {
+		deleteAccountTask = Task { [weak self] in
+			guard let self else { return }
+			do {
+				try await self.lockManager.deleteAccount(
+					password: password,
+					confirmationPhrase: confirmationPhrase,
+					networkClient: self.networkClient
+				)
+				guard !Task.isCancelled else { return }
+				self.presenter?.dismissDeleteAccountModal()
+				self.presenter?.showToast(message: AccountDeletionStrings.successMessage)
+				self.listener?.settingsDidRequestLogout()
+			} catch let error as LocalizedError {
+				guard !Task.isCancelled else { return }
+				self.presenter?.showDeleteAccountError(message: error.errorDescription ?? error.localizedDescription)
+			} catch {
+				guard !Task.isCancelled else { return }
+				self.presenter?.showDeleteAccountError(message: error.localizedDescription)
+			}
+		}
 	}
 }
