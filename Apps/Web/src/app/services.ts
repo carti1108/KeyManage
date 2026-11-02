@@ -5,12 +5,14 @@ import { browserClipboard } from '../adapters/browser/browserClipboard'
 import { createBrowserTabs } from '../adapters/browser/browserTabs'
 import { createIndexedDbDeviceStore } from '../adapters/browser/indexedDbDeviceStore'
 import { createLocalStorageAutoLockSetting } from '../adapters/browser/localStorageAutoLockSetting'
+import { createSessionStorageTabMemory } from '../adapters/browser/sessionStorageTabMemory'
 import { createApiClient, resolveBaseUrl } from '../adapters/http/apiClient'
 import { createHttpAuthApi } from '../adapters/http/httpAuthApi'
 import { createHttpVaultApi } from '../adapters/http/httpVaultApi'
 import { createAuthService } from '../domain/auth/authService'
 import { createClipboardBurner, type ClipboardBurner } from '../domain/clipboard/clipboardBurner'
 import type { DeviceStore } from '../domain/device/deviceRecord'
+import type { TabMemory } from '../domain/device/tabMemory'
 import type { AutoLockSettingStore } from '../domain/lock/autoLockSetting'
 import type { BackupFiles } from '../domain/backup/backupFile'
 import { createVaultSession, type VaultSession } from '../domain/session/vaultSession'
@@ -34,6 +36,7 @@ export interface Services {
  * @param deviceStore 한 계정의 기록을 두는 기기 저장소 (ADR-0019). 기본은 브라우저 IndexedDB
  * @param tabs 같은 브라우저의 다른 탭과 나누는 잠금·알림 (ADR-WEB-001). 기본은 navigator.locks·BroadcastChannel
  * @param autoLockSetting 자동 잠금 시간 저장소 (ADR-WEB-002). 기본은 localStorage
+ * @param tabMemory 이 탭이 연 계정의 KDF 값 기억 (SEC-003 규칙 11). 기본은 sessionStorage
  * @throws InvalidBaseUrlError 빌드할 때 넣은 서버 주소가 규칙에 맞지 않을 때
  */
 export function createServices(
@@ -41,6 +44,7 @@ export function createServices(
   deviceStore: DeviceStore = createIndexedDbDeviceStore(),
   tabs: Tabs = createBrowserTabs(),
   autoLockSetting: AutoLockSettingStore = createLocalStorageAutoLockSetting(),
+  tabMemory: TabMemory = createSessionStorageTabMemory(),
 ): Services {
   const client = createApiClient({ baseUrl: resolveBaseUrl(apiBaseUrl), fetch: globalThis.fetch.bind(globalThis) })
   // 잠금 해제·재로그인으로 동기화를 새로 만들어도 되돌림 감지 기준을 이어 간다
@@ -54,6 +58,7 @@ export function createServices(
       revisionMemory,
       deviceStore,
       tabs,
+      tabMemory,
     }),
     clipboard: createClipboardBurner({ clipboard: browserClipboard, scheduler: browserScheduler, now: () => Date.now() }),
     tabs,

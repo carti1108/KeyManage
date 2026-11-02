@@ -12,7 +12,7 @@ import { ServerError } from '../server/serverErrors'
 import { ReadOnlyVaultError, VaultSyncConflictError, type SyncedVault } from '../vault/vaultSync'
 import { persist, writeLocked } from './deviceSync'
 import { enqueuePush } from './pendingPush'
-import { NO_TOKEN, ensureCurrent, expire, isUnauthorized, notifySync, readDevice, revoke, syncFor, type SessionContext } from './sessionContext'
+import { NO_TOKEN, ensureCurrent, expire, isUnauthorized, notifySync, readDevice, rememberKdf, revoke, syncFor, type SessionContext } from './sessionContext'
 import { SessionExpiredError, SessionStateError, WrongMasterPasswordError } from './sessionTypes'
 import { verifyPassword } from './unlockSteps'
 
@@ -158,6 +158,7 @@ async function adopt(ctx: SessionContext, changed: ChangedPassword, creds: NewCr
   ctx.deps.revisionMemory.raise(changed.revision)
   ctx.account = { email: target.email, accessToken: changed.accessToken, kdf: creds.kdf, payload: vault.payload ?? creds.payload, revision: changed.revision, pendingSync }
   if (ctx.unlocked !== null) ctx.unlocked = { sync: syncFor(ctx, changed.accessToken, creds.encryptionKey), vault, pendingSync }
+  rememberKdf(ctx, target.email, creds.kdf)
   // 옛 KDF 값의 기록은 이 탭이 덮어쓴다. 다른 탭은 바뀐 KDF 값을 보고 로그인 화면으로 간다 (SEC-003 규칙 11, ADR-WEB-001)
   await ctx.deps.tabs.lock.run('device', async () => {
     const current = await readDevice(ctx).catch(() => null)

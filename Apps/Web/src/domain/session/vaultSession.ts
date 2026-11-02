@@ -2,7 +2,8 @@
 // 잠기면 암호화 키와 평문 볼트를 버리고, 이메일·KDF 값·토큰·암호화 볼트만 남긴다
 // 서버에 닿지 못한 저장은 동기화 대기로 두고 나중에 다시 보낸다 (VLT-002)
 // 상태는 sessionContext, 기기 기록은 deviceSync, 대기 재전송은 pendingPush, 로그인은 signIn, 잠금 해제 단계는 unlockSteps가 맡는다
-import { normalizeEmail } from '../auth/authService'
+import { MasterPasswordChangedError, normalizeEmail } from '../auth/authService'
+import { sameKdf } from '../device/reconcileDeviceRecord'
 import { DeviceStorageError } from '../device/deviceRecord'
 import { NetworkError } from '../server/serverErrors'
 import { isReadOnly, type VaultData } from '../vault/vaultData'
@@ -87,7 +88,8 @@ export function createVaultSession(deps: VaultSessionDeps) {
       if (ctx.unlocked !== null) return { offline: false }
       const startedAt = ctx.epoch
       // 동결 등으로 다른 탭의 알림을 놓쳤을 수 있으니 기기 기록을 다시 읽는다. 기록의 볼트는 연 뒤 쓸 때 병합한다 (ADR-WEB-001)
-      await refreshLockedFromDevice(ctx, false)
+      // 다른 탭이 비밀번호를 바꿔 로그아웃 상태로 바꿨으면 취소가 아니라 비밀번호 바뀜으로 알린다 (SEC-003 규칙 11)
+      if ((await refreshLockedFromDevice(ctx, false)) === 'passwordChanged') throw new MasterPasswordChangedError()
       ensureCurrent(ctx, startedAt)
       if (ctx.account === null) throw new SessionStateError('다른 탭에서 로그아웃됨')
       if (ctx.unlocked !== null) return { offline: false }
@@ -223,13 +225,19 @@ export function createVaultSession(deps: VaultSessionDeps) {
     /**
      * 기기 기록이 있으면 그 계정의 잠금 화면으로 시작한다 (SEC-003, ADR-0019). 앱을 열 때 한 번 부른다.
      * 기록이 없거나 규격에 맞지 않으면 로그인 전 상태로 둔다
-     * @throws DeviceStorageError 기기 저장소를 읽지 못함
+     * 이 탭이 기억한 같은 계정의 KDF 값과 기록이 다르면 다른 탭이 비밀번호를 바꾼 것이다. 기록은 남긴 채 로그인 전 상태로 둔다 (SEC-003 규칙 11)
+     * @throws DeviceStorageError 기기 저장소를 읽지 못함, MasterPasswordChangedError 이 탭이 연 뒤 다른 곳에서 비밀번호가 바뀜
      */
     async restore(): Promise<void> {
       const record = await readDevice(ctx)
       ctx.deviceRead = true
       if (record === null || ctx.account !== null) return
       ctx.lastSeen = record
+      const remembered = deps.tabMemory?.get() ?? null
+      if (remembered !== null && remembered.email === record.email && !sameKdf(remembered, record.kdf)) {
+        ctx.lastEmail = record.email
+        throw new MasterPasswordChangedError()
+      }
       const { email, kdf, payload, revision, pendingSync } = record
       ctx.account = { email, accessToken: null, kdf, payload, revision, pendingSync }
       ctx.lastEmail = email

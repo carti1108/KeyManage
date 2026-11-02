@@ -16,14 +16,17 @@ function App({ services }: { services?: Services }) {
   const networkOffline = useNetworkOffline()
   // 기기 기록을 읽기 전에 로그인 화면을 그리지 않는다. 기록이 있으면 잠금 화면으로 시작한다 (SEC-003, ADR-0019)
   const [restored, setRestored] = useState(false)
+  // 이 탭이 연 뒤 다른 탭에서 비밀번호가 바뀌었으면 로그인 화면에 알린다 (SEC-003 규칙 11)
+  const [restoreError, setRestoreError] = useState<unknown>(null)
 
   useEffect(() => {
     let active = true
     requestPersistentStorage()
     session
       .restore()
-      .catch(() => {
+      .catch((error: unknown) => {
         // 기기 기록을 읽지 못하면 로그인 화면에서 시작한다. 쓰기 실패는 쓸 때 알린다 (VLT-003)
+        if (active) setRestoreError(error)
       })
       .finally(() => {
         if (active) setRestored(true)
@@ -50,6 +53,7 @@ function App({ services }: { services?: Services }) {
       networkOffline={networkOffline}
       autoLock={{ timeoutMs: autoLock.timeoutMs, onChange: autoLock.change }}
       backupFiles={backupFiles}
+      restoreError={restoreError}
     />
   )
 }

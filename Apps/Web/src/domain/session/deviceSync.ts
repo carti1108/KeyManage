@@ -7,7 +7,7 @@ import type { TabMessageKind } from '../tabs/tabs'
 import { isReadOnly } from '../vault/vaultData'
 import type { SyncedVault, VaultSync } from '../vault/vaultSync'
 import { mergeRecordIntoMemory, type MergedVault } from './recordMerge'
-import { clear, lockThisTab, notify, notifySync, readDevice, resetSignIn, revoke, type SessionContext } from './sessionContext'
+import { clear, lockThisTab, notify, notifySync, readDevice, rememberKdf, resetSignIn, revoke, type SessionContext } from './sessionContext'
 import { SessionStateError } from './sessionTypes'
 
 /** 다른 탭의 로그아웃·계정 전환을 따른다. 기기 기록은 건드리지 않고, 이 탭의 토큰은 서버에서 폐기한다 (ADR-WEB-001) */
@@ -115,8 +115,10 @@ export async function persist(ctx: SessionContext): Promise<void> {
  * replaceMemory면 암호화 볼트·revision·대기 표시도 기록 값으로 바꾼다. 단 메모리가 마지막으로 본 기록 그대로이고
  * 기기 쓰기가 밀려 있지 않을 때만 바꾼다. 기기에 쓰지 못한 대기 내용은 잠금을 풀 때 키로 병합한다.
  * 기록을 읽지 못하면 메모리 값을 그대로 둔다
+ * @returns 비밀번호가 바뀌어 로그아웃 상태로 바꿨으면 'passwordChanged'
  */
-export async function refreshLockedFromDevice(ctx: SessionContext, replaceMemory: boolean): Promise<void> {
+export async function refreshLockedFromDevice(ctx: SessionContext, replaceMemory: boolean): Promise<'passwordChanged' | undefined> {
+  let outcome: 'passwordChanged' | undefined
   await ctx.deps.tabs.lock.run('device', async () => {
     const target = ctx.account
     if (target === null || ctx.unlocked !== null) return
@@ -133,7 +135,10 @@ export async function refreshLockedFromDevice(ctx: SessionContext, replaceMemory
       return
     }
     if (record.email !== target.email) return signOutLocally(ctx)
-    if (!sameKdf(record.kdf, target.kdf)) return passwordChangedElsewhere(ctx)
+    if (!sameKdf(record.kdf, target.kdf)) {
+      outcome = 'passwordChanged'
+      return passwordChangedElsewhere(ctx)
+    }
     if (!replaceMemory || ctx.lastSeen === null || !samePayload(ctx.lastSeen.payload, target.payload) || ctx.device.isBehind()) return
     ctx.lastSeen = record
     ctx.deps.revisionMemory.raise(record.lastSeenRevision)
@@ -141,6 +146,7 @@ export async function refreshLockedFromDevice(ctx: SessionContext, replaceMemory
     ctx.account = { ...target, payload: record.payload, revision: record.revision, pendingSync: record.pendingSync }
     notify(ctx.remoteListeners)
   })
+  return outcome
 }
 
 /** 다른 탭이 보낸 알림. 메시지는 믿지 않고 필요한 값은 기기 기록에서 직접 읽는다 (ADR-WEB-001) */
@@ -163,6 +169,8 @@ export function open(ctx: SessionContext, email: string, accessToken: string | n
   const wasLocked = ctx.unlocked === null
   ctx.account = { email, accessToken, kdf, payload: vault.payload, revision: vault.revision, pendingSync }
   ctx.unlocked = { sync, vault, pendingSync }
+  // 로그인·가입·잠금 해제·재연결로 연 계정을 이 탭이 기억한다
+  rememberKdf(ctx, email, kdf)
   if (wasLocked) notify(ctx.unlockListeners)
   return persist(ctx)
 }
