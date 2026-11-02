@@ -1,20 +1,15 @@
 // 로그인·가입 화면 (SEC-001, SEC-002)
 import { useId, useState, type FormEvent } from 'react'
-import { checkNewMasterPassword, type NewMasterPasswordProblem } from '../../domain/auth/masterPassword'
+import { checkNewMasterPassword } from '../../domain/auth/masterPassword'
 import { Alert } from '../components/Alert'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { PasswordField } from '../components/PasswordField'
 import { TextField } from '../components/TextField'
-import { MASTER_PASSWORD_SETUP } from '../messages/authNotices'
+import { MASTER_PASSWORD_SETUP, NEW_PASSWORD_PROBLEMS } from '../messages/authNotices'
 import type { RollbackOption } from '../session/sessionPort'
 import { SessionFeedback } from '../session/SessionFeedback'
 import { useSessionAction } from '../session/useSessionAction'
-
-const PASSWORD_PROBLEMS: Record<NewMasterPasswordProblem, string> = {
-  tooShort: '마스터 비밀번호는 12자 이상이어야 합니다.',
-  mismatch: '비밀번호 확인이 일치하지 않습니다.',
-}
 
 export interface AuthScreenProps {
   /** 로그인 화면으로 돌아온 이유(세션 만료 등) */
@@ -39,7 +34,7 @@ export function AuthScreen({ notice, onDismissNotice, onLogin, onRegister }: Aut
     onDismissNotice?.()
     if (registering) {
       const problem = checkNewMasterPassword(password, confirmation)
-      if (problem) return action.showError({ body: PASSWORD_PROBLEMS[problem] })
+      if (problem) return action.showError({ body: NEW_PASSWORD_PROBLEMS[problem] })
       void action.run(() => onRegister(email, password))
     } else {
       void action.run((options) => onLogin(email, password, options))

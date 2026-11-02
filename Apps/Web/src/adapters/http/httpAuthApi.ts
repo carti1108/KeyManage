@@ -1,5 +1,5 @@
 // AuthApi 포트의 HTTP 구현 (api-spec 2.5)
-import type { AuthApi, KdfParams, Session } from '../../domain/auth/authApi'
+import type { AuthApi, ChangedPassword, KdfParams, Session } from '../../domain/auth/authApi'
 import { UnexpectedResponseError } from '../../domain/server/serverErrors'
 import type { ApiClient } from './apiClient'
 import { asRecord } from './responseBody'
@@ -18,6 +18,9 @@ export function createHttpAuthApi(client: ApiClient): AuthApi {
     async logout(accessToken) {
       await client.request('POST', '/auth/logout', { accessToken })
     },
+    async changePassword(accessToken, request) {
+      return toChangedPassword(await client.request('POST', '/auth/change-password', { accessToken, body: request }))
+    },
   }
 }
 
@@ -35,4 +38,11 @@ function toSession(body: unknown): Session {
     throw new UnexpectedResponseError('세션 응답 형식이 틀림')
   }
   return { accessToken, expiresAt }
+}
+
+function toChangedPassword(body: unknown): ChangedPassword {
+  const session = toSession(body)
+  const { revision } = asRecord(body)
+  if (!Number.isSafeInteger(revision) || (revision as number) < 0) throw new UnexpectedResponseError('revision이 0 이상의 정수가 아님')
+  return { ...session, revision: revision as number }
 }

@@ -2,18 +2,21 @@
 // 잠기면 암호화 키와 평문 볼트를 버리고, 이메일·KDF 값·토큰·암호화 볼트만 남긴다
 // 서버에 닿지 못한 저장은 동기화 대기로 두고 나중에 다시 보낸다 (VLT-002)
 // 상태는 sessionContext, 기기 기록은 deviceSync, 대기 재전송은 pendingPush, 로그인은 signIn, 잠금 해제 단계는 unlockSteps가 맡는다
-import { normalizeEmail } from '../auth/authService'
+import { MasterPasswordChangedError, normalizeEmail } from '../auth/authService'
+import { sameKdf } from '../device/reconcileDeviceRecord'
+import { rememberedKdf } from '../device/tabMemory'
 import { DeviceStorageError } from '../device/deviceRecord'
 import { NetworkError } from '../server/serverErrors'
 import { isReadOnly, type VaultData } from '../vault/vaultData'
 import { isTransientSyncError, type SyncedVault } from '../vault/vaultSync'
 import { createBackupFile, type BackupFile, type VaultBackup } from '../backup/backupFile'
 import { restoreBackupInto } from '../backup/restoreBackup'
+import { NewMasterPasswordTooShortError, PasswordChangeOfflineError, SameMasterPasswordError, changeMasterPassword } from './changePassword'
 import { onTabMessage, open, refreshLockedFromDevice } from './deviceSync'
 import { enqueuePush } from './pendingPush'
 import { NO_TOKEN, createSessionContext, ensureCurrent, ensureCurrentOrRevoke, lockThisTab, notifySync, readDevice, resetSignIn, revoke, syncFor } from './sessionContext'
 import { beginSignIn, signIn } from './signIn'
-import { resumeSession, syncAfterUnlock, verifyPassword } from './unlockSteps'
+import { resumeSession, syncAfterUnlock, verifyOrDetectChange } from './unlockSteps'
 
 import {
   SessionExpiredError,
@@ -27,7 +30,7 @@ import {
   type VaultSessionDeps,
 } from './sessionTypes'
 
-export { SessionExpiredError, SessionStateError, VaultSetupError, WrongMasterPasswordError }
+export { NewMasterPasswordTooShortError, PasswordChangeOfflineError, SameMasterPasswordError, SessionExpiredError, SessionStateError, VaultSetupError, WrongMasterPasswordError }
 export type { LockScope, SessionState, SyncChangeListener, VaultSessionDeps }
 
 export function createVaultSession(deps: VaultSessionDeps) {
@@ -79,20 +82,21 @@ export function createVaultSession(deps: VaultSessionDeps) {
      * 저장해 둔 암호화 볼트를 복호화해 비밀번호를 확인하므로 오프라인에서도 동작한다.
      * 확인 뒤 바로 서버와 맞추며(대기 내용이 있으면 병합해 올림), 서버와 맞추지 못하면 저장해 둔 볼트로 연다
      * @returns offline: 서버와 맞추지 못했는지
-     * @throws WrongMasterPasswordError, SessionExpiredError(로그아웃됨), RevisionRollbackError(잠긴 상태 유지), SessionStateError
+     * @throws WrongMasterPasswordError, MasterPasswordChangedError(로그아웃됨), SessionExpiredError(로그아웃됨), RevisionRollbackError(잠긴 상태 유지), SessionStateError
      */
     async unlock(password: string, options: RollbackOption = {}): Promise<{ offline: boolean }> {
       if (ctx.account === null) throw new SessionStateError('로그인 전에는 잠금을 해제할 수 없음')
       if (ctx.unlocked !== null) return { offline: false }
       const startedAt = ctx.epoch
       // 동결 등으로 다른 탭의 알림을 놓쳤을 수 있으니 기기 기록을 다시 읽는다. 기록의 볼트는 연 뒤 쓸 때 병합한다 (ADR-WEB-001)
-      await refreshLockedFromDevice(ctx, false)
+      // 다른 탭이 비밀번호를 바꿔 로그아웃 상태로 바꿨으면 취소가 아니라 비밀번호 바뀜으로 알린다 (SEC-003 규칙 11)
+      if ((await refreshLockedFromDevice(ctx, false)) === 'passwordChanged') throw new MasterPasswordChangedError()
       ensureCurrent(ctx, startedAt)
       if (ctx.account === null) throw new SessionStateError('다른 탭에서 로그아웃됨')
       if (ctx.unlocked !== null) return { offline: false }
       const locked = ctx.account
 
-      const { keys, data } = await verifyPassword(password, locked)
+      const { keys, data } = await verifyOrDetectChange(ctx, password, locked)
       // 토큰이 있으면 인증 해시가 필요 없어 바로 지운다. 없으면(기기 기록으로 다시 열었으면) 바로 로그인하고 지운다 (SEC-003, ADR-0019)
       let accessToken = locked.accessToken
       if (accessToken === null) {
@@ -125,7 +129,7 @@ export function createVaultSession(deps: VaultSessionDeps) {
       if (ctx.account.accessToken !== null) return
       const current = ctx.account
       const startedAt = ctx.epoch
-      const { keys } = await verifyPassword(password, current)
+      const { keys } = await verifyOrDetectChange(ctx, password, current)
       const { accessToken, failure } = await resumeSession(ctx, current, keys.authHash)
       // 왜 동기화하지 못하는지 알 수 있게 실제 사유(연결 실패, 서버 오류, 거절)를 그대로 낸다
       if (accessToken === null) throw failure ?? new NetworkError()
@@ -202,6 +206,16 @@ export function createVaultSession(deps: VaultSessionDeps) {
     },
 
     /**
+     * 마스터 비밀번호를 바꾼다. 화면의 볼트(대기 포함)를 새 키로 다시 암호화해 서버에서 인증 정보와 함께 교체하고,
+     * 새 토큰·키·KDF 값으로 이 기기의 세션과 기록을 바꾼다. 다른 기기·탭은 로그인 화면으로 간다 (SEC-004)
+     * @throws SessionStateError, ReadOnlyVaultError, PasswordChangeOfflineError, NewMasterPasswordTooShortError, SameMasterPasswordError,
+     *   WrongMasterPasswordError, VaultSyncConflictError, SessionExpiredError, 그 밖의 ServerError·NetworkError
+     */
+    changeMasterPassword(currentPassword: string, newPassword: string): Promise<void> {
+      return changeMasterPassword(ctx, currentPassword, newPassword)
+    },
+
+    /**
      * 서버에 올리지 못한 변경 사항이 기기에도 아직 저장되지 않았는지(쓰는 중이거나 실패). 떠남 확인용 (VLT-002).
      * 잠겼거나 세션 만료로 로그아웃된 뒤 남긴 것도 센다
      */
@@ -212,13 +226,21 @@ export function createVaultSession(deps: VaultSessionDeps) {
     /**
      * 기기 기록이 있으면 그 계정의 잠금 화면으로 시작한다 (SEC-003, ADR-0019). 앱을 열 때 한 번 부른다.
      * 기록이 없거나 규격에 맞지 않으면 로그인 전 상태로 둔다
-     * @throws DeviceStorageError 기기 저장소를 읽지 못함
+     * 이 탭이 기억한 같은 계정의 KDF 값과 기록이 다르면 다른 탭이 비밀번호를 바꾼 것이다. 기록은 남긴 채 로그인 전 상태로 둔다 (SEC-003 규칙 11)
+     * @throws DeviceStorageError 기기 저장소를 읽지 못함, MasterPasswordChangedError 이 탭이 연 뒤 다른 곳에서 비밀번호가 바뀜
      */
     async restore(): Promise<void> {
       const record = await readDevice(ctx)
       ctx.deviceRead = true
       if (record === null || ctx.account !== null) return
       ctx.lastSeen = record
+      const remembered = deps.tabMemory?.get() ?? null
+      if (remembered !== null && remembered.email === record.email && !sameKdf(remembered, record.kdf)) {
+        ctx.lastEmail = record.email
+        // 안내는 한 번만 한다. 다음 새로고침부터는 기록의 KDF 값으로 잠금 화면에서 시작한다(오프라인에서도 새 비밀번호로 열림)
+        deps.tabMemory?.set(rememberedKdf(record.email, record.kdf))
+        throw new MasterPasswordChangedError()
+      }
       const { email, kdf, payload, revision, pendingSync } = record
       ctx.account = { email, accessToken: null, kdf, payload, revision, pendingSync }
       ctx.lastEmail = email

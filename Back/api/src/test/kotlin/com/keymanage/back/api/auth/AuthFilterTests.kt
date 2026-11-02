@@ -2,8 +2,10 @@ package com.keymanage.back.api.auth
 
 import com.keymanage.back.api.ApiTestFixture
 import com.keymanage.back.domain.auth.AuthenticateUseCase
+import com.keymanage.back.domain.auth.Email
 import com.keymanage.back.domain.auth.Session
 import com.keymanage.back.domain.auth.SessionRepository
+import com.keymanage.back.domain.vault.VaultId
 import org.springframework.mock.web.MockFilterChain
 import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.mock.web.MockHttpServletResponse
@@ -51,6 +53,7 @@ class AuthFilterTests {
             override fun save(session: Session) = Unit
             override fun find(tokenHash: String): Session? = throw IllegalStateException("저장소 손상")
             override fun delete(tokenHash: String) = Unit
+            override fun deleteAllOf(email: Email, except: VaultId) = Unit
         }
         val filter = AuthTokenFilter(AuthenticateUseCase(broken, fixture.accounts, fixture.clock))
         val request = MockHttpServletRequest("GET", "/api/v1/vault").apply { addHeader("Authorization", "Bearer x") }

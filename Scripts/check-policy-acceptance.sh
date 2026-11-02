@@ -234,6 +234,19 @@ if os.path.isdir(web_src_dir):
     ]
     check_invariants("Web", "8단계: 암호화 백업 내보내기와 복원(VLT-004)", web_tests, web_backup_rules)
 
+    web_password_change_rules = [
+        ("SEC-004 변경 흐름(changeMasterPassword) 검증", r"changeMasterPassword"),
+        ("SEC-004 새 salt 16바이트 경계값 검증", r"kdf\.salt\)\)\.toHaveLength\(16\)"),
+        ("SEC-004 새 비밀번호 SEC-002 길이 미달 거절(NewMasterPasswordTooShortError) 검증", r"NewMasterPasswordTooShortError"),
+        ("SEC-004 현재와 같음 거절(SameMasterPasswordError) 검증", r"SameMasterPasswordError"),
+        ("SEC-004 오프라인 거절(PasswordChangeOfflineError) 검증", r"PasswordChangeOfflineError"),
+        ("SEC-004 변경 전 안내 본문 검증", r"비밀번호를 바꾸면 다른 기기는 모두 로그아웃되고, 새 비밀번호로 다시 로그인해야 합니다\. 다른 기기에서 아직 올리지 못한 변경 사항은 사라집니다\. 예전에 내보낸 백업은 예전 비밀번호로 엽니다\."),
+        ("SEC-004 현재와 같음 문구('새 비밀번호가 지금 비밀번호와 같습니다.') 검증", r"새 비밀번호가 지금 비밀번호와 같습니다\."),
+        ("SEC-004 오프라인 문구('인터넷에 연결된 상태에서만 비밀번호를 바꿀 수 있습니다.') 검증", r"인터넷에 연결된 상태에서만 비밀번호를 바꿀 수 있습니다\."),
+        ("SEC-004 완료 문구('마스터 비밀번호를 바꿨습니다.') 검증", r"마스터 비밀번호를 바꿨습니다\."),
+    ]
+    check_invariants("Web", "9단계: 마스터 비밀번호 변경(SEC-004)", web_tests, web_password_change_rules)
+
 
 if not audited_platforms:
     print("오류: 감사할 플랫폼 테스트 디렉터리(Apps/Apple 또는 Apps/Web)를 찾을 수 없습니다.", file=sys.stderr)

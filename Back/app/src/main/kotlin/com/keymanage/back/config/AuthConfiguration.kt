@@ -2,6 +2,7 @@ package com.keymanage.back.config
 
 import com.keymanage.back.domain.auth.AccountRepository
 import com.keymanage.back.domain.auth.AuthenticateUseCase
+import com.keymanage.back.domain.auth.ChangePasswordUseCase
 import com.keymanage.back.domain.auth.LoginAttemptLimiter
 import com.keymanage.back.domain.auth.LoginUseCase
 import com.keymanage.back.domain.auth.LogoutUseCase
@@ -11,10 +12,13 @@ import com.keymanage.back.domain.auth.RegisterUseCase
 import com.keymanage.back.domain.auth.ServerSecret
 import com.keymanage.back.domain.auth.SessionIssuer
 import com.keymanage.back.domain.auth.SessionRepository
+import com.keymanage.back.domain.vault.CleanUpOrphanVaultsUseCase
+import com.keymanage.back.domain.vault.VaultRepository
 import com.keymanage.back.infrastructure.auth.Argon2AuthHashHasher
 import com.keymanage.back.infrastructure.auth.FileSystemAccountRepository
 import com.keymanage.back.infrastructure.auth.FileSystemSessionRepository
 import com.keymanage.back.infrastructure.auth.ServerSecretLoader
+import org.springframework.beans.factory.SmartInitializingSingleton
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -69,6 +73,21 @@ class AuthConfiguration(
 
     @Bean
     fun logoutUseCase(sessions: SessionRepository) = LogoutUseCase(sessions)
+
+    @Bean
+    fun changePasswordUseCase(
+        accounts: AccountRepository,
+        vaults: VaultRepository,
+        sessions: SessionRepository,
+        hasher: PasswordHasher,
+        issuer: SessionIssuer,
+        limiter: LoginAttemptLimiter,
+    ) = ChangePasswordUseCase(accounts, vaults, sessions, hasher, issuer, limiter)
+
+    // 모든 빈을 만든 뒤, 웹 서버가 요청을 받기 전에 한 번 정리한다. 요청과 겹치면 변경 중인 새 볼트를 고아로 볼 수 있다 (ADR-BE-001 결정 5)
+    @Bean
+    fun orphanVaultCleanup(accounts: AccountRepository, vaults: VaultRepository) =
+        SmartInitializingSingleton { CleanUpOrphanVaultsUseCase(accounts, vaults).execute() }
 
     @Bean
     fun authenticateUseCase(sessions: SessionRepository, accounts: AccountRepository, clock: Clock) =

@@ -1,12 +1,13 @@
 package com.keymanage.back.domain.auth
 
+import com.keymanage.back.domain.vault.VaultId
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneOffset
 import java.util.Base64
 
-/** 테스트용 계정 저장소. 같은 이메일 생성은 한 번만 성공한다 */
+/** 테스트용 계정 저장소. 같은 이메일 생성은 한 번만 성공하고, 교체는 저장된 계정이 기대와 같을 때만 한다 */
 class InMemoryAccountRepository : AccountRepository {
 
     private val accounts = mutableMapOf<Email, Account>()
@@ -20,6 +21,20 @@ class InMemoryAccountRepository : AccountRepository {
         accounts[account.email] = account
         return true
     }
+
+    @Synchronized
+    override fun <T> withLock(email: Email, action: () -> T): T = action()
+
+    @Synchronized
+    override fun replaceIfMatches(expected: Account, replacement: Account): Boolean {
+        require(expected.email == replacement.email) { "이메일이 다른 계정으로 교체할 수 없음" }
+        if (accounts[expected.email] != expected) return false
+        accounts[expected.email] = replacement
+        return true
+    }
+
+    @Synchronized
+    override fun allVaultIds(): Set<VaultId> = accounts.values.map { it.vaultId }.toSet()
 }
 
 class InMemorySessionRepository : SessionRepository {
@@ -34,6 +49,10 @@ class InMemorySessionRepository : SessionRepository {
 
     override fun delete(tokenHash: String) {
         sessions.remove(tokenHash)
+    }
+
+    override fun deleteAllOf(email: Email, except: VaultId) {
+        sessions.values.removeIf { it.email == email && it.vaultId != except }
     }
 }
 

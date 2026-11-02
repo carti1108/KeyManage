@@ -3,7 +3,8 @@
 import { InvalidBase64Error, fromBase64, toBase64 } from '../crypto/base64'
 import { InvalidKdfParamsError, MIN_ITERATIONS, SALT_BYTES, deriveKeys } from '../crypto/keys'
 import { ServerError } from '../server/serverErrors'
-import type { AuthApi, KdfParams, Session } from './authApi'
+import type { EncryptedVaultPayload } from '../crypto/vaultCipher'
+import type { AuthApi, ChangedPassword, KdfParams, Session } from './authApi'
 
 const SUPPORTED_KDF: KdfParams['kdf'] = 'PBKDF2-HMAC-SHA256'
 const MAX_EMAIL_LENGTH = 254
@@ -37,6 +38,11 @@ export interface AuthResult {
   /** 볼트 암·복호화 키. 잠그면 버린다 (SEC-003) */
   readonly encryptionKey: CryptoKey
   readonly kdf: UnlockKdf
+}
+
+/** 서버가 준 KDF 값이 기기에 저장한 값과 다른지(지원하지 않는 KDF 포함). 다르면 다른 곳에서 비밀번호가 바뀐 것으로 본다 (SEC-003 규칙 11) */
+function kdfDiffers(params: KdfParams, kdf: UnlockKdf): boolean {
+  return params.kdf !== SUPPORTED_KDF || params.salt !== kdf.salt || params.iterations !== kdf.iterations
 }
 
 /** 앞뒤 공백 제거·소문자. 서버도 같은 규칙으로 비교한다 (api-spec 2.5) */
@@ -85,9 +91,7 @@ export function createAuthService(api: AuthApi) {
     async resume(email: string, kdf: UnlockKdf, authHash: Uint8Array): Promise<Session> {
       try {
         const params = await api.prelogin(email)
-        if (params.kdf !== SUPPORTED_KDF || params.salt !== kdf.salt || params.iterations !== kdf.iterations) {
-          throw new MasterPasswordChangedError()
-        }
+        if (kdfDiffers(params, kdf)) throw new MasterPasswordChangedError()
         return await api.login({ email, authHash: takeAuthHash(authHash) })
       } catch (error) {
         if (error instanceof ServerError && error.code === 'AUTH_FAILED') throw new MasterPasswordChangedError()
@@ -97,8 +101,42 @@ export function createAuthService(api: AuthApi) {
       }
     },
 
+    /**
+     * 서버의 KDF 값이 기기에 저장한 값과 다른지 prelogin으로만 확인한다. 비밀번호·인증 해시는 보내지 않는다.
+     * 기기 볼트를 열지 못했을 때 다른 곳에서 비밀번호가 바뀌었는지 가린다 (SEC-003 규칙 11)
+     * @throws 서버 통신 오류(NetworkError 등). 부른 쪽이 확인 실패로 다룬다
+     */
+    async kdfChanged(email: string, kdf: UnlockKdf): Promise<boolean> {
+      return kdfDiffers(await api.prelogin(email), kdf)
+    },
+
     logout(accessToken: string): Promise<void> {
       return api.logout(accessToken)
+    },
+
+    /**
+     * 현재·새 인증 해시와 새 KDF 값, 새 키로 다시 암호화한 볼트를 한 요청으로 보낸다 (SEC-004, api-spec 2.5.5).
+     * 두 인증 해시 바이트는 성공·실패와 관계없이 지운다
+     * @throws ServerError(AUTH_FAILED, VAULT_CONFLICT, UNAUTHORIZED, TOO_MANY_ATTEMPTS 등), NetworkError
+     */
+    async changePassword(
+      accessToken: string,
+      currentAuthHash: Uint8Array,
+      newAuthHash: Uint8Array,
+      kdf: UnlockKdf,
+      vault: { readonly expectedRevision: number; readonly payload: EncryptedVaultPayload },
+    ): Promise<ChangedPassword> {
+      try {
+        return await api.changePassword(accessToken, {
+          currentAuthHash: takeAuthHash(currentAuthHash),
+          newAuthHash: takeAuthHash(newAuthHash),
+          kdf: { iterations: kdf.iterations, salt: kdf.salt },
+          vault,
+        })
+      } finally {
+        currentAuthHash.fill(0)
+        newAuthHash.fill(0)
+      }
     },
   }
 }

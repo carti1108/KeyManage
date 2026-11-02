@@ -10,6 +10,7 @@ import com.keymanage.back.api.error.ApiExceptionHandler
 import com.keymanage.back.api.error.RequestBodyLimitFilter
 import com.keymanage.back.api.vault.VaultController
 import com.keymanage.back.domain.auth.AuthenticateUseCase
+import com.keymanage.back.domain.auth.ChangePasswordUseCase
 import com.keymanage.back.domain.auth.FakePasswordHasher
 import com.keymanage.back.domain.auth.InMemoryAccountRepository
 import com.keymanage.back.domain.auth.InMemorySessionRepository
@@ -42,14 +43,17 @@ class ApiTestFixture(registrationEnabled: Boolean = true, trustedProxies: Set<St
 
     private val hasher = FakePasswordHasher()
     private val issuer = SessionIssuer(sessions, clock)
+    private val limiter = LoginAttemptLimiter(clock)
 
     val mockMvc: MockMvc = MockMvcBuilders
         .standaloneSetup(
             AuthController(
                 PreloginUseCase(accounts, ServerSecret(ByteArray(32) { 1 })),
                 RegisterUseCase(accounts, hasher, issuer, registrationEnabled),
-                LoginUseCase(accounts, hasher, issuer, LoginAttemptLimiter(clock)),
+                LoginUseCase(accounts, hasher, issuer, limiter),
                 LogoutUseCase(sessions),
+                ChangePasswordUseCase(accounts, vaults, sessions, hasher, issuer, limiter),
+                jacksonObjectMapper(),
             ),
             VaultController(GetVaultUseCase(vaults), SaveVaultUseCase(vaults), jacksonObjectMapper()),
         )
@@ -70,6 +74,20 @@ class ApiTestFixture(registrationEnabled: Boolean = true, trustedProxies: Set<St
     fun loginBody(email: String = EMAIL, authHash: ByteArray = AUTH_HASH) =
         """{"email":"$email","authHash":"${b64(authHash)}"}"""
 
+    /** 비밀번호 변경 요청 본문 (api-spec 2.5.5) */
+    fun changePasswordBody(
+        currentAuthHash: ByteArray = AUTH_HASH,
+        newAuthHash: ByteArray = NEW_AUTH_HASH,
+        salt: ByteArray = NEW_SALT,
+        iterations: Int = 600_000,
+        expectedRevision: Long = 0,
+        payload: String = PAYLOAD,
+    ) = """{"currentAuthHash":"${b64(currentAuthHash)}","newAuthHash":"${b64(newAuthHash)}",""" +
+        """"kdf":{"iterations":$iterations,"salt":"${b64(salt)}"},"vault":{"expectedRevision":$expectedRevision,"payload":$payload}}"""
+
+    fun postJson(path: String, body: String, token: String): ResultActions =
+        mockMvc.perform(post(path).header("Authorization", "Bearer $token").contentType(MediaType.APPLICATION_JSON).content(body))
+
     /** 가입하고 발급받은 토큰을 돌려준다 */
     fun registerAndGetToken(email: String = EMAIL): String {
         val response = postJson("/api/v1/auth/register", registerBody(email = email)).andReturn().response.contentAsString
@@ -80,6 +98,9 @@ class ApiTestFixture(registrationEnabled: Boolean = true, trustedProxies: Set<St
         const val EMAIL = "user@example.com"
         val AUTH_HASH = ByteArray(32) { 1 }
         val SALT = ByteArray(16) { 2 }
+        val NEW_AUTH_HASH = ByteArray(32) { 3 }
+        val NEW_SALT = ByteArray(16) { 4 }
+        const val PAYLOAD = """{"version":1,"cipher":"AES-256-GCM","ciphertext":"re-encrypted"}"""
 
         fun b64(bytes: ByteArray): String = Base64.getEncoder().encodeToString(bytes)
     }

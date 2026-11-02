@@ -33,3 +33,4 @@
 | [ADR-0011](ADR-0011-password-preprocessing-and-header-aad.md) | 마스터 비밀번호 전처리와 볼트 암호문 헤더 인증 | 채택 | 2026-10-29 |
 | [ADR-0021](ADR-0021-local-docker-compose-demo.md) | 데모는 받은 사람의 로컬 Docker Compose로 실행하고, 데스크톱 릴리스는 `https://localhost:8443`을 서버 주소로 빌드한다 | 채택 | 2026-11-01 |
 | [ADR-0022](ADR-0022-encrypted-backup-file-format.md) | 백업 파일은 볼트 암호화 컨테이너에 KDF 값을 붙인 JSON으로 하고, 내보낸 시점의 마스터 비밀번호로 잠근다 | 채택 | 2026-11-01 |
+| [ADR-0023](ADR-0023-master-password-change.md) | 마스터 비밀번호 변경은 클라이언트가 볼트를 다시 암호화하고, 서버가 요청 하나로 인증 정보와 볼트를 함께 교체한다 | 채택 | 2026-11-02 |

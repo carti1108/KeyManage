@@ -16,3 +16,4 @@
 | [ADR-0002](ADR-0002-hexagonal-multi-module-backend.md) | Kotlin/Spring Boot 기반 포트-어댑터 멀티 모듈 백엔드 채택 | 채택 | 2026-10-27 |
 | [ADR-0003](ADR-0003-file-based-vault-storage-adapter.md) | 파일 기반 단일 암호화 볼트 저장소 어댑터 채택 | 채택 | 2026-10-27 |
 | [ADR-0007](ADR-0007-file-vault-atomic-write-single-instance.md) | 파일 볼트 저장소의 원자적 쓰기와 단일 인스턴스 제약 | 채택 | 2026-10-28 |
+| [ADR-BE-001](ADR-BE-001-password-change-vault-id-swap.md) | 마스터 비밀번호 변경은 새 볼트 ID에 볼트를 먼저 쓰고, 계정 파일 교체 한 번으로 확정한다 | 채택 | 2026-11-02 |

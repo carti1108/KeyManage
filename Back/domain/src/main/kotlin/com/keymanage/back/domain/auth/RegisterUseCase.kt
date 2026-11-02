@@ -20,6 +20,6 @@ class RegisterUseCase(
 
         val account = Account(email, kdf, hasher.hash(authHash), VaultId.of(UUID.randomUUID().toString()))
         if (!accounts.createIfAbsent(account)) throw EmailAlreadyRegisteredException()
-        return issuer.issue(email)
+        return issuer.issue(email, account.vaultId)
     }
 }

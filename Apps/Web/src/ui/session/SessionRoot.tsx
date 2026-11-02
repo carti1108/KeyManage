@@ -16,6 +16,7 @@ import type { ClipboardPort } from '../clipboard/clipboardPort'
 import { ClipboardNotice } from '../clipboard/ClipboardNotice'
 import { AutoLockSelect, type AutoLockSelectProps } from '../vault/AutoLockSelect'
 import { BackupActions } from '../backup/BackupActions'
+import { ChangePasswordAction } from '../account/ChangePasswordAction'
 import { VaultScreen } from '../vault/VaultScreen'
 import { ReconnectPrompt } from './ReconnectPrompt'
 import type { RollbackOption, SessionPort } from './sessionPort'
@@ -37,12 +38,14 @@ export interface SessionRootProps {
   autoLock?: AutoLockSelectProps
   /** 백업 파일 저장·고르기 (VLT-004). 없으면 백업 진입점을 보이지 않는다 */
   backupFiles?: BackupFiles
+  /** 앱을 열 때 기기 기록 복원이 실패한 이유. 비밀번호 바뀜이면 로그인 화면에 알린다 (SEC-003 규칙 11) */
+  restoreError?: unknown
 }
 
-export function SessionRoot({ session, clipboard, pageHidden, networkOffline = false, autoLock, backupFiles }: SessionRootProps) {
+export function SessionRoot({ session, clipboard, pageHidden, networkOffline = false, autoLock, backupFiles, restoreError }: SessionRootProps) {
   // 잠기면 새 상태로 바꿔 평문 볼트를 들고 있던 이전 상태를 놓는다
   const [state, setState] = useState(() => session.state())
-  const [notice, setNotice] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(() => (sendsToSignIn(restoreError) ? describeError(restoreError).body : null))
   // 잠금 해제 때 서버에 닿지 못해 기기에 저장한 볼트로 열었음. 브라우저 연결은 서버에 닿는다는 보장이 아니므로
   // 재연결만으로 내리지 않고 동기화 성공·로그인·잠금 해제 결과로만 바꾼다 (VLT-002)
   const [offline, setOffline] = useState(false)
@@ -70,7 +73,9 @@ export function SessionRoot({ session, clipboard, pageHidden, networkOffline = f
       if (error === null) {
         setOffline(false)
         setSyncError(null)
-      } else if (error instanceof SessionExpiredError) {
+      } else if (sendsToSignIn(error)) {
+        // 세션 만료·다른 탭의 비밀번호 변경은 로그인 화면으로 가므로 볼트 화면의 경고가 아니라 로그인 화면 안내로 보인다
+        setSyncError(null)
         setNotice(describeError(error).body)
       } else if (!(error instanceof DeviceStorageError)) {
         // 기기 저장 실패는 세션 상태(storedOnDevice)로 경고한다. 다음 저장이 성공할 때까지 남아야 한다
@@ -156,12 +161,14 @@ export function SessionRoot({ session, clipboard, pageHidden, networkOffline = f
           onLogin={async (email, password, options) => {
             await session.login(email, password, options)
             setNotice(null)
+            setSyncError(null)
             setOffline(false)
             refresh()
           }}
           onRegister={async (email, password) => {
             await session.register(email, password)
             setNotice(null)
+            setSyncError(null)
             setOffline(false)
             refresh()
           }}
@@ -217,6 +224,24 @@ export function SessionRoot({ session, clipboard, pageHidden, networkOffline = f
                 }}
               />
             )}
+            <ChangePasswordAction
+              readOnly={state.vault.readOnly}
+              offline={networkOffline || !state.signedIn}
+              onChange={async (currentPassword, newPassword) => {
+                try {
+                  await session.changeMasterPassword(currentPassword, newPassword)
+                  setSyncError(null)
+                  setOffline(false)
+                } catch (error) {
+                  // 세션이 만료됐으면 로그인 화면으로 가며 이유를 알린다 (SEC-004 규칙 9)
+                  if (!sendsToSignIn(error)) throw error
+                  setNotice(describeError(error).body)
+                } finally {
+                  // 저장처럼 알림 없이 세션이 바뀌므로 직접 다시 읽는다
+                  refresh()
+                }
+              }}
+            />
           </>
         }
       >

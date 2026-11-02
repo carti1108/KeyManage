@@ -2,6 +2,7 @@
 import type { AuthService, UnlockKdf } from '../auth/authService'
 import type { EncryptedVaultPayload } from '../crypto/vaultCipher'
 import type { DeviceStore } from '../device/deviceRecord'
+import type { TabMemory } from '../device/tabMemory'
 import type { Tabs } from '../tabs/tabs'
 import type { RevisionMemory, SyncedVault, VaultSync } from '../vault/vaultSync'
 
@@ -67,6 +68,8 @@ export interface VaultSessionDeps {
   readonly deviceStore: DeviceStore
   /** 같은 브라우저의 다른 탭과 기기 기록 쓰기를 나누고 변경을 알린다 (ADR-WEB-001) */
   readonly tabs: Tabs
+  /** 이 탭이 마지막으로 연 계정의 KDF 값. 새로 열렸을 때 다른 탭의 비밀번호 변경을 알아챈다. 없으면 기억하지 않는다 (SEC-003 규칙 11) */
+  readonly tabMemory?: TabMemory
 }
 
 // 잠겨도 남는 값. 비밀이 아니거나(KDF 값) 암호화돼 있다(볼트)
