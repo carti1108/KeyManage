@@ -2,6 +2,7 @@ import Foundation
 import MicroRIBs
 import KeyManageDomain
 import VaultListFeatureInterface
+import SettingsFeatureInterface
 import MainFeatureInterface
 
 // MARK: - Component
@@ -13,6 +14,9 @@ final class MainComponent: Component<MainDependency> {
 	}
 	var vaultListBuilder: VaultListBuildable {
 		dependency.vaultListBuilder
+	}
+	var settingsBuilder: SettingsBuildable {
+		dependency.settingsBuilder
 	}
 }
 
@@ -36,7 +40,8 @@ public final class MainBuilder: Builder<MainDependency>, MainBuildable {
 		let router = MainRouter(
 			interactor: interactor,
 			viewController: viewController,
-			vaultListBuilder: component.vaultListBuilder
+			vaultListBuilder: component.vaultListBuilder,
+			settingsBuilder: component.settingsBuilder
 		)
 		return router
 	}

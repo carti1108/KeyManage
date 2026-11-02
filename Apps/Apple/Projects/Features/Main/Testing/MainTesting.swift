@@ -220,6 +220,7 @@ public final class MockMainRouting: MainRouting {
 	public var attachChildCallCount = 0
 	public var detachChildCallCount = 0
 	public var routeToVaultListCallCount = 0
+	public var routeToSettingsCallCount = 0
 
 	public init(
 		viewControllable: ViewControllable = MockMainViewControllable(),
@@ -231,6 +232,10 @@ public final class MockMainRouting: MainRouting {
 
 	public func routeToVaultList() {
 		routeToVaultListCallCount += 1
+	}
+
+	public func routeToSettings() {
+		routeToSettingsCallCount += 1
 	}
 
 	public func load() {
@@ -281,9 +286,19 @@ import AppKit
 @MainActor
 public final class MockMainViewControllable: MainViewControllable {
 	public var nsViewController: NSViewController
+	public var setVaultListCallCount = 0
+	public var setSettingsCallCount = 0
 
 	public init(viewController: NSViewController = NSViewController()) {
 		self.nsViewController = viewController
+	}
+
+	public func setVaultListViewControllable(_ viewControllable: ViewControllable) {
+		setVaultListCallCount += 1
+	}
+
+	public func setSettingsViewControllable(_ viewControllable: ViewControllable) {
+		setSettingsCallCount += 1
 	}
 }
 #elseif os(iOS)
@@ -292,9 +307,19 @@ import UIKit
 @MainActor
 public final class MockMainViewControllable: MainViewControllable {
 	public var uiViewController: UIViewController
+	public var setVaultListCallCount = 0
+	public var setSettingsCallCount = 0
 
 	public init(viewController: UIViewController = UIViewController()) {
 		self.uiViewController = viewController
+	}
+
+	public func setVaultListViewControllable(_ viewControllable: ViewControllable) {
+		setVaultListCallCount += 1
+	}
+
+	public func setSettingsViewControllable(_ viewControllable: ViewControllable) {
+		setSettingsCallCount += 1
 	}
 }
 #endif

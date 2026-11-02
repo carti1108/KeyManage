@@ -1,4 +1,5 @@
 import SwiftUI
+import MicroRIBs
 import KeyManageDesignSystem
 import MainFeatureInterface
 
@@ -100,6 +101,26 @@ struct MainView: View {
 
 	@ViewBuilder
 	private func tabContent(for tab: MainTab) -> some View {
+		switch tab {
+		case .vault:
+			if let vc = viewModel.vaultListViewControllable {
+				ViewControllableRepresentable(viewControllable: vc)
+			} else {
+				placeholder(for: tab)
+			}
+		case .settings:
+			if let vc = viewModel.settingsViewControllable {
+				ViewControllableRepresentable(viewControllable: vc)
+			} else {
+				placeholder(for: tab)
+			}
+		case .generator:
+			placeholder(for: tab)
+		}
+	}
+
+	@ViewBuilder
+	private func placeholder(for tab: MainTab) -> some View {
 		VStack(spacing: 16) {
 			Image(systemName: iconName(for: tab))
 				.font(.system(size: 48))
@@ -128,3 +149,31 @@ struct MainView: View {
 		}
 	}
 }
+
+// MARK: - ViewControllableRepresentable
+
+#if os(macOS)
+import AppKit
+
+struct ViewControllableRepresentable: NSViewControllerRepresentable {
+	let viewControllable: ViewControllable
+
+	func makeNSViewController(context: Context) -> NSViewController {
+		viewControllable.nsViewController
+	}
+
+	func updateNSViewController(_ nsViewController: NSViewController, context: Context) {}
+}
+#elseif os(iOS)
+import UIKit
+
+struct ViewControllableRepresentable: UIViewControllerRepresentable {
+	let viewControllable: ViewControllable
+
+	func makeUIViewController(context: Context) -> UIViewController {
+		viewControllable.uiViewController
+	}
+
+	func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
+}
+#endif

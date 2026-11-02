@@ -67,3 +67,4 @@
 | 059 | 2026-11-02 | [웹 세션 파일 분리(동작 변경 없음)](059-web-session-split.md) |
 | 060 | 2026-11-02 | [Apple VaultListFeature microRIBs 볼트 목록 및 소각 연동 (#97)](060-apple-vault-list-feature-ribs.md) |
 | 061 | 2026-11-02 | [Apple VLT-004 암호화 백업 내보내기와 복원 클라이언트 영지식 백업 (#101)](061-apple-encrypted-backup-vlt-004.md) |
+| 062 | 2026-11-02 | [Apple SettingsFeature microRIBs 환경설정 및 백업/자동잠금 연동 (#103)](062-apple-settings-feature-ribs.md) |

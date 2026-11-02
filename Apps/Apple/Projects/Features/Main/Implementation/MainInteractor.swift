@@ -2,6 +2,7 @@ import Foundation
 import MicroRIBs
 import KeyManageDomain
 import VaultListFeatureInterface
+import SettingsFeatureInterface
 import MainFeatureInterface
 
 // MARK: - Presentable Protocols
@@ -42,9 +43,20 @@ final class MainInteractor: Interactor, MainInteractable, MainPresentableListene
 
 	func didSelectTab(_ tab: MainTab) {
 		presenter?.selectTab(tab)
+		if tab == .settings {
+			router?.routeToSettings()
+		}
 	}
 }
 
 // MARK: - VaultListListener Conformance
 
 extension MainInteractor: VaultListListener {}
+
+// MARK: - SettingsListener Conformance
+
+extension MainInteractor: SettingsListener {
+	func settingsDidRequestLogout() {
+		listener?.didRequestLockVault()
+	}
+}
