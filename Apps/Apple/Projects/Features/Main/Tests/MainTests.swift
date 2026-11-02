@@ -2,6 +2,7 @@ import Foundation
 import Testing
 import MicroRIBs
 import KeyManageDomain
+import VaultListFeatureInterface
 import MainFeatureInterface
 @testable import MainFeatureImplementation
 @testable import MainFeatureTesting
@@ -60,9 +61,14 @@ final class MainViewControllableSpy: MainViewControllable {
 @MainActor
 final class MainDependencyMock: MainDependency {
 	let lockManager: VaultLockManagerProtocol
+	let vaultListBuilder: VaultListBuildable
 
-	init(lockManager: VaultLockManagerProtocol = MockVaultLockManager()) {
+	init(
+		lockManager: VaultLockManagerProtocol = MockVaultLockManager(),
+		vaultListBuilder: VaultListBuildable = MockVaultListBuilder()
+	) {
 		self.lockManager = lockManager
+		self.vaultListBuilder = vaultListBuilder
 	}
 }
 
@@ -170,5 +176,27 @@ struct MainTests {
 		// Then
 		#expect(viewModel.selectedTab == .settings)
 		#expect(selectedTab == .settings)
+	}
+
+	// MARK: - 6. VaultList 라우팅 연동 검증 (신규 RED 테스트)
+	@Test("MainRouter.routeToVaultList() 호출 시 vaultListBuilder.build(withListener:) 실행 및 자식 RIB attach 검증")
+	func mainRouter_routeToVaultList_attachesVaultListRouting() {
+		// Given
+		let interactor = MainInteractorSpy()
+		let viewController = MainViewControllableSpy()
+		let vaultListRouting = MockVaultListRouting()
+		let vaultListBuilder = MockVaultListBuilder(routingToReturn: vaultListRouting)
+		let router = MainRouter(
+			interactor: interactor,
+			viewController: viewController,
+			vaultListBuilder: vaultListBuilder
+		)
+
+		// When
+		router.routeToVaultList()
+
+		// Then
+		#expect(vaultListBuilder.buildCallCount == 1)
+		#expect(router.children.contains { $0 === vaultListRouting })
 	}
 }
