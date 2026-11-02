@@ -19,8 +19,8 @@ class AuthenticateUseCase(
             sessions.delete(tokenHash)
             throw UnauthorizedException()
         }
-        val account = accounts.find(session.email) ?: throw UnauthorizedException()
-        if (account.vaultId != session.vaultId) {
+        val account = accounts.find(session.email)
+        if (account == null || account.vaultId != session.vaultId) {
             sessions.delete(tokenHash)
             throw UnauthorizedException()
         }

@@ -51,8 +51,8 @@ class InMemorySessionRepository : SessionRepository {
         sessions.remove(tokenHash)
     }
 
-    override fun deleteAllOf(email: Email) {
-        sessions.values.removeIf { it.email == email }
+    override fun deleteAllOf(email: Email, except: VaultId) {
+        sessions.values.removeIf { it.email == email && it.vaultId != except }
     }
 }
 

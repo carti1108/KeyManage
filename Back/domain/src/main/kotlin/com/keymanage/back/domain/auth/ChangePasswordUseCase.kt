@@ -63,7 +63,7 @@ class ChangePasswordUseCase(
 
         // 여기부터는 확정 뒤다. 옛 세션은 볼트 ID가 달라 이미 무효이므로 지우지 못해도 실패로 알리지 않는다
         try {
-            sessions.deleteAllOf(email)
+            sessions.deleteAllOf(email, except = replacement.vaultId)
         } catch (e: Exception) {
             log.log(System.Logger.Level.WARNING, "비밀번호 변경 뒤 계정 세션을 지우지 못함", e)
         }
