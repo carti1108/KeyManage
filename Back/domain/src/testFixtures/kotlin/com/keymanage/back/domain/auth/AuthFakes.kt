@@ -65,6 +65,8 @@ class InMemorySessionRepository : SessionRepository {
     override fun deleteAllOf(email: Email) {
         sessions.values.removeIf { it.email == email }
     }
+
+    override fun allTokenHashes(): Set<String> = sessions.keys.toSet()
 }
 
 /** 실제 Argon2 대신 쓰는 해시. 검증 호출 횟수를 세어 없는 이메일에도 검증을 수행하는지 확인한다 */
