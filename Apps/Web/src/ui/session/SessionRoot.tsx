@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { MasterPasswordChangedError } from '../../domain/auth/authService'
 import type { BackupFiles } from '../../domain/backup/backupFile'
 import { DeviceStorageError } from '../../domain/device/deviceRecord'
-import { SessionExpiredError } from '../../domain/session/vaultSession'
+import { AccountDeletedDeviceNotClearedError, SessionExpiredError } from '../../domain/session/vaultSession'
 import { ConfirmPrompt } from '../components/ConfirmPrompt'
 import { Alert } from '../components/Alert'
 import { describeError, type ErrorMessage } from '../messages/errorMessage'
@@ -17,6 +17,8 @@ import { ClipboardNotice } from '../clipboard/ClipboardNotice'
 import { AutoLockSelect, type AutoLockSelectProps } from '../vault/AutoLockSelect'
 import { BackupActions } from '../backup/BackupActions'
 import { ChangePasswordAction } from '../account/ChangePasswordAction'
+import { DeleteAccountAction } from '../account/DeleteAccountAction'
+import { ACCOUNT_DELETED } from '../messages/accountNotices'
 import { VaultScreen } from '../vault/VaultScreen'
 import { ReconnectPrompt } from './ReconnectPrompt'
 import type { RollbackOption, SessionPort } from './sessionPort'
@@ -105,6 +107,25 @@ export function SessionRoot({ session, clipboard, pageHidden, networkOffline = f
       // 기기 기록을 지우지 못했으면 공용 기기에 볼트가 남으므로 알린다 (ADR-0019)
       if (error instanceof DeviceStorageError) setNotice(LOGOUT_CLEAR_FAILED)
       // 그 밖에는 서버 토큰 폐기만 실패했다. 이 기기는 이미 로그아웃됐고 서버 토큰은 만료(30일)를 기다린다 (SEC-002)
+    }
+  }
+
+  /**
+   * 계정을 지운다. 세션이 이 기기를 정리하고 로그아웃하면 로그인 화면에 완료 안내를 보인다 (SEC-005 규칙 5).
+   * 기기 기록을 지우지 못했거나 세션이 만료됐으면 로그인 화면에 그 이유를 보인다. 그 밖의 실패는 대화상자가 보인다
+   */
+  async function deleteAccount(password: string) {
+    try {
+      await session.deleteAccount(password)
+      setNotice(ACCOUNT_DELETED)
+    } catch (error) {
+      if (!(error instanceof AccountDeletedDeviceNotClearedError) && !sendsToSignIn(error)) throw error
+      setNotice(describeError(error).body)
+    } finally {
+      setSyncError(null)
+      setConfirmingLogout(false)
+      setOffline(false)
+      refresh()
     }
   }
 
@@ -242,6 +263,7 @@ export function SessionRoot({ session, clipboard, pageHidden, networkOffline = f
                 }
               }}
             />
+            <DeleteAccountAction offline={networkOffline || !state.signedIn} onDelete={deleteAccount} />
           </>
         }
       >

@@ -12,6 +12,7 @@ import { isTransientSyncError, type SyncedVault } from '../vault/vaultSync'
 import { createBackupFile, type BackupFile, type VaultBackup } from '../backup/backupFile'
 import { restoreBackupInto } from '../backup/restoreBackup'
 import { NewMasterPasswordTooShortError, PasswordChangeOfflineError, SameMasterPasswordError, changeMasterPassword } from './changePassword'
+import { AccountDeletedDeviceNotClearedError, AccountDeletionOfflineError, deleteAccount } from './deleteAccount'
 import { onTabMessage, open, refreshLockedFromDevice } from './deviceSync'
 import { enqueuePush } from './pendingPush'
 import { NO_TOKEN, createSessionContext, ensureCurrent, ensureCurrentOrRevoke, lockThisTab, notifySync, readDevice, resetSignIn, revoke, syncFor } from './sessionContext'
@@ -30,7 +31,7 @@ import {
   type VaultSessionDeps,
 } from './sessionTypes'
 
-export { NewMasterPasswordTooShortError, PasswordChangeOfflineError, SameMasterPasswordError, SessionExpiredError, SessionStateError, VaultSetupError, WrongMasterPasswordError }
+export { AccountDeletedDeviceNotClearedError, AccountDeletionOfflineError, NewMasterPasswordTooShortError, PasswordChangeOfflineError, SameMasterPasswordError, SessionExpiredError, SessionStateError, VaultSetupError, WrongMasterPasswordError }
 export type { LockScope, SessionState, SyncChangeListener, VaultSessionDeps }
 
 export function createVaultSession(deps: VaultSessionDeps) {
@@ -213,6 +214,16 @@ export function createVaultSession(deps: VaultSessionDeps) {
      */
     changeMasterPassword(currentPassword: string, newPassword: string): Promise<void> {
       return changeMasterPassword(ctx, currentPassword, newPassword)
+    },
+
+    /**
+     * 계정을 지운다. 비밀번호로 만든 인증 해시를 서버에 보내 계정·볼트·세션을 지우고, 이 기기의 기록과 탭 기억을 지워
+     * 이 탭과 같은 브라우저의 다른 탭을 로그아웃한다. 자동 잠금 같은 기기 설정은 남긴다 (SEC-005)
+     * @throws SessionStateError, AccountDeletionOfflineError, WrongMasterPasswordError, SessionExpiredError,
+     *   AccountDeletedDeviceNotClearedError(지웠고 로그아웃됨), 그 밖의 ServerError·NetworkError
+     */
+    deleteAccount(password: string): Promise<void> {
+      return deleteAccount(ctx, password)
     },
 
     /**
