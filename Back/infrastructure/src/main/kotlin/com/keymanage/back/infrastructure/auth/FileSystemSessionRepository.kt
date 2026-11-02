@@ -14,6 +14,7 @@ import java.time.Instant
 /**
  * 세션 1개를 `{storageDir}/{tokenHash}.json` 파일 1개로 저장한다 (SEC-002).
  * 파일 이름은 토큰의 SHA-256이며 토큰 원문은 어디에도 저장하지 않는다. 16진수 64자가 아닌 키로는 파일에 접근하지 않는다.
+ * 이메일 색인이 없으므로 계정의 세션을 모두 지울 때는 폴더를 훑는다. 단일 인스턴스의 데모 규모라 비용이 작다 (ADR-BE-001 결정 6).
  */
 class FileSystemSessionRepository(
     val storageDir: Path,
@@ -38,6 +39,18 @@ class FileSystemSessionRepository(
         if (!TOKEN_HASH.matches(tokenHash)) return
         Files.deleteIfExists(fileOf(tokenHash))
     }
+
+    override fun deleteAllOf(email: Email) {
+        if (Files.notExists(storageDir)) return
+        val files = Files.newDirectoryStream(storageDir, "*.json").use { it.toList() }
+        files.filter { TOKEN_HASH.matches(it.fileName.toString().removeSuffix(".json")) }
+            .filter { file -> readEmail(file) == email.value }
+            .forEach { Files.deleteIfExists(it) }
+    }
+
+    // 읽지 못하는 파일은 find에서도 쓸 수 없는 세션이므로 건너뛴다. 그 사이 지워진 파일도 같다
+    private fun readEmail(file: Path): String? =
+        runCatching { Files.newInputStream(file).use { objectMapper.readValue<SessionFile>(it) }.email }.getOrNull()
 
     private fun fileOf(tokenHash: String): Path = storageDir.resolve("$tokenHash.json")
 

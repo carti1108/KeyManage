@@ -23,5 +23,8 @@ class KdfParams(salt: ByteArray, val iterations: Int) {
         const val ALGORITHM = "PBKDF2-HMAC-SHA256"
         const val SALT_BYTES = 16
         const val MIN_ITERATIONS = 600_000
+
+        /** 클라이언트가 받는 반복 횟수 상한 (SEC-002). 가입은 하한만 보고, 비밀번호 변경은 이 상한까지 본다 (api-spec 2.5.5) */
+        const val MAX_ITERATIONS = 10_000_000
     }
 }
