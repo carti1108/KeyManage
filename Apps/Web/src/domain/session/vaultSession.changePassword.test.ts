@@ -282,16 +282,38 @@ describe('마스터 비밀번호 변경 뒤 (SEC-004 규칙 7·8)', () => {
     const changing = session.changeMasterPassword(PASSWORD, NEW_PASSWORD)
     await vi.waitFor(() => expect(authApi.changes).toHaveLength(1))
     vaultApi.offline = true
-    await saveItem(session, 'during')
+    // 저장의 서버 전송은 변경이 끝난 뒤로 줄을 서므로 기다리지 않고, 이 탭에 반영될 때까지만 기다린다
+    const saving = saveItem(session, 'during')
+    await vi.waitFor(() => expect(itemIds(unlockedData(session))).toEqual(['during']))
 
     release()
     await changing
+    await saving
     expect(session.state()).toEqual(expect.objectContaining({ status: 'unlocked', pendingSync: true }))
     vaultApi.offline = false
     await session.retryPendingSync()
 
     expect(await openedIds(vaultApi.payload, authApi.kdf, NEW_PASSWORD)).toEqual(['during'])
     expect(session.state()).toEqual(expect.objectContaining({ pendingSync: false }))
+  })
+
+  it('요청을 기다리는 사이 저장해도 탭은 로그아웃되지 않고 수정은 새 키·새 토큰으로 올라간다', async () => {
+    const { session, authApi, vaultApi, tokens, syncErrors } = await signedIn()
+    const release = gate(authApi)
+    const changing = session.changeMasterPassword(PASSWORD, NEW_PASSWORD)
+    await vi.waitFor(() => expect(authApi.changes).toHaveLength(1))
+    tokens.length = 0
+    const saving = saveItem(session, 'during')
+    await vi.waitFor(() => expect(itemIds(unlockedData(session))).toEqual(['during']))
+
+    release()
+    await changing
+    await saving
+
+    expect(syncErrors.filter((error) => error instanceof SessionExpiredError)).toEqual([])
+    expect(tokens).not.toContain('token-1')
+    expect(session.state()).toEqual(expect.objectContaining({ status: 'unlocked', signedIn: true, pendingSync: false }))
+    expect(await openedIds(vaultApi.payload, authApi.kdf, NEW_PASSWORD)).toEqual(['during'])
   })
 
   it('요청을 기다리는 사이 잠갔으면 잠긴 채로 새 비밀번호를 받아들인다', async () => {
