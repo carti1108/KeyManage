@@ -225,6 +225,17 @@ class ChangePasswordUseCaseTests {
     }
 
     @Test
+    fun `새 볼트를 지우다 실패한 오류는 원래 오류에 덧붙여 알린다`() {
+        failingAccounts.failReplace = true
+        failingVaults.failDelete = true
+
+        val error = assertFailsWith<IOException> { change() }
+
+        assertEquals("계정 쓰기 실패", error.message)
+        assertEquals(listOf("볼트 삭제 실패"), error.suppressed.map { it.message })
+    }
+
+    @Test
     fun `옛 볼트를 지우지 못해도 변경은 성공한다`() {
         failingVaults.failDelete = true
 
