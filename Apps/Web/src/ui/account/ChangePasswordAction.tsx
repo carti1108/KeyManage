@@ -3,10 +3,10 @@
 // 대화상자는 모달이다. 변경을 기다리는 동안 배경에서 편집·저장하면 옛 키로 요청이 나가므로 배경을 막고 포커스를 가둔다
 import { KeyRound } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent, type RefObject } from 'react'
-import { createPortal } from 'react-dom'
 import { checkNewMasterPassword } from '../../domain/auth/masterPassword'
 import { Alert } from '../components/Alert'
 import { Button } from '../components/Button'
+import { ModalDialog } from '../components/ModalDialog'
 import { PasswordField } from '../components/PasswordField'
 import { CHANGE_PASSWORD_DIALOG, PASSWORD_CHANGE_DONE, PASSWORD_CHANGE_OFFLINE, SAME_MASTER_PASSWORD } from '../messages/accountNotices'
 import { NEW_PASSWORD_PROBLEMS } from '../messages/authNotices'
@@ -144,103 +144,62 @@ function ChangePasswordDialog({ inputs, currentRef, onInputsChange, pending, onS
   const bodyId = useId()
   const ruleId = useId()
   const set = (key: keyof Inputs) => (value: string) => onInputsChange((current) => ({ ...current, [key]: value }))
-  const overlay = useRef<HTMLDivElement>(null)
-  useInertBackground(overlay)
 
-  function keepFocusInside(event: KeyboardEvent) {
-    onKeyDown(event)
-    if (event.key !== 'Tab' || overlay.current === null) return
-    const items = Array.from(overlay.current.querySelectorAll<HTMLElement>(FOCUSABLE))
-    if (items.length === 0) return
-    const first = items[0]
-    const last = items[items.length - 1]
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault()
-      last.focus()
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault()
-      first.focus()
-    }
-  }
-
-  return createPortal(
-    <div ref={overlay} className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={bodyId}
-        className="w-full max-w-md rounded-md border border-border bg-background p-3"
-        onKeyDown={keepFocusInside}
-      >
-        <form className="flex flex-col gap-3" onSubmit={onSubmit} noValidate>
-          <p id={titleId} className="text-sm font-semibold">
-            {CHANGE_PASSWORD_DIALOG.title}
+  return (
+    <ModalDialog labelledBy={titleId} describedBy={bodyId} onKeyDown={onKeyDown}>
+      <form className="flex flex-col gap-3" onSubmit={onSubmit} noValidate>
+        <p id={titleId} className="text-sm font-semibold">
+          {CHANGE_PASSWORD_DIALOG.title}
+        </p>
+        <p id={bodyId} className="text-sm text-muted-foreground">
+          {CHANGE_PASSWORD_DIALOG.body}
+        </p>
+        <PasswordField
+          ref={currentRef}
+          label={CHANGE_PASSWORD_DIALOG.currentLabel}
+          autoComplete="current-password"
+          showCopyAction={false}
+          value={inputs.current}
+          onTextChange={set('current')}
+          disabled={pending}
+          autoFocus
+        />
+        <PasswordField
+          label={CHANGE_PASSWORD_DIALOG.newLabel}
+          autoComplete="new-password"
+          showCopyAction={false}
+          value={inputs.next}
+          onTextChange={set('next')}
+          disabled={pending}
+          aria-describedby={ruleId}
+        />
+        <p id={ruleId} className="text-xs text-muted-foreground">
+          {NEW_PASSWORD_PROBLEMS.tooShort}
+        </p>
+        <PasswordField
+          label={CHANGE_PASSWORD_DIALOG.confirmLabel}
+          autoComplete="new-password"
+          showCopyAction={false}
+          value={inputs.confirmation}
+          onTextChange={set('confirmation')}
+          disabled={pending}
+        />
+        {error && <Alert title={error.title}>{error.body}</Alert>}
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={onCancel} disabled={pending}>
+            {CHANGE_PASSWORD_DIALOG.cancel}
+          </Button>
+          <Button type="submit" size="sm" loading={pending} disabled={inputs.current === ''}>
+            {CHANGE_PASSWORD_DIALOG.submit}
+          </Button>
+        </div>
+        {pending && (
+          <p role="status" className="text-sm text-muted-foreground">
+            {CHANGE_PASSWORD_DIALOG.progress}
           </p>
-          <p id={bodyId} className="text-sm text-muted-foreground">
-            {CHANGE_PASSWORD_DIALOG.body}
-          </p>
-          <PasswordField
-            ref={currentRef}
-            label={CHANGE_PASSWORD_DIALOG.currentLabel}
-            autoComplete="current-password"
-            showCopyAction={false}
-            value={inputs.current}
-            onTextChange={set('current')}
-            disabled={pending}
-            autoFocus
-          />
-          <PasswordField
-            label={CHANGE_PASSWORD_DIALOG.newLabel}
-            autoComplete="new-password"
-            showCopyAction={false}
-            value={inputs.next}
-            onTextChange={set('next')}
-            disabled={pending}
-            aria-describedby={ruleId}
-          />
-          <p id={ruleId} className="text-xs text-muted-foreground">
-            {NEW_PASSWORD_PROBLEMS.tooShort}
-          </p>
-          <PasswordField
-            label={CHANGE_PASSWORD_DIALOG.confirmLabel}
-            autoComplete="new-password"
-            showCopyAction={false}
-            value={inputs.confirmation}
-            onTextChange={set('confirmation')}
-            disabled={pending}
-          />
-          {error && <Alert title={error.title}>{error.body}</Alert>}
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={onCancel} disabled={pending}>
-              {CHANGE_PASSWORD_DIALOG.cancel}
-            </Button>
-            <Button type="submit" size="sm" loading={pending} disabled={inputs.current === ''}>
-              {CHANGE_PASSWORD_DIALOG.submit}
-            </Button>
-          </div>
-          {pending && (
-            <p role="status" className="text-sm text-muted-foreground">
-              {CHANGE_PASSWORD_DIALOG.progress}
-            </p>
-          )}
-        </form>
-      </div>
-    </div>,
-    document.body,
+        )}
+      </form>
+    </ModalDialog>
   )
 }
 
-const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
-
-/** 대화상자가 열린 동안 body의 다른 요소를 inert로 막는다. 닫히면 이 대화상자가 막은 것만 되돌린다 */
-function useInertBackground(overlay: RefObject<HTMLDivElement | null>) {
-  useEffect(() => {
-    const own = overlay.current
-    const blocked = Array.from(document.body.children).filter((element) => element !== own && !element.hasAttribute('inert'))
-    for (const element of blocked) element.setAttribute('inert', '')
-    return () => {
-      for (const element of blocked) element.removeAttribute('inert')
-    }
-  }, [overlay])
-}
