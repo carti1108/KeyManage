@@ -17,14 +17,17 @@
 - 서비스 정책의 유일한 진실 공급원은 `docs/policies/`다.
 - 정책의 조회·추가·수정·폐기·점검은 `policy-manager:policy-manager` 스킬 절차를 따른다.
 - 되돌리기 쉬운 정책 결정(타이머 값·문구·UI·기본값 등)은 추천 기본값으로 정하고 결과를 보고한다. 되돌리기 비싼 결정(암호 방식·키 유도·저장 데이터 형식·배포 후 API 계약·보안 경계)만 사용자에게 8개 카테고리(경계값, 예외, 사용자 문구 등)를 확인받는다.
+- **정책 ↔ 정적 감사 닫힌 루프(Closed-Loop)**: `docs/policies/`의 경계값·예외·표준 문구가 추가·변경되면 `Scripts/check-policy-acceptance.sh`의 불변식 규칙(`*_rules`)을 같은 PR에서 반드시 함께 갱신한다.
 
 ### AI 활용 기록
 - AI 활용 내용은 `docs/ai-usage/log/`에 항목당 새 파일로 추가한다. 기존 항목 파일은 고치지 않고 `log/README.md` 목록 표에 한 줄을 추가한다. 형식은 `docs/ai-usage/README.md`를 따른다.
 - 기록 절차는 `project-docs:ai-usage` 스킬을 따른다.
 
-### 검증 위임
-- PR 전 독립 리뷰와 CI·뮤테이션 테스트 규칙은 [ADR-0009](docs/adr/ADR-0009-verification-delegation-pipeline.md)를 따른다.
-- 코드 리뷰에서 반복 적발되는 실수(스텁 잔재, 계층 침범, 동시성 데드락, 테스트 임의 변조 등)는 프롬프트 지시에만 의존하지 않고 정적 린트(`Scripts/check-apple-lint.sh`, ESLint 등)와 정책 합격 기준 감사(`Scripts/check-policy-acceptance.sh`) 및 CI 규칙으로 즉시 격상한다.
+### 검증 위임 및 정적 게이트
+- PR 전 독립 리뷰와 CI·뮤테이션 테스트 규칙은 [ADR-0009](docs/adr/ADR-0009-verification-delegation-pipeline.md) 및 [`.gemini/rules/multi-platform-workflow-gate.md`](.gemini/rules/multi-platform-workflow-gate.md)를 따른다.
+- 로컬 Git 훅(`git config core.hooksPath .githooks`)을 활성화해 커밋 시점에 `.githooks/pre-commit`(문서·TDD 무결성·정책 합격·API 계약·Apple 린트)과 `.githooks/commit-msg`가 자동 실행되도록 유지한다.
+- 코드 리뷰에서 반복 적발되는 실수(스텁 잔재, 계층 침범, 동시성 데드락, 테스트 임의 변조, 계약 드리프트)는 프롬프트 지시에만 의존하지 않고 정적 검증(`Scripts/check-swift-architecture.sh`, `Scripts/check-apple-lint.sh`, `Scripts/check-policy-acceptance.sh`, `Scripts/check-api-contract.sh`, `Scripts/verify-tdd-integrity.sh`, ESLint 등) 및 CI 규칙으로 즉시 격상한다.
+- 백엔드 도메인 변경 시 `./gradlew check :domain:pitest` 실행 후 `python3 Scripts/mutation-score.py Back/domain/build/reports/pitest/mutations.xml`로 생존 결함(Survived Mutants)을 확인하고, 살아남은 결함의 줄 번호·변이 조건을 타격하는 단위 테스트를 보강한다.
 
 ### 문서 검사
 - 문서를 고치면 `bash Scripts/check-docs.sh`를 실행해 링크, 정책·ADR·로그 목록 표, 정책·ADR 번호 참조가 맞는지 확인한다. 위반이 있으면 고친 뒤에 커밋한다.

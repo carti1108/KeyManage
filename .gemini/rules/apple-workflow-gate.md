@@ -21,13 +21,13 @@
    - `bash Scripts/verify-apple.sh` 실행 결과가 `exit 0`이어야 함.
    - 포함 검증:
      1) `Scripts/check-docs.sh` (문서 거버넌스 및 ADR/정책 링크 무결성)
-     2) `Scripts/check-apple-lint.sh` (도메인 프레임워크 격리, 미구현 스텁·`fatalError` 금지, Lock 데드락 패턴 차단, 보안 불변식 검사)
-     3) `Scripts/check-policy-acceptance.sh` & `Scripts/verify-tdd-integrity.sh` (정책 경계값 어설션 누락 감사 및 GREEN 단계 테스트 임의 수정 차단)
+     2) `Scripts/check-apple-lint.sh` (`Scripts/check-swift-architecture.sh` 범용 Clean Architecture·스텁·동시성 린트 + KeyManage 도메인 보안 불변식 검사)
+     3) `Scripts/check-policy-acceptance.sh`, `Scripts/check-api-contract.sh` & `Scripts/verify-tdd-integrity.sh` (멀티 플랫폼 정책 경계값 어설션 감사, API 계약 정합성 감사, GREEN 단계 테스트 임의 수정 차단)
      4) Tuist 프로젝트 생성
      5) `xcodebuild build` (Swift 6 Strict Concurrency)
      6) `xcodebuild test` (전 타깃 단위 테스트)
 4. **실패 패턴의 정적 규칙 격상 및 코드 가드닝 (Post-Mortem Rule Upgrade & Gardening)**:
-   - 독립 리뷰에서 P1/P2 결함이 적발된 경우, 해당 코드만 패치하는 데 그치지 않고 **동일 유형의 실수를 다음번에 0초 만에 기계적으로 차단할 수 있는 정적 규칙(`Scripts/check-apple-lint.sh` 또는 `Scripts/check-policy-acceptance.sh`) 추가 여부**를 반드시 검토·반영해야 함.
+   - 독립 리뷰에서 P1/P2 결함이 적발된 경우, 해당 코드만 패치하는 데 그치지 않고 **동일 유형의 실수를 다음번에 0초 만에 기계적으로 차단할 수 있는 정적 규칙(`Scripts/check-swift-architecture.sh`, `Scripts/check-apple-lint.sh`, 또는 `Scripts/check-policy-acceptance.sh`) 추가 여부**를 반드시 검토·반영해야 함.
    - 작업 중 발견된 미사용 스텁(`notImplemented` 등)이나 불필요한 결합은 즉시 가드닝(Gardening)으로 정리함.
 
 ---

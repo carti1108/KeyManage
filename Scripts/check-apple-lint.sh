@@ -1,19 +1,23 @@
 #!/usr/bin/env bash
 # Apple 플랫폼 정적 아키텍처·보안·스텁 린트 (Hard Constraint Gate)
 #
-# 프롬프트 지시(Soft Rule)나 리뷰어의 수동 지적에만 의존하던 반복 결함 패턴을
-# 컴파일 전 0초 만에 기계적으로 차단한다.
+# 범용 Clean Architecture·스텁·동시성 린트(check-swift-architecture.sh)와
+# KeyManage 전용 도메인 보안 불변식(규칙 4~5)을 모듈화하여 순차 실행한다.
 #
 # 검사 항목:
-#   1. Clean Architecture 도메인 격리: Domain/Sources 내 UI/플랫폼 프레임워크(UIKit, AppKit, SwiftUI, LocalAuthentication) import 금지
-#   2. 스텁 및 미완성 코드 잔존 금지: Projects/**/Sources 내 case notImplemented, fatalError( (단, init(coder:) 제외), TODO:, FIXME: 금지
+#   [범용 규칙 — Scripts/check-swift-architecture.sh 위임]
+#   1. Clean Architecture 도메인 격리: Domain/**/Sources 내 UI/플랫폼 프레임워크 import 금지
+#   2. 스텁 및 미완성 코드 잔존 금지: 프로덕션 Sources 내 case notImplemented, fatalError( (init(coder:) 제외), TODO:, FIXME: 금지
 #   3. 비재진입 락(NSLock/NSRecursiveLock) 보유 중 외부 콜백 동기 호출 데드락 패턴 차단
+#
+#   [KeyManage 도메인 전용 규칙 — 본 스크립트 수행]
 #   4. 잠금/세션 모듈 보안 불변식: Lock/ 또는 Session/ 존재 시 memset_s 제로화 및 LocalizedError 표준 문구 구현 필수
-#   5. 생체 인증 키 복호화 우회 차단: unlockWithBiometrics 시그니처에 복호화 키(Key: Data) 비옵셔널 강제
+#   5. 생체 인증 키 복호화 우회 차단: unlockWithBiometrics 시그니처에 복호화 키(*Key: Data) 비옵셔널 강제
 
 set -euo pipefail
 
-ROOT_DIR="${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="${1:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
 APPLE_PROJECTS_DIR="${ROOT_DIR}/Apps/Apple/Projects"
 
 if [ ! -d "${APPLE_PROJECTS_DIR}" ]; then
@@ -21,9 +25,13 @@ if [ ! -d "${APPLE_PROJECTS_DIR}" ]; then
   exit 2
 fi
 
+# 1~3. 범용 Clean Architecture·스텁·동시성 정적 린트 실행
+bash "${SCRIPT_DIR}/check-swift-architecture.sh" "${APPLE_PROJECTS_DIR}"
+
 PYTHON=""
 for candidate in python3 python; do
-  if command -v "$candidate" >/dev/null 2>&1; then
+  if command -v "$candidate" >/dev/null 2>&1 \
+    && "$candidate" -c 'import sys; sys.exit(0 if sys.version_info[0] >= 3 else 1)' >/dev/null 2>&1; then
     PYTHON="$candidate"
     break
   fi
@@ -34,11 +42,16 @@ if [ -z "$PYTHON" ]; then
   exit 2
 fi
 
-"$PYTHON" - "$ROOT_DIR" <<'PY'
+# 4~5. KeyManage 도메인 보안 불변식 정적 린트 실행
+PYTHONIOENCODING=utf-8 "$PYTHON" - "$ROOT_DIR" <<'PY'
 import glob
 import os
 import re
 import sys
+
+for stream in (sys.stdout, sys.stderr):
+    if hasattr(stream, "reconfigure"):
+        stream.reconfigure(encoding="utf-8")
 
 root = sys.argv[1]
 projects_dir = os.path.join(root, "Apps", "Apple", "Projects")
@@ -56,71 +69,7 @@ def strip_comments(text):
         out.append(stripped)
     return "\n".join(out)
 
-# 1. Domain/Sources 프레임워크 격리 검사
-forbidden_domain_imports = ("UIKit", "AppKit", "SwiftUI", "LocalAuthentication", "WebKit")
-for path in sorted(glob.glob(os.path.join(domain_sources_dir, "**", "*.swift"), recursive=True)):
-    with open(path, encoding="utf-8") as f:
-        lines = f.read().splitlines()
-    for idx, line in enumerate(lines, start=1):
-        code = re.sub(r"//.*$", "", line).strip()
-        m = re.match(r"^import\s+([A-Za-z0-9_]+)", code)
-        if m and m.group(1) in forbidden_domain_imports:
-            violations.append(
-                f"[규칙1: 도메인 격리 위반] {rel(path)}:{idx} — Domain 계층에서 '{m.group(1)}'을 import할 수 없습니다."
-            )
-
-# 2. 프로덕션 Sources 내 미구현 스텁·미완성 잔재 금지
-all_source_files = [
-    p for p in sorted(glob.glob(os.path.join(projects_dir, "**", "*.swift"), recursive=True))
-    if "/Tests/" not in p.replace(os.sep, "/")
-    and "/Testing/" not in p.replace(os.sep, "/")
-    and os.path.basename(p) != "Project.swift"
-]
-
-for path in all_source_files:
-    with open(path, encoding="utf-8") as f:
-        lines = f.read().splitlines()
-    for idx, line in enumerate(lines, start=1):
-        code_no_comment = re.sub(r"//.*$", "", line)
-        if re.search(r"\bcase\s+notImplemented\b", code_no_comment):
-            violations.append(
-                f"[규칙2: 스텁 잔재 금지] {rel(path)}:{idx} — 미구현 에러 스텁(case notImplemented) 잔존: {line.strip()}"
-            )
-        if re.search(r"\bfatalError\s*\(", code_no_comment) and "init(coder:)" not in line:
-            violations.append(
-                f"[규칙2: 스텁 잔재 금지] {rel(path)}:{idx} — 프로덕션 코드 내 fatalError() 호출 금지: {line.strip()}"
-            )
-        if re.search(r"//\s*(TODO|FIXME)\b", line):
-            violations.append(
-                f"[규칙2: 스텁 잔재 금지] {rel(path)}:{idx} — 미해결 TODO/FIXME 주석 잔존: {line.strip()}"
-            )
-
-# 3. 락 보유 중 외부 클립보드/이벤트 콜백 동기 호출(데드락 위험) 검사
-# 클립보드 콜백을 호출하는 함수 내부에는 반드시 콜백 호출 이전에 명시적 .unlock()이 선행되어야 한다.
-callback_pat = re.compile(r"\b(_?onClipboardClear(ed)?|clipboardAction|callback)\s*\?\s*\(")
-for path in all_source_files:
-    with open(path, encoding="utf-8") as f:
-        content = strip_comments(f.read())
-    if not re.search(r"\bNS(Recursive)?Lock\b", content):
-        continue
-    lines = content.splitlines()
-    current_func_lines = []
-    for idx, line in enumerate(lines, start=1):
-        if re.search(r"\bfunc\s+[A-Za-z0-9_]+\s*\(", line):
-            current_func_lines = []
-        current_func_lines.append((idx, line))
-        if callback_pat.search(line):
-            # 현재 함수 내에서 콜백 호출 줄 이전에 명시적 .unlock() (defer 제외)이 있는지 확인
-            has_explicit_unlock_before = any(
-                ".unlock()" in prev_line and "defer" not in prev_line
-                for _, prev_line in current_func_lines[:-1]
-            )
-            if not has_explicit_unlock_before:
-                violations.append(
-                    f"[규칙3: 동시성 데드락 위험] {rel(path)}:{idx} — Lock을 사용하는 객체에서 명시적 unlock() 없이 외부 콜백({line.strip()})을 동기 호출하면 재진입 데드락이 발생합니다."
-                )
-
-# 4 & 5. 잠금/세션 모듈(Lock 또는 Session)이 존재할 때의 보안 불변식 검사
+# 4 & 5. 잠금/세션 모듈(Lock 또는 Session)이 존재할 때의 KeyManage 보안 불변식 검사
 lock_dir_candidates = [
     os.path.join(domain_sources_dir, "Lock"),
     os.path.join(domain_sources_dir, "Session"),
@@ -149,24 +98,25 @@ for lock_dir in existing_lock_dirs:
         for idx, line in enumerate(lines, start=1):
             code = re.sub(r"//.*$", "", line)
             if "func unlockWithBiometrics" in code:
-                # 함수 시그니처 전체(최대 6줄)를 합쳐서 검사
                 sig_chunk = " ".join(
                     re.sub(r"//.*$", "", lines[j]).strip()
                     for j in range(idx - 1, min(idx + 5, len(lines)))
                 )
                 sig_only = sig_chunk.split("{")[0]
-                has_non_optional_key = bool(re.search(r"Key\s*:\s*Data\b(?!\s*\?)", sig_only))
+                has_non_optional_key = bool(
+                    re.search(r"[A-Za-z0-9_]*key\s*:\s*Data\b(?!\s*\?)", sig_only, re.IGNORECASE)
+                )
                 has_default_nil = "= nil" in sig_only
                 if not has_non_optional_key or has_default_nil:
                     violations.append(
-                        f"[규칙5: 생체 복호화 우회 금지] {rel(path)}:{idx} — unlockWithBiometrics는 반드시 비옵셔널 복호화 키(Key: Data)를 인자로 받아 볼트 복호화를 검증해야 합니다."
+                        f"[규칙5: 생체 복호화 우회 금지] {rel(path)}:{idx} — unlockWithBiometrics는 반드시 비옵셔널 복호화 키(*Key: Data)를 인자로 받아 볼트 복호화를 검증해야 합니다."
                     )
 
 if violations:
-    print("Apple 정적 아키텍처·보안·스텁 린트 위반 발견:")
+    print("KeyManage 도메인 보안 불변식 린트 위반 발견:")
     for v in violations:
         print(f"  ✖ {v}")
     sys.exit(1)
 
-print("✔ Apple 정적 아키텍처·보안·스텁 린트 통과 (위반 0건)")
+print("✔ KeyManage 도메인 보안 불변식 린트 통과 (위반 0건)")
 PY

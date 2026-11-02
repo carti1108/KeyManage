@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# 로컬 커밋 전 1초 미만 정적 검증 게이트 (.githooks/pre-commit)
+#
+# 프롬프트 지시(Soft Rule)나 에이전트 기억에만 의존하던 정적 검증을
+# git commit 이벤트 시점에 스테이징된 파일(git diff --cached) 기반으로 자동 강제한다.
+
+set -euo pipefail
+
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+cd "${ROOT_DIR}"
+
+STAGED_FILES="$(git diff --cached --name-only --diff-filter=ACMRD)"
+if [ -z "${STAGED_FILES}" ]; then
+  exit 0
+fi
+
+# 1. 마크다운 문서(*.md) 변경 포함 시 문서 거버넌스 및 링크 무결성 검사
+if printf '%s\n' "${STAGED_FILES}" | grep -Eq '\.md$'; then
+  echo ">> [pre-commit] 마크다운 변경 감지 → Scripts/check-docs.sh 실행..."
+  bash "${ROOT_DIR}/Scripts/check-docs.sh" "${ROOT_DIR}"
+fi
+
+# 2. 테스트 파일 수정 포함 시 TDD 어설션 무결성 검사 (Silent Test Modification 차단)
+if printf '%s\n' "${STAGED_FILES}" | grep -Eq '(Tests\.swift|\.test\.tsx?|\.spec\.tsx?|Tests?\.kt|Tests?\.java)$'; then
+  if [ "${KM_ALLOW_TEST_EDIT:-0}" = "1" ]; then
+    echo ">> [pre-commit] KM_ALLOW_TEST_EDIT=1 설정됨 → 의도적 테스트 수정으로 간주하여 TDD 무결성 검사를 건너뜁니다."
+  else
+    echo ">> [pre-commit] 테스트 파일 변경 감지 → Scripts/verify-tdd-integrity.sh --cached 실행..."
+    if ! bash "${ROOT_DIR}/Scripts/verify-tdd-integrity.sh" --cached; then
+      echo "힌트: test:/refactor: 커밋에서 의도적으로 기존 어설션을 교체하는 경우 KM_ALLOW_TEST_EDIT=1 git commit 으로 실행하세요." >&2
+      exit 1
+    fi
+  fi
+fi
+
+# 3. Apple 소스 변경 포함 시 Apple 정적 아키텍처·보안·스텁 린트 실행
+if printf '%s\n' "${STAGED_FILES}" | grep -Eq '^Apps/Apple/.*\.swift$'; then
+  echo ">> [pre-commit] Apple Swift 변경 감지 → Scripts/check-apple-lint.sh 실행..."
+  bash "${ROOT_DIR}/Scripts/check-apple-lint.sh" "${ROOT_DIR}"
+fi
+
+# 4. 정책 문서 또는 클라이언트 테스트 변경 포함 시 멀티 플랫폼 정책 합격 기준 감사 실행
+if printf '%s\n' "${STAGED_FILES}" | grep -Eq '^(docs/policies/|docs/vault-spec\.md|Apps/Apple/Projects/Core/Domain/Tests/|Apps/Web/src/.*\.test\.tsx?$)'; then
+  echo ">> [pre-commit] 정책/클라이언트 테스트 변경 감지 → Scripts/check-policy-acceptance.sh 실행..."
+  bash "${ROOT_DIR}/Scripts/check-policy-acceptance.sh" "${ROOT_DIR}"
+fi
+
+# 5. API 명세 또는 백엔드/클라이언트 HTTP 계약 파일 변경 시 API 계약 드리프트 감사 실행
+if printf '%s\n' "${STAGED_FILES}" | grep -Eq '^(docs/api-spec\.md|Back/api/|Apps/Web/src/(adapters/http|domain/server)/)'; then
+  echo ">> [pre-commit] API 명세/계약 파일 변경 감지 → Scripts/check-api-contract.sh 실행..."
+  bash "${ROOT_DIR}/Scripts/check-api-contract.sh" "${ROOT_DIR}"
+fi

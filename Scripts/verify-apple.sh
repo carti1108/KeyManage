@@ -28,9 +28,10 @@ bash "${ROOT_DIR}/Scripts/check-docs.sh"
 echo ">> [2/6] Apple 정적 아키텍처·보안·스텁 린트 검증..."
 bash "${ROOT_DIR}/Scripts/check-apple-lint.sh" "${ROOT_DIR}"
 
-# 3. 정책 합격 기준 및 경계값 어설션 감사 + TDD 무결성 검증
-echo ">> [3/6] 정책 합격 기준 감사 및 TDD 테스트 불변성 검증..."
+# 3. 멀티 플랫폼 정책 합격 기준·API 계약 감사 + TDD 무결성 검증
+echo ">> [3/6] 멀티 플랫폼 정책 합격 기준·API 계약 감사 및 TDD 테스트 불변성 검증..."
 bash "${ROOT_DIR}/Scripts/check-policy-acceptance.sh" "${ROOT_DIR}"
+bash "${ROOT_DIR}/Scripts/check-api-contract.sh" "${ROOT_DIR}"
 bash "${ROOT_DIR}/Scripts/verify-tdd-integrity.sh"
 
 # 4. Tuist 외부 의존성 설치 및 프로젝트 생성
