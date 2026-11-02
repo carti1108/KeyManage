@@ -17,3 +17,4 @@
 | [ADR-0003](ADR-0003-file-based-vault-storage-adapter.md) | 파일 기반 단일 암호화 볼트 저장소 어댑터 채택 | 채택 | 2026-10-27 |
 | [ADR-0007](ADR-0007-file-vault-atomic-write-single-instance.md) | 파일 볼트 저장소의 원자적 쓰기와 단일 인스턴스 제약 | 채택 | 2026-10-28 |
 | [ADR-BE-001](ADR-BE-001-password-change-vault-id-swap.md) | 마스터 비밀번호 변경은 새 볼트 ID에 볼트를 먼저 쓰고, 계정 파일 교체 한 번으로 확정한다 | 채택 | 2026-11-02 |
+| [ADR-BE-002](ADR-BE-002-pending-deletions-and-session-cleanup.md) | 지우지 못한 볼트는 삭제 예정 목록에 남겨 시작 때 지우고, 계정이 없거나 만료된 세션 파일도 시작 때 정리한다 | 채택 | 2026-11-02 |
