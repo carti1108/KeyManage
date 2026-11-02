@@ -192,4 +192,33 @@ struct UnlockFeatureTests {
 		#expect(interactor?.lockManager === lockManager)
 		#expect(routing.viewControllable is UnlockViewControllable)
 	}
+
+	// MARK: - 6. SEC-003 규칙 11 원격 변경 감지 시 안내 문구 갱신
+	@Test("마스터 비밀번호 불일치 시 서버 KDF 변경이 감지되면 passwordChangedReLoginNotice로 에러 메시지가 갱신된다")
+	func unlockWithMasterPassword_whenIncorrectAndServerKdfChanged_updatesErrorMessage() async {
+		// Given
+		let lockManager = MockVaultLockManager()
+		lockManager.unlockWithMasterPasswordError = VaultLockError.invalidMasterPassword
+		lockManager.checkIfPasswordChangedOnServerResult = true
+
+		final class TestAuthNetworkClient: AuthNetworkClientProtocol, @unchecked Sendable {
+			func prelogin(email: String) async throws -> PreloginResponse {
+				PreloginResponse(kdf: "PBKDF2-HMAC-SHA256", salt: "dGVzdC1zYWx0", iterations: 600_000)
+			}
+			func changePassword(accessToken: String, request: ChangePasswordRequestPayload) async throws -> ChangePasswordResponsePayload {
+				fatalError("Not used")
+			}
+		}
+
+		let networkClient = TestAuthNetworkClient()
+		let interactor = UnlockInteractor(lockManager: lockManager, networkClient: networkClient)
+
+		// When
+		interactor.unlock(withMasterPassword: "WrongPassword")
+
+		// Then - 비동기 KDF 감지 대기
+		try? await Task.sleep(nanoseconds: 60_000_000)
+		#expect(lockManager.checkIfPasswordChangedOnServerCallCount == 1)
+		#expect(interactor.errorMessage == MasterPasswordChangeStrings.passwordChangedReLoginNotice)
+	}
 }

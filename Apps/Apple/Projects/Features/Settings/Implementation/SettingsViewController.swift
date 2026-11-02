@@ -12,6 +12,7 @@ protocol SettingsPresentableListener: AnyObject {
 	func didRequestExportBackup()
 	func didRequestRestoreBackup(fileData: Data, password: String)
 	func didRequestLogout()
+	func didRequestChangePassword(current: String, new: String, confirm: String)
 }
 
 #if os(macOS)
@@ -44,6 +45,9 @@ final class SettingsViewController: SettingsPlatformHostingController<SettingsVi
 		}
 		vm.onRequestLogout = { [weak self] in
 			self?.listener?.didRequestLogout()
+		}
+		vm.onRequestChangePassword = { [weak self] current, new, confirm in
+			self?.listener?.didRequestChangePassword(current: current, new: new, confirm: confirm)
 		}
 	}
 
@@ -99,5 +103,10 @@ final class SettingsViewController: SettingsPlatformHostingController<SettingsVi
 
 	func showToast(message: String) {
 		viewModel.showToast(message)
+	}
+
+	func dismissChangePasswordModal() {
+		viewModel.isChangePasswordPresented = false
+		viewModel.resetChangePasswordFields()
 	}
 }

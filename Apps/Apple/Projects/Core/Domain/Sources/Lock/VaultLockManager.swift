@@ -12,6 +12,7 @@ public protocol VaultLockManagerProtocol: AnyObject, Sendable {
 	var salt: Data? { get }
 	var iterations: Int { get }
 	var encryptedVault: EncryptedVaultPayload? { get }
+	var revision: Int { get }
 
 	// 민감 자격증명 (잠금 시 소거 대상)
 	var masterKey: Data? { get }
@@ -33,7 +34,8 @@ public protocol VaultLockManagerProtocol: AnyObject, Sendable {
 		iterations: Int,
 		encryptedVault: EncryptedVaultPayload,
 		isBiometricsEnabled: Bool,
-		biometryStateHash: Data?
+		biometryStateHash: Data?,
+		revision: Int
 	)
 	func recordInteraction(at date: Date)
 	func checkIdleTimeout(at date: Date) -> Bool
@@ -47,9 +49,36 @@ public protocol VaultLockManagerProtocol: AnyObject, Sendable {
 	// VLT-004 암호화 백업 내보내기와 복원
 	func exportBackup(now: Date) throws -> (fileName: String, data: Data)
 	func restoreBackup(fileData: Data, password: String, now: Date) throws -> (restoredCount: Int, newVault: VaultData)
+
+	// SEC-004 마스터 비밀번호 변경
+	func changeMasterPassword(
+		currentPassword: String,
+		newPassword: String,
+		networkClient: AuthNetworkClientProtocol,
+		now: Date
+	) async throws
+
+	// SEC-003 규칙 11 서버 KDF 변경 감지
+	func checkIfPasswordChangedOnServer(
+		networkClient: AuthNetworkClientProtocol
+	) async throws -> Bool
 }
 
 public extension VaultLockManagerProtocol {
+	func changeMasterPassword(
+		currentPassword: String,
+		newPassword: String,
+		networkClient: AuthNetworkClientProtocol,
+		now: Date = Date()
+	) async throws {
+		try await changeMasterPassword(
+			currentPassword: currentPassword,
+			newPassword: newPassword,
+			networkClient: networkClient,
+			now: now
+		)
+	}
+
 	func exportBackup(now: Date = Date()) throws -> (fileName: String, data: Data) {
 		try exportBackup(now: now)
 	}
@@ -69,7 +98,8 @@ public extension VaultLockManagerProtocol {
 		iterations: Int,
 		encryptedVault: EncryptedVaultPayload,
 		isBiometricsEnabled: Bool = false,
-		biometryStateHash: Data? = nil
+		biometryStateHash: Data? = nil,
+		revision: Int = 1
 	) {
 		setupSession(
 			email: email,
@@ -78,7 +108,8 @@ public extension VaultLockManagerProtocol {
 			iterations: iterations,
 			encryptedVault: encryptedVault,
 			isBiometricsEnabled: isBiometricsEnabled,
-			biometryStateHash: biometryStateHash
+			biometryStateHash: biometryStateHash,
+			revision: revision
 		)
 	}
 
@@ -168,6 +199,13 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 		return _encryptedVault
 	}
 
+	private var _revision: Int = 1
+	public var revision: Int {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+		return _revision
+	}
+
 	private var _masterKey: Data? = nil
 	public var masterKey: Data? {
 		syncLock.lock()
@@ -247,7 +285,8 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 		iterations: Int,
 		encryptedVault: EncryptedVaultPayload,
 		isBiometricsEnabled: Bool = false,
-		biometryStateHash: Data? = nil
+		biometryStateHash: Data? = nil,
+		revision: Int = 1
 	) {
 		syncLock.lock()
 		defer { syncLock.unlock() }
@@ -259,6 +298,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 		_encryptedVault = encryptedVault
 		_isBiometricsEnabled = isBiometricsEnabled
 		_currentBiometryStateHash = biometryStateHash
+		_revision = revision
 
 		_isLocked = false
 		_isPrivacyCoverActive = false
@@ -519,6 +559,252 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 		}
 
 		return (restoredCount: restoredCount, newVault: mergedVault)
+	}
+
+	// MARK: - SEC-004 마스터 비밀번호 변경
+
+	private struct SessionCredentialsSnapshot {
+		let isLocked: Bool
+		let salt: Data?
+		let sessionToken: String?
+		let iterations: Int
+		let email: String?
+		let decryptedVault: VaultData?
+		let encryptedVault: EncryptedVaultPayload?
+		let revision: Int
+	}
+
+	private func getCredentialsSnapshot() -> SessionCredentialsSnapshot {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+		return SessionCredentialsSnapshot(
+			isLocked: _isLocked,
+			salt: _salt,
+			sessionToken: _sessionToken,
+			iterations: _iterations,
+			email: _email,
+			decryptedVault: _decryptedVault,
+			encryptedVault: _encryptedVault,
+			revision: _revision
+		)
+	}
+
+	private func applyChangedPassword(
+		sessionToken: String,
+		salt: Data,
+		encryptedVault: EncryptedVaultPayload,
+		masterKey: Data,
+		encryptionKey: Data,
+		revision: Int,
+		now: Date
+	) {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+
+		// 1. 비동기 대기 중 사용자가 로그아웃한 경우 자격증명 폐기
+		guard _email != nil else {
+			var mk: Data? = masterKey
+			var ek: Data? = encryptionKey
+			zeroizeData(&mk)
+			zeroizeData(&ek)
+			return
+		}
+
+		_sessionToken = sessionToken
+		_salt = salt
+		_encryptedVault = encryptedVault
+		_revision = revision
+		_lastMasterPasswordUnlockDate = now
+		_lastInteractionTime = now
+
+		zeroizeData(&_masterKey)
+		zeroizeData(&_encryptionKey)
+
+		// 2. 잠금 해제 상태가 유지된 경우에만 메모리에 보존, 대기 중 잠긴 경우 즉시 소거
+		if !_isLocked {
+			_masterKey = masterKey
+			_encryptionKey = encryptionKey
+		} else {
+			var mk: Data? = masterKey
+			var ek: Data? = encryptionKey
+			zeroizeData(&mk)
+			zeroizeData(&ek)
+		}
+	}
+
+	private func getKdfCheckInfo() -> (email: String, saltBase64: String, iterations: Int)? {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+		guard let email = _email, let salt = _salt, _iterations > 0 else {
+			return nil
+		}
+		return (email: email, saltBase64: salt.base64EncodedString(), iterations: _iterations)
+	}
+
+	public func changeMasterPassword(
+		currentPassword: String,
+		newPassword: String,
+		networkClient: AuthNetworkClientProtocol,
+		now: Date = Date()
+	) async throws {
+		let snapshot = getCredentialsSnapshot()
+		guard !snapshot.isLocked,
+		      let currentSalt = snapshot.salt,
+		      let sessionToken = snapshot.sessionToken,
+		      snapshot.iterations > 0,
+		      let decryptedVault = snapshot.decryptedVault else {
+			throw MasterPasswordChangeError.offline
+		}
+
+		if decryptedVault.isReadOnly {
+			throw MasterPasswordChangeError.readOnlyVault
+		}
+
+		// 1. 현재 비밀번호 검증
+		var normalizedCurrent: Data?
+		defer { zeroizeData(&normalizedCurrent) }
+		do {
+			normalizedCurrent = try PasswordPreprocessor.preprocess(currentPassword)
+		} catch {
+			throw MasterPasswordChangeError.invalidCurrentPassword
+		}
+
+		var derivedCurrentMasterKey: Data?
+		defer { zeroizeData(&derivedCurrentMasterKey) }
+		do {
+			derivedCurrentMasterKey = try PBKDF2KeyDeriver.deriveMasterKey(
+				password: normalizedCurrent ?? Data(),
+				salt: currentSalt,
+				iterations: snapshot.iterations
+			)
+		} catch {
+			throw MasterPasswordChangeError.invalidCurrentPassword
+		}
+
+		let currentKeys: SeparatedKeys
+		do {
+			currentKeys = try HKDFKeySeparator.separate(masterKey: derivedCurrentMasterKey ?? Data())
+		} catch {
+			throw MasterPasswordChangeError.invalidCurrentPassword
+		}
+		var currentAuthKey: Data? = currentKeys.authHash
+		var currentEncKey: Data? = currentKeys.encryptionKey
+		defer {
+			zeroizeData(&currentAuthKey)
+			zeroizeData(&currentEncKey)
+		}
+
+		if let encVault = snapshot.encryptedVault {
+			do {
+				_ = try VaultCipher.decrypt(payload: encVault, key: currentEncKey ?? Data())
+			} catch {
+				throw MasterPasswordChangeError.invalidCurrentPassword
+			}
+		}
+
+		// 2. 새 비밀번호 검증 (SEC-002, SEC-004 규칙 2)
+		if newPassword.count < 12 {
+			throw MasterPasswordChangeError.tooShort
+		}
+		if newPassword == currentPassword {
+			throw MasterPasswordChangeError.samePassword
+		}
+
+		var normalizedNew: Data?
+		defer { zeroizeData(&normalizedNew) }
+		do {
+			normalizedNew = try PasswordPreprocessor.preprocess(newPassword)
+		} catch {
+			throw MasterPasswordChangeError.other("새 마스터 비밀번호에 유효하지 않은 문자가 포함되어 있습니다.")
+		}
+
+		if let normNew = normalizedNew, let normCur = normalizedCurrent, normNew == normCur {
+			throw MasterPasswordChangeError.samePassword
+		}
+
+		// 3. 새 16바이트 salt 생성
+		var newSalt = Data(count: 16)
+		let saltResult = newSalt.withUnsafeMutableBytes { bytes in
+			SecRandomCopyBytes(kSecRandomDefault, 16, bytes.baseAddress!)
+		}
+		guard saltResult == errSecSuccess else {
+			throw MasterPasswordChangeError.other("새 salt 생성에 실패했습니다.")
+		}
+
+		// 4. 새 마스터 키 유도 및 키 분리
+		var newDerivedMasterKey: Data?
+		var newEncKey: Data?
+		defer {
+			zeroizeData(&newDerivedMasterKey)
+			zeroizeData(&newEncKey)
+		}
+
+		do {
+			newDerivedMasterKey = try PBKDF2KeyDeriver.deriveMasterKey(
+				password: normalizedNew ?? Data(),
+				salt: newSalt,
+				iterations: snapshot.iterations
+			)
+		} catch {
+			throw MasterPasswordChangeError.other("새 마스터 키 유도에 실패했습니다.")
+		}
+
+		let newKeys: SeparatedKeys
+		do {
+			newKeys = try HKDFKeySeparator.separate(masterKey: newDerivedMasterKey ?? Data())
+		} catch {
+			throw MasterPasswordChangeError.other("새 키 분리에 실패했습니다.")
+		}
+		var newAuthKey: Data? = newKeys.authHash
+		newEncKey = newKeys.encryptionKey
+		defer {
+			zeroizeData(&newAuthKey)
+		}
+
+		// 5. 볼트 재암호화
+		let encodedVault = try decryptedVault.encode()
+		let newEncryptedVault = try VaultCipher.encrypt(plaintext: encodedVault, key: newEncKey ?? Data())
+		guard newEncryptedVault.ciphertext.count <= BackupFileFormat.maxPayloadBytes else {
+			throw MasterPasswordChangeError.vaultTooLarge
+		}
+
+		// 6. 서버 요청 (POST /api/v1/auth/change-password)
+		let requestPayload = ChangePasswordRequestPayload(
+			currentAuthHash: currentAuthKey?.base64EncodedString() ?? "",
+			newAuthHash: newAuthKey?.base64EncodedString() ?? "",
+			kdf: .init(iterations: snapshot.iterations, salt: newSalt.base64EncodedString()),
+			vault: .init(expectedRevision: snapshot.revision, payload: newEncryptedVault)
+		)
+
+		let response: ChangePasswordResponsePayload
+		response = try await networkClient.changePassword(
+			accessToken: sessionToken,
+			request: requestPayload
+		)
+
+		// 7. 자격증명 원자적 갱신
+		applyChangedPassword(
+			sessionToken: response.accessToken,
+			salt: newSalt,
+			encryptedVault: newEncryptedVault,
+			masterKey: newDerivedMasterKey ?? Data(),
+			encryptionKey: newEncKey ?? Data(),
+			revision: response.revision,
+			now: now
+		)
+	}
+
+	// MARK: - SEC-003 규칙 11 서버 KDF 변경 감지
+
+	public func checkIfPasswordChangedOnServer(
+		networkClient: AuthNetworkClientProtocol
+	) async throws -> Bool {
+		guard let info = getKdfCheckInfo() else {
+			return false
+		}
+		let preloginResp = try await networkClient.prelogin(email: info.email)
+		let differs = (preloginResp.salt != info.saltBase64 || preloginResp.iterations != info.iterations)
+		return differs
 	}
 
 	private func internalLock() {

@@ -18,7 +18,10 @@ struct SettingsView: View {
 				// 2. 백업 및 복원 섹션
 				backupSection
 
-				// 3. 계정 섹션 (로그아웃)
+				// 3. 마스터 비밀번호 변경 섹션
+				changePasswordSection
+
+				// 4. 계정 섹션 (로그아웃)
 				accountSection
 			}
 			.padding(24)
@@ -30,6 +33,9 @@ struct SettingsView: View {
 		}
 		.sheet(isPresented: $viewModel.isRestoreModalPresented) {
 			restoreModalView
+		}
+		.sheet(isPresented: $viewModel.isChangePasswordPresented) {
+			changePasswordModalView
 		}
 		.alert("로그아웃", isPresented: $viewModel.isLogoutConfirmPresented) {
 			Button("취소", role: .cancel) {}
@@ -124,6 +130,34 @@ struct SettingsView: View {
 		}
 	}
 
+	private var changePasswordSection: some View {
+		KMCard {
+			VStack(alignment: .leading, spacing: 16) {
+				Text("마스터 비밀번호")
+					.font(.headline)
+					.foregroundColor(DesignToken.View.foreground)
+
+				VStack(alignment: .leading, spacing: 8) {
+					Text(MasterPasswordChangeStrings.noticeTitle)
+						.font(.subheadline)
+						.foregroundColor(DesignToken.View.foreground)
+
+					Text(MasterPasswordChangeStrings.noticeBody)
+						.font(.footnote)
+						.foregroundColor(DesignToken.View.mutedForeground)
+						.fixedSize(horizontal: false, vertical: true)
+
+					KMButton(
+						"비밀번호 변경",
+						variant: .outline,
+						action: { viewModel.isChangePasswordPresented = true }
+					)
+				}
+			}
+			.padding(16)
+		}
+	}
+
 	private var accountSection: some View {
 		KMCard {
 			VStack(alignment: .leading, spacing: 16) {
@@ -138,6 +172,90 @@ struct SettingsView: View {
 				)
 			}
 			.padding(16)
+		}
+	}
+
+	// MARK: - Change Password Modal
+
+	private var changePasswordModalView: some View {
+		VStack(spacing: 20) {
+			Text(MasterPasswordChangeStrings.noticeTitle)
+				.font(.title2)
+				.bold()
+				.foregroundColor(DesignToken.View.foreground)
+
+			changePasswordWarningCard
+
+			changePasswordFieldsView
+
+			changePasswordButtonsView
+		}
+		.padding(24)
+		.frame(minWidth: 420)
+	}
+
+	private var changePasswordWarningCard: some View {
+		KMCard {
+			VStack(alignment: .leading, spacing: 8) {
+				Text("주의 사항")
+					.font(.caption)
+					.bold()
+					.foregroundColor(.orange)
+
+				Text(MasterPasswordChangeStrings.noticeBody)
+					.font(.footnote)
+					.foregroundColor(DesignToken.View.mutedForeground)
+					.fixedSize(horizontal: false, vertical: true)
+			}
+			.padding(12)
+		}
+	}
+
+	private var changePasswordFieldsView: some View {
+		VStack(spacing: 12) {
+			KMPasswordField(
+				text: $viewModel.currentPasswordInput,
+				placeholder: MasterPasswordChangeStrings.currentPasswordPlaceholder,
+				showCopyAction: false
+			)
+
+			KMPasswordField(
+				text: $viewModel.newPasswordInput,
+				placeholder: MasterPasswordChangeStrings.newPasswordPlaceholder,
+				showCopyAction: false
+			)
+
+			KMPasswordField(
+				text: $viewModel.confirmPasswordInput,
+				placeholder: MasterPasswordChangeStrings.confirmPasswordPlaceholder,
+				showCopyAction: false
+			)
+		}
+	}
+
+	private var isChangePasswordButtonDisabled: Bool {
+		viewModel.currentPasswordInput.isEmpty ||
+		viewModel.newPasswordInput.isEmpty ||
+		viewModel.confirmPasswordInput.isEmpty
+	}
+
+	private var changePasswordButtonsView: some View {
+		HStack(spacing: 12) {
+			KMButton(
+				"취소",
+				variant: .outline,
+				action: {
+					viewModel.isChangePasswordPresented = false
+					viewModel.resetChangePasswordFields()
+				}
+			)
+
+			KMButton(
+				MasterPasswordChangeStrings.changeButton,
+				variant: .primary,
+				isDisabled: isChangePasswordButtonDisabled,
+				action: { viewModel.requestChangePassword() }
+			)
 		}
 	}
 

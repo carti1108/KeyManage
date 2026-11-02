@@ -40,6 +40,11 @@ final class SettingsPresenterSpy: SettingsPresentable {
 		showToastCallCount += 1
 		receivedToastMessage = message
 	}
+
+	var dismissChangePasswordModalCallCount = 0
+	func dismissChangePasswordModal() {
+		dismissChangePasswordModalCallCount += 1
+	}
 }
 
 @MainActor
@@ -83,6 +88,7 @@ final class MockVaultLockManager: VaultLockManagerProtocol, @unchecked Sendable 
 	var salt: Data? = nil
 	var iterations: Int = 100_000
 	var encryptedVault: EncryptedVaultPayload? = nil
+	var revision: Int = 1
 	var masterKey: Data? = nil
 	var encryptionKey: Data? = nil
 	var decryptedVault: VaultData? = nil
@@ -94,6 +100,10 @@ final class MockVaultLockManager: VaultLockManagerProtocol, @unchecked Sendable 
 	var exportBackupCallCount = 0
 	var restoreBackupCallCount = 0
 	var logoutCallCount = 0
+	var changeMasterPasswordCallCount = 0
+	var receivedCurrentPassword: String?
+	var receivedNewPassword: String?
+	var shouldThrowChangePassword: Error?
 	var exportResultToReturn: (fileName: String, data: Data)? = ("keymanage-backup-test.json", Data("{\"version\":1}".utf8))
 	var restoreResultToReturn: (restoredCount: Int, newVault: VaultData)? = (3, VaultData(updatedAt: "2026-11-02T00:00:00Z", items: []))
 	var shouldThrowExport: Error? = nil
@@ -106,7 +116,8 @@ final class MockVaultLockManager: VaultLockManagerProtocol, @unchecked Sendable 
 		iterations: Int,
 		encryptedVault: EncryptedVaultPayload,
 		isBiometricsEnabled: Bool = false,
-		biometryStateHash: Data? = nil
+		biometryStateHash: Data? = nil,
+		revision: Int = 1
 	) {}
 	func recordInteraction(at date: Date) {}
 	func checkIdleTimeout(at date: Date) -> Bool { false }
@@ -115,6 +126,26 @@ final class MockVaultLockManager: VaultLockManagerProtocol, @unchecked Sendable 
 	func lock() { isLocked = true }
 	func unlockWithMasterPassword(password: String, now: Date) throws {}
 	func unlockWithBiometrics(evaluatedStateHash: Data, recoveredEncryptionKey: Data, now: Date) throws {}
+
+	func changeMasterPassword(
+		currentPassword: String,
+		newPassword: String,
+		networkClient: AuthNetworkClientProtocol,
+		now: Date
+	) async throws {
+		changeMasterPasswordCallCount += 1
+		receivedCurrentPassword = currentPassword
+		receivedNewPassword = newPassword
+		if let error = shouldThrowChangePassword {
+			throw error
+		}
+	}
+
+	func checkIfPasswordChangedOnServer(
+		networkClient: AuthNetworkClientProtocol
+	) async throws -> Bool {
+		false
+	}
 
 	func logout() {
 		logoutCallCount += 1
@@ -417,5 +448,114 @@ struct SettingsTests {
 
 		// Then
 		#expect(viewModel.toastMessage == nil)
+	}
+
+	// MARK: - SEC-004 마스터 비밀번호 변경 테스트
+
+	@Test("didRequestChangePassword 호출 시 유효한 정보면 lockManager.changeMasterPassword 호출 및 완료 토스트 검증")
+	func didRequestChangePassword_withValidPasswords_callsLockManagerAndShowsSuccessToast() async {
+		// Given
+		let lockManager = MockVaultLockManager()
+		let presenter = SettingsPresenterSpy()
+		let interactor = SettingsInteractor(lockManager: lockManager, presenter: presenter)
+
+		// When
+		interactor.didRequestChangePassword(
+			current: "Current1234!",
+			new: "NewPassword1234!",
+			confirm: "NewPassword1234!"
+		)
+		// 비동기 Task 완료 대기
+		try? await Task.sleep(nanoseconds: 50_000_000)
+
+		// Then
+		#expect(lockManager.changeMasterPasswordCallCount == 1)
+		#expect(lockManager.receivedCurrentPassword == "Current1234!")
+		#expect(lockManager.receivedNewPassword == "NewPassword1234!")
+		#expect(presenter.dismissChangePasswordModalCallCount == 1)
+		#expect(presenter.receivedToastMessage == MasterPasswordChangeStrings.completedMessage)
+	}
+
+	@Test("didRequestChangePassword 호출 시 새 비밀번호 확인 불일치면 거절 토스트 발송 및 lockManager 미호출 검증")
+	func didRequestChangePassword_withMismatchConfirmation_showsErrorToastWithoutCallingLockManager() {
+		// Given
+		let lockManager = MockVaultLockManager()
+		let presenter = SettingsPresenterSpy()
+		let interactor = SettingsInteractor(lockManager: lockManager, presenter: presenter)
+
+		// When
+		interactor.didRequestChangePassword(
+			current: "Current1234!",
+			new: "NewPassword1234!",
+			confirm: "MismatchPassword123!"
+		)
+
+		// Then
+		#expect(lockManager.changeMasterPasswordCallCount == 0)
+		#expect(presenter.showToastCallCount == 1)
+		#expect(presenter.receivedToastMessage == MasterPasswordChangeStrings.confirmationMismatchMessage)
+	}
+
+	@Test("didRequestChangePassword 호출 시 현재 비밀번호와 동일하면 거절 토스트 발송 및 lockManager 미호출 검증")
+	func didRequestChangePassword_withSamePassword_showsErrorToastWithoutCallingLockManager() {
+		// Given
+		let lockManager = MockVaultLockManager()
+		let presenter = SettingsPresenterSpy()
+		let interactor = SettingsInteractor(lockManager: lockManager, presenter: presenter)
+
+		// When
+		interactor.didRequestChangePassword(
+			current: "Current1234!",
+			new: "Current1234!",
+			confirm: "Current1234!"
+		)
+
+		// Then
+		#expect(lockManager.changeMasterPasswordCallCount == 0)
+		#expect(presenter.showToastCallCount == 1)
+		#expect(presenter.receivedToastMessage == MasterPasswordChangeStrings.samePasswordMessage)
+	}
+
+	@Test("didRequestChangePassword 호출 시 새 비밀번호가 12자 미만이면 거절 토스트 발송 및 lockManager 미호출 검증")
+	func didRequestChangePassword_withShortPassword_showsErrorToastWithoutCallingLockManager() {
+		// Given
+		let lockManager = MockVaultLockManager()
+		let presenter = SettingsPresenterSpy()
+		let interactor = SettingsInteractor(lockManager: lockManager, presenter: presenter)
+
+		// When
+		interactor.didRequestChangePassword(
+			current: "Current1234!",
+			new: "Short1!",
+			confirm: "Short1!"
+		)
+
+		// Then
+		#expect(lockManager.changeMasterPasswordCallCount == 0)
+		#expect(presenter.showToastCallCount == 1)
+		#expect(presenter.receivedToastMessage == MasterPasswordChangeStrings.tooShortMessage)
+	}
+
+	@Test("didRequestChangePassword 호출 시 lockManager에서 에러 발생 시 에러 토스트 메시지 노출 검증")
+	func didRequestChangePassword_whenLockManagerThrows_showsErrorToast() async {
+		// Given
+		let lockManager = MockVaultLockManager()
+		lockManager.shouldThrowChangePassword = MasterPasswordChangeError.conflict
+		let presenter = SettingsPresenterSpy()
+		let interactor = SettingsInteractor(lockManager: lockManager, presenter: presenter)
+
+		// When
+		interactor.didRequestChangePassword(
+			current: "Current1234!",
+			new: "NewPassword1234!",
+			confirm: "NewPassword1234!"
+		)
+		// 비동기 Task 완료 대기
+		try? await Task.sleep(nanoseconds: 50_000_000)
+
+		// Then
+		#expect(lockManager.changeMasterPasswordCallCount == 1)
+		#expect(presenter.dismissChangePasswordModalCallCount == 0)
+		#expect(presenter.receivedToastMessage == MasterPasswordChangeStrings.conflictMessage)
 	}
 }

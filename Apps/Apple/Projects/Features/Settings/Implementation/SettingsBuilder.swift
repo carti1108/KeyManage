@@ -10,6 +10,9 @@ final class SettingsComponent: Component<SettingsDependency> {
 	var lockManager: VaultLockManagerProtocol {
 		dependency.lockManager
 	}
+	var networkClient: AuthNetworkClientProtocol {
+		dependency.networkClient
+	}
 }
 
 // MARK: - Builder
@@ -25,6 +28,7 @@ public final class SettingsBuilder: Builder<SettingsDependency>, SettingsBuildab
 		let viewController = SettingsViewController()
 		let interactor = SettingsInteractor(
 			lockManager: component.lockManager,
+			networkClient: component.networkClient,
 			presenter: viewController
 		)
 		viewController.listener = interactor

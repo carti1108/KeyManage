@@ -11,6 +11,7 @@ protocol SettingsPresentable: AnyObject {
 	func displayAutoLockTimeout(_ timeout: AutoLockTimeout)
 	func showExportResult(fileName: String, data: Data)
 	func showToast(message: String)
+	func dismissChangePasswordModal()
 }
 
 // MARK: - Interactor
@@ -21,12 +22,15 @@ final class SettingsInteractor: Interactor, SettingsInteractable, SettingsPresen
 	weak var listener: SettingsListener?
 	weak var presenter: SettingsPresentable?
 	let lockManager: VaultLockManagerProtocol
+	let networkClient: AuthNetworkClientProtocol
 
 	init(
 		lockManager: VaultLockManagerProtocol,
+		networkClient: AuthNetworkClientProtocol = URLSessionAuthNetworkClient(),
 		presenter: SettingsPresentable? = nil
 	) {
 		self.lockManager = lockManager
+		self.networkClient = networkClient
 		self.presenter = presenter
 		super.init()
 	}
@@ -57,6 +61,41 @@ final class SettingsInteractor: Interactor, SettingsInteractable, SettingsPresen
 			presenter?.showToast(message: message)
 		} catch {
 			presenter?.showToast(message: error.localizedDescription)
+		}
+	}
+
+	func didRequestChangePassword(current: String, new: String, confirm: String) {
+		guard !current.isEmpty else {
+			presenter?.showToast(message: MasterPasswordChangeStrings.invalidCurrentPasswordMessage)
+			return
+		}
+		guard new.count >= 12 else {
+			presenter?.showToast(message: MasterPasswordChangeStrings.tooShortMessage)
+			return
+		}
+		guard new != current else {
+			presenter?.showToast(message: MasterPasswordChangeStrings.samePasswordMessage)
+			return
+		}
+		guard new == confirm else {
+			presenter?.showToast(message: MasterPasswordChangeStrings.confirmationMismatchMessage)
+			return
+		}
+
+		Task {
+			do {
+				try await lockManager.changeMasterPassword(
+					currentPassword: current,
+					newPassword: new,
+					networkClient: networkClient
+				)
+				presenter?.dismissChangePasswordModal()
+				presenter?.showToast(message: MasterPasswordChangeStrings.completedMessage)
+			} catch let error as MasterPasswordChangeError {
+				presenter?.showToast(message: error.localizedDescription)
+			} catch {
+				presenter?.showToast(message: error.localizedDescription)
+			}
 		}
 	}
 
