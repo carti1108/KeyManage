@@ -8,7 +8,7 @@ import jakarta.servlet.http.HttpServletResponse
 import org.springframework.web.filter.OncePerRequestFilter
 
 /**
- * prelogin·가입·로그인·비밀번호 변경 요청을 클라이언트 IP별로 제한한다. 넘으면 429와 Retry-After (SEC-002).
+ * prelogin·가입·로그인·비밀번호 변경·계정 삭제 요청을 클라이언트 IP별로 제한한다. 넘으면 429와 Retry-After (SEC-002).
  * 고정 구간 방식이라 구간 경계 직전·직후를 합치면 짧은 순간에 최대 2배까지 허용될 수 있다.
  */
 class AuthRateLimitFilter(
@@ -26,7 +26,13 @@ class AuthRateLimitFilter(
     }
 
     private companion object {
-        // 비밀번호 변경도 현재 인증 해시를 확인하므로 로그인과 같이 제한한다 (SEC-004 규칙 6)
-        val LIMITED_PATHS = setOf("/api/v1/auth/prelogin", "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/change-password")
+        // 비밀번호 변경·계정 삭제도 인증 해시를 확인하므로 로그인과 같이 제한한다 (SEC-004 규칙 6, SEC-005 규칙 3)
+        val LIMITED_PATHS = setOf(
+            "/api/v1/auth/prelogin",
+            "/api/v1/auth/register",
+            "/api/v1/auth/login",
+            "/api/v1/auth/change-password",
+            "/api/v1/auth/delete-account",
+        )
     }
 }

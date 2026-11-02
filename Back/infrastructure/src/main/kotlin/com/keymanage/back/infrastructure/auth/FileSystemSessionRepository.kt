@@ -70,12 +70,23 @@ class FileSystemSessionRepository internal constructor(
         Files.deleteIfExists(fileOf(tokenHash))
     }
 
-    override fun deleteAllOf(email: Email, except: VaultId) {
+    override fun deleteAllOf(email: Email, except: VaultId) = deleteMatching { it.email == email.value && it.vaultId != except.value }
+
+    override fun deleteAllOf(email: Email) = deleteMatching { it.email == email.value }
+
+    override fun allTokenHashes(): Set<String> {
+        if (Files.notExists(storageDir)) return emptySet()
+        return Files.newDirectoryStream(storageDir, "*.json").use { files ->
+            files.map { it.fileName.toString().removeSuffix(".json") }.filter(TOKEN_HASH::matches).toSet()
+        }
+    }
+
+    private fun deleteMatching(predicate: (SessionFile) -> Boolean) {
         if (Files.notExists(storageDir)) return
         val files = Files.newDirectoryStream(storageDir, "*.json").use { it.toList() }
         var failures = 0
         files.filter { TOKEN_HASH.matches(it.fileName.toString().removeSuffix(".json")) }
-            .filter { file -> readStored(file).let { it != null && it.email == email.value && it.vaultId != except.value } }
+            .filter { file -> readStored(file)?.let(predicate) == true }
             .forEach { file ->
                 // 하나를 지우지 못해도 나머지는 지운다. 남은 세션은 볼트 ID가 달라 인증에서 거절된다
                 try {

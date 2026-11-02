@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * 계정 1개를 파일 1개로 저장한다 (ADR-0007, SEC-002).
  * 파일 이름은 이메일의 SHA-256이라 경로 조작이 불가능하고 폴더 목록에 이메일 원문이 드러나지 않는다.
- * 같은 이메일의 확인·생성·교체는 이메일별 잠금으로 직렬화하므로 단일 인스턴스가 전제다.
+ * 같은 이메일의 확인·생성·교체·삭제는 이메일별 잠금으로 직렬화하므로 단일 인스턴스가 전제다.
  * 교체는 임시 파일 -> ATOMIC_MOVE라서 읽는 쪽에는 옛 계정이나 새 계정 중 하나로만 보인다 (ADR-BE-001 결정 2).
  */
 class FileSystemAccountRepository(
@@ -59,6 +59,14 @@ class FileSystemAccountRepository(
             true
         }
     }
+
+    // 파일 삭제는 한 번에 일어나므로 읽는 쪽에는 계정이 있거나 없거나 둘 중 하나로만 보인다
+    override fun deleteIfMatches(expected: Account): Boolean =
+        withLock(expected.email) {
+            if (find(expected.email) != expected) return@withLock false
+            Files.delete(fileOf(expected.email))
+            true
+        }
 
     override fun allVaultIds(): Set<VaultId> {
         if (Files.notExists(storageDir)) return emptySet()

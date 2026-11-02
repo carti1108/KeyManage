@@ -67,3 +67,31 @@ describe('마스터 비밀번호 변경 API 어댑터 (api-spec 2.5.5)', () => {
     }
   })
 })
+
+describe('계정 삭제 API 어댑터 (api-spec 2.5.6)', () => {
+  const deletion = { authHash: 'YXV0aA==' }
+
+  it('토큰을 붙여 인증 해시를 보내고 204를 받으면 끝난다', async () => {
+    const { api, calls } = apiReturning(() => new Response(null, { status: 204 }))
+
+    await expect(api.deleteAccount('tok', deletion)).resolves.toBeUndefined()
+    expect(calls[0].url).toBe('/api/v1/auth/delete-account')
+    expect(calls[0].init.method).toBe('POST')
+    expect(new Headers(calls[0].init.headers).get('Authorization')).toBe('Bearer tok')
+    expect(JSON.parse(String(calls[0].init.body))).toEqual(deletion)
+  })
+
+  it('인증 해시가 틀리면 AUTH_FAILED, 토큰이 무효면 UNAUTHORIZED ServerError로 그대로 알린다', async () => {
+    for (const code of ['AUTH_FAILED', 'UNAUTHORIZED'] as const) {
+      const { api } = apiReturning(() => json(401, { code, message: 'm', timestamp: 't' }))
+
+      await expect(api.deleteAccount('tok', deletion)).rejects.toEqual(new ServerError(401, code))
+    }
+  })
+
+  it('429는 Retry-After 초를 담아 알린다', async () => {
+    const { api } = apiReturning(() => json(429, { code: 'TOO_MANY_ATTEMPTS', message: 'm', timestamp: 't' }, { 'Retry-After': '900' }))
+
+    await expect(api.deleteAccount('tok', deletion)).rejects.toEqual(expect.objectContaining({ code: 'TOO_MANY_ATTEMPTS', retryAfterSeconds: 900 }))
+  })
+})

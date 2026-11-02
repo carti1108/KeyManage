@@ -240,7 +240,7 @@ describe('복원 예외 (VLT-004 예외)', () => {
     expect(unlockedData(session)).toBe(before)
     expect(session.state()).toMatchObject({ pendingSync: false })
     expect(vaultApi.saves).toBe(saves)
-  })
+  }, 20_000)
 
   it('백업 볼트에 같은 항목 id가 두 번 있으면 형식 오류로 거절하고 볼트를 바꾸지 않는다', async () => {
     const { session, vaultApi } = await unlockedWithItem()

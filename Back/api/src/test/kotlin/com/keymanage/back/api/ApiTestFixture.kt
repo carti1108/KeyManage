@@ -11,6 +11,7 @@ import com.keymanage.back.api.error.RequestBodyLimitFilter
 import com.keymanage.back.api.vault.VaultController
 import com.keymanage.back.domain.auth.AuthenticateUseCase
 import com.keymanage.back.domain.auth.ChangePasswordUseCase
+import com.keymanage.back.domain.auth.DeleteAccountUseCase
 import com.keymanage.back.domain.auth.FakePasswordHasher
 import com.keymanage.back.domain.auth.InMemoryAccountRepository
 import com.keymanage.back.domain.auth.InMemorySessionRepository
@@ -53,6 +54,7 @@ class ApiTestFixture(registrationEnabled: Boolean = true, trustedProxies: Set<St
                 LoginUseCase(accounts, hasher, issuer, limiter),
                 LogoutUseCase(sessions),
                 ChangePasswordUseCase(accounts, vaults, sessions, hasher, issuer, limiter),
+                DeleteAccountUseCase(accounts, vaults, sessions, hasher, limiter),
                 jacksonObjectMapper(),
             ),
             VaultController(GetVaultUseCase(vaults), SaveVaultUseCase(vaults), jacksonObjectMapper()),
@@ -84,6 +86,9 @@ class ApiTestFixture(registrationEnabled: Boolean = true, trustedProxies: Set<St
         payload: String = PAYLOAD,
     ) = """{"currentAuthHash":"${b64(currentAuthHash)}","newAuthHash":"${b64(newAuthHash)}",""" +
         """"kdf":{"iterations":$iterations,"salt":"${b64(salt)}"},"vault":{"expectedRevision":$expectedRevision,"payload":$payload}}"""
+
+    /** 계정 삭제 요청 본문 (api-spec 2.5.6) */
+    fun deleteAccountBody(authHash: ByteArray = AUTH_HASH) = """{"authHash":"${b64(authHash)}"}"""
 
     fun postJson(path: String, body: String, token: String): ResultActions =
         mockMvc.perform(post(path).header("Authorization", "Bearer $token").contentType(MediaType.APPLICATION_JSON).content(body))

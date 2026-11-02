@@ -261,6 +261,22 @@ if os.path.isdir(web_src_dir):
     ]
     check_invariants("Web", "9단계: 마스터 비밀번호 변경(SEC-004)", web_tests, web_password_change_rules)
 
+    web_account_deletion_rules = [
+        ("SEC-005 삭제 대화상자('계정 삭제') 흐름 검증", r"getByRole\('dialog', \{ name: '계정 삭제' \}\)"),
+        ("SEC-005 확인 문구 앞뒤 공백 불일치 경계값 검증", r"'계정 삭제 ', ' 계정 삭제'"),
+        ("SEC-005 확인 문구 일치 시 삭제 버튼 활성 검증", r"fill\(dialog, \{ phrase: '계정 삭제' \}\)\s*expect\(deleteButton\(dialog\)\)\.toBeEnabled\(\)"),
+        ("SEC-005 확인 문구 NFC 정규화 경계값 검증", r"'계정 삭제'\.normalize\('NFD'\)"),
+        ("SEC-005 오프라인 거절(AccountDeletionOfflineError) 검증", r"AccountDeletionOfflineError"),
+        ("SEC-005 기기 기록 삭제 실패(AccountDeletedDeviceNotClearedError) 검증", r"AccountDeletedDeviceNotClearedError"),
+        ("SEC-005 삭제 전 안내 본문 검증", r"계정과 볼트가 서버에서 바로 지워지고 되돌릴 수 없습니다\. 다른 기기도 모두 로그아웃되고, 아직 올리지 못한 변경 사항은 사라집니다\. 필요하면 먼저 백업을 내보내 주세요\."),
+        ("SEC-005 확인 문구 입력 칸 문구 검증", r"확인을 위해 '계정 삭제'를 입력해 주세요\."),
+        ("SEC-005 비밀번호 틀림 문구('마스터 비밀번호가 올바르지 않습니다.') 검증", r"마스터 비밀번호가 올바르지 않습니다\."),
+        ("SEC-005 오프라인 문구('인터넷에 연결된 상태에서만 계정을 삭제할 수 있습니다.') 검증", r"인터넷에 연결된 상태에서만 계정을 삭제할 수 있습니다\."),
+        ("SEC-005 완료 문구('계정을 삭제했습니다.') 검증", r"계정을 삭제했습니다\."),
+        ("SEC-005 기기 기록 삭제 실패(웹) 문구 검증", r"계정은 삭제했지만 이 기기에 남은 볼트 기록을 지우지 못했습니다\. 브라우저의 사이트 데이터를 직접 지워 주세요\."),
+    ]
+    check_invariants("Web", "10단계: 계정 삭제(SEC-005)", web_tests, web_account_deletion_rules)
+
 
 if not audited_platforms:
     print("오류: 감사할 플랫폼 테스트 디렉터리(Apps/Apple 또는 Apps/Web)를 찾을 수 없습니다.", file=sys.stderr)

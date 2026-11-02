@@ -7,7 +7,7 @@ import java.time.Instant
 import java.time.ZoneOffset
 import java.util.Base64
 
-/** 테스트용 계정 저장소. 같은 이메일 생성은 한 번만 성공하고, 교체는 저장된 계정이 기대와 같을 때만 한다 */
+/** 테스트용 계정 저장소. 같은 이메일 생성은 한 번만 성공하고, 교체·삭제는 저장된 계정이 기대와 같을 때만 한다 */
 class InMemoryAccountRepository : AccountRepository {
 
     private val accounts = mutableMapOf<Email, Account>()
@@ -34,6 +34,13 @@ class InMemoryAccountRepository : AccountRepository {
     }
 
     @Synchronized
+    override fun deleteIfMatches(expected: Account): Boolean {
+        if (accounts[expected.email] != expected) return false
+        accounts.remove(expected.email)
+        return true
+    }
+
+    @Synchronized
     override fun allVaultIds(): Set<VaultId> = accounts.values.map { it.vaultId }.toSet()
 }
 
@@ -54,6 +61,12 @@ class InMemorySessionRepository : SessionRepository {
     override fun deleteAllOf(email: Email, except: VaultId) {
         sessions.values.removeIf { it.email == email && it.vaultId != except }
     }
+
+    override fun deleteAllOf(email: Email) {
+        sessions.values.removeIf { it.email == email }
+    }
+
+    override fun allTokenHashes(): Set<String> = sessions.keys.toSet()
 }
 
 /** 실제 Argon2 대신 쓰는 해시. 검증 호출 횟수를 세어 없는 이메일에도 검증을 수행하는지 확인한다 */

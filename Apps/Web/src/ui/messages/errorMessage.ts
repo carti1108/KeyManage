@@ -1,4 +1,4 @@
-// 오류를 사용자 문구로 바꾼다. 문구는 정책이 정한 그대로 쓴다 (SEC-002, SEC-003, SEC-004, COM-002, VLT-004)
+// 오류를 사용자 문구로 바꾼다. 문구는 정책이 정한 그대로 쓴다 (SEC-002, SEC-003, SEC-004, SEC-005, COM-002, VLT-004)
 import { InvalidEmailError, MasterPasswordChangedError } from '../../domain/auth/authService'
 import { BackupDecryptError, NewerBackupVersionError, NotABackupFileError } from '../../domain/backup/backupFile'
 import { DeviceStorageError } from '../../domain/device/deviceRecord'
@@ -6,11 +6,13 @@ import { InvalidPasswordError } from '../../domain/crypto/keys'
 import { NetworkError, ServerError } from '../../domain/server/serverErrors'
 import { InvalidVaultDataError } from '../../domain/vault/vaultData'
 import { ReadOnlyVaultError, RevisionRollbackError, VaultSyncConflictError, VaultTooLargeError } from '../../domain/vault/vaultSync'
-import { PASSWORD_CHANGE_OFFLINE, SAME_MASTER_PASSWORD } from './accountNotices'
+import { ACCOUNT_DELETED_DEVICE_NOT_CLEARED, ACCOUNT_DELETION_OFFLINE, PASSWORD_CHANGE_OFFLINE, SAME_MASTER_PASSWORD } from './accountNotices'
 import { NEW_PASSWORD_PROBLEMS } from './authNotices'
 import { BACKUP_OPEN_FAILED, NEWER_BACKUP, NOT_A_BACKUP } from './backupNotices'
 import { DEVICE_STORAGE_FAILED, PASSWORD_CHANGED, READ_ONLY_NOTICE, ROLLBACK_WARNING } from './vaultNotices'
 import {
+  AccountDeletedDeviceNotClearedError,
+  AccountDeletionOfflineError,
   NewMasterPasswordTooShortError,
   PasswordChangeOfflineError,
   SameMasterPasswordError,
@@ -62,6 +64,8 @@ export function describeError(error: unknown): ErrorMessage {
   if (error instanceof NewMasterPasswordTooShortError) return { body: NEW_PASSWORD_PROBLEMS.tooShort }
   if (error instanceof SameMasterPasswordError) return { body: SAME_MASTER_PASSWORD }
   if (error instanceof PasswordChangeOfflineError) return { body: PASSWORD_CHANGE_OFFLINE }
+  if (error instanceof AccountDeletionOfflineError) return { body: ACCOUNT_DELETION_OFFLINE }
+  if (error instanceof AccountDeletedDeviceNotClearedError) return { body: ACCOUNT_DELETED_DEVICE_NOT_CLEARED }
   if (error instanceof NetworkError) return { body: '서버에 연결할 수 없습니다. 네트워크 연결을 확인해 주세요.' }
   return { body: UNKNOWN }
 }

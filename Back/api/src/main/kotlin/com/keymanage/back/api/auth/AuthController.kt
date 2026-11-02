@@ -7,6 +7,7 @@ import com.keymanage.back.api.error.ApiException
 import com.keymanage.back.domain.auth.Account
 import com.keymanage.back.domain.auth.AuthHash
 import com.keymanage.back.domain.auth.ChangePasswordUseCase
+import com.keymanage.back.domain.auth.DeleteAccountUseCase
 import com.keymanage.back.domain.auth.Email
 import com.keymanage.back.domain.auth.IssuedSession
 import com.keymanage.back.domain.auth.KdfParams
@@ -41,6 +42,7 @@ class AuthController(
     private val login: LoginUseCase,
     private val logout: LogoutUseCase,
     private val changePassword: ChangePasswordUseCase,
+    private val deleteAccount: DeleteAccountUseCase,
     private val objectMapper: ObjectMapper,
 ) {
 
@@ -93,6 +95,16 @@ class AuthController(
         return ChangePasswordResponse(changed.session.token, changed.session.expiresAt.toString(), changed.revision.value)
     }
 
+    // 토큰은 AuthTokenFilter가 확인하고 그 계정을 넘긴다. 계정을 지우면 이 계정의 모든 토큰이 무효다 (api-spec 2.5.6)
+    @PostMapping("/delete-account")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun deleteAccount(
+        @RequestAttribute(AuthTokenFilter.ACCOUNT_ATTRIBUTE) account: Account,
+        @RequestBody request: DeleteAccountRequest,
+    ) {
+        deleteAccount.execute(account.email, AuthHash.of(decode(request.authHash)))
+    }
+
     private fun decode(value: String?): ByteArray =
         value?.let { runCatching { Base64.getDecoder().decode(it) }.getOrNull() } ?: invalid()
 
@@ -133,6 +145,9 @@ data class ChangePasswordRequest(
     val kdf: KdfRequest?,
     val vault: ChangePasswordVaultRequest?,
 )
+
+/** 계정 삭제 요청 (api-spec 2.5.6) */
+data class DeleteAccountRequest(val authHash: String?)
 
 /** 비밀번호 변경 응답. 새 토큰과 교체한 볼트의 revision (api-spec 2.5.5) */
 data class ChangePasswordResponse(val accessToken: String, val expiresAt: String, val revision: Long)

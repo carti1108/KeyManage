@@ -1,4 +1,4 @@
-// 가입·로그인·로그아웃 유스케이스 (SEC-002, ADR-0008)
+// 가입·로그인·로그아웃·비밀번호 변경·계정 삭제 유스케이스 (SEC-002, SEC-004, SEC-005, ADR-0008)
 // 마스터 비밀번호와 암호화 키는 이 모듈 밖의 서버 포트로 넘기지 않는다. 서버에는 인증 해시만 보낸다
 import { InvalidBase64Error, fromBase64, toBase64 } from '../crypto/base64'
 import { InvalidKdfParamsError, MIN_ITERATIONS, SALT_BYTES, deriveKeys } from '../crypto/keys'
@@ -136,6 +136,18 @@ export function createAuthService(api: AuthApi) {
       } finally {
         currentAuthHash.fill(0)
         newAuthHash.fill(0)
+      }
+    },
+
+    /**
+     * 인증 해시로 계정을 지운다 (SEC-005, api-spec 2.5.6). 인증 해시 바이트는 성공·실패와 관계없이 지운다
+     * @throws ServerError(AUTH_FAILED, UNAUTHORIZED, TOO_MANY_ATTEMPTS 등), NetworkError
+     */
+    async deleteAccount(accessToken: string, authHash: Uint8Array): Promise<void> {
+      try {
+        await api.deleteAccount(accessToken, { authHash: takeAuthHash(authHash) })
+      } finally {
+        authHash.fill(0)
       }
     },
   }

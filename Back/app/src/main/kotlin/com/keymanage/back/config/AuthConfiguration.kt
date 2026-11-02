@@ -3,6 +3,8 @@ package com.keymanage.back.config
 import com.keymanage.back.domain.auth.AccountRepository
 import com.keymanage.back.domain.auth.AuthenticateUseCase
 import com.keymanage.back.domain.auth.ChangePasswordUseCase
+import com.keymanage.back.domain.auth.CleanUpSessionsUseCase
+import com.keymanage.back.domain.auth.DeleteAccountUseCase
 import com.keymanage.back.domain.auth.LoginAttemptLimiter
 import com.keymanage.back.domain.auth.LoginUseCase
 import com.keymanage.back.domain.auth.LogoutUseCase
@@ -13,9 +15,12 @@ import com.keymanage.back.domain.auth.ServerSecret
 import com.keymanage.back.domain.auth.SessionIssuer
 import com.keymanage.back.domain.auth.SessionRepository
 import com.keymanage.back.domain.vault.CleanUpOrphanVaultsUseCase
+import com.keymanage.back.domain.vault.CleanUpPendingVaultDeletionsUseCase
+import com.keymanage.back.domain.vault.PendingVaultDeletions
 import com.keymanage.back.domain.vault.VaultRepository
 import com.keymanage.back.infrastructure.auth.Argon2AuthHashHasher
 import com.keymanage.back.infrastructure.auth.FileSystemAccountRepository
+import com.keymanage.back.infrastructure.auth.FileSystemPendingVaultDeletions
 import com.keymanage.back.infrastructure.auth.FileSystemSessionRepository
 import com.keymanage.back.infrastructure.auth.ServerSecretLoader
 import org.springframework.beans.factory.SmartInitializingSingleton
@@ -41,6 +46,10 @@ class AuthConfiguration(
 
     @Bean
     fun sessionRepository(): SessionRepository = FileSystemSessionRepository(root.resolve("sessions"))
+
+    // 확정 뒤 지우지 못한 볼트 ID 목록 (ADR-BE-002 결정 1)
+    @Bean
+    fun pendingVaultDeletions(): PendingVaultDeletions = FileSystemPendingVaultDeletions(root.resolve("pending-vault-deletions.json"))
 
     @Bean
     fun passwordHasher(): PasswordHasher = Argon2AuthHashHasher()
@@ -82,12 +91,33 @@ class AuthConfiguration(
         hasher: PasswordHasher,
         issuer: SessionIssuer,
         limiter: LoginAttemptLimiter,
-    ) = ChangePasswordUseCase(accounts, vaults, sessions, hasher, issuer, limiter)
+        pendingDeletions: PendingVaultDeletions,
+    ) = ChangePasswordUseCase(accounts, vaults, sessions, hasher, issuer, limiter, pendingDeletions = pendingDeletions)
 
-    // 모든 빈을 만든 뒤, 웹 서버가 요청을 받기 전에 한 번 정리한다. 요청과 겹치면 변경 중인 새 볼트를 고아로 볼 수 있다 (ADR-BE-001 결정 5)
     @Bean
-    fun orphanVaultCleanup(accounts: AccountRepository, vaults: VaultRepository) =
-        SmartInitializingSingleton { CleanUpOrphanVaultsUseCase(accounts, vaults).execute() }
+    fun deleteAccountUseCase(
+        accounts: AccountRepository,
+        vaults: VaultRepository,
+        sessions: SessionRepository,
+        hasher: PasswordHasher,
+        limiter: LoginAttemptLimiter,
+        pendingDeletions: PendingVaultDeletions,
+    ) = DeleteAccountUseCase(accounts, vaults, sessions, hasher, limiter, pendingDeletions)
+
+    // 모든 빈을 만든 뒤, 웹 서버가 요청을 받기 전에 한 번 정리한다. 요청과 겹치면 변경 중인 새 볼트를 고아로 볼 수 있다 (ADR-BE-001 결정 5).
+    // 삭제 예정 목록(계정 수와 무관)과 무효 세션도 같은 시점에 정리한다 (ADR-BE-002)
+    @Bean
+    fun orphanVaultCleanup(
+        accounts: AccountRepository,
+        vaults: VaultRepository,
+        sessions: SessionRepository,
+        pendingDeletions: PendingVaultDeletions,
+        clock: Clock,
+    ) = SmartInitializingSingleton {
+        CleanUpPendingVaultDeletionsUseCase(accounts, vaults, pendingDeletions).execute()
+        CleanUpOrphanVaultsUseCase(accounts, vaults).execute()
+        CleanUpSessionsUseCase(sessions, accounts, clock).execute()
+    }
 
     @Bean
     fun authenticateUseCase(sessions: SessionRepository, accounts: AccountRepository, clock: Clock) =

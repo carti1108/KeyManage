@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { MasterPasswordChangedError } from '../../domain/auth/authService'
 import type { BackupFiles } from '../../domain/backup/backupFile'
 import { DeviceStorageError } from '../../domain/device/deviceRecord'
-import { SessionExpiredError } from '../../domain/session/vaultSession'
+import { AccountDeletedDeviceNotClearedError, SessionExpiredError } from '../../domain/session/vaultSession'
 import { ConfirmPrompt } from '../components/ConfirmPrompt'
 import { Alert } from '../components/Alert'
 import { describeError, type ErrorMessage } from '../messages/errorMessage'
@@ -17,6 +17,8 @@ import { ClipboardNotice } from '../clipboard/ClipboardNotice'
 import { AutoLockSelect, type AutoLockSelectProps } from '../vault/AutoLockSelect'
 import { BackupActions } from '../backup/BackupActions'
 import { ChangePasswordAction } from '../account/ChangePasswordAction'
+import { DeleteAccountAction } from '../account/DeleteAccountAction'
+import { ACCOUNT_DELETED } from '../messages/accountNotices'
 import { VaultScreen } from '../vault/VaultScreen'
 import { ReconnectPrompt } from './ReconnectPrompt'
 import type { RollbackOption, SessionPort } from './sessionPort'
@@ -106,6 +108,31 @@ export function SessionRoot({ session, clipboard, pageHidden, networkOffline = f
       if (error instanceof DeviceStorageError) setNotice(LOGOUT_CLEAR_FAILED)
       // 그 밖에는 서버 토큰 폐기만 실패했다. 이 기기는 이미 로그아웃됐고 서버 토큰은 만료(30일)를 기다린다 (SEC-002)
     }
+  }
+
+  /**
+   * 계정을 지운다. 세션이 이 기기를 정리하고 로그아웃하면 로그인 화면에 완료 안내를 보인다 (SEC-005 규칙 5).
+   * 기기 기록을 지우지 못했거나 세션이 만료됐으면 로그인 화면에 그 이유를 보인다. 그 밖의 실패는 대화상자가 보인다
+   */
+  async function deleteAccount(password: string) {
+    try {
+      await session.deleteAccount(password)
+      leaveForSignIn(ACCOUNT_DELETED)
+    } catch (error) {
+      // 실패해 볼트 화면에 남으면 기존 동기화 경고·오프라인 표시를 그대로 둔다
+      if (!(error instanceof AccountDeletedDeviceNotClearedError) && !sendsToSignIn(error)) throw error
+      leaveForSignIn(describeError(error).body)
+    } finally {
+      refresh()
+    }
+  }
+
+  /** 로그인 화면으로 가며 볼트 화면의 경고를 지우고 이유를 남긴다 */
+  function leaveForSignIn(message: string) {
+    setNotice(message)
+    setSyncError(null)
+    setConfirmingLogout(false)
+    setOffline(false)
   }
 
   /**
@@ -242,6 +269,7 @@ export function SessionRoot({ session, clipboard, pageHidden, networkOffline = f
                 }
               }}
             />
+            <DeleteAccountAction offline={networkOffline || !state.signedIn} onDelete={deleteAccount} />
           </>
         }
       >
