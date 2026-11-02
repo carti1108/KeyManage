@@ -79,8 +79,17 @@ export async function changeMasterPassword(ctx: SessionContext, currentPassword:
     const payload = await syncFor(ctx, NO_TOKEN, newKeys.encryptionKey).seal(opened.vault.data)
     ensureCurrent(ctx, startedAt)
     const startedGeneration = ctx.generation
-    const changed = await request(ctx, accessToken, currentKeys.authHash, newKeys.authHash, kdf, opened.vault.revision, payload)
-    await adopt(ctx, changed, { kdf, encryptionKey: newKeys.encryptionKey, sent: opened.vault, payload }, startedGeneration)
+    const creds: NewCredentials = { kdf, encryptionKey: newKeys.encryptionKey, sent: opened.vault, payload }
+    const authHashes = { current: currentKeys.authHash, next: newKeys.authHash }
+    // 요청부터 반영까지를 대기 전송 줄에 세운다. 그사이 이 탭의 저장이 보내는 전송은 반영 뒤 새 토큰·키로 나가,
+    // 옛 토큰으로 401을 받아 성공한 변경을 버리지 않는다
+    const run = ctx.pushChain.then(async () => {
+      const changed = await request(ctx, accessToken, authHashes.current, authHashes.next, kdf, opened.vault.revision, payload)
+      return adopt(ctx, changed, creds, startedGeneration)
+    })
+    ctx.pushChain = run.catch(() => undefined)
+    // 줄 안에서 기다리면 자기 자신을 기다리게 되므로, 대기로 남긴 변경은 줄에서 나온 뒤 보낸다
+    if (await run) await pushQuietly(ctx)
   } finally {
     currentKeys.authHash.fill(0)
     newKeys?.authHash.fill(0)
@@ -118,9 +127,10 @@ async function request(
 
 /**
  * 서버에서 바뀐 자격 증명을 세션과 기기 기록에 반영한다. 서버에서는 이미 바뀌었으므로 잠겼어도 반영한다.
- * 요청을 기다리는 사이 이 탭의 볼트가 바뀌었으면 새 키로 다시 암호화해 대기로 두고 보낸다
+ * 요청을 기다리는 사이 이 탭의 볼트가 바뀌었으면 새 키로 다시 암호화해 대기로 둔다
+ * @returns 대기로 남긴 변경이 있는지
  */
-async function adopt(ctx: SessionContext, changed: ChangedPassword, creds: NewCredentials, startedGeneration: number): Promise<void> {
+async function adopt(ctx: SessionContext, changed: ChangedPassword, creds: NewCredentials, startedGeneration: number): Promise<boolean> {
   let vault: SyncedVault = { revision: changed.revision, data: creds.sent.data, readOnly: false, payload: creds.payload }
   let pendingSync = false
   const latest = ctx.unlocked
@@ -153,7 +163,7 @@ async function adopt(ctx: SessionContext, changed: ChangedPassword, creds: NewCr
     const current = await readDevice(ctx).catch(() => null)
     await writeLocked(ctx, current)
   })
-  if (pendingSync) await pushQuietly(ctx)
+  return pendingSync
 }
 
 async function pushQuietly(ctx: SessionContext) {
