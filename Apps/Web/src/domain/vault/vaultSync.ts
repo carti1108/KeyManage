@@ -142,6 +142,14 @@ export function createVaultSync({ api, encryptionKey, now, revisionMemory }: Vau
     seal,
 
     /**
+     * 백업 파일에 담을 볼트를 새 IV로 암호화한다. 읽기 전용 볼트도 내보내므로 저장 전 검사를 하지 않는다 (VLT-004)
+     * 키는 이 모듈 밖으로 나가지 않는다
+     */
+    sealBackup(data: VaultData): Promise<EncryptedVaultPayload> {
+      return sealVault(encryptionKey, JSON.stringify(data))
+    },
+
+    /**
      * 이 기기에 남은 암호화 볼트(다른 탭이 쓴 기기 기록 등)를 연다. 서버에 요청하지 않는다
      * @throws VaultDecryptError, UnsupportedPayloadError, InvalidVaultDataError
      */
