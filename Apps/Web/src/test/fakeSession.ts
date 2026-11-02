@@ -96,6 +96,8 @@ export function createFakeSession(initial: SessionState = { status: 'signedOut' 
     exportBackup: vi.fn(async (now: Date) => ({ name: backupFileName(now), text: '{}' })),
     // 실제 세션처럼 복원 결과를 저장하지만 알림은 보내지 않는다. 테스트가 mockImplementation으로 볼트를 바꾼다
     restoreBackup: vi.fn(async (_backup: VaultBackup, _password: string, _now: Date) => 0),
+    // 실제 세션처럼 바꿔도 알림은 보내지 않는다. 화면이 직접 다시 읽는다
+    changeMasterPassword: vi.fn(async (_currentPassword: string, _newPassword: string) => {}),
     pendingOnDevice: vi.fn(async () => devicePending ?? (current.status !== 'signedOut' && current.pendingSync)),
     onRemoteChange: (listener: () => void) => {
       remoteListeners.add(listener)
