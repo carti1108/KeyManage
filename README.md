@@ -1,19 +1,19 @@
-# KeyManage
+# 🔐 KeyManage
 
 > **KeyManage**는 영지식(Zero-Knowledge) 보안 원칙에 기반하여 마스터 키 유도와 볼트 암·복호화를 오직 클라이언트 내부에서만 수행하고 서버에는 암호문(Ciphertext)만을 저장하는 멀티 플랫폼(Web, Desktop, iOS, macOS) 종단간 암호화(E2EE) 패스워드 매니저입니다.
 
 ---
 
-## 목차
-- [주요 기능](#주요-기능)
-- [아키텍처 및 폴더 구조](#아키텍처-및-폴더-구조)
-- [기술 스택](#기술-스택)
-- [사용법](#사용법)
-- [트러블 슈팅](#트러블-슈팅)
+## 📑 목차
+- [✨ 주요 기능](#-주요-기능)
+- [🏛️ 아키텍처 및 폴더 구조](#️-아키텍처-및-폴더-구조)
+- [🛠️ 기술 스택](#️-기술-스택)
+- [🚀 사용법](#-사용법)
+- [🔧 트러블 슈팅](#-트러블-슈팅)
 
 ---
 
-## 주요 기능
+## ✨ 주요 기능
 
 - **영지식(Zero-Knowledge) 종단간 암·복호화 ([SEC-001](docs/policies/SEC/SEC-001-client-side-zero-knowledge-encryption.md))**
 - **인증 해시 분리 및 이중 해싱 계정 인증 ([SEC-002](docs/policies/SEC/SEC-002-account-auth-and-session.md))**
@@ -29,17 +29,17 @@
 
 ---
 
-## 아키텍처 및 폴더 구조
+## 🏛️ 아키텍처 및 폴더 구조
 
 KeyManage는 백엔드와 프론트엔드 전반에 걸쳐 비즈니스 도메인을 프레임워크와 완전히 격리하는 설계를 유지합니다.
 
-### 핵심 설계 원칙
+### 🧭 핵심 설계 원칙
 
 1. **영지식(Zero-Knowledge) 보안 격리**: 마스터 키 유도 및 암·복호화 연산은 클라이언트 내부에서만 수행하며, 중앙 서버는 암호문 외 어떠한 키 데이터도 보관하지 않습니다.
 2. **포트-어댑터(Hexagonal) 멀티 모듈**: 백엔드는 비즈니스 도메인(`domain`)을 중심으로 인바운드/아웃바운드 어댑터(`api`, `infrastructure`, `app`)의 관심사를 엄격히 분리합니다.
 3. **의존성 역전(DIP) 및 단방향 상태 관리**: 프론트엔드 UI 계층은 비즈니스 로직을 배제한 상태 표출 껍데기(Dumb View)로 유지하며, 백엔드 통신 및 암호화 모듈은 추상화 인터페이스를 통해 주입받습니다.
 
-### 전체 시스템 흐름도
+### 🔄 전체 시스템 흐름도
 
 ```mermaid
 flowchart TD
@@ -67,7 +67,7 @@ flowchart TD
 ```
 
 <details>
-<summary><strong>레포지토리 디렉터리 구조 및 플랫폼별 세부 문서</strong></summary>
+<summary><strong>📂 레포지토리 디렉터리 구조 및 플랫폼별 세부 문서</strong></summary>
 
 ```text
 KeyManage/
@@ -99,7 +99,7 @@ KeyManage/
 
 ---
 
-## 기술 스택
+## 🛠️ 기술 스택
 
 각 플랫폼별 상세 아키텍처 및 세부 모듈 사양은 해당 플랫폼의 README 링크에서 확인할 수 있습니다.
 
@@ -107,14 +107,14 @@ KeyManage/
 | :--- | :--- | :--- | :--- |
 | **Backend** | Kotlin 2.1, Spring Boot 3.4, Gradle | 4개 모듈 분리 헥사고날 아키텍처, PIT 뮤테이션 테스트 | [Backend README](Back/README.md) |
 | **Web Client** | React 19, TypeScript 5.8, Vite 6 | Clean Architecture, Tailwind CSS v4, WebCrypto API, Vitest | [Web README](Apps/Web/README.md) |
-| **Desktop Shell**| Tauri v2, Rust | 경량 네이티브 웹뷰 래퍼, 엄격한 CSP 출처 격리 | [Desktop README](Apps/Web/README.md#데스크톱-앱-tauri-v2) |
+| **Desktop Shell**| Tauri v2, Rust | 경량 네이티브 웹뷰 래퍼, 엄격한 CSP 출처 격리 | [Desktop README](Apps/Web/README.md#-데스크톱-앱-tauri-v2) |
 | **Apple Client** | Swift 6, Tuist 4, Uber microRIBs | Strict Concurrency, State-Action 단방향 RIBs, CryptoKit, Swift Testing | [Apple README](Apps/Apple/README.md) |
 | **Infra & Demo** | Docker Compose, Caddy 2, mkcert | 로컬 리버스 프록시, 자동 상호 HTTPS 환경 구성 | [ADR-0021](docs/adr/ADR-0021-local-docker-compose-demo.md) |
 | **Verification** | Python 3, Bash, GitHub Actions | 6중 정적 검증 게이트, 최신성 및 PR Rebase 강제 훅 | [ADR-0009](docs/adr/ADR-0009-verification-delegation-pipeline.md) |
 
 ---
 
-## 사용법
+## 🚀 사용법
 
 > **요약** 로컬 환경에서 Docker Compose로 백엔드와 웹을 간편하게 실행할 수 있습니다. 웹만 사용하는 경우 Docker만 있으면 되며, 데스크톱 앱까지 연동할 경우 `mkcert`를 통해 로컬 HTTPS 환경을 구성합니다 ([ADR-0021](docs/adr/ADR-0021-local-docker-compose-demo.md)).
 
@@ -124,7 +124,7 @@ KeyManage/
 | 웹 + 데스크톱 앱 (Windows) 연동 | https://localhost:8443 | Docker Desktop, mkcert |
 
 <details>
-<summary><strong>1. 웹 브라우저로만 사용하기 (포트 8080)</strong></summary>
+<summary><strong>1. 🌐 웹 브라우저로만 사용하기 (포트 8080)</strong></summary>
 
 1. [Docker Desktop](https://www.docker.com/products/docker-desktop/)을 설치하고 실행합니다.
 2. 레포지토리 루트에서 컨테이너를 빌드하고 실행합니다:
@@ -135,7 +135,7 @@ KeyManage/
 </details>
 
 <details>
-<summary><strong>2. 데스크톱 앱까지 함께 사용하기 (HTTPS 포트 8443, Windows)</strong></summary>
+<summary><strong>2. 🖥️ 데스크톱 앱까지 함께 사용하기 (HTTPS 포트 8443, Windows)</strong></summary>
 
 데스크톱 앱은 보안 정책상 `https://localhost:8443`으로만 서버와 통신합니다. 로컬 신뢰 인증서를 생성한 후 데모를 실행합니다.
 
@@ -172,7 +172,7 @@ KeyManage/
 </details>
 
 <details>
-<summary><strong>3. 신규 계정 가입 차단 설정 (Registration Lockout)</strong></summary>
+<summary><strong>3. 🔒 신규 계정 가입 차단 설정 (Registration Lockout)</strong></summary>
 
 내 계정을 생성한 후 추가 가입을 막으려면, 레포지토리 루트의 `.env` 파일에 다음 환경변수를 설정하고 다시 실행합니다:
 ```bash
@@ -185,7 +185,7 @@ docker compose up -d
 </details>
 
 <details>
-<summary><strong>4. 컨테이너 종료 및 데이터 초기화</strong></summary>
+<summary><strong>4. 🧹 컨테이너 종료 및 데이터 초기화</strong></summary>
 
 | 작업 내용 | 실행 명령 | 비고 |
 | :--- | :--- | :--- |
@@ -199,10 +199,10 @@ docker compose up -d
 
 ---
 
-## 트러블 슈팅
+## 🔧 트러블 슈팅
 
 각 플랫폼별 주요 트러블 슈팅 및 문제 해결 가이드는 아래 링크에서 확인할 수 있습니다.
 
-- [Web / 데스크톱 클라이언트 트러블 슈팅](Apps/Web/README.md#트러블-슈팅)
-- [Apple 클라이언트 트러블 슈팅](Apps/Apple/README.md#트러블-슈팅)
-- [Backend 트러블 슈팅](Back/README.md#트러블-슈팅)
+- [Web / 데스크톱 클라이언트 트러블 슈팅](Apps/Web/README.md#-트러블-슈팅)
+- [Apple 클라이언트 트러블 슈팅](Apps/Apple/README.md#-트러블-슈팅)
+- [Backend 트러블 슈팅](Back/README.md#-트러블-슈팅)

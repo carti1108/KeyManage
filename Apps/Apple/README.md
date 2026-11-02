@@ -1,4 +1,4 @@
-# KeyManage Apple 클라이언트 (iOS & macOS)
+# 🍎 KeyManage Apple 클라이언트 (iOS & macOS)
 
 iOS 및 macOS 멀티플랫폼을 지원하는 네이티브 영지식(Zero-Knowledge) 패스워드 매니저 클라이언트입니다.
 
@@ -6,7 +6,7 @@ Tuist 4 마이크로 피처(Micro-Features) 모듈화 아키텍처([ADR-0015](do
 
 ---
 
-## 기술 스택
+## 🛠️ 기술 스택
 
 | 분류 | 기술 규격 및 사양 |
 | :--- | :--- |
@@ -19,7 +19,7 @@ Tuist 4 마이크로 피처(Micro-Features) 모듈화 아키텍처([ADR-0015](do
 
 ---
 
-## 모듈 구조
+## 🧩 모듈 구조
 
 각 Feature 모듈은 `Interface`, `Implementation`, `Testing`, `Tests` 4개 타깃으로 분리되어 상위/형제 RIB가 구체 구현체에 직접 의존하지 않도록 강제합니다.
 
@@ -46,7 +46,7 @@ Apps/Apple/
 
 ---
 
-## 빌드 및 검증
+## 🧪 빌드 및 검증
 
 macOS 환경에서 Tuist 워크스페이스를 생성한 뒤 통합 검증 스크립트(`Scripts/verify-apple.sh`) 또는 `xcodebuild`를 실행합니다.
 
@@ -62,7 +62,7 @@ xcodebuild -workspace KeyManage.xcworkspace -scheme KeyManageMac -destination 'p
 
 ---
 
-## 트러블 슈팅
+## 🔧 트러블 슈팅
 
 - **Swift 6 비동기 컨텍스트 내 `NSLock` 컴파일 오류 및 데드락 방지**: `async` 메서드 내부에서 `NSLock.lock()`/`unlock()`을 직접 호출하면 Swift 6 Strict Concurrency 컴파일 오류가 발생하므로, 공유 상태 변경을 동기 헬퍼 메서드(`prepareSync`, `applySyncSuccess` 등)로 분리해 락 점유 구간을 동기 블록 내부로만 제한했습니다.
 - **비동기 동기화 중 자동 잠금 시 평문 메모리 부활 차단**: 네트워크 요청 진행 중 유휴 타임아웃이나 수동 잠금이 발생한 경우, 응답 도착 시 `isLocked == true`이면 복호화된 평문 볼트를 메모리에 적재하지 않고 암호문과 리비전만 갱신하도록 방어했습니다.

@@ -1,4 +1,4 @@
-# KeyManage Web·데스크톱 클라이언트
+# 🌐 KeyManage Web·데스크톱 클라이언트
 
 브라우저 및 데스크톱 네이티브 셸(Tauri v2) 환경을 동시 지원하는 크로스 플랫폼 영지식(Zero-Knowledge) 패스워드 매니저 클라이언트입니다 ([ADR-0010](../../docs/adr/ADR-0010-client-composition-ios-and-web-sharing.md), [ADR-0012](docs/adr/ADR-0012-web-client-and-desktop-wrapper.md)).
 
@@ -6,7 +6,7 @@
 
 ---
 
-## 기술 스택
+## 🛠️ 기술 스택
 
 | 분류 | 기술 규격 및 사양 |
 | :--- | :--- |
@@ -19,7 +19,7 @@
 
 ---
 
-## 모듈 구조
+## 🧩 모듈 구조
 
 클린 아키텍처(Clean Architecture) 원칙에 따라 관심사를 물리적으로 분리하고, 핵심 비즈니스 도메인이 UI 컴포넌트나 브라우저 전역 객체에 직접 의존하지 않도록 격리합니다 ([ADR-0013](docs/adr/ADR-0013-api-client-and-account-auth.md)).
 
@@ -45,7 +45,7 @@ Apps/Web/
 
 ---
 
-## 데스크톱 앱 (Tauri v2)
+## 🖥️ 데스크톱 앱 (Tauri v2)
 
 동일한 웹 UI 번들을 경량 Rust 네이티브 윈도우 창으로 감싸 독립된 데스크톱 애플리케이션으로 구동합니다.
 
@@ -54,7 +54,7 @@ Apps/Web/
 
 ---
 
-## 빌드 및 검증
+## 🧪 빌드 및 검증
 
 ```bash
 cd Apps/Web
@@ -66,7 +66,7 @@ npm run build
 
 ---
 
-## 트러블 슈팅
+## 🔧 트러블 슈팅
 
 - **다중 브라우저 탭 간 기기 저장소 충돌 방지**: 여러 탭에서 동시에 볼트를 수정하거나 잠금/로그아웃할 때 상태 불일치가 발생하지 않도록 IndexedDB 변경 이벤트와 `BroadcastChannel`을 연동해 탭 간 세션·잠금 상태를 즉시 동기화했습니다.
 - **Tauri 데스크톱 릴리스 빌드의 API 출처(Origin) 연결**: 데스크톱 앱의 커스텀 프로토콜(`tauri://localhost`)에서 상대 경로 API 호출이 실패하는 문제를 방지하기 위해 빌드 타임 `VITE_API_BASE_URL` 검증 및 CSP `connect-src` 동적 주입을 적용했습니다 ([ADR-0020](docs/adr/ADR-0020-desktop-release-api-origin.md)).
