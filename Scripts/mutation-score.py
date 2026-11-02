@@ -1,23 +1,28 @@
 #!/usr/bin/env python3
-"""PIT 뮤테이션 리포트(mutations.xml)를 읽어 점수와 살아남은 결함 목록을 Markdown으로 출력한다 (ADR-0009).
+"""PIT 뮤테이션 리포트(mutations.xml)를 읽어 점수와 살아남은 결함 목록을 Markdown으로 출력한다 (qa-tester 플러그인 유틸리티).
 
 CI에서는 GitHub Actions 작업 요약($GITHUB_STEP_SUMMARY)에 붙이고, 로컬에서는 터미널에서 바로 본다.
 
-사용법: python3 Scripts/mutation-score.py Back/domain/build/reports/pitest/mutations.xml
+사용법: python3 mutation-score.py <mutations.xml> [모듈_레이블]
 """
 import html
 import sys
 import xml.etree.ElementTree as ET
 
 # Windows 콘솔에서도 한글이 깨지지 않도록 출력 인코딩을 고정한다
-sys.stdout.reconfigure(encoding="utf-8")
+for stream in (sys.stdout, sys.stderr):
+    if hasattr(stream, "reconfigure"):
+        stream.reconfigure(encoding="utf-8")
 
-if len(sys.argv) != 2:
-    print("사용법: mutation-score.py <mutations.xml>")
+if len(sys.argv) < 2 or len(sys.argv) > 3:
+    print("사용법: mutation-score.py <mutations.xml> [모듈_레이블]")
     sys.exit(2)
 
+report_path = sys.argv[1]
+module_label = sys.argv[2] if len(sys.argv) == 3 else "domain"
+
 try:
-    mutations = list(ET.parse(sys.argv[1]).getroot())
+    mutations = list(ET.parse(report_path).getroot())
 except (OSError, ET.ParseError) as error:
     print(f"뮤테이션 리포트를 읽을 수 없음: {error}")
     sys.exit(2)
@@ -32,7 +37,8 @@ def cell(text):
     # <init> 같은 메서드 이름이 HTML 태그로 사라지거나 | 가 표 칸을 나누지 않도록 한다
     return html.escape(text or "").replace("|", r"\|")
 
-print("## 뮤테이션 테스트 (domain)")
+
+print(f"## 뮤테이션 테스트 ({module_label})")
 print()
 print(f"**점수 {score}%**: 심은 결함 {len(mutations)}개 중 {len(detected)}개를 테스트가 잡음")
 if survivors:
@@ -43,7 +49,13 @@ if survivors:
     print("|---|---|---|---|---|")
     for m in survivors:
         cls = m.findtext("mutatedClass", "").split(".")[-1]
-        cells = [m.get("status"), cls, m.findtext("mutatedMethod"), m.findtext("lineNumber"), m.findtext("description")]
+        cells = [
+            m.get("status"),
+            cls,
+            m.findtext("mutatedMethod"),
+            m.findtext("lineNumber"),
+            m.findtext("description"),
+        ]
         print("| " + " | ".join(cell(c) for c in cells) + " |")
     print()
     print("</details>")
