@@ -11,7 +11,7 @@ struct VaultListView: View {
 
 	var body: some View {
 		VStack(spacing: 16) {
-			searchBar
+			topBar
 			itemsList
 		}
 		.padding()
@@ -20,6 +20,36 @@ struct VaultListView: View {
 			if let toast = viewModel.toastMessage {
 				toastView(toast)
 					.transition(.move(edge: .bottom).combined(with: .opacity))
+			}
+		}
+		.sheet(isPresented: $viewModel.isItemSheetPresented) {
+			itemFormModalView
+		}
+		.alert("항목 삭제", isPresented: $viewModel.isDeleteAlertPresented) {
+			Button("취소", role: .cancel) {
+				viewModel.itemToDelete = nil
+			}
+			Button("삭제", role: .destructive) {
+				viewModel.executeDeleteItem()
+			}
+		} message: {
+			Text("이 항목을 삭제할까요? 다른 기기에서도 삭제됩니다.")
+		}
+	}
+
+	// MARK: - Top Bar (Search + Add Button)
+
+	private var topBar: some View {
+		HStack(spacing: 12) {
+			searchBar
+
+			if !viewModel.isReadOnly {
+				KMButton(
+					"항목 추가",
+					variant: .primary,
+					size: .md,
+					action: { viewModel.startCreatingItem() }
+				)
 			}
 		}
 	}
@@ -83,6 +113,15 @@ struct VaultListView: View {
 			Text(viewModel.searchQuery.isEmpty ? "저장된 볼트 아이템이 없습니다" : "검색 결과가 없습니다")
 				.font(.headline)
 				.foregroundColor(DesignToken.View.mutedForeground)
+			if !viewModel.isReadOnly && viewModel.searchQuery.isEmpty {
+				KMButton(
+					"첫 항목 추가하기",
+					variant: .outline,
+					size: .sm,
+					action: { viewModel.startCreatingItem() }
+				)
+				.padding(.top, 4)
+			}
 			Spacer()
 		}
 		.frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -106,24 +145,42 @@ struct VaultListView: View {
 							.foregroundColor(DesignToken.View.mutedForeground)
 							.lineLimit(1)
 					}
+
+					if !viewModel.isReadOnly {
+						Button(action: { viewModel.startEditingItem(item) }) {
+							Image(systemName: "pencil")
+								.foregroundColor(DesignToken.View.mutedForeground)
+						}
+						.buttonStyle(.plain)
+						.help("수정")
+
+						Button(action: { viewModel.confirmDeleteItem(item) }) {
+							Image(systemName: "trash")
+								.foregroundColor(.red)
+						}
+						.buttonStyle(.plain)
+						.help("삭제")
+					}
 				}
 
 				Divider()
 
 				// Username row
 				HStack {
-					Label(item.username, systemImage: "person.fill")
+					Label(item.username.isEmpty ? "(아이디 없음)" : item.username, systemImage: "person.fill")
 						.font(.subheadline)
-						.foregroundColor(DesignToken.View.foreground)
+						.foregroundColor(item.username.isEmpty ? DesignToken.View.mutedForeground : DesignToken.View.foreground)
 
 					Spacer()
 
-					KMButton(
-						"아이디 복사",
-						variant: .outline,
-						size: .sm,
-						action: { viewModel.copyUsername(for: item) }
-					)
+					if !item.username.isEmpty {
+						KMButton(
+							"아이디 복사",
+							variant: .outline,
+							size: .sm,
+							action: { viewModel.copyUsername(for: item) }
+						)
+					}
 				}
 
 				// Password row
@@ -133,34 +190,187 @@ struct VaultListView: View {
 							.foregroundColor(DesignToken.View.mutedForeground)
 
 						if viewModel.isPasswordRevealed(id: item.id) {
-							Text(item.password)
+							Text(item.password.isEmpty ? "(비밀번호 없음)" : item.password)
 								.font(.system(.subheadline, design: .monospaced))
-								.foregroundColor(DesignToken.View.foreground)
+								.foregroundColor(item.password.isEmpty ? DesignToken.View.mutedForeground : DesignToken.View.foreground)
 								.lineLimit(1)
 								.truncationMode(.middle)
 						} else {
-							Text(String(repeating: "•", count: min(item.password.count, 12)))
+							Text(item.password.isEmpty ? "(비밀번호 없음)" : String(repeating: "•", count: min(item.password.count, 12)))
 								.font(.subheadline)
 								.foregroundColor(DesignToken.View.mutedForeground)
 						}
 
-						Button(action: { viewModel.togglePasswordVisibility(id: item.id) }) {
-							Image(systemName: viewModel.isPasswordRevealed(id: item.id) ? "eye.slash" : "eye")
-								.foregroundColor(DesignToken.View.mutedForeground)
+						if !item.password.isEmpty {
+							Button(action: { viewModel.togglePasswordVisibility(id: item.id) }) {
+								Image(systemName: viewModel.isPasswordRevealed(id: item.id) ? "eye.slash" : "eye")
+									.foregroundColor(DesignToken.View.mutedForeground)
+							}
+							.buttonStyle(.plain)
 						}
-						.buttonStyle(.plain)
 					}
 
 					Spacer()
 
-					KMButton(
-						"비밀번호 복사",
-						variant: .primary,
-						size: .sm,
-						action: { viewModel.copyPassword(for: item) }
-					)
+					if !item.password.isEmpty {
+						KMButton(
+							"비밀번호 복사",
+							variant: .primary,
+							size: .sm,
+							action: { viewModel.copyPassword(for: item) }
+						)
+					}
+				}
+
+				if let notes = item.notes, !notes.isEmpty {
+					Text(notes)
+						.font(.caption)
+						.foregroundColor(DesignToken.View.mutedForeground)
+						.lineLimit(2)
 				}
 			}
+		}
+	}
+
+	// MARK: - Item Form Modal Sheet
+
+	private var itemFormModalView: some View {
+		VStack(spacing: 20) {
+			Text(viewModel.editingItem == nil ? "새 볼트 항목" : "항목 수정")
+				.font(.title2.bold())
+				.foregroundColor(DesignToken.View.foreground)
+
+			if let error = viewModel.formErrorMessage {
+				Text(error)
+					.font(.footnote)
+					.foregroundColor(.red)
+			}
+
+			ScrollView {
+				itemFormFieldsView
+					.padding(.horizontal, 2)
+			}
+
+			itemFormButtonsView
+		}
+		.padding(24)
+		#if os(macOS)
+		.frame(minWidth: 440)
+		#else
+		.frame(maxWidth: .infinity)
+		#endif
+		.alert("항목 삭제", isPresented: $viewModel.isDeleteAlertPresented) {
+			Button("취소", role: .cancel) {
+				viewModel.itemToDelete = nil
+			}
+			Button("삭제", role: .destructive) {
+				viewModel.executeDeleteItem()
+			}
+		} message: {
+			Text("이 항목을 삭제할까요? 다른 기기에서도 삭제됩니다.")
+		}
+	}
+
+	private var itemFormFieldsView: some View {
+		VStack(spacing: 12) {
+			formInputField(
+				title: "서비스 이름 *",
+				text: $viewModel.formServiceName,
+				placeholder: "예: Google, GitHub"
+			)
+
+			formInputField(
+				title: "아이디 / 이메일",
+				text: $viewModel.formUsername,
+				placeholder: "사용자 아이디 또는 이메일"
+			)
+
+			VStack(alignment: .leading, spacing: 4) {
+				HStack {
+					Text("비밀번호")
+						.font(.caption.bold())
+						.foregroundColor(DesignToken.View.foreground)
+
+					Spacer()
+
+					KMButton(
+						"자동 생성",
+						variant: .outline,
+						size: .sm,
+						action: { viewModel.generatePasswordForForm() }
+					)
+				}
+
+				KMPasswordField(
+					text: $viewModel.formPassword,
+					placeholder: "비밀번호 입력 또는 자동 생성",
+					showCopyAction: false
+				)
+			}
+
+			formInputField(
+				title: "웹사이트 URL",
+				text: $viewModel.formUrl,
+				placeholder: "https://example.com"
+			)
+
+			formInputField(
+				title: "메모",
+				text: $viewModel.formNotes,
+				placeholder: "추가 메모 (선택 사항)"
+			)
+		}
+	}
+
+	private func formInputField(
+		title: String,
+		text: Binding<String>,
+		placeholder: String
+	) -> some View {
+		VStack(alignment: .leading, spacing: 4) {
+			Text(title)
+				.font(.caption.bold())
+				.foregroundColor(DesignToken.View.foreground)
+
+			TextField(placeholder, text: text)
+				.textFieldStyle(.plain)
+				.padding(8)
+				.background(DesignToken.View.card)
+				.cornerRadius(6)
+				.overlay(
+					RoundedRectangle(cornerRadius: 6)
+						.stroke(DesignToken.View.border, lineWidth: 1)
+				)
+		}
+	}
+
+	private var itemFormButtonsView: some View {
+		HStack(spacing: 12) {
+			KMButton(
+				"취소",
+				variant: .outline,
+				action: {
+					viewModel.cancelEditing()
+				}
+			)
+
+			Spacer()
+
+			if let editing = viewModel.editingItem {
+				KMButton(
+					"삭제",
+					variant: .destructive,
+					action: {
+						viewModel.confirmDeleteItem(editing)
+					}
+				)
+			}
+
+			KMButton(
+				"저장",
+				variant: .primary,
+				action: { viewModel.requestSaveItem() }
+			)
 		}
 	}
 

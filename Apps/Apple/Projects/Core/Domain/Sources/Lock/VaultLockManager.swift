@@ -62,9 +62,56 @@ public protocol VaultLockManagerProtocol: AnyObject, Sendable {
 	func checkIfPasswordChangedOnServer(
 		networkClient: AuthNetworkClientProtocol
 	) async throws -> Bool
+
+	// VLT-001 볼트 아이템 추가, 수정, 삭제 (CRUD)
+	@discardableResult
+	func addVaultItem(
+		serviceName: String,
+		username: String,
+		password: String,
+		url: String?,
+		notes: String?,
+		now: Date
+	) throws -> VaultItem
+
+	func updateVaultItem(
+		item: VaultItem,
+		now: Date
+	) throws
+
+	func deleteVaultItem(
+		id: String,
+		now: Date
+	) throws
 }
 
 public extension VaultLockManagerProtocol {
+
+	@discardableResult
+	func addVaultItem(
+		serviceName: String,
+		username: String = "",
+		password: String = "",
+		url: String? = nil,
+		notes: String? = nil,
+		now: Date = Date()
+	) throws -> VaultItem {
+		try addVaultItem(serviceName: serviceName, username: username, password: password, url: url, notes: notes, now: now)
+	}
+
+	func updateVaultItem(
+		item: VaultItem,
+		now: Date = Date()
+	) throws {
+		try updateVaultItem(item: item, now: now)
+	}
+
+	func deleteVaultItem(
+		id: String,
+		now: Date = Date()
+	) throws {
+		try deleteVaultItem(id: id, now: now)
+	}
 	func changeMasterPassword(
 		currentPassword: String,
 		newPassword: String,
@@ -805,6 +852,134 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 		let preloginResp = try await networkClient.prelogin(email: info.email)
 		let differs = (preloginResp.salt != info.saltBase64 || preloginResp.iterations != info.iterations)
 		return differs
+	}
+
+	// MARK: - VLT-001 볼트 아이템 추가, 수정, 삭제 (CRUD)
+
+	@discardableResult
+	public func addVaultItem(
+		serviceName: String,
+		username: String,
+		password: String,
+		url: String?,
+		notes: String?,
+		now: Date
+	) throws -> VaultItem {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+
+		guard !_isLocked, var vault = _decryptedVault, let encKey = _encryptionKey else {
+			throw VaultItemError.locked
+		}
+		guard !vault.isReadOnly else {
+			throw VaultItemError.vaultIsReadOnly
+		}
+
+		let trimmedServiceName = serviceName.trimmingCharacters(in: .whitespacesAndNewlines)
+		guard !trimmedServiceName.isEmpty else {
+			throw VaultItemError.emptyServiceName
+		}
+
+		let timeString = VaultDateHelper.format(now)
+		let newItem = VaultItem(
+			id: UUID().uuidString,
+			serviceName: trimmedServiceName,
+			username: username,
+			password: password,
+			url: url?.isEmpty == true ? nil : url,
+			notes: notes?.isEmpty == true ? nil : notes,
+			createdAt: timeString,
+			updatedAt: timeString
+		)
+
+		try vault.addItem(newItem, now: now)
+
+		let encoded = try vault.encode()
+		guard encoded.count <= BackupFileFormat.maxPayloadBytes else {
+			throw VaultItemError.vaultTooLarge
+		}
+
+		let newEncrypted = try VaultCipher.encrypt(plaintext: encoded, key: encKey)
+		_decryptedVault = vault
+		_encryptedVault = newEncrypted
+		_lastInteractionTime = now
+		return newItem
+	}
+
+	public func updateVaultItem(
+		item: VaultItem,
+		now: Date
+	) throws {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+
+		guard !_isLocked, var vault = _decryptedVault, let encKey = _encryptionKey else {
+			throw VaultItemError.locked
+		}
+		guard !vault.isReadOnly else {
+			throw VaultItemError.vaultIsReadOnly
+		}
+
+		let trimmedServiceName = item.serviceName.trimmingCharacters(in: .whitespacesAndNewlines)
+		guard !trimmedServiceName.isEmpty else {
+			throw VaultItemError.emptyServiceName
+		}
+
+		guard vault.items.contains(where: { $0.id == item.id && !$0.isDeleted }) else {
+			throw VaultItemError.itemNotFound
+		}
+
+		var updated = item
+		updated.serviceName = trimmedServiceName
+		if let url = updated.url, url.isEmpty {
+			updated.url = nil
+		}
+		if let notes = updated.notes, notes.isEmpty {
+			updated.notes = nil
+		}
+
+		try vault.updateItem(updated, now: now)
+
+		let encoded = try vault.encode()
+		guard encoded.count <= BackupFileFormat.maxPayloadBytes else {
+			throw VaultItemError.vaultTooLarge
+		}
+
+		let newEncrypted = try VaultCipher.encrypt(plaintext: encoded, key: encKey)
+		_decryptedVault = vault
+		_encryptedVault = newEncrypted
+		_lastInteractionTime = now
+	}
+
+	public func deleteVaultItem(
+		id: String,
+		now: Date
+	) throws {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+
+		guard !_isLocked, var vault = _decryptedVault, let encKey = _encryptionKey else {
+			throw VaultItemError.locked
+		}
+		guard !vault.isReadOnly else {
+			throw VaultItemError.vaultIsReadOnly
+		}
+
+		guard vault.items.contains(where: { $0.id == id && !$0.isDeleted }) else {
+			throw VaultItemError.itemNotFound
+		}
+
+		try vault.deleteItem(id: id, now: now)
+
+		let encoded = try vault.encode()
+		guard encoded.count <= BackupFileFormat.maxPayloadBytes else {
+			throw VaultItemError.vaultTooLarge
+		}
+
+		let newEncrypted = try VaultCipher.encrypt(plaintext: encoded, key: encKey)
+		_decryptedVault = vault
+		_encryptedVault = newEncrypted
+		_lastInteractionTime = now
 	}
 
 	private func internalLock() {
