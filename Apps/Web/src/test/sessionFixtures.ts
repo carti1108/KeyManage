@@ -1,5 +1,5 @@
 // 세션 테스트가 함께 쓰는 가짜 서버와 준비 함수
-import type { AuthApi, ChangePasswordRequest, ChangedPassword, KdfParams, LoginRequest, RegisterRequest, Session } from '../domain/auth/authApi'
+import type { AuthApi, ChangePasswordRequest, ChangedPassword, DeleteAccountRequest, KdfParams, LoginRequest, RegisterRequest, Session } from '../domain/auth/authApi'
 import { createAuthService } from '../domain/auth/authService'
 import type { EncryptedVaultPayload } from '../domain/crypto/vaultCipher'
 import { DeviceStorageError, type DeviceRecord, type DeviceStore } from '../domain/device/deviceRecord'
@@ -35,6 +35,13 @@ export class FakeAuthApi implements AuthApi {
   changeError: unknown = null
   /** 설정하면 비밀번호 변경 요청이 이 약속이 풀릴 때까지 기다린다 */
   changeGate: Promise<void> | null = null
+  deletions: { accessToken: string; request: DeleteAccountRequest }[] = []
+  /** 설정하면 계정 삭제를 이 오류로 거절한다 */
+  deleteError: unknown = null
+  /** 설정하면 계정 삭제 요청이 이 약속이 풀릴 때까지 기다린다 */
+  deleteGate: Promise<void> | null = null
+  /** 계정을 지웠음. 지운 계정으로는 로그인할 수 없고 prelogin은 가짜 salt를 준다 */
+  deleted = false
   private issued = 1
 
   private token(): string {
@@ -47,6 +54,7 @@ export class FakeAuthApi implements AuthApi {
   }
   async register(request: RegisterRequest): Promise<Session> {
     this.registered.push(request)
+    this.deleted = false
     this.kdf = { kdf: 'PBKDF2-HMAC-SHA256', iterations: request.kdfIterations, salt: request.kdfSalt }
     this.authHash = request.authHash
     return { accessToken: this.token(), expiresAt: '2026-11-30T00:00:00Z' }
@@ -54,6 +62,7 @@ export class FakeAuthApi implements AuthApi {
   async login(request: LoginRequest): Promise<Session> {
     if (this.offline) throw new NetworkError()
     this.logins.push(request)
+    if (this.deleted) throw new ServerError(401, 'AUTH_FAILED')
     this.authHash = request.authHash
     return { accessToken: this.token(), expiresAt: '2026-11-30T00:00:00Z' }
   }
@@ -78,6 +87,24 @@ export class FakeAuthApi implements AuthApi {
     for (let n = 1; n <= this.issued; n += 1) this.revoked.add(`token-${n}`)
     this.issued += 1
     return { accessToken: this.token(), expiresAt: '2026-12-02T00:00:00Z', revision: vault.revision }
+  }
+  /** 실제 서버처럼 인증 해시를 확인한 뒤 계정·볼트를 지우고 이 계정의 토큰을 모두 폐기한다 (api-spec 2.5.6) */
+  async deleteAccount(accessToken: string, request: DeleteAccountRequest): Promise<void> {
+    if (this.offline) throw new NetworkError()
+    this.deletions.push({ accessToken, request })
+    if (this.deleteGate) await this.deleteGate
+    if (this.deleteError !== null) throw this.deleteError
+    if (this.deleted || this.revoked.has(accessToken)) throw new ServerError(401, 'UNAUTHORIZED')
+    if (this.authHash !== null && request.authHash !== this.authHash) throw new ServerError(401, 'AUTH_FAILED')
+    this.deleted = true
+    this.authHash = null
+    // 없는 이메일의 prelogin은 서버 비밀키로 만든 가짜 salt를 준다 (api-spec 2.5.1)
+    this.kdf = { ...this.kdf, salt: 'ZmFrZS1zYWx0LTE2Ynl0ZQ==' }
+    for (let n = 1; n <= this.issued; n += 1) this.revoked.add(`token-${n}`)
+    if (this.vaultApi !== null) {
+      this.vaultApi.payload = null
+      this.vaultApi.revision = 0
+    }
   }
 }
 
