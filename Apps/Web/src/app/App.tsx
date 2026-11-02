@@ -10,7 +10,7 @@ import { usePageHidden } from './usePageHidden'
 
 // 조립 지점(Composition Root): 화면은 ui에 두고, 여기서는 어댑터를 만들어 포트로 화면에 넘기는 일만 한다 (ADR-0004)
 function App({ services }: { services?: Services }) {
-  const [{ session, clipboard, tabs, autoLockSetting }] = useState(() => services ?? createServices())
+  const [{ session, clipboard, tabs, autoLockSetting, backupFiles }] = useState(() => services ?? createServices())
   const pageHidden = usePageHidden()
   // 볼트가 열린 동안 브라우저가 끊기면 오프라인 경고를 보인다. 재연결 재전송은 startPendingSync가 맡는다 (VLT-002)
   const networkOffline = useNetworkOffline()
@@ -49,6 +49,7 @@ function App({ services }: { services?: Services }) {
       pageHidden={pageHidden}
       networkOffline={networkOffline}
       autoLock={{ timeoutMs: autoLock.timeoutMs, onChange: autoLock.change }}
+      backupFiles={backupFiles}
     />
   )
 }

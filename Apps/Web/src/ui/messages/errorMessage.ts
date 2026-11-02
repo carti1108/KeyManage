@@ -1,10 +1,12 @@
-// 오류를 사용자 문구로 바꾼다. 문구는 정책이 정한 그대로 쓴다 (SEC-002, SEC-003, COM-002)
+// 오류를 사용자 문구로 바꾼다. 문구는 정책이 정한 그대로 쓴다 (SEC-002, SEC-003, COM-002, VLT-004)
 import { InvalidEmailError, MasterPasswordChangedError } from '../../domain/auth/authService'
+import { BackupDecryptError, NewerBackupVersionError, NotABackupFileError } from '../../domain/backup/backupFile'
 import { DeviceStorageError } from '../../domain/device/deviceRecord'
 import { InvalidPasswordError } from '../../domain/crypto/keys'
 import { NetworkError, ServerError } from '../../domain/server/serverErrors'
 import { InvalidVaultDataError } from '../../domain/vault/vaultData'
 import { ReadOnlyVaultError, RevisionRollbackError, VaultSyncConflictError, VaultTooLargeError } from '../../domain/vault/vaultSync'
+import { BACKUP_OPEN_FAILED, NEWER_BACKUP, NOT_A_BACKUP } from './backupNotices'
 import { DEVICE_STORAGE_FAILED, PASSWORD_CHANGED, READ_ONLY_NOTICE, ROLLBACK_WARNING } from './vaultNotices'
 import { SessionExpiredError, VaultSetupError, WrongMasterPasswordError } from '../../domain/session/vaultSession'
 
@@ -45,6 +47,9 @@ export function describeError(error: unknown): ErrorMessage {
   if (error instanceof ReadOnlyVaultError) return { body: READ_ONLY_NOTICE }
   // 받아들일지 묻는 흐름이 없는 곳(저장 등)에서는 경고만 보인다
   if (error instanceof RevisionRollbackError) return { title: ROLLBACK_WARNING.title, body: ROLLBACK_WARNING.body }
+  if (error instanceof BackupDecryptError) return { body: BACKUP_OPEN_FAILED }
+  if (error instanceof NotABackupFileError) return { body: NOT_A_BACKUP }
+  if (error instanceof NewerBackupVersionError) return { body: NEWER_BACKUP }
   if (error instanceof NetworkError) return { body: '서버에 연결할 수 없습니다. 네트워크 연결을 확인해 주세요.' }
   return { body: UNKNOWN }
 }

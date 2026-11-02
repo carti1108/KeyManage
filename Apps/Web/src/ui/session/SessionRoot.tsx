@@ -1,6 +1,7 @@
 // 세션 상태에 따라 로그인·잠금·볼트 화면을 고른다
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { MasterPasswordChangedError } from '../../domain/auth/authService'
+import type { BackupFiles } from '../../domain/backup/backupFile'
 import { DeviceStorageError } from '../../domain/device/deviceRecord'
 import { SessionExpiredError } from '../../domain/session/vaultSession'
 import { ConfirmPrompt } from '../components/ConfirmPrompt'
@@ -14,6 +15,7 @@ import { VaultHomeScreen } from '../screens/VaultHomeScreen'
 import type { ClipboardPort } from '../clipboard/clipboardPort'
 import { ClipboardNotice } from '../clipboard/ClipboardNotice'
 import { AutoLockSelect, type AutoLockSelectProps } from '../vault/AutoLockSelect'
+import { BackupActions } from '../backup/BackupActions'
 import { VaultScreen } from '../vault/VaultScreen'
 import { ReconnectPrompt } from './ReconnectPrompt'
 import type { RollbackOption, SessionPort } from './sessionPort'
@@ -33,9 +35,11 @@ export interface SessionRootProps {
   networkOffline?: boolean
   /** 자동 잠금 시간과 바꾸기 (SEC-003). 없으면 선택 칸을 보이지 않는다 */
   autoLock?: AutoLockSelectProps
+  /** 백업 파일 저장·고르기 (VLT-004). 없으면 백업 진입점을 보이지 않는다 */
+  backupFiles?: BackupFiles
 }
 
-export function SessionRoot({ session, clipboard, pageHidden, networkOffline = false, autoLock }: SessionRootProps) {
+export function SessionRoot({ session, clipboard, pageHidden, networkOffline = false, autoLock, backupFiles }: SessionRootProps) {
   // 잠기면 새 상태로 바꿔 평문 볼트를 들고 있던 이전 상태를 놓는다
   const [state, setState] = useState(() => session.state())
   const [notice, setNotice] = useState<string | null>(null)
@@ -194,6 +198,23 @@ export function SessionRoot({ session, clipboard, pageHidden, networkOffline = f
         onLogout={() => void requestLogout(state.pendingSync)}
       >
         {autoLock && <AutoLockSelect {...autoLock} />}
+        {backupFiles && (
+          <BackupActions
+            readOnly={state.vault.readOnly}
+            files={backupFiles}
+            onExport={(now) => session.exportBackup(now)}
+            onRestore={async (backup, password, now) => {
+              try {
+                const count = await session.restoreBackup(backup, password, now)
+                setSyncError(null)
+                return count
+              } finally {
+                // 저장처럼 알림 없이 볼트가 바뀌므로 직접 다시 읽는다
+                refresh()
+              }
+            }}
+          />
+        )}
         {logoutConfirm()}
         {syncError && <Alert title={syncError.title}>{syncError.body}</Alert>}
         {!state.storedOnDevice && <Alert>{DEVICE_STORAGE_FAILED}</Alert>}
