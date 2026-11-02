@@ -16,6 +16,7 @@ import type { ClipboardPort } from '../clipboard/clipboardPort'
 import { ClipboardNotice } from '../clipboard/ClipboardNotice'
 import { AutoLockSelect, type AutoLockSelectProps } from '../vault/AutoLockSelect'
 import { BackupActions } from '../backup/BackupActions'
+import { ChangePasswordAction } from '../account/ChangePasswordAction'
 import { VaultScreen } from '../vault/VaultScreen'
 import { ReconnectPrompt } from './ReconnectPrompt'
 import type { RollbackOption, SessionPort } from './sessionPort'
@@ -217,6 +218,24 @@ export function SessionRoot({ session, clipboard, pageHidden, networkOffline = f
                 }}
               />
             )}
+            <ChangePasswordAction
+              readOnly={state.vault.readOnly}
+              offline={networkOffline || !state.signedIn}
+              onChange={async (currentPassword, newPassword) => {
+                try {
+                  await session.changeMasterPassword(currentPassword, newPassword)
+                  setSyncError(null)
+                  setOffline(false)
+                } catch (error) {
+                  // 세션이 만료됐으면 로그인 화면으로 가며 이유를 알린다 (SEC-004 규칙 9)
+                  if (!sendsToSignIn(error)) throw error
+                  setNotice(describeError(error).body)
+                } finally {
+                  // 저장처럼 알림 없이 세션이 바뀌므로 직접 다시 읽는다
+                  refresh()
+                }
+              }}
+            />
           </>
         }
       >

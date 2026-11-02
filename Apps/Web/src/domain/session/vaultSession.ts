@@ -9,6 +9,7 @@ import { isReadOnly, type VaultData } from '../vault/vaultData'
 import { isTransientSyncError, type SyncedVault } from '../vault/vaultSync'
 import { createBackupFile, type BackupFile, type VaultBackup } from '../backup/backupFile'
 import { restoreBackupInto } from '../backup/restoreBackup'
+import { NewMasterPasswordTooShortError, PasswordChangeOfflineError, SameMasterPasswordError, changeMasterPassword } from './changePassword'
 import { onTabMessage, open, refreshLockedFromDevice } from './deviceSync'
 import { enqueuePush } from './pendingPush'
 import { NO_TOKEN, createSessionContext, ensureCurrent, ensureCurrentOrRevoke, lockThisTab, notifySync, readDevice, resetSignIn, revoke, syncFor } from './sessionContext'
@@ -27,7 +28,7 @@ import {
   type VaultSessionDeps,
 } from './sessionTypes'
 
-export { SessionExpiredError, SessionStateError, VaultSetupError, WrongMasterPasswordError }
+export { NewMasterPasswordTooShortError, PasswordChangeOfflineError, SameMasterPasswordError, SessionExpiredError, SessionStateError, VaultSetupError, WrongMasterPasswordError }
 export type { LockScope, SessionState, SyncChangeListener, VaultSessionDeps }
 
 export function createVaultSession(deps: VaultSessionDeps) {
@@ -199,6 +200,16 @@ export function createVaultSession(deps: VaultSessionDeps) {
      */
     restoreBackup(backup: VaultBackup, password: string, now: Date): Promise<number> {
       return restoreBackupInto(session, backup, password, now)
+    },
+
+    /**
+     * 마스터 비밀번호를 바꾼다. 화면의 볼트(대기 포함)를 새 키로 다시 암호화해 서버에서 인증 정보와 함께 교체하고,
+     * 새 토큰·키·KDF 값으로 이 기기의 세션과 기록을 바꾼다. 다른 기기·탭은 로그인 화면으로 간다 (SEC-004)
+     * @throws SessionStateError, ReadOnlyVaultError, PasswordChangeOfflineError, NewMasterPasswordTooShortError, SameMasterPasswordError,
+     *   WrongMasterPasswordError, VaultSyncConflictError, SessionExpiredError, 그 밖의 ServerError·NetworkError
+     */
+    changeMasterPassword(currentPassword: string, newPassword: string): Promise<void> {
+      return changeMasterPassword(ctx, currentPassword, newPassword)
     },
 
     /**

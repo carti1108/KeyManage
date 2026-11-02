@@ -3,7 +3,8 @@
 import { InvalidBase64Error, fromBase64, toBase64 } from '../crypto/base64'
 import { InvalidKdfParamsError, MIN_ITERATIONS, SALT_BYTES, deriveKeys } from '../crypto/keys'
 import { ServerError } from '../server/serverErrors'
-import type { AuthApi, KdfParams, Session } from './authApi'
+import type { EncryptedVaultPayload } from '../crypto/vaultCipher'
+import type { AuthApi, ChangedPassword, KdfParams, Session } from './authApi'
 
 const SUPPORTED_KDF: KdfParams['kdf'] = 'PBKDF2-HMAC-SHA256'
 const MAX_EMAIL_LENGTH = 254
@@ -99,6 +100,31 @@ export function createAuthService(api: AuthApi) {
 
     logout(accessToken: string): Promise<void> {
       return api.logout(accessToken)
+    },
+
+    /**
+     * 현재·새 인증 해시와 새 KDF 값, 새 키로 다시 암호화한 볼트를 한 요청으로 보낸다 (SEC-004, api-spec 2.5.5).
+     * 두 인증 해시 바이트는 성공·실패와 관계없이 지운다
+     * @throws ServerError(AUTH_FAILED, VAULT_CONFLICT, UNAUTHORIZED, TOO_MANY_ATTEMPTS 등), NetworkError
+     */
+    async changePassword(
+      accessToken: string,
+      currentAuthHash: Uint8Array,
+      newAuthHash: Uint8Array,
+      kdf: UnlockKdf,
+      vault: { readonly expectedRevision: number; readonly payload: EncryptedVaultPayload },
+    ): Promise<ChangedPassword> {
+      try {
+        return await api.changePassword(accessToken, {
+          currentAuthHash: takeAuthHash(currentAuthHash),
+          newAuthHash: takeAuthHash(newAuthHash),
+          kdf: { iterations: kdf.iterations, salt: kdf.salt },
+          vault,
+        })
+      } finally {
+        currentAuthHash.fill(0)
+        newAuthHash.fill(0)
+      }
     },
   }
 }
