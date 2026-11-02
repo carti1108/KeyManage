@@ -59,7 +59,11 @@ describe('탭별 KDF 기억 (SEC-003 규칙 11)', () => {
   })
 
   it('다른 탭이 비밀번호를 바꾼 뒤 이 탭이 새로 열리면 기기 기록은 남긴 채 로그아웃 상태로 비밀번호 바뀜을 알린다', async () => {
-    const { hub, deviceStore, a, b, bMemory } = await twoTabs()
+    const { hub, deviceStore, a, b, bMemory: liveMemory } = await twoTabs()
+    // 이 탭(B)이 알림을 받기 전에 새로고침(탭 폐기 등)된 상황: 새로 열린 B의 기억은 옛 KDF 값 그대로다.
+    // 살아 있는 B는 알림을 받아 안내한 뒤 기억을 새 값으로 맞추므로, 새로 열린 B의 기억은 따로 둔다
+    const bMemory = new FakeTabMemory()
+    bMemory.set(liveMemory.value!)
     await a.session.changeMasterPassword(PASSWORD, NEW_PASSWORD)
     const recordAfterChange = deviceStore.record
 
