@@ -156,6 +156,57 @@ public final class URLSessionAuthNetworkClient: AuthNetworkClientProtocol, @unch
 		}
 	}
 
+	public func saveVault(
+		accessToken: String,
+		expectedRevision: Int,
+		payload: EncryptedVaultPayload
+	) async throws -> Int {
+		let url = baseURL.appendingPathComponent("vault")
+		var urlRequest = URLRequest(url: url)
+		urlRequest.httpMethod = "POST"
+		urlRequest.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+		urlRequest.setValue("application/json; charset=UTF-8", forHTTPHeaderField: "Content-Type")
+
+		let requestBody = SaveVaultRequestPayload(expectedRevision: expectedRevision, payload: payload)
+		urlRequest.httpBody = try JSONEncoder().encode(requestBody)
+
+		let (data, response): (Data, URLResponse)
+		do {
+			(data, response) = try await session.data(for: urlRequest)
+		} catch is CancellationError {
+			throw CancellationError()
+		} catch let urlError as URLError where urlError.code == .notConnectedToInternet || urlError.code == .networkConnectionLost {
+			throw AuthError.offline
+		} catch {
+			throw AuthError.offline
+		}
+
+		guard let httpResp = response as? HTTPURLResponse else {
+			throw AuthError.networkError("응답을 수신하지 못했습니다.")
+		}
+
+		if (200...299).contains(httpResp.statusCode) {
+			let decoded = try JSONDecoder().decode(SaveVaultResponsePayload.self, from: data)
+			return decoded.revision
+		}
+
+		if httpResp.statusCode == 409 {
+			if let conflictObj = try? JSONDecoder().decode(VaultConflictResponse.self, from: data),
+			   let revVal = conflictObj.currentRevision {
+				throw VaultSyncError.conflict(currentRevision: revVal)
+			}
+			throw VaultSyncError.syncFailed("409 Conflict")
+		} else if httpResp.statusCode == 413 {
+			throw VaultSyncError.payloadTooLarge(payload.ciphertext.utf8.count)
+		} else if httpResp.statusCode == 401 {
+			throw AuthError.sessionExpired
+		} else if httpResp.statusCode == 429 {
+			throw AuthError.tooManyAttempts
+		} else {
+			throw AuthError.networkError("서버 오류: HTTP \(httpResp.statusCode)")
+		}
+	}
+
 	public func changePassword(
 		accessToken: String,
 		request: ChangePasswordRequestPayload
@@ -242,4 +293,10 @@ public final class URLSessionAuthNetworkClient: AuthNetworkClientProtocol, @unch
 			throw AccountDeletionError.networkError("서버 오류: HTTP \(httpResp.statusCode)")
 		}
 	}
+}
+
+private struct VaultConflictResponse: Codable {
+	let code: String?
+	let message: String?
+	let currentRevision: Int?
 }

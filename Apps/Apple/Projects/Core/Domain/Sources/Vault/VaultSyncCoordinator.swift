@@ -57,6 +57,9 @@ public struct VaultSyncCoordinator: Sendable {
 	}
 
 	private func isConflictError(_ error: Error) -> Bool {
+		if case VaultSyncError.conflict = error {
+			return true
+		}
 		if case VaultSyncError.syncFailed(let msg) = error {
 			return msg.contains("409") || msg.lowercased().contains("conflict")
 		}

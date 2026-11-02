@@ -61,6 +61,16 @@ public protocol RemoteVaultSyncServiceProtocol: Sendable {
 	func fetchVault() async throws -> (vault: VaultData, revision: Int)
 }
 
+public extension RemoteVaultSyncServiceProtocol {
+	func saveVault(_ vault: VaultData, expectedRevision: Int) async throws -> Int {
+		try await uploadVault(vault, expectedRevision: expectedRevision)
+	}
+
+	func getVault() async throws -> (vault: VaultData, revision: Int) {
+		try await fetchVault()
+	}
+}
+
 public protocol SyncFailureClassifierProtocol: Sendable {
 	func classify(_ error: Error) -> SyncFailureType
 }

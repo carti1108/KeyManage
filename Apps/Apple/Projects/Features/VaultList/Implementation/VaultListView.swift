@@ -10,26 +10,59 @@ struct VaultListView: View {
 	}
 
 	var body: some View {
-		itemsList
-			.searchable(
-				text: Binding(
-					get: { viewModel.searchQuery },
-					set: { viewModel.updateSearchQuery($0) }
-				),
-				prompt: "서비스명, 아이디 검색..."
-			)
-			.toolbar {
-				ToolbarItem(placement: .primaryAction) {
-					if !viewModel.isReadOnly {
-						Button {
-							viewModel.startCreatingItem()
-						} label: {
-							Image(systemName: "plus")
-						}
-						.accessibilityLabel("항목 추가")
+		VStack(spacing: 0) {
+			if viewModel.hasPendingSync || viewModel.isOffline {
+				HStack(spacing: 8) {
+					Image(systemName: "wifi.slash")
+						.foregroundColor(.orange)
+					Text(VaultSyncStrings.offlineWarningMessage)
+						.font(.caption)
+						.foregroundColor(DesignToken.View.foreground)
+					Spacer()
+				}
+				.padding(.horizontal, 16)
+				.padding(.vertical, 8)
+				.background(Color.orange.opacity(0.12))
+			}
+
+			itemsList
+		}
+		.searchable(
+			text: Binding(
+				get: { viewModel.searchQuery },
+				set: { viewModel.updateSearchQuery($0) }
+			),
+			prompt: "서비스명, 아이디 검색..."
+		)
+		.toolbar {
+			ToolbarItem(placement: .automatic) {
+				Button {
+					Task {
+						await viewModel.triggerSync()
+					}
+				} label: {
+					if viewModel.isSyncing {
+						ProgressView()
+							.controlSize(.small)
+					} else {
+						Image(systemName: viewModel.hasPendingSync ? "arrow.triangle.2.circlepath.circle" : "arrow.triangle.2.circlepath")
 					}
 				}
+				.disabled(viewModel.isSyncing)
+				.accessibilityLabel("볼트 동기화")
 			}
+
+			ToolbarItem(placement: .primaryAction) {
+				if !viewModel.isReadOnly {
+					Button {
+						viewModel.startCreatingItem()
+					} label: {
+						Image(systemName: "plus")
+					}
+					.accessibilityLabel("항목 추가")
+				}
+			}
+		}
 			.background(DesignToken.View.background)
 			.overlay(alignment: .bottom) {
 				if let toast = viewModel.toastMessage {
@@ -67,6 +100,9 @@ struct VaultListView: View {
 					}
 					.padding(.horizontal)
 					.padding(.vertical, 8)
+				}
+				.refreshable {
+					await viewModel.triggerSync()
 				}
 			}
 		}

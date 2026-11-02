@@ -41,13 +41,13 @@ struct SettingsView: View {
 			deleteAccountModalView
 				.interactiveDismissDisabled(viewModel.isDeletingAccount)
 		}
-		.alert("로그아웃", isPresented: $viewModel.isLogoutConfirmPresented) {
-			Button("취소", role: .cancel) {}
-			Button("로그아웃", role: .destructive) {
+		.alert(viewModel.hasPendingSync ? VaultSyncStrings.pendingLogoutConfirmTitle : "로그아웃", isPresented: $viewModel.isLogoutConfirmPresented) {
+			Button(VaultSyncStrings.cancelButton, role: .cancel) {}
+			Button(VaultSyncStrings.logoutButton, role: .destructive) {
 				viewModel.confirmLogout()
 			}
 		} message: {
-			Text("로그아웃하시겠습니까? 세션이 종료되고 기기에서 민감 키가 소거됩니다.")
+			Text(viewModel.hasPendingSync ? VaultSyncStrings.pendingLogoutConfirmMessage : "로그아웃하시겠습니까? 세션이 종료되고 기기에서 민감 키가 소거됩니다.")
 		}
 		.fileImporter(
 			isPresented: $isFileImporterPresented,
@@ -173,7 +173,7 @@ struct SettingsView: View {
 					KMButton(
 						"로그아웃",
 						variant: .outline,
-						action: { viewModel.isLogoutConfirmPresented = true }
+						action: { viewModel.showPendingLogoutConfirmation() }
 					)
 
 					Spacer()

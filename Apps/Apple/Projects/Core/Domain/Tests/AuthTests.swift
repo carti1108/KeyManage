@@ -9,6 +9,7 @@ private final class MockAuthNetworkClient: AuthNetworkClientProtocol, @unchecked
 	var loginCallCount: Int = 0
 	var preloginCallCount: Int = 0
 	var getVaultCallCount: Int = 0
+	var saveVaultCallCount: Int = 0
 	var changePasswordCallCount: Int = 0
 	var deleteAccountCallCount: Int = 0
 
@@ -16,6 +17,9 @@ private final class MockAuthNetworkClient: AuthNetworkClientProtocol, @unchecked
 	var receivedLoginPayload: LoginRequestPayload?
 	var receivedPreloginEmail: String?
 	var receivedGetVaultAccessToken: String?
+	var receivedSaveVaultAccessToken: String?
+	var receivedSaveVaultExpectedRevision: Int?
+	var receivedSaveVaultPayload: EncryptedVaultPayload?
 	var receivedChangePasswordAccessToken: String?
 	var receivedChangePasswordRequest: ChangePasswordRequestPayload?
 	var receivedDeleteAccountAccessToken: String?
@@ -25,6 +29,7 @@ private final class MockAuthNetworkClient: AuthNetworkClientProtocol, @unchecked
 	var registerResponseToReturn: RegisterResponsePayload?
 	var loginResponseToReturn: LoginResponsePayload?
 	var getVaultResponseToReturn: GetVaultResponsePayload?
+	var saveVaultResponseToReturn: Int?
 	var changePasswordResponseToReturn: ChangePasswordResponsePayload?
 
 	var shouldThrowError: Error?
@@ -32,6 +37,7 @@ private final class MockAuthNetworkClient: AuthNetworkClientProtocol, @unchecked
 	var registerError: Error?
 	var loginError: Error?
 	var getVaultError: Error?
+	var saveVaultError: Error?
 
 	static let defaultSalt = Data([
 		0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
@@ -102,6 +108,23 @@ private final class MockAuthNetworkClient: AuthNetworkClientProtocol, @unchecked
 		}
 
 		return getVaultResponseToReturn
+	}
+
+	func saveVault(
+		accessToken: String,
+		expectedRevision: Int,
+		payload: EncryptedVaultPayload
+	) async throws -> Int {
+		saveVaultCallCount += 1
+		receivedSaveVaultAccessToken = accessToken
+		receivedSaveVaultExpectedRevision = expectedRevision
+		receivedSaveVaultPayload = payload
+
+		if let error = saveVaultError ?? shouldThrowError {
+			throw error
+		}
+
+		return saveVaultResponseToReturn ?? (expectedRevision + 1)
 	}
 
 	func changePassword(

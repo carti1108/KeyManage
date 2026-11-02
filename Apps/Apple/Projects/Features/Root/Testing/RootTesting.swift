@@ -34,6 +34,9 @@ public final class MockVaultLockManager: VaultLockManagerProtocol, @unchecked Se
 	public var lastMasterPasswordUnlockDate: Date? = nil
 	public var currentBiometryStateHash: Data? = nil
 	public var revision: Int = 1
+	public var hasPendingSync: Bool = false
+	public var isOffline: Bool = false
+	public var isSyncing: Bool = false
 
 	public var onClipboardClearNeeded: (@Sendable () -> Void)? = nil
 
@@ -141,6 +144,17 @@ public final class MockVaultLockManager: VaultLockManagerProtocol, @unchecked Se
 		networkClient: AuthNetworkClientProtocol
 	) async throws -> Bool {
 		return false
+	}
+
+	public func sync(
+		networkClient: AuthNetworkClientProtocol,
+		now: Date
+	) async throws -> (vault: VaultData, revision: Int) {
+		return (decryptedVault ?? VaultData(updatedAt: "", items: []), revision)
+	}
+
+	public func setOffline(_ isOffline: Bool) {
+		self.isOffline = isOffline
 	}
 }
 

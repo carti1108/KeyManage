@@ -13,6 +13,7 @@ protocol VaultListPresentableListener: AnyObject {
 	func didRequestCopyUsername(item: VaultItem)
 	func didRequestSaveItem(existingId: String?, serviceName: String, username: String, password: String, url: String?, notes: String?)
 	func didRequestDeleteItem(id: String)
+	func didRequestSync() async
 }
 
 #if os(macOS)
@@ -56,11 +57,20 @@ final class VaultListViewController: VaultListPlatformHostingController<VaultLis
 		vm.onDeleteItem = { [weak self] id in
 			self?.listener?.didRequestDeleteItem(id: id)
 		}
+		vm.onSync = { [weak self] in
+			await self?.listener?.didRequestSync()
+		}
 	}
 
 	@available(*, unavailable)
 	required init?(coder: NSCoder) {
 		fatalError("init(coder:) has not been implemented")
+	}
+
+	func setSyncStatus(hasPending: Bool, isOffline: Bool, isSyncing: Bool) {
+		viewModel.hasPendingSync = hasPending
+		viewModel.isOffline = isOffline
+		viewModel.isSyncing = isSyncing
 	}
 
 	func displayItems(_ items: [VaultItem]) {
