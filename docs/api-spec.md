@@ -13,6 +13,7 @@
 | `/api/v1/auth/register` | POST | 불필요 | 2.5.2 가입 |
 | `/api/v1/auth/login` | POST | 불필요 | 2.5.3 로그인 |
 | `/api/v1/auth/logout` | POST | 필요 | 2.5.4 로그아웃 |
+| `/api/v1/auth/change-password` | POST | 필요 | 2.5.5 마스터 비밀번호 변경 |
 
 ---
 
@@ -221,3 +222,26 @@
 | URL | `POST /api/v1/auth/logout` |
 | 헤더 | `Authorization: Bearer <accessToken>` |
 | 응답 204 No Content | 이 토큰만 폐기한다. 이미 폐기된 토큰으로 다시 요청해도 204로 응답한다. |
+
+#### 2.5.5. 마스터 비밀번호 변경 (Change Password)
+
+KDF 값, 인증 해시, 볼트를 한 번에 교체한다(SEC-004, ADR-0023). 교체는 전부 되거나 전부 안 된다.
+
+| 항목 | 값 |
+| :--- | :--- |
+| URL | `POST /api/v1/auth/change-password` |
+| 헤더 | `Authorization: Bearer <accessToken>` |
+| 요청 | `{ "currentAuthHash": "<32바이트 Base64>", "newAuthHash": "<32바이트 Base64>", "kdf": { "iterations": 600000, "salt": "<16바이트 Base64>" }, "vault": { "expectedRevision": 7, "payload": { ...EncryptedVaultPayload } } }` |
+| 응답 200 OK | `{ "accessToken": "<새 토큰>", "expiresAt": "2026-12-02T11:20:00Z", "revision": 8 }` |
+
+1. `kdf.iterations`는 SEC-001 범위(600,000~10,000,000), `kdf.salt`는 16바이트다. `vault`는 2.4 볼트 저장과 같은 규칙(5MB 한도, `payload`는 객체)을 따른다.
+2. 성공하면 이 계정의 기존 세션은 요청에 쓴 토큰을 포함해 모두 폐기되고, 응답의 새 토큰만 유효하다.
+3. 응답의 `revision`은 교체한 볼트의 revision이다. 이전 revision에서 이어 올린다.
+4. 현재 인증 해시 확인에는 2.5.3 로그인과 같은 계정·IP 시도 제한을 적용한다.
+
+| 상태 | 코드 | 메시지 | 조건 |
+| :--- | :--- | :--- | :--- |
+| 401 | `AUTH_FAILED` | 이메일 또는 마스터 비밀번호가 올바르지 않습니다. | 현재 인증 해시가 틀렸다. 아무것도 바꾸지 않는다. |
+| 409 | `VAULT_CONFLICT` | (2.4와 같음) | `expectedRevision`이 서버 revision과 다르다. 아무것도 바꾸지 않는다. |
+| 413 | `VAULT_TOO_LARGE` | (2.4와 같음) | 볼트가 5MB를 넘는다. |
+| 429 | `TOO_MANY_ATTEMPTS` | (1장 공통 오류 코드) | 계정 또는 IP 시도 제한을 넘었다. |

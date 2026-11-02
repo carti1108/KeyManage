@@ -1,19 +1,27 @@
 package com.keymanage.back.api.auth
 
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.keymanage.back.api.error.ApiError
 import com.keymanage.back.api.error.ApiException
+import com.keymanage.back.domain.auth.Account
 import com.keymanage.back.domain.auth.AuthHash
+import com.keymanage.back.domain.auth.ChangePasswordUseCase
 import com.keymanage.back.domain.auth.Email
 import com.keymanage.back.domain.auth.IssuedSession
 import com.keymanage.back.domain.auth.KdfParams
 import com.keymanage.back.domain.auth.LoginUseCase
 import com.keymanage.back.domain.auth.LogoutUseCase
+import com.keymanage.back.domain.auth.PasswordChange
 import com.keymanage.back.domain.auth.PreloginUseCase
 import com.keymanage.back.domain.auth.RegisterUseCase
 import com.keymanage.back.domain.auth.UnauthorizedException
+import com.keymanage.back.domain.vault.EncryptedVault
+import com.keymanage.back.domain.vault.Revision
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestAttribute
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
@@ -32,6 +40,8 @@ class AuthController(
     private val register: RegisterUseCase,
     private val login: LoginUseCase,
     private val logout: LogoutUseCase,
+    private val changePassword: ChangePasswordUseCase,
+    private val objectMapper: ObjectMapper,
 ) {
 
     @PostMapping("/prelogin")
@@ -62,6 +72,27 @@ class AuthController(
         logout.execute(BearerTokens.extract(authorization) ?: throw UnauthorizedException())
     }
 
+    // 토큰은 AuthTokenFilter가 확인하고 그 계정을 넘긴다. 볼트 페이로드는 볼트 저장처럼 해석하지 않고 문자열로 바꾼다 (api-spec 2.5.5)
+    @PostMapping("/change-password")
+    fun changePassword(
+        @RequestAttribute(AuthTokenFilter.ACCOUNT_ATTRIBUTE) account: Account,
+        @RequestBody request: ChangePasswordRequest,
+    ): ChangePasswordResponse {
+        val kdf = request.kdf ?: invalid()
+        val vault = request.vault ?: invalid()
+        val expectedRevision = vault.expectedRevision
+        if (expectedRevision == null || expectedRevision < 0 || vault.payload?.isObject != true) invalid()
+        val change = PasswordChange(
+            currentAuthHash = AuthHash.of(decode(request.currentAuthHash)),
+            newAuthHash = AuthHash.of(decode(request.newAuthHash)),
+            newKdf = KdfParams(decode(kdf.salt), kdf.iterations ?: invalid()),
+            expectedRevision = Revision(expectedRevision),
+            vault = EncryptedVault(objectMapper.writeValueAsString(vault.payload)),
+        )
+        val changed = changePassword.execute(account.email, change)
+        return ChangePasswordResponse(changed.session.token, changed.session.expiresAt.toString(), changed.revision.value)
+    }
+
     private fun decode(value: String?): ByteArray =
         value?.let { runCatching { Base64.getDecoder().decode(it) }.getOrNull() } ?: invalid()
 
@@ -88,3 +119,20 @@ data class TokenResponse(val accessToken: String, val expiresAt: String) {
         fun of(session: IssuedSession) = TokenResponse(session.token, session.expiresAt.toString())
     }
 }
+
+/** 비밀번호 변경 요청의 새 KDF 값 (api-spec 2.5.5) */
+data class KdfRequest(val iterations: Int?, val salt: String?)
+
+/** 비밀번호 변경 요청의 다시 암호화한 볼트. 볼트 저장과 같은 규칙이다 (api-spec 2.4·2.5.5) */
+data class ChangePasswordVaultRequest(val expectedRevision: Long?, val payload: JsonNode?)
+
+/** 비밀번호 변경 요청 (api-spec 2.5.5) */
+data class ChangePasswordRequest(
+    val currentAuthHash: String?,
+    val newAuthHash: String?,
+    val kdf: KdfRequest?,
+    val vault: ChangePasswordVaultRequest?,
+)
+
+/** 비밀번호 변경 응답. 새 토큰과 교체한 볼트의 revision (api-spec 2.5.5) */
+data class ChangePasswordResponse(val accessToken: String, val expiresAt: String, val revision: Long)
