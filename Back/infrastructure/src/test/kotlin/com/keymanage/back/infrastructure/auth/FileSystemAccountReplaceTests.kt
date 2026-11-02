@@ -182,8 +182,8 @@ class FileSystemAccountReplaceTests {
     fun `계정의 세션을 모두 지우고 다른 계정의 세션은 남긴다`() {
         val repository = sessions()
         val expiresAt = Instant.parse("2026-11-27T00:00:00Z")
-        val mine = listOf("a", "b").map { Session(it.repeat(64), email, expiresAt) }
-        val others = Session("c".repeat(64), Email.of("other@example.com"), expiresAt)
+        val mine = listOf("a", "b").map { Session(it.repeat(64), email, expiresAt, oldVaultId) }
+        val others = Session("c".repeat(64), Email.of("other@example.com"), expiresAt, newVaultId)
         (mine + others).forEach(repository::save)
 
         repository.deleteAllOf(email)
@@ -202,7 +202,7 @@ class FileSystemAccountReplaceTests {
     @Test
     fun `읽지 못하는 세션 파일은 건너뛰고 나머지 세션을 지운다`() {
         val repository = sessions()
-        val session = Session("d".repeat(64), email, Instant.parse("2026-11-27T00:00:00Z"))
+        val session = Session("d".repeat(64), email, Instant.parse("2026-11-27T00:00:00Z"), oldVaultId)
         repository.save(session)
         sessionsDir().resolve("e".repeat(64) + ".json").writeText("{")
         sessionsDir().resolve("unrelated.txt").writeText("x")

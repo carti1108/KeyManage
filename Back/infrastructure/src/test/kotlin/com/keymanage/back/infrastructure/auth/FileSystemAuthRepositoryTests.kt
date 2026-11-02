@@ -87,7 +87,7 @@ class FileSystemAuthRepositoryTests {
 
     @Test
     fun `저장한 세션은 토큰 해시로 다시 읽을 수 있다`() {
-        val session = Session("a".repeat(64), email, Instant.parse("2026-11-27T00:00:00Z"))
+        val session = Session("a".repeat(64), email, Instant.parse("2026-11-27T00:00:00Z"), account.vaultId)
         sessions().save(session)
 
         assertEquals(session, sessions().find(session.tokenHash))
@@ -96,7 +96,7 @@ class FileSystemAuthRepositoryTests {
     @Test
     fun `세션을 지우면 조회되지 않고 다시 지워도 실패하지 않는다`() {
         val repository = sessions()
-        val session = Session("b".repeat(64), email, Instant.parse("2026-11-27T00:00:00Z"))
+        val session = Session("b".repeat(64), email, Instant.parse("2026-11-27T00:00:00Z"), account.vaultId)
         repository.save(session)
 
         repository.delete(session.tokenHash)
@@ -113,7 +113,7 @@ class FileSystemAuthRepositoryTests {
 
     @Test
     fun `세션 파일에는 토큰 해시와 이메일, 만료 시각만 있다`() {
-        val session = Session("c".repeat(64), email, Instant.parse("2026-11-27T00:00:00Z"))
+        val session = Session("c".repeat(64), email, Instant.parse("2026-11-27T00:00:00Z"), account.vaultId)
         sessions().save(session)
 
         val text = root.resolve("sessions").resolve("${session.tokenHash}.json").readText()
