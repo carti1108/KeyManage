@@ -1,7 +1,7 @@
-# 2026-11-02 · Apple 시스템 네비게이션 표준 정렬 및 뷰포트 왜곡 수정
+# 2026-11-02 · Apple 시스템 네비게이션 표준 정렬 및 뷰포트 왜곡 수정 (#115)
 
-- 이슈·PR: [진행 중]
-- 커밋: b2b1af9
+- 이슈·PR: #115
+- 커밋: 70f9920
 
 > **요약** Apple 플랫폼(iOS/macOS)에서 발생한 화면 뷰포트 레터박스 왜곡(구형 호환 모드로 인한 찌그러짐 현상)을 `UILaunchScreen` 주입 및 Safe Area 보정으로 전면 해소했다. 또한 사용자의 "네비게이션 같은 것들은 최대한 시스템 활용해" 지침에 따라 커스텀 복합 컴포넌트를 Apple HIG(Human Interface Guidelines) 표준 시스템 컴포넌트로 전면 마이그레이션했다. `NavigationStack`, 시스템 툴바(`ToolbarItem`, `lock`, `plus`), 시스템 `.searchable` 검색바, 최신 `ContentUnavailableView` 빈 화면, 그리고 모달 시트의 인라인 네비게이션 및 취소/저장 시스템 툴바를 연동했다. Apple 6중 기계적 통합 검증 스위트(`Scripts/verify-apple.sh`)를 All Green으로 완벽하게 통과했다.
 
