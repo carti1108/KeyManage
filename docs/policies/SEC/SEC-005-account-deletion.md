@@ -51,7 +51,7 @@
 
 - 근거: [ADR-0024](../../adr/ADR-0024-account-deletion.md), [api-spec.md](../../api-spec.md) 2.5.6
 - 관련: SEC-002, SEC-003, SEC-004, VLT-003, VLT-004
-- 구현 현황: 백엔드·웹 구현 예정. Apple·Android는 후속
+- 구현 현황: 백엔드·웹 구현. Apple·Android는 후속
 
 <details><summary>이력</summary>
 
