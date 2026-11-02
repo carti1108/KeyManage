@@ -53,15 +53,23 @@ export function preprocessPassword(password: string): string {
 }
 
 /**
+ * 키를 만들기 전 KDF 값 검사. 백업 파일처럼 키 유도 전에 미리 거를 때도 쓴다 (SEC-001, VLT-004)
+ * @throws InvalidKdfParamsError 반복 횟수가 600,000~10,000,000 밖이거나 salt가 16바이트가 아닐 때
+ */
+export function assertValidKdf(salt: Uint8Array, iterations: number): void {
+  if (!Number.isInteger(iterations) || iterations < MIN_ITERATIONS || iterations > MAX_ITERATIONS) {
+    throw new InvalidKdfParamsError(`반복 횟수는 ${MIN_ITERATIONS} 이상 ${MAX_ITERATIONS} 이하여야 함`)
+  }
+  if (salt.length !== SALT_BYTES) throw new InvalidKdfParamsError(`salt는 ${SALT_BYTES}바이트여야 함`)
+}
+
+/**
  * @throws InvalidKdfParamsError 반복 횟수가 600,000~10,000,000 밖이거나 salt가 16바이트가 아닐 때.
  *   서버가 prelogin으로 약하거나 지나치게 큰 값을 내려주는 것을 막는다
  * @throws InvalidPasswordError 비밀번호에 짝이 맞지 않는 서로게이트가 있을 때
  */
 export async function deriveKeys(password: string, salt: Uint8Array<ArrayBuffer>, iterations: number): Promise<DerivedKeys> {
-  if (!Number.isInteger(iterations) || iterations < MIN_ITERATIONS || iterations > MAX_ITERATIONS) {
-    throw new InvalidKdfParamsError(`반복 횟수는 ${MIN_ITERATIONS} 이상 ${MAX_ITERATIONS} 이하여야 함`)
-  }
-  if (salt.length !== SALT_BYTES) throw new InvalidKdfParamsError(`salt는 ${SALT_BYTES}바이트여야 함`)
+  assertValidKdf(salt, iterations)
 
   const subtle = globalThis.crypto.subtle
   const encode = (text: string) => new TextEncoder().encode(text)

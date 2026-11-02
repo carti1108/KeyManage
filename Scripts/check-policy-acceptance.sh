@@ -205,6 +205,20 @@ if os.path.isdir(web_src_dir):
     ]
     check_invariants("Web", "7단계: 클립보드 자동 비우기(COM-001)", web_tests, web_clipboard_rules)
 
+    web_backup_rules = [
+        ("VLT-004 파일 이름(keymanage-backup-YYYYMMDD.json) 검증", r"keymanage-backup-"),
+        ("VLT-004 백업 형식 버전(formatVersion) 검증", r"formatVersion"),
+        ("VLT-004 파일 크기 한도(MAX_BACKUP_FILE_BYTES) 경계값 검증", r"MAX_BACKUP_FILE_BYTES"),
+        ("VLT-004 복원 규칙(restoreItems: 백업 시점으로 되돌리고 새 항목은 남김) 검증", r"restoreItems"),
+        ("VLT-004 내보내기 전 안내 문구 검증", r"이 파일은 내보낸 시점의 마스터 비밀번호로만 열 수 있습니다\."),
+        ("VLT-004 복원 전 안내 문구 검증", r"백업에 있던 항목은 백업 시점 내용으로 돌아갑니다\."),
+        ("VLT-004 비밀번호 오류·손상 문구('백업을 열 수 없습니다.') 검증", r"백업을 열 수 없습니다\."),
+        ("VLT-004 형식 오류 문구('KeyManage 백업 파일이 아닙니다.') 검증", r"KeyManage 백업 파일이 아닙니다\."),
+        ("VLT-004 새 버전 백업 문구 검증", r"더 새 버전의 앱에서 만든 백업입니다\."),
+        ("VLT-004 복원 완료 문구('백업에서 항목 N개를 복원했습니다.') 검증", r"백업에서 항목 .*복원했습니다"),
+    ]
+    check_invariants("Web", "8단계: 암호화 백업 내보내기와 복원(VLT-004)", web_tests, web_backup_rules)
+
 
 if not audited_platforms:
     print("오류: 감사할 플랫폼 테스트 디렉터리(Apps/Apple 또는 Apps/Web)를 찾을 수 없습니다.", file=sys.stderr)

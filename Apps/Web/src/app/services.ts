@@ -1,5 +1,6 @@
 // 어댑터를 만들어 domain 유스케이스에 끼운다. 화면에는 이 결과만 넘긴다 (ADR-0004, ADR-0013)
 import { browserScheduler } from '../adapters/browser/autoLockEvents'
+import { browserBackupFiles } from '../adapters/browser/browserBackupFiles'
 import { browserClipboard } from '../adapters/browser/browserClipboard'
 import { createBrowserTabs } from '../adapters/browser/browserTabs'
 import { createIndexedDbDeviceStore } from '../adapters/browser/indexedDbDeviceStore'
@@ -11,6 +12,7 @@ import { createAuthService } from '../domain/auth/authService'
 import { createClipboardBurner, type ClipboardBurner } from '../domain/clipboard/clipboardBurner'
 import type { DeviceStore } from '../domain/device/deviceRecord'
 import type { AutoLockSettingStore } from '../domain/lock/autoLockSetting'
+import type { BackupFiles } from '../domain/backup/backupFile'
 import { createVaultSession, type VaultSession } from '../domain/session/vaultSession'
 import type { Tabs } from '../domain/tabs/tabs'
 import { createRevisionMemory, createVaultSync } from '../domain/vault/vaultSync'
@@ -24,6 +26,8 @@ export interface Services {
   readonly tabs: Tabs
   /** 기기마다 저장하는 자동 잠금 시간. 계정과 묶지 않는다 (SEC-003, ADR-WEB-002) */
   readonly autoLockSetting: AutoLockSettingStore
+  /** 암호화 백업 파일 저장(다운로드)·고르기 (VLT-004) */
+  readonly backupFiles: BackupFiles
 }
 
 /**
@@ -54,5 +58,6 @@ export function createServices(
     clipboard: createClipboardBurner({ clipboard: browserClipboard, scheduler: browserScheduler, now: () => Date.now() }),
     tabs,
     autoLockSetting,
+    backupFiles: browserBackupFiles,
   }
 }

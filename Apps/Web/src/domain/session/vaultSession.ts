@@ -14,6 +14,8 @@ import { mergeVaults } from '../vault/mergeVaults'
 import { isReadOnly, parseVaultData, type VaultData } from '../vault/vaultData'
 import { RevisionRollbackError, VaultSyncConflictError, isTransientSyncError, type RevisionMemory, type SyncedVault, type VaultSync } from '../vault/vaultSync'
 import { mergeRecordIntoMemory, type MergedVault } from './recordMerge'
+import { createBackupFile, type BackupFile, type VaultBackup } from '../backup/backupFile'
+import { restoreBackupInto } from '../backup/restoreBackup'
 
 import {
   SessionExpiredError,
@@ -523,7 +525,7 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory, deviceS
     }
   }
 
-  return {
+  const session = {
     state(): SessionState {
       if (account === null) return { status: 'signedOut' }
       if (unlocked === null) return { status: 'locked', email: account.email, pendingSync: account.pendingSync }
@@ -664,6 +666,30 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory, deviceS
     },
 
     /**
+     * 화면의 볼트(대기 중인 변경 포함)를 지금 키로 새로 암호화해 계정의 KDF 값과 함께 백업 파일로 만든다 (VLT-004).
+     * 키는 세션 밖으로 나가지 않는다. 읽기 전용 볼트도 내보낸다
+     * @throws SessionStateError 잠금 해제 상태가 아니거나 암호화하는 사이 잠김
+     */
+    async exportBackup(now: Date): Promise<BackupFile> {
+      if (account === null || unlocked === null) throw new SessionStateError('잠금 해제 상태가 아님')
+      const { kdf } = account
+      const startedAt = epoch
+      const payload = await unlocked.sync.sealBackup(unlocked.vault.data)
+      ensureCurrent(startedAt)
+      return createBackupFile(payload, kdf, now)
+    },
+
+    /**
+     * 백업을 파일의 KDF 값과 비밀번호로 열어 백업에 있던 항목을 백업 시점 내용으로 되돌리고 save와 같이 저장한다 (VLT-004)
+     * @param now 복원 시각. 되돌린 항목의 수정 시각이 된다
+     * @returns 복원한 항목 수
+     * @throws ReadOnlyVaultError, BackupDecryptError, NewerBackupVersionError, SessionStateError, save의 오류
+     */
+    restoreBackup(backup: VaultBackup, password: string, now: Date): Promise<number> {
+      return restoreBackupInto(session, backup, password, now)
+    },
+
+    /**
      * 서버에 올리지 못한 변경 사항이 기기에도 아직 저장되지 않았는지(쓰는 중이거나 실패). 떠남 확인용 (VLT-002).
      * 잠겼거나 세션 만료로 로그아웃된 뒤 남긴 것도 센다
      */
@@ -759,6 +785,7 @@ export function createVaultSession({ auth, vaultSyncFor, revisionMemory, deviceS
       return () => syncListeners.delete(listener)
     },
   }
+  return session
 }
 
 export type VaultSession = ReturnType<typeof createVaultSession>

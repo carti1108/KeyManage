@@ -1,5 +1,6 @@
 // 화면 테스트용 가짜 세션. 상태를 직접 바꾸고 실제 세션처럼 잠금·잠금 해제 알림을 보낸다
 import { vi } from 'vitest'
+import { backupFileName, type VaultBackup } from '../domain/backup/backupFile'
 import type { SessionState } from '../domain/session/vaultSession'
 import { emptyVault, type VaultData } from '../domain/vault/vaultData'
 import type { SyncedVault } from '../domain/vault/vaultSync'
@@ -92,6 +93,9 @@ export function createFakeSession(initial: SessionState = { status: 'signedOut' 
       unlockListeners.add(listener)
       return () => unlockListeners.delete(listener)
     },
+    exportBackup: vi.fn(async (now: Date) => ({ name: backupFileName(now), text: '{}' })),
+    // 실제 세션처럼 복원 결과를 저장하지만 알림은 보내지 않는다. 테스트가 mockImplementation으로 볼트를 바꾼다
+    restoreBackup: vi.fn(async (_backup: VaultBackup, _password: string, _now: Date) => 0),
     pendingOnDevice: vi.fn(async () => devicePending ?? (current.status !== 'signedOut' && current.pendingSync)),
     onRemoteChange: (listener: () => void) => {
       remoteListeners.add(listener)

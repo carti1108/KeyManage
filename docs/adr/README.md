@@ -32,3 +32,4 @@
 | [ADR-0010](ADR-0010-client-composition-ios-and-shared-web.md) | 클라이언트 구성: iOS 네이티브와 웹 코드 공유(브라우저·데스크톱) 우선 | 채택 | 2026-10-28 |
 | [ADR-0011](ADR-0011-password-preprocessing-and-header-aad.md) | 마스터 비밀번호 전처리와 볼트 암호문 헤더 인증 | 채택 | 2026-10-29 |
 | [ADR-0021](ADR-0021-local-docker-compose-demo.md) | 데모는 받은 사람의 로컬 Docker Compose로 실행하고, 데스크톱 릴리스는 `https://localhost:8443`을 서버 주소로 빌드한다 | 채택 | 2026-11-01 |
+| [ADR-0022](ADR-0022-encrypted-backup-file-format.md) | 백업 파일은 볼트 암호화 컨테이너에 KDF 값을 붙인 JSON으로 하고, 내보낸 시점의 마스터 비밀번호로 잠근다 | 채택 | 2026-11-01 |
