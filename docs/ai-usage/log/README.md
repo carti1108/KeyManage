@@ -65,3 +65,4 @@
 | 057 | 2026-11-02 | [웹 암호화 백업 내보내기와 복원 (VLT-004)](057-web-encrypted-backup.md) |
 | 058 | 2026-11-02 | [AGENTS.md 범용화 및 작업 전 최신화·PR 전 Rebase 강제 게이트 구축](058-agents-md-and-rebase-enforcement.md) |
 | 059 | 2026-11-02 | [웹 세션 파일 분리(동작 변경 없음)](059-web-session-split.md) |
+| 060 | 2026-11-02 | [Apple VaultListFeature microRIBs 볼트 목록 및 소각 연동 (#97)](060-apple-vault-list-feature-ribs.md) |
