@@ -10,6 +10,8 @@ protocol VaultListPresentable: AnyObject {
 	var listener: VaultListPresentableListener? { get set }
 	func displayItems(_ items: [VaultItem])
 	func showToast(message: String)
+	func setIsReadOnly(_ isReadOnly: Bool)
+	func dismissItemSheet()
 }
 
 // MARK: - Interactor
@@ -21,6 +23,8 @@ final class VaultListInteractor: Interactor, VaultListInteractable, VaultListPre
 	weak var presenter: VaultListPresentable?
 	let lockManager: VaultLockManagerProtocol
 	let clipboardManager: ClipboardManagerProtocol
+
+	private var currentSearchQuery: String = ""
 
 	private var allItems: [VaultItem] {
 		(lockManager.decryptedVault?.items ?? []).filter { !$0.isDeleted }
@@ -39,10 +43,12 @@ final class VaultListInteractor: Interactor, VaultListInteractable, VaultListPre
 
 	override func didBecomeActive() {
 		super.didBecomeActive()
-		presenter?.displayItems(allItems)
+		presenter?.setIsReadOnly(lockManager.decryptedVault?.isReadOnly ?? false)
+		refreshList()
 	}
 
 	func didSearch(query: String) {
+		currentSearchQuery = query
 		let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
 		if trimmed.isEmpty {
 			presenter?.displayItems(allItems)
@@ -53,6 +59,10 @@ final class VaultListInteractor: Interactor, VaultListInteractable, VaultListPre
 			}
 			presenter?.displayItems(filtered)
 		}
+	}
+
+	private func refreshList() {
+		didSearch(query: currentSearchQuery)
 	}
 
 	func didRequestCopyPassword(item: VaultItem) {
@@ -70,6 +80,59 @@ final class VaultListInteractor: Interactor, VaultListInteractable, VaultListPre
 			presenter?.showToast(message: "아이디가 복사되었습니다.")
 		} catch {
 			presenter?.showToast(message: ClipboardStrings.copyFailedMessage)
+		}
+	}
+
+	func didRequestSaveItem(
+		existingId: String?,
+		serviceName: String,
+		username: String,
+		password: String,
+		url: String?,
+		notes: String?
+	) {
+		do {
+			if let id = existingId {
+				guard let currentItem = allItems.first(where: { $0.id == id }) else {
+					throw VaultItemError.itemNotFound
+				}
+				var updatedItem = currentItem
+				updatedItem.serviceName = serviceName
+				updatedItem.username = username
+				updatedItem.password = password
+				updatedItem.url = url
+				updatedItem.notes = notes
+				try lockManager.updateVaultItem(item: updatedItem)
+				presenter?.showToast(message: "항목이 수정되었습니다.")
+			} else {
+				try lockManager.addVaultItem(
+					serviceName: serviceName,
+					username: username,
+					password: password,
+					url: url,
+					notes: notes
+				)
+				presenter?.showToast(message: "항목이 추가되었습니다.")
+			}
+			presenter?.dismissItemSheet()
+			refreshList()
+		} catch let error as LocalizedError {
+			presenter?.showToast(message: error.errorDescription ?? error.localizedDescription)
+		} catch {
+			presenter?.showToast(message: error.localizedDescription)
+		}
+	}
+
+	func didRequestDeleteItem(id: String) {
+		do {
+			try lockManager.deleteVaultItem(id: id)
+			presenter?.showToast(message: "항목이 삭제되었습니다.")
+			presenter?.dismissItemSheet()
+			refreshList()
+		} catch let error as LocalizedError {
+			presenter?.showToast(message: error.errorDescription ?? error.localizedDescription)
+		} catch {
+			presenter?.showToast(message: error.localizedDescription)
 		}
 	}
 }

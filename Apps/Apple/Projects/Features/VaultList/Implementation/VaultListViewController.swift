@@ -11,6 +11,8 @@ protocol VaultListPresentableListener: AnyObject {
 	func didSearch(query: String)
 	func didRequestCopyPassword(item: VaultItem)
 	func didRequestCopyUsername(item: VaultItem)
+	func didRequestSaveItem(existingId: String?, serviceName: String, username: String, password: String, url: String?, notes: String?)
+	func didRequestDeleteItem(id: String)
 }
 
 #if os(macOS)
@@ -41,6 +43,19 @@ final class VaultListViewController: VaultListPlatformHostingController<VaultLis
 		vm.onCopyUsername = { [weak self] item in
 			self?.listener?.didRequestCopyUsername(item: item)
 		}
+		vm.onSaveItem = { [weak self] existingId, serviceName, username, password, url, notes in
+			self?.listener?.didRequestSaveItem(
+				existingId: existingId,
+				serviceName: serviceName,
+				username: username,
+				password: password,
+				url: url,
+				notes: notes
+			)
+		}
+		vm.onDeleteItem = { [weak self] id in
+			self?.listener?.didRequestDeleteItem(id: id)
+		}
 	}
 
 	@available(*, unavailable)
@@ -52,13 +67,16 @@ final class VaultListViewController: VaultListPlatformHostingController<VaultLis
 		viewModel.items = items
 	}
 
+	func setIsReadOnly(_ isReadOnly: Bool) {
+		viewModel.isReadOnly = isReadOnly
+	}
+
+	func dismissItemSheet() {
+		viewModel.isItemSheetPresented = false
+		viewModel.editingItem = nil
+	}
+
 	func showToast(message: String) {
-		viewModel.toastMessage = message
-		Task { @MainActor [weak self] in
-			try? await Task.sleep(nanoseconds: 2_500_000_000)
-			if self?.viewModel.toastMessage == message {
-				self?.viewModel.toastMessage = nil
-			}
-		}
+		viewModel.showToast(message)
 	}
 }

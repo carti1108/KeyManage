@@ -74,3 +74,4 @@
 | 066 | 2026-11-02 | [Web 사이드바 마스터 비밀번호 변경 버튼 스타일 정합성 개선 (#109)](066-web-change-password-sidebar-styling.md) |
 | 067 | 2026-11-02 | [Apple SEC-004 마스터 비밀번호 변경 및 원격 KDF 변경 감지 (#110)](067-apple-sec-004-master-password-change.md) |
 | 068 | 2026-11-02 | [계정 삭제 (SEC-005)](068-account-deletion.md) |
+| 069 | 2026-11-02 | [Apple VLT-001 볼트 아이템 추가, 수정, 삭제(CRUD) 모달 구현 (#114)](069-apple-vault-item-crud-vlt-001.md) |
