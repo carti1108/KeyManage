@@ -6,7 +6,7 @@ import { VaultDecryptError, openVault } from '../crypto/vaultCipher'
 import { mergeVaults } from '../vault/mergeVaults'
 import { parseVaultData } from '../vault/vaultData'
 import { RevisionRollbackError, type SyncedVault, type VaultSync } from '../vault/vaultSync'
-import { clear, expire, isUnauthorized, type SessionContext } from './sessionContext'
+import { expire, isUnauthorized, signOutForChangedPassword, type SessionContext } from './sessionContext'
 import { SessionStateError, WrongMasterPasswordError, type Account, type RollbackOption } from './sessionTypes'
 
 /** 비밀번호로 이 기기의 볼트를 열어 확인한다. 틀리면 인증 해시도 지운다 */
@@ -39,8 +39,8 @@ export async function verifyOrDetectChange(ctx: SessionContext, password: string
       // 오프라인·서버 오류면 바뀌었는지 알 수 없다. 비밀번호 틀림으로 둔다
     }
     if (!changed || ctx.generation !== startedGeneration) throw error
-    // 기기 기록은 새 비밀번호로 로그인에 성공할 때 버린다 (ADR-0020)
-    clear(ctx)
+    // 다른 탭 감지와 같이 정리한다. 알림 대신 오류로 부른 쪽(잠금 해제·재연결)에 알린다
+    signOutForChangedPassword(ctx, target)
     throw new MasterPasswordChangedError()
   }
 }
@@ -56,8 +56,8 @@ export async function resumeSession(ctx: SessionContext, target: Account, authHa
     return { accessToken: (await ctx.deps.auth.resume(target.email, target.kdf, authHash)).accessToken }
   } catch (error) {
     if (error instanceof MasterPasswordChangedError) {
-      // 기기 기록은 새 비밀번호로 로그인에 성공할 때 버린다 (ADR-0020)
-      if (ctx.generation === startedGeneration) clear(ctx)
+      // 잠금 해제 때 서버 감지와 같이 정리한다. 기기 기록은 새 비밀번호로 로그인에 성공할 때 버린다 (ADR-0020)
+      if (ctx.generation === startedGeneration) signOutForChangedPassword(ctx, target)
       throw error
     }
     // 그 밖의 실패여도 비밀번호는 이 기기에서 확인했으니 볼트는 연다. 사유는 부른 쪽이 알린다

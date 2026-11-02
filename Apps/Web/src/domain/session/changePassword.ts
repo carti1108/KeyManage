@@ -158,12 +158,14 @@ async function adopt(ctx: SessionContext, changed: ChangedPassword, creds: NewCr
   ctx.deps.revisionMemory.raise(changed.revision)
   ctx.account = { email: target.email, accessToken: changed.accessToken, kdf: creds.kdf, payload: vault.payload ?? creds.payload, revision: changed.revision, pendingSync }
   if (ctx.unlocked !== null) ctx.unlocked = { sync: syncFor(ctx, changed.accessToken, creds.encryptionKey), vault, pendingSync }
-  rememberKdf(ctx, target.email, creds.kdf)
   // 옛 KDF 값의 기록은 이 탭이 덮어쓴다. 다른 탭은 바뀐 KDF 값을 보고 로그인 화면으로 간다 (SEC-003 규칙 11, ADR-WEB-001)
-  await ctx.deps.tabs.lock.run('device', async () => {
+  const written = await ctx.deps.tabs.lock.run('device', async () => {
     const current = await readDevice(ctx).catch(() => null)
-    await writeLocked(ctx, current)
+    return writeLocked(ctx, current)
   })
+  // 탭 기억은 기기 기록과 맞춘다. 기록을 쓰지 못했으면 기록에는 옛 KDF 값이 남으므로 기억도 그대로 둔다.
+  // 새로고침하면 옛 기록의 잠금 화면으로 열리고, 잠금 해제 때 서버에서 바뀐 것을 알아 로그인 화면으로 간다
+  if (written === true) rememberKdf(ctx, target.email, creds.kdf)
   return pendingSync
 }
 

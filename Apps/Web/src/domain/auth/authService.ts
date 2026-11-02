@@ -40,6 +40,11 @@ export interface AuthResult {
   readonly kdf: UnlockKdf
 }
 
+/** 서버가 준 KDF 값이 기기에 저장한 값과 다른지(지원하지 않는 KDF 포함). 다르면 다른 곳에서 비밀번호가 바뀐 것으로 본다 (SEC-003 규칙 11) */
+function kdfDiffers(params: KdfParams, kdf: UnlockKdf): boolean {
+  return params.kdf !== SUPPORTED_KDF || params.salt !== kdf.salt || params.iterations !== kdf.iterations
+}
+
 /** 앞뒤 공백 제거·소문자. 서버도 같은 규칙으로 비교한다 (api-spec 2.5) */
 export function normalizeEmail(email: string): string {
   const normalized = email.trim().toLowerCase()
@@ -86,9 +91,7 @@ export function createAuthService(api: AuthApi) {
     async resume(email: string, kdf: UnlockKdf, authHash: Uint8Array): Promise<Session> {
       try {
         const params = await api.prelogin(email)
-        if (params.kdf !== SUPPORTED_KDF || params.salt !== kdf.salt || params.iterations !== kdf.iterations) {
-          throw new MasterPasswordChangedError()
-        }
+        if (kdfDiffers(params, kdf)) throw new MasterPasswordChangedError()
         return await api.login({ email, authHash: takeAuthHash(authHash) })
       } catch (error) {
         if (error instanceof ServerError && error.code === 'AUTH_FAILED') throw new MasterPasswordChangedError()
@@ -104,8 +107,7 @@ export function createAuthService(api: AuthApi) {
      * @throws 서버 통신 오류(NetworkError 등). 부른 쪽이 확인 실패로 다룬다
      */
     async kdfChanged(email: string, kdf: UnlockKdf): Promise<boolean> {
-      const params = await api.prelogin(email)
-      return params.kdf !== SUPPORTED_KDF || params.salt !== kdf.salt || params.iterations !== kdf.iterations
+      return kdfDiffers(await api.prelogin(email), kdf)
     },
 
     logout(accessToken: string): Promise<void> {

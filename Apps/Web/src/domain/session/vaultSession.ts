@@ -4,6 +4,7 @@
 // 상태는 sessionContext, 기기 기록은 deviceSync, 대기 재전송은 pendingPush, 로그인은 signIn, 잠금 해제 단계는 unlockSteps가 맡는다
 import { MasterPasswordChangedError, normalizeEmail } from '../auth/authService'
 import { sameKdf } from '../device/reconcileDeviceRecord'
+import { rememberedKdf } from '../device/tabMemory'
 import { DeviceStorageError } from '../device/deviceRecord'
 import { NetworkError } from '../server/serverErrors'
 import { isReadOnly, type VaultData } from '../vault/vaultData'
@@ -236,6 +237,8 @@ export function createVaultSession(deps: VaultSessionDeps) {
       const remembered = deps.tabMemory?.get() ?? null
       if (remembered !== null && remembered.email === record.email && !sameKdf(remembered, record.kdf)) {
         ctx.lastEmail = record.email
+        // 안내는 한 번만 한다. 다음 새로고침부터는 기록의 KDF 값으로 잠금 화면에서 시작한다(오프라인에서도 새 비밀번호로 열림)
+        deps.tabMemory?.set(rememberedKdf(record.email, record.kdf))
         throw new MasterPasswordChangedError()
       }
       const { email, kdf, payload, revision, pendingSync } = record

@@ -142,6 +142,17 @@ export function rememberKdf(ctx: SessionContext, email: string, kdf: UnlockKdf) 
   ctx.deps.tabMemory?.set(rememberedKdf(email, kdf))
 }
 
+/**
+ * 다른 곳에서 비밀번호가 바뀌어 로그인 전 상태로 바꾼다. 기기 기록은 새 비밀번호로 로그인에 성공할 때 버린다 (ADR-0020).
+ * 이 탭은 이미 안내를 받으므로 탭 기억을 기기 기록의 KDF 값([recorded])으로 맞춰, 새로고침할 때 같은 안내를 다시 하지 않는다 (SEC-003 규칙 11)
+ */
+export function signOutForChangedPassword(ctx: SessionContext, recorded: { readonly email: string; readonly kdf: UnlockKdf }) {
+  clear(ctx)
+  ctx.lastSeen = null
+  rememberKdf(ctx, recorded.email, recorded.kdf)
+  notify(ctx.remoteListeners)
+}
+
 /** 로그인 상태를 지운다. 기기 기록은 부른 쪽이 정하고, 탭 기억은 지운다 */
 export function resetSignIn(ctx: SessionContext) {
   clear(ctx)

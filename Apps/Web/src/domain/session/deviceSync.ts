@@ -7,7 +7,7 @@ import type { TabMessageKind } from '../tabs/tabs'
 import { isReadOnly } from '../vault/vaultData'
 import type { SyncedVault, VaultSync } from '../vault/vaultSync'
 import { mergeRecordIntoMemory, type MergedVault } from './recordMerge'
-import { clear, lockThisTab, notify, notifySync, readDevice, rememberKdf, resetSignIn, revoke, type SessionContext } from './sessionContext'
+import { lockThisTab, notify, notifySync, readDevice, rememberKdf, resetSignIn, revoke, signOutForChangedPassword, type SessionContext } from './sessionContext'
 import { SessionStateError } from './sessionTypes'
 
 /** 다른 탭의 로그아웃·계정 전환을 따른다. 기기 기록은 건드리지 않고, 이 탭의 토큰은 서버에서 폐기한다 (ADR-WEB-001) */
@@ -19,26 +19,28 @@ function signOutLocally(ctx: SessionContext) {
 }
 
 /** 다른 탭에서 바뀐 비밀번호로 로그인했다. 쓰지 않고 로그인 화면으로 보낸다 (SEC-003) */
-function passwordChangedElsewhere(ctx: SessionContext) {
-  clear(ctx)
-  ctx.lastSeen = null
+function passwordChangedElsewhere(ctx: SessionContext, record: DeviceRecord) {
+  signOutForChangedPassword(ctx, record)
   notifySync(ctx, new MasterPasswordChangedError())
-  notify(ctx.remoteListeners)
 }
 
-/** 메모리의 계정 기록을 쓴다. 기기 기록이 이미 같으면 쓰지 않는다. 탭 간 잠금 안에서만 부른다 */
-export async function writeLocked(ctx: SessionContext, current: DeviceRecord | null): Promise<void> {
-  if (ctx.account === null) return
+/**
+ * 메모리의 계정 기록을 쓴다. 기기 기록이 이미 같으면 쓰지 않는다. 탭 간 잠금 안에서만 부른다
+ * @returns 기기 기록이 메모리의 계정과 같아졌는지(이미 같았거나 썼음)
+ */
+export async function writeLocked(ctx: SessionContext, current: DeviceRecord | null): Promise<boolean> {
+  if (ctx.account === null) return false
   const { email, kdf, payload, revision, pendingSync } = ctx.account
   const record: DeviceRecord = { version: DEVICE_RECORD_VERSION, email, kdf, payload, revision, lastSeenRevision: ctx.deps.revisionMemory.get(), pendingSync }
   // 볼트는 5MB까지 크므로 바뀐 것이 없으면(잠금 해제 직후 같은 볼트 등) 다시 쓰지 않는다
   if (current !== null && !ctx.device.hasFailed() && sameRecord(current, record)) {
     ctx.lastSeen = current
-    return
+    return true
   }
   const saved = await ctx.device.save(record)
   ctx.lastSeen = saved ? record : current
   if (saved) ctx.deps.tabs.channel.post('record-changed')
+  return saved
 }
 
 /**
@@ -56,7 +58,7 @@ async function mergeLocked(ctx: SessionContext, theirs: DeviceRecord): Promise<b
     const mine = { data: opened.vault.data, payload: base.payload, revision: base.revision, lastSeenRevision: revisionMemory.get(), pendingSync: base.pendingSync }
     merged = await mergeRecordIntoMemory(mine, theirs, opened.sync)
   } catch (error) {
-    if (error instanceof VaultDecryptError) passwordChangedElsewhere(ctx)
+    if (error instanceof VaultDecryptError) passwordChangedElsewhere(ctx, theirs)
     else ctx.device.markFailed(error)
     return false
   }
@@ -90,7 +92,7 @@ async function persistLocked(ctx: SessionContext): Promise<void> {
   ctx.deviceRead = true
   const decision = reconcileDeviceRecord({ current, lastSeen: ctx.lastSeen, email: target.email, kdf: target.kdf, unlocked: ctx.unlocked !== null })
   if (decision.kind === 'loggedOutElsewhere') return signOutLocally(ctx)
-  if (decision.kind === 'passwordChanged') return passwordChangedElsewhere(ctx)
+  if (decision.kind === 'passwordChanged' && current !== null) return passwordChangedElsewhere(ctx, current)
   if (decision.kind === 'skip') return
   if (decision.kind === 'merge' && !(await mergeLocked(ctx, decision.record))) return
   await writeLocked(ctx, current)
@@ -137,7 +139,7 @@ export async function refreshLockedFromDevice(ctx: SessionContext, replaceMemory
     if (record.email !== target.email) return signOutLocally(ctx)
     if (!sameKdf(record.kdf, target.kdf)) {
       outcome = 'passwordChanged'
-      return passwordChangedElsewhere(ctx)
+      return passwordChangedElsewhere(ctx, record)
     }
     if (!replaceMemory || ctx.lastSeen === null || !samePayload(ctx.lastSeen.payload, target.payload) || ctx.device.isBehind()) return
     ctx.lastSeen = record
