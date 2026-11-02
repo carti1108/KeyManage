@@ -14,7 +14,7 @@ const NEW_PASSWORD = 'integration-new-master-password'
 
 const device = (): VaultSession => createServices(API, createIndexedDbDeviceStore(new IDBFactory())).session
 
-function names(session: VaultSession): string[] {
+function names(session: VaultSession) {
   const state = session.state()
   if (state.status !== 'unlocked') throw new Error(`볼트가 열려 있지 않음: ${state.status}`)
   return activeItems(state.vault.data)
