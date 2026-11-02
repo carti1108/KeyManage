@@ -612,4 +612,226 @@ final class VaultLockTests: XCTestCase {
 		let decoded = try VaultData.decode(from: encoded)
 		XCTAssertEqual(decoded, emptyVault)
 	}
+
+	// MARK: - 19. VLT-004 VaultLockManager 백업 내보내기/복원 연동 검증
+	func testVaultLockManagerBackupExportAndRestore() throws {
+		let manager = VaultLockManager()
+		let password = "ValidPassword123!"
+		let salt = Data([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10])
+		let iterations = 600_000
+		let fixedDate = Date(timeIntervalSince1970: 1_730_000_000)
+
+		// 1. 세션 미설정/잠금 시 백업 시도 -> 거절
+		XCTAssertThrowsError(try manager.exportBackup()) { error in
+			XCTAssertEqual(error as? KeyManageBackupError, .sessionNotUnlocked)
+		}
+
+		// 2. 세션 설정 및 잠금 해제
+		let normalized = try PasswordPreprocessor.preprocess(password)
+		let masterKey = try PBKDF2KeyDeriver.deriveMasterKey(password: normalized, salt: salt, iterations: iterations)
+		let keys = try HKDFKeySeparator.separate(masterKey: masterKey)
+
+		let initialItem = VaultItem(
+			id: "item-1",
+			serviceName: "Google",
+			username: "test@google.com",
+			password: "secretPassword",
+			createdAt: "2026-11-01T10:00:00Z",
+			updatedAt: "2026-11-01T10:00:00Z"
+		)
+		var vault = VaultData.empty(now: fixedDate)
+		vault.items = [initialItem]
+
+		let encryptedPayload = try VaultCipher.encrypt(plaintext: try vault.encode(), key: keys.encryptionKey)
+		manager.setupSession(
+			email: "user@example.com",
+			sessionToken: "session-token",
+			salt: salt,
+			iterations: iterations,
+			encryptedVault: encryptedPayload
+		)
+		try manager.unlockWithMasterPassword(password: password, now: fixedDate)
+
+		// 3. 잠금 해제 상태에서 내보내기 성공
+		let (fileName, exportData) = try manager.exportBackup(now: fixedDate)
+		XCTAssertTrue(fileName.hasPrefix("keymanage-backup-"))
+		XCTAssertGreaterThan(exportData.count, 0)
+
+		// 4. 로컬에서 아이템 수정 및 새 아이템 추가
+		var localVault = manager.decryptedVault!
+		localVault.items[0].password = "ModifiedPassword"
+		localVault.items[0].updatedAt = "2026-11-01T12:00:00Z"
+		let newItem = VaultItem(
+			id: "item-2",
+			serviceName: "GitHub",
+			username: "gituser",
+			password: "gitpassword",
+			createdAt: "2026-11-01T13:00:00Z",
+			updatedAt: "2026-11-01T13:00:00Z"
+		)
+		localVault.items.append(newItem)
+		let modifiedEncrypted = try VaultCipher.encrypt(plaintext: try localVault.encode(), key: keys.encryptionKey)
+		manager.setupSession(
+			email: "user@example.com",
+			sessionToken: "session-token",
+			salt: salt,
+			iterations: iterations,
+			encryptedVault: modifiedEncrypted
+		)
+		try manager.unlockWithMasterPassword(password: password, now: fixedDate)
+
+		// 5. 백업 파일로 복원 수행 -> 수정된 아이템 1개 되돌림, 새 아이템 유지
+		let restoreDate = fixedDate.addingTimeInterval(3600)
+		let (restoredCount, newVault) = try manager.restoreBackup(fileData: exportData, password: password, now: restoreDate)
+		XCTAssertEqual(restoredCount, 1)
+		XCTAssertEqual(newVault.items.first(where: { $0.id == "item-1" })?.password, "secretPassword")
+		XCTAssertEqual(manager.decryptedVault?.items.first(where: { $0.id == "item-1" })?.password, "secretPassword")
+
+		// 6. 잠금 후 복원 시도 -> 거절
+		manager.lock()
+		XCTAssertThrowsError(try manager.restoreBackup(fileData: exportData, password: password)) { error in
+			XCTAssertEqual(error as? KeyManageBackupError, .sessionNotUnlocked)
+		}
+	}
+
+	// MARK: - 20. VLT-004 읽기 전용 볼트 복원 거절 및 내보내기 허용 검증
+	func testVaultLockManagerReadOnlyVaultRejectsRestoreButAllowsExport() throws {
+		let manager = VaultLockManager()
+		let password = "ReadOnlyPassword123!"
+		let salt = Data([0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A])
+		let iterations = 600_000
+		let fixedDate = Date(timeIntervalSince1970: 1_730_000_000)
+
+		let normalized = try PasswordPreprocessor.preprocess(password)
+		let masterKey = try PBKDF2KeyDeriver.deriveMasterKey(password: normalized, salt: salt, iterations: iterations)
+		let keys = try HKDFKeySeparator.separate(masterKey: masterKey)
+
+		// 읽기 전용 볼트 (version: 2 > currentVersion)
+		let readOnlyVault = VaultData(
+			version: 2,
+			updatedAt: "2026-11-01T10:00:00Z",
+			items: [
+				VaultItem(
+					id: "ro-item-1",
+					serviceName: "ReadOnlyService",
+					username: "user",
+					password: "pwd",
+					createdAt: "2026-11-01T10:00:00Z",
+					updatedAt: "2026-11-01T10:00:00Z"
+				)
+			],
+			isReadOnly: true
+		)
+
+		let encrypted = try VaultCipher.encrypt(plaintext: try readOnlyVault.encode(), key: keys.encryptionKey)
+		manager.setupSession(
+			email: "readonly@example.com",
+			sessionToken: "session-token",
+			salt: salt,
+			iterations: iterations,
+			encryptedVault: encrypted
+		)
+		try manager.unlockWithMasterPassword(password: password, now: fixedDate)
+
+		XCTAssertTrue(manager.decryptedVault?.isReadOnly == true)
+
+		// 1. 읽기 전용 볼트도 내보내기는 성공해야 함 (VLT-004 규칙 10)
+		let (fileName, exportData) = try manager.exportBackup(now: fixedDate)
+		XCTAssertTrue(fileName.hasPrefix("keymanage-backup-"))
+		XCTAssertGreaterThan(exportData.count, 0)
+
+		// 2. 읽기 전용 볼트에는 복원 시도 시 readOnlyVault 에러로 거절 (VLT-004 규칙 10)
+		XCTAssertThrowsError(try manager.restoreBackup(fileData: exportData, password: password, now: fixedDate)) { error in
+			XCTAssertEqual(error as? KeyManageBackupError, .readOnlyVault)
+		}
+	}
+
+	// MARK: - 21. VLT-004 복원 결과 볼트 5MB 한도 초과 시 거부 검증
+	func testVaultLockManagerRestoreRejectsWhenRestoredVaultExceeds5MB() throws {
+		let manager = VaultLockManager()
+		let password = "LargeVaultPassword123!"
+		let salt = Data([0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00])
+		let iterations = 600_000
+		let fixedDate = Date(timeIntervalSince1970: 1_730_000_000)
+
+		let normalized = try PasswordPreprocessor.preprocess(password)
+		let masterKey = try PBKDF2KeyDeriver.deriveMasterKey(password: normalized, salt: salt, iterations: iterations)
+		let keys = try HKDFKeySeparator.separate(masterKey: masterKey)
+
+		// 로컬 볼트: 거의 4MB에 달하는 대형 아이템 보유
+		let localLargeNote = String(repeating: "L", count: 3_800_000)
+		let localItem = VaultItem(
+			id: "large-local-item",
+			serviceName: "LocalLarge",
+			username: "user",
+			password: "pwd",
+			notes: localLargeNote,
+			createdAt: "2026-11-01T10:00:00Z",
+			updatedAt: "2026-11-01T10:00:00Z"
+		)
+		var localVault = VaultData.empty(now: fixedDate)
+		localVault.items = [localItem]
+
+		let encrypted = try VaultCipher.encrypt(plaintext: try localVault.encode(), key: keys.encryptionKey)
+		manager.setupSession(
+			email: "large@example.com",
+			sessionToken: "session-token",
+			salt: salt,
+			iterations: iterations,
+			encryptedVault: encrypted
+		)
+		try manager.unlockWithMasterPassword(password: password, now: fixedDate)
+
+		// 백업 볼트: 독립적인 다른 2MB 대형 아이템 보유 -> 합치면 5.8MB로 5MB 한도 초과
+		let backupLargeNote = String(repeating: "B", count: 2_000_000)
+		let backupItem = VaultItem(
+			id: "large-backup-item",
+			serviceName: "BackupLarge",
+			username: "user",
+			password: "pwd",
+			notes: backupLargeNote,
+			createdAt: "2026-11-01T09:00:00Z",
+			updatedAt: "2026-11-01T09:00:00Z"
+		)
+		var backupVault = VaultData.empty(now: fixedDate)
+		backupVault.items = [backupItem]
+
+		let service = BackupCipherService()
+		let (_, backupData) = try service.createBackupFile(
+			vault: backupVault,
+			encryptionKey: keys.encryptionKey,
+			salt: salt,
+			iterations: iterations,
+			now: fixedDate
+		)
+
+		// 복원 시도 -> 병합 결과가 5MB를 초과하므로 거절되어야 함
+		XCTAssertThrowsError(try manager.restoreBackup(fileData: backupData, password: password, now: fixedDate)) { error in
+			guard let backupError = error as? KeyManageBackupError else {
+				XCTFail("Expected KeyManageBackupError but got \(error)")
+				return
+			}
+			if case .notABackupFile(let msg) = backupError {
+				XCTAssertTrue(msg.contains("5MB"))
+			} else {
+				XCTFail("Expected notABackupFile with 5MB message but got \(backupError)")
+			}
+		}
+	}
+
+	// MARK: - 22. KeyManageBackupError LocalizedError 표준 문구 바인딩 검증
+	func testKeyManageBackupErrorLocalizedDescriptions() {
+		XCTAssertEqual(
+			KeyManageBackupError.notABackupFile("invalid").errorDescription,
+			KeyManageBackupStrings.notABackupFileMessage
+		)
+		XCTAssertEqual(
+			KeyManageBackupError.newerBackupVersion("v2").errorDescription,
+			KeyManageBackupStrings.newerVersionMessage
+		)
+		XCTAssertEqual(
+			KeyManageBackupError.backupDecryptFailed.errorDescription,
+			KeyManageBackupStrings.decryptFailedMessage
+		)
+	}
 }

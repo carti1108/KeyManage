@@ -43,9 +43,21 @@ public protocol VaultLockManagerProtocol: AnyObject, Sendable {
 	func unlockWithMasterPassword(password: String, now: Date) throws
 	func unlockWithBiometrics(evaluatedStateHash: Data, recoveredEncryptionKey: Data, now: Date) throws
 	func logout()
+
+	// VLT-004 암호화 백업 내보내기와 복원
+	func exportBackup(now: Date) throws -> (fileName: String, data: Data)
+	func restoreBackup(fileData: Data, password: String, now: Date) throws -> (restoredCount: Int, newVault: VaultData)
 }
 
 public extension VaultLockManagerProtocol {
+	func exportBackup(now: Date = Date()) throws -> (fileName: String, data: Data) {
+		try exportBackup(now: now)
+	}
+
+	func restoreBackup(fileData: Data, password: String, now: Date = Date()) throws -> (restoredCount: Int, newVault: VaultData) {
+		try restoreBackup(fileData: fileData, password: password, now: now)
+	}
+
 	func lockVault() {
 		lock()
 	}
@@ -444,6 +456,69 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 		_currentBiometryStateHash = nil
 		_lastMasterPasswordUnlockDate = nil
 		_isPrivacyCoverActive = false
+	}
+
+	public func exportBackup(now: Date = Date()) throws -> (fileName: String, data: Data) {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+
+		guard !_isLocked,
+		      let vault = _decryptedVault,
+		      let encKey = _encryptionKey,
+		      let salt = _salt,
+		      _iterations > 0 else {
+			throw KeyManageBackupError.sessionNotUnlocked
+		}
+
+		let service = BackupCipherService()
+		return try service.createBackupFile(
+			vault: vault,
+			encryptionKey: encKey,
+			salt: salt,
+			iterations: _iterations,
+			now: now
+		)
+	}
+
+	public func restoreBackup(
+		fileData: Data,
+		password: String,
+		now: Date = Date()
+	) throws -> (restoredCount: Int, newVault: VaultData) {
+		syncLock.lock()
+		defer { syncLock.unlock() }
+
+		guard !_isLocked,
+		      let currentVault = _decryptedVault,
+		      let encKey = _encryptionKey else {
+			throw KeyManageBackupError.sessionNotUnlocked
+		}
+
+		guard !currentVault.isReadOnly else {
+			throw KeyManageBackupError.readOnlyVault
+		}
+
+		let cipherService = BackupCipherService()
+		let backupVault = try cipherService.readAndDecryptBackup(fileData: fileData, password: password)
+
+		let merger = VaultBackupMerger()
+		let (mergedVault, restoredCount) = try merger.restoreItems(current: currentVault, backup: backupVault, now: now)
+
+		if restoredCount > 0 {
+			let encodedMerged = try mergedVault.encode()
+			guard encodedMerged.count <= BackupFileFormat.maxPayloadBytes else {
+				throw KeyManageBackupError.notABackupFile("복원 결과 볼트 크기(\(encodedMerged.count)B)가 5MB 한도를 초과했습니다.")
+			}
+			_decryptedVault = mergedVault
+			let reencrypted = try VaultCipher.encrypt(
+				plaintext: encodedMerged,
+				key: encKey
+			)
+			_encryptedVault = reencrypted
+			_lastInteractionTime = now
+		}
+
+		return (restoredCount: restoredCount, newVault: mergedVault)
 	}
 
 	private func internalLock() {
