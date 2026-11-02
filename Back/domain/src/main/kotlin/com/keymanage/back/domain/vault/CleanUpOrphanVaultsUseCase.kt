@@ -24,11 +24,17 @@ class CleanUpOrphanVaultsUseCase(
         }
         if (referenced.isEmpty()) return 0
 
-        return (vaults.allIds() - referenced).count { id ->
-            runCatching { vaults.delete(id) }
-                .onFailure { log.log(System.Logger.Level.WARNING, "고아 볼트를 지우지 못함: ${id.value}", it) }
-                .isSuccess
+        var deleted = 0
+        for (id in vaults.allIds() - referenced) {
+            try {
+                vaults.delete(id)
+                deleted += 1
+            } catch (e: Exception) {
+                // 하나를 지우지 못해도 나머지는 지운다. 남은 파일은 다음 시작 때 다시 시도한다
+                log.log(System.Logger.Level.WARNING, "고아 볼트를 지우지 못함: ${id.value}", e)
+            }
         }
+        return deleted
     }
 
     private companion object {
