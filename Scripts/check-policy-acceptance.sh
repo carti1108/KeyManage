@@ -262,9 +262,10 @@ if os.path.isdir(web_src_dir):
     check_invariants("Web", "9단계: 마스터 비밀번호 변경(SEC-004)", web_tests, web_password_change_rules)
 
     web_account_deletion_rules = [
-        ("SEC-005 삭제 흐름(deleteAccount) 검증", r"deleteAccount"),
+        ("SEC-005 삭제 대화상자('계정 삭제') 흐름 검증", r"getByRole\('dialog', \{ name: '계정 삭제' \}\)"),
         ("SEC-005 확인 문구 앞뒤 공백 불일치 경계값 검증", r"'계정 삭제 ', ' 계정 삭제'"),
-        ("SEC-005 확인 문구 일치 시 삭제 버튼 활성 검증", r"toBeEnabled\(\)"),
+        ("SEC-005 확인 문구 일치 시 삭제 버튼 활성 검증", r"fill\(dialog, \{ phrase: '계정 삭제' \}\)\s*expect\(deleteButton\(dialog\)\)\.toBeEnabled\(\)"),
+        ("SEC-005 확인 문구 NFC 정규화 경계값 검증", r"'계정 삭제'\.normalize\('NFD'\)"),
         ("SEC-005 오프라인 거절(AccountDeletionOfflineError) 검증", r"AccountDeletionOfflineError"),
         ("SEC-005 기기 기록 삭제 실패(AccountDeletedDeviceNotClearedError) 검증", r"AccountDeletedDeviceNotClearedError"),
         ("SEC-005 삭제 전 안내 본문 검증", r"계정과 볼트가 서버에서 바로 지워지고 되돌릴 수 없습니다\. 다른 기기도 모두 로그아웃되고, 아직 올리지 못한 변경 사항은 사라집니다\. 필요하면 먼저 백업을 내보내 주세요\."),
