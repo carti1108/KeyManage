@@ -3,6 +3,7 @@ package com.keymanage.back.config
 import com.keymanage.back.domain.auth.AccountRepository
 import com.keymanage.back.domain.auth.AuthenticateUseCase
 import com.keymanage.back.domain.auth.ChangePasswordUseCase
+import com.keymanage.back.domain.auth.DeleteAccountUseCase
 import com.keymanage.back.domain.auth.LoginAttemptLimiter
 import com.keymanage.back.domain.auth.LoginUseCase
 import com.keymanage.back.domain.auth.LogoutUseCase
@@ -83,6 +84,15 @@ class AuthConfiguration(
         issuer: SessionIssuer,
         limiter: LoginAttemptLimiter,
     ) = ChangePasswordUseCase(accounts, vaults, sessions, hasher, issuer, limiter)
+
+    @Bean
+    fun deleteAccountUseCase(
+        accounts: AccountRepository,
+        vaults: VaultRepository,
+        sessions: SessionRepository,
+        hasher: PasswordHasher,
+        limiter: LoginAttemptLimiter,
+    ) = DeleteAccountUseCase(accounts, vaults, sessions, hasher, limiter)
 
     // 모든 빈을 만든 뒤, 웹 서버가 요청을 받기 전에 한 번 정리한다. 요청과 겹치면 변경 중인 새 볼트를 고아로 볼 수 있다 (ADR-BE-001 결정 5)
     @Bean

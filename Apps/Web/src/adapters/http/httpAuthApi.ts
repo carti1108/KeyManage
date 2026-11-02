@@ -21,6 +21,9 @@ export function createHttpAuthApi(client: ApiClient): AuthApi {
     async changePassword(accessToken, request) {
       return toChangedPassword(await client.request('POST', '/auth/change-password', { accessToken, body: request }))
     },
+    async deleteAccount(accessToken, request) {
+      await client.request('POST', '/auth/delete-account', { accessToken, body: request })
+    },
   }
 }
 
