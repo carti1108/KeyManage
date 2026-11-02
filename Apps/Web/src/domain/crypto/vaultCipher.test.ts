@@ -85,6 +85,25 @@ describe('Base64 (RFC 4648 표준 형식)', () => {
     expect(fromBase64(toBase64(bytes))).toEqual(bytes)
   })
 
+  // 전체 테스트를 함께 돌리면 느려질 수 있어 시간 한도를 넉넉히 둔다
+  it('볼트 한도(5MB) 근처 크기도 스택 넘침 없이 왕복한다', { timeout: 30_000 }, () => {
+    // 내용 비교는 작은 데이터 테스트가 맡는다. 여기서는 길이에 따른 스택 넘침만 본다
+    const bytes = new Uint8Array(5_300_000)
+    bytes[0] = 0xfb
+    bytes[bytes.length - 1] = 0xff
+    const text = toBase64(bytes)
+
+    expect(toBase64(fromBase64(text))).toBe(text)
+    expect(fromBase64(toBase64(bytes.subarray(1)))).toHaveLength(bytes.length - 1)
+  })
+
+  it('패딩이 중간·앞에 있거나 길이가 4의 배수가 아니면 거절한다', () => {
+    for (const bad of ['AA=A', '=AAA', 'AAAA=', 'AAAAA===', 'AAAAA']) {
+      expect(() => fromBase64(bad), bad).toThrow(InvalidBase64Error)
+    }
+    expect(fromBase64('')).toHaveLength(0)
+  })
+
   it('표준이 아닌 입력은 거절한다', () => {
     for (const bad of ['AAA', 'AA A=', 'AA==\n', 'A-_=', 'A===']) {
       expect(() => fromBase64(bad), bad).toThrow(InvalidBase64Error)

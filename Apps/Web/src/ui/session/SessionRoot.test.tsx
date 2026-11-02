@@ -7,6 +7,8 @@ import { SessionExpiredError, WrongMasterPasswordError } from '../../domain/sess
 import { RevisionRollbackError, VaultSyncConflictError } from '../../domain/vault/vaultSync'
 import { createFakeClipboard } from '../../test/fakeClipboard'
 import { createFakeSession, fakeVault } from '../../test/fakeSession'
+import { BACKUP, backupText, fileSource } from '../../test/backupFixtures'
+import { addItem } from '../../domain/vault/vaultData'
 
 const clipboard = () => createFakeClipboard().clipboard
 import { SessionRoot } from './SessionRoot'
@@ -672,5 +674,57 @@ describe('SessionRoot 자동 잠금 설정 (SEC-003)', () => {
     render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} autoLock={{ timeoutMs: 60_000, onChange: () => undefined }} />)
 
     expect(screen.queryByRole('combobox', { name: '자동 잠금' })).not.toBeInTheDocument()
+  })
+})
+
+describe('SessionRoot 암호화 백업 (VLT-004)', () => {
+  const UNLOCKED = { status: 'unlocked', email: EMAIL, vault: fakeVault(), pendingSync: false, signedIn: true, storedOnDevice: true } as const
+
+  function backupFiles() {
+    return { save: vi.fn(), pick: vi.fn(async () => fileSource(backupText())) }
+  }
+
+  it('백업 파일 포트가 있으면 열린 볼트 머리글 아래에 진입점을 두고, 내보낸 파일을 저장한다', async () => {
+    const { session } = createFakeSession(UNLOCKED)
+    const files = backupFiles()
+    render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} backupFiles={files} />)
+
+    fireEvent.click(screen.getByRole('button', { name: '백업 내보내기' }))
+    fireEvent.click(screen.getByRole('button', { name: '내보내기' }))
+
+    await vi.waitFor(() => expect(files.save).toHaveBeenCalledOnce())
+    expect(session.exportBackup).toHaveBeenCalledOnce()
+  })
+
+  it('복원하면 세션에 넘기고 복원된 볼트로 화면을 다시 그린다', async () => {
+    const { session, control } = createFakeSession(UNLOCKED)
+    session.restoreBackup.mockImplementationOnce(async () => {
+      control.commitPending(addItem(fakeVault().data, { serviceName: 'Restored', username: 'u', password: 'p' }, new Date('2026-11-01T00:00:00Z'), 'r'))
+      return 1
+    })
+    render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} backupFiles={backupFiles()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: '백업에서 복원' }))
+    const dialog = await screen.findByRole('dialog', { name: '백업에서 복원' })
+    fireEvent.change(within(dialog).getByLabelText('백업 파일 비밀번호'), { target: { value: PASSWORD } })
+    fireEvent.click(within(dialog).getByRole('button', { name: '복원' }))
+
+    expect(await screen.findByText('백업에서 항목 1개를 복원했습니다.')).toBeInTheDocument()
+    expect(session.restoreBackup).toHaveBeenCalledWith(BACKUP, PASSWORD, expect.any(Date))
+    expect(screen.getByText('Restored')).toBeInTheDocument()
+  })
+
+  it('읽기 전용 볼트에서는 복원 버튼을 막는다', () => {
+    const { session } = createFakeSession({ ...UNLOCKED, vault: fakeVault({ readOnly: true }) })
+    render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} backupFiles={backupFiles()} />)
+
+    expect(screen.getByRole('button', { name: '백업에서 복원' })).toBeDisabled()
+  })
+
+  it('백업 파일 포트가 없으면 진입점을 보이지 않는다', () => {
+    const { session } = createFakeSession(UNLOCKED)
+    render(<SessionRoot session={session} clipboard={clipboard()} pageHidden={false} />)
+
+    expect(screen.queryByRole('button', { name: '백업 내보내기' })).not.toBeInTheDocument()
   })
 })
