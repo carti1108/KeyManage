@@ -61,3 +61,4 @@
 | 053 | 2026-11-01 | [웹 정책 불일치 2건 수정(가입 안내, 오프라인 배너)](053-web-policy-gaps.md) |
 | 054 | 2026-11-01 | [Apple RootFeature microRIBs 루트 라우팅 및 앱 조립 (#86)](054-apple-root-feature-ribs.md) |
 | 055 | 2026-11-02 | [Apple MainFeature microRIBs 메인 대시보드 셸 및 루트 라우팅 연동 (#90)](055-apple-main-feature-ribs.md) |
+| 056 | 2026-11-02 | [범용 정적 검증 플러그인 승격 및 멀티 플랫폼 자동 검증 루프 고도화 (#91, #92)](056-static-verification-modularization-and-multiplatform-gate.md) |
