@@ -107,21 +107,21 @@ public enum DesignToken {
     }
 
     public enum Colors {
-        public static let background = ColorToken(lightHex: "#F8FAFC", darkHex: "#0F172A")
-        public static let foreground = ColorToken(lightHex: "#0F172A", darkHex: "#F8FAFC")
-        public static let card = ColorToken(lightHex: "#FFFFFF", darkHex: "#1E293B")
-        public static let cardForeground = ColorToken(lightHex: "#0F172A", darkHex: "#F8FAFC")
-        public static let primary = ColorToken(lightHex: "#1E3A5F", darkHex: "#38BDF8")
-        public static let primaryForeground = ColorToken(lightHex: "#FFFFFF", darkHex: "#0F172A")
+        public static let background = ColorToken(lightHex: "#FFFFFF", darkHex: "#000000")
+        public static let foreground = ColorToken(lightHex: "#0A0A0A", darkHex: "#FAFAFA")
+        public static let card = ColorToken(lightHex: "#FFFFFF", darkHex: "#141414")
+        public static let cardForeground = ColorToken(lightHex: "#0A0A0A", darkHex: "#FAFAFA")
+        public static let primary = ColorToken(lightHex: "#0A0A0A", darkHex: "#FAFAFA")
+        public static let primaryForeground = ColorToken(lightHex: "#FFFFFF", darkHex: "#0A0A0A")
         public static let accent = ColorToken(lightHex: "#059669", darkHex: "#10B981")
-        public static let accentForeground = ColorToken(lightHex: "#FFFFFF", darkHex: "#0F172A")
-        public static let muted = ColorToken(lightHex: "#F1F5F9", darkHex: "#1E293B")
-        public static let mutedForeground = ColorToken(lightHex: "#64748B", darkHex: "#94A3B8")
+        public static let accentForeground = ColorToken(lightHex: "#FFFFFF", darkHex: "#0A0A0A")
+        public static let muted = ColorToken(lightHex: "#F5F5F5", darkHex: "#262626")
+        public static let mutedForeground = ColorToken(lightHex: "#737373", darkHex: "#A3A3A3")
         public static let destructive = ColorToken(lightHex: "#DC2626", darkHex: "#EF4444")
         public static let destructiveForeground = ColorToken(lightHex: "#FFFFFF", darkHex: "#FFFFFF")
-        public static let border = ColorToken(lightHex: "#E2E8F0", darkHex: "rgba(255, 255, 255, 0.08)")
-        public static let input = ColorToken(lightHex: "#E2E8F0", darkHex: "#334155")
-        public static let ring = ColorToken(lightHex: "#38BDF8", darkHex: "#38BDF8")
+        public static let border = ColorToken(lightHex: "#E5E5E5", darkHex: "rgba(255, 255, 255, 0.12)")
+        public static let input = ColorToken(lightHex: "#E5E5E5", darkHex: "#262626")
+        public static let ring = ColorToken(lightHex: "#0A0A0A", darkHex: "#FAFAFA")
     }
 
     public enum View {
