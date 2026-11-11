@@ -6,35 +6,35 @@ final class DesignTokenTests: XCTestCase {
 
     func testColorHexValues() {
         // 15 color tokens specification verification
-        XCTAssertEqual(DesignToken.Colors.background.lightHex, "#F8FAFC")
-        XCTAssertEqual(DesignToken.Colors.background.darkHex, "#0F172A")
+        XCTAssertEqual(DesignToken.Colors.background.lightHex, "#FFFFFF")
+        XCTAssertEqual(DesignToken.Colors.background.darkHex, "#000000")
 
-        XCTAssertEqual(DesignToken.Colors.foreground.lightHex, "#0F172A")
-        XCTAssertEqual(DesignToken.Colors.foreground.darkHex, "#F8FAFC")
+        XCTAssertEqual(DesignToken.Colors.foreground.lightHex, "#0A0A0A")
+        XCTAssertEqual(DesignToken.Colors.foreground.darkHex, "#FAFAFA")
 
         XCTAssertEqual(DesignToken.Colors.card.lightHex, "#FFFFFF")
-        XCTAssertEqual(DesignToken.Colors.card.darkHex, "#1E293B")
+        XCTAssertEqual(DesignToken.Colors.card.darkHex, "#141414")
 
-        XCTAssertEqual(DesignToken.Colors.cardForeground.lightHex, "#0F172A")
-        XCTAssertEqual(DesignToken.Colors.cardForeground.darkHex, "#F8FAFC")
+        XCTAssertEqual(DesignToken.Colors.cardForeground.lightHex, "#0A0A0A")
+        XCTAssertEqual(DesignToken.Colors.cardForeground.darkHex, "#FAFAFA")
 
-        XCTAssertEqual(DesignToken.Colors.primary.lightHex, "#1E3A5F")
-        XCTAssertEqual(DesignToken.Colors.primary.darkHex, "#38BDF8")
+        XCTAssertEqual(DesignToken.Colors.primary.lightHex, "#0A0A0A")
+        XCTAssertEqual(DesignToken.Colors.primary.darkHex, "#FAFAFA")
 
         XCTAssertEqual(DesignToken.Colors.primaryForeground.lightHex, "#FFFFFF")
-        XCTAssertEqual(DesignToken.Colors.primaryForeground.darkHex, "#0F172A")
+        XCTAssertEqual(DesignToken.Colors.primaryForeground.darkHex, "#0A0A0A")
 
         XCTAssertEqual(DesignToken.Colors.accent.lightHex, "#059669")
         XCTAssertEqual(DesignToken.Colors.accent.darkHex, "#10B981")
 
         XCTAssertEqual(DesignToken.Colors.accentForeground.lightHex, "#FFFFFF")
-        XCTAssertEqual(DesignToken.Colors.accentForeground.darkHex, "#0F172A")
+        XCTAssertEqual(DesignToken.Colors.accentForeground.darkHex, "#0A0A0A")
 
-        XCTAssertEqual(DesignToken.Colors.muted.lightHex, "#F1F5F9")
-        XCTAssertEqual(DesignToken.Colors.muted.darkHex, "#1E293B")
+        XCTAssertEqual(DesignToken.Colors.muted.lightHex, "#F5F5F5")
+        XCTAssertEqual(DesignToken.Colors.muted.darkHex, "#262626")
 
-        XCTAssertEqual(DesignToken.Colors.mutedForeground.lightHex, "#64748B")
-        XCTAssertEqual(DesignToken.Colors.mutedForeground.darkHex, "#94A3B8")
+        XCTAssertEqual(DesignToken.Colors.mutedForeground.lightHex, "#737373")
+        XCTAssertEqual(DesignToken.Colors.mutedForeground.darkHex, "#A3A3A3")
 
         XCTAssertEqual(DesignToken.Colors.destructive.lightHex, "#DC2626")
         XCTAssertEqual(DesignToken.Colors.destructive.darkHex, "#EF4444")
@@ -42,16 +42,16 @@ final class DesignTokenTests: XCTestCase {
         XCTAssertEqual(DesignToken.Colors.destructiveForeground.lightHex, "#FFFFFF")
         XCTAssertEqual(DesignToken.Colors.destructiveForeground.darkHex, "#FFFFFF")
 
-        XCTAssertEqual(DesignToken.Colors.border.lightHex, "#E2E8F0")
-        let isBorderDarkValid = DesignToken.Colors.border.darkHex == "rgba(255, 255, 255, 0.08)"
-            || DesignToken.Colors.border.darkHex == "#FFFFFF14"
-        XCTAssertTrue(isBorderDarkValid, "border dark mode should be rgba(255, 255, 255, 0.08) or #FFFFFF14")
+        XCTAssertEqual(DesignToken.Colors.border.lightHex, "#E5E5E5")
+        let isBorderDarkValid = DesignToken.Colors.border.darkHex == "rgba(255, 255, 255, 0.12)"
+            || DesignToken.Colors.border.darkHex == "#FFFFFF1F"
+        XCTAssertTrue(isBorderDarkValid, "border dark mode should be rgba(255, 255, 255, 0.12) or #FFFFFF1F")
 
-        XCTAssertEqual(DesignToken.Colors.input.lightHex, "#E2E8F0")
-        XCTAssertEqual(DesignToken.Colors.input.darkHex, "#334155")
+        XCTAssertEqual(DesignToken.Colors.input.lightHex, "#E5E5E5")
+        XCTAssertEqual(DesignToken.Colors.input.darkHex, "#262626")
 
-        XCTAssertEqual(DesignToken.Colors.ring.lightHex, "#38BDF8")
-        XCTAssertEqual(DesignToken.Colors.ring.darkHex, "#38BDF8")
+        XCTAssertEqual(DesignToken.Colors.ring.lightHex, "#0A0A0A")
+        XCTAssertEqual(DesignToken.Colors.ring.darkHex, "#FAFAFA")
     }
 
     func testIconSymbols() {
