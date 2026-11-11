@@ -35,3 +35,4 @@
 | [ADR-0022](ADR-0022-encrypted-backup-file-format.md) | 백업 파일은 볼트 암호화 컨테이너에 KDF 값을 붙인 JSON으로 하고, 내보낸 시점의 마스터 비밀번호로 잠근다 | 채택 | 2026-11-01 |
 | [ADR-0023](ADR-0023-master-password-change.md) | 마스터 비밀번호 변경은 클라이언트가 볼트를 다시 암호화하고, 서버가 요청 하나로 인증 정보와 볼트를 함께 교체한다 | 채택 | 2026-11-02 |
 | [ADR-0024](ADR-0024-account-deletion.md) | 계정 삭제는 비밀번호와 확인 문구로 확인한 뒤 서버에서 즉시 지우고, 계정 삭제를 확정 시점으로 한다 | 채택 | 2026-11-02 |
+| [ADR-0025](ADR-0025-design-system-shared-contract-platform-expression.md) | 디자인 시스템을 공통 계약층과 플랫폼 표현층으로 나눈다 | 채택 | 2026-11-11 |
