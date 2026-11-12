@@ -120,3 +120,25 @@ Kotlin 테스트 실행 파일을 앱 번들(`Info.plist` 포함)로 감싸 시�
 - 실제 앱에서는 Xcode·Tuist가 앱 대상의 엔타이틀먼트를 넣으므로 Kotlin 프레임워크 쪽에 따로 할 일은 없다. 이건 4장 "iOS 빌드" 항목에서 확인한다.
 - Gradle의 `iosSimulatorArm64Test`는 여전히 앱 번들 없이 실행하므로 실패한다. CI에서 iOS 키체인 테스트를 돌리려면 호스트 앱 실행 단계가 따로 필요하다.
 - 아직 확인하지 못한 것: 실기기, 생체 인증 접근 제어(`SecAccessControl`).
+
+## 7. 실험 결과: 생체 인증 (2026-11-12)
+
+`secure-store` 모듈 `appleMain`에 Kotlin으로 추가했다. Swift 코드는 없다.
+
+- `LocalBiometricAuthenticator`: LocalAuthentication의 `LAContext.canEvaluatePolicy`·`evaluatePolicy`를 직접 부른다. 콜백은 `suspendCancellableCoroutine`으로 `suspend` 함수가 되고, 코루틴이 취소되면 `LAContext.invalidate()`로 인증 창을 닫는다.
+- `BiometricKeychainStore`: 키체인 항목에 `SecAccessControl`(`kSecAccessControlBiometryCurrentSet`, 현재 등록된 생체만 허용)을 건다. 읽을 때 `LAContext`로 먼저 인증하고 그 컨텍스트를 `kSecUseAuthenticationContext`로 넘겨 인증 창이 두 번 뜨지 않게 한다.
+- 공통 인터페이스는 `BiometricAuthenticator`, `BiometricSecureStore`이고, 결과는 `Success`·`Cancelled`·`Failed(code, message)`로 나눈다.
+
+시뮬레이터(iPhone 17 Pro, iOS 26.0)에서 6.1장의 호스트 앱 방식으로 실행했다. Face ID 등록과 얼굴 일치·불일치는 `notifyutil` 신호(`com.apple.BiometricKit.enrollmentChanged`, `com.apple.BiometricKit_Sim.pearl.match`·`nomatch`)로 보냈다. `Info.plist`에 `NSFaceIDUsageDescription`이 필요하다.
+
+| 시나리오 | 결과 |
+| :--- | :--- |
+| Face ID 등록 → 보호 저장 → 일치 신호 → 보호 조회 | 통과. 저장한 32바이트를 그대로 읽음 |
+| 불일치 신호 | 시스템이 "얼굴이 인식되지 않음" 창을 띄우고 기다림. 키를 내주지 않음 |
+| 불일치 후 취소 | `Cancelled`로 `BiometricAuthenticationException`. 키를 내주지 않음 |
+| 기존 키체인 테스트 5건 | 같은 실행에서 모두 통과 |
+
+- 결론: 생체 인증과 생체 보호 키체인도 `iosMain` Kotlin 코드만으로 동작한다. 앱이 넘길 것은 없었다. iOS 인증 창은 시스템이 띄우므로 화면 정보가 필요 없다(Android `BiometricPrompt`는 Activity가 필요하다).
+- 실험 설정: 시뮬레이터에 암호가 없어서 접근 수준을 `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`로 했다. 실제 앱에서 기기 암호가 꺼지면 항목을 지우는 `WhenPasscodeSetThisDeviceOnly`를 쓸지는 정책 결정이다(보안 경계라 사람이 정한다).
+- 생체 인증 테스트는 Face ID 신호가 필요해서 `iosSimulatorArm64Test`에만 두었다. Gradle 테스트 작업으로는 돌지 않고 호스트 앱 실행으로만 확인된다. macOS 테스트에는 넣지 않았다(개발 기기에서 Touch ID 창이 뜬다).
+- 아직 확인하지 못한 것: 실기기, 생체 등록 변경 후 항목 무효화, Android `BiometricPrompt`.
