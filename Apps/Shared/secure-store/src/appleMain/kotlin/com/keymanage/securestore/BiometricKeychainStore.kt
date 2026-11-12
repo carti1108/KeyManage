@@ -35,7 +35,7 @@ class BiometricKeychainStore(
     private val authenticator: LocalBiometricAuthenticator = LocalBiometricAuthenticator(),
 ) : BiometricSecureStore {
 
-    override fun saveProtected(account: String, value: ByteArray) {
+    override suspend fun saveProtected(account: String, value: ByteArray) {
         delete(account)
         val access = SecAccessControlCreateWithFlags(
             kCFAllocatorDefault,

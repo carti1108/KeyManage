@@ -2,11 +2,21 @@
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.android.kmp.library)
 }
 
 kotlin {
     jvmToolchain(21)
     jvm()
+    android {
+        namespace = "com.keymanage.crypto"
+        compileSdk = 37
+        minSdk = 26
+        // 공통 테스트(테스트 벡터)를 에뮬레이터·기기에서 계측 테스트로 돌린다
+        withDeviceTestBuilder { sourceSetTreeName = "test" }.configure {
+            instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        }
+    }
     js {
         browser()
         nodejs()
@@ -21,6 +31,9 @@ kotlin {
         commonMain.dependencies {
             implementation(libs.cryptography.core)
             implementation(libs.cryptography.provider.optimal)
+        }
+        getByName("androidDeviceTest").dependencies {
+            implementation(libs.androidx.test.runner)
         }
         commonTest {
             kotlin.srcDir(layout.buildDirectory.dir("generated/testVectors"))

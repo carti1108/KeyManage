@@ -142,3 +142,30 @@ Kotlin 테스트 실행 파일을 앱 번들(`Info.plist` 포함)로 감싸 시�
 - 실험 설정: 시뮬레이터에 암호가 없어서 접근 수준을 `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`로 했다. 실제 앱에서 기기 암호가 꺼지면 항목을 지우는 `WhenPasscodeSetThisDeviceOnly`를 쓸지는 정책 결정이다(보안 경계라 사람이 정한다).
 - 생체 인증 테스트는 Face ID 신호가 필요해서 `iosSimulatorArm64Test`에만 두었다. Gradle 테스트 작업으로는 돌지 않고 호스트 앱 실행으로만 확인된다. macOS 테스트에는 넣지 않았다(개발 기기에서 Touch ID 창이 뜬다).
 - 아직 확인하지 못한 것: 실기기, 생체 등록 변경 후 항목 무효화, Android `BiometricPrompt`.
+
+## 8. Android 구현 (2026-11-12, 기기 검증 전)
+
+Android 테스트는 Windows 환경에서 하기로 해서, 여기서는 코드와 설정까지만 만들었다.
+
+- 설정: AGP 9.5.1의 `com.android.kotlin.multiplatform.library`(carti-RIBs-KMP와 같음), `compileSdk 37`, `minSdk 26`. SDK 경로는 `Apps/Shared/local.properties`(git 제외)에 둔다.
+- `crypto`: Android 대상과 `Nfc.android.kt`(`java.text.Normalizer`)를 추가했다. 공통 테스트(테스트 벡터)를 기기 계측 테스트로 돈다(`withDeviceTestBuilder { sourceSetTreeName = "test" }`).
+- `secure-store` `androidMain`:
+  - `KeystoreSecureStore`: Android Keystore의 AES-256-GCM 키로 값을 감싸고, IV + 암호문만 앱 전용 SharedPreferences에 둔다.
+  - `AndroidBiometricAuthenticator`: `BiometricPrompt`(`BIOMETRIC_STRONG`). 인증 창을 띄울 `FragmentActivity`를 생성자로 받는다. 앱 진입점이 넘기는 유일한 화면 정보다.
+  - `BiometricKeystoreStore`: 매 사용마다 생체 인증이 필요하고 생체 등록이 바뀌면 무효가 되는 Keystore 키로 값을 감싼다. 인증된 `CryptoObject`의 `Cipher`로만 암·복호화한다.
+- 공통 인터페이스 변경: 인증 필요 Keystore 키는 암호화할 때도 인증을 요구한다. 그래서 `BiometricSecureStore.saveProtected`를 `suspend`로 바꿨고 Apple 구현도 맞췄다.
+
+| 확인 항목 | 상태 |
+| :--- | :--- |
+| `crypto`·`secure-store` `androidMain` 컴파일 | 통과(macOS에서 Gradle 실행 중 확인) |
+| `crypto` 기기 테스트 컴파일 | 통과 |
+| `secure-store` 기기 테스트 컴파일 | 확인 안 함 |
+| 에뮬레이터·기기 실행(테스트 벡터, Keystore 5건, 생체 인증 1건) | 확인 안 함(Windows에서 진행) |
+| 인터페이스 변경 후 Apple | macOS 테스트 통과, iOS 시뮬레이터 테스트 바이너리 링크 성공. 호스트 앱 재실행은 안 함 |
+
+Windows에서 실행하는 방법:
+
+- 테스트 벡터: `gradlew :crypto:connectedAndroidDeviceTest`
+- Keystore만: `gradlew :secure-store:connectedAndroidDeviceTest -Pandroid.testInstrumentationRunnerArguments.class=com.keymanage.securestore.KeystoreSecureStoreTest`
+- 생체 인증: 기기에 화면 잠금과 지문을 먼저 등록한다. 테스트 중 logcat에 `KM_BIOMETRIC_PROMPT`가 찍힐 때마다(저장 1회, 조회 1회) `adb emu finger touch 1`을 보낸다.
+- Apple 대상은 Windows에서 빌드되지 않고 `kotlin.native.ignoreDisabledTargets=true`로 건너뛴다.
