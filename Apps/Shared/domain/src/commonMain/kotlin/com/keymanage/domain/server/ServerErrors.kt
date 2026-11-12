@@ -42,4 +42,4 @@ class ServerError(
 class NetworkError(message: String = "서버에 연결할 수 없음") : ServerFailure(message)
 
 /** 성공 응답이 약속한 형식이 아님. 서버와 클라이언트 버전이 어긋났을 수 있다 */
-class UnexpectedResponseError(message: String) : ServerFailure(message)
+open class UnexpectedResponseError(message: String) : ServerFailure(message)
