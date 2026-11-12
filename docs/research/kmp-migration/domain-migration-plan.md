@@ -294,8 +294,8 @@ Android는 두 모듈 모두 컴파일만 확인했다. iOS·macOS는 Windows라
 - prelogin의 `iterations`는 원본처럼 숫자인지만 보지 않고, `Int` 범위의 정수인지까지 본다. Kotlin 포트가 `Int`로 담기 때문이다. 규격 범위 검사는 그대로 domain이 한다.
 - 같은 출처(`""`) 요청은 브라우저에서 페이지 출처로 풀린다(테스트에서 확인함). 모바일 앱은 늘 서버 주소를 넘겨야 한다.
 
-로컬 백엔드 통합 테스트는 실행하지 못했다. 테스트는 `server-http/src/jvmTest`에 두었고, `KEYMANAGE_IT_BASE_URL`이 있을 때만 돈다.
+로컬 백엔드 통합 테스트는 통과했다(1건, 가입 → 저장 → 잠금 → 잠금 해제). 테스트는 `server-http/src/jvmTest`에 있고, `KEYMANAGE_IT_BASE_URL`이 있을 때만 돈다.
 
-- `Back/`의 Gradle 8.12.1은 이 PC의 유일한 JDK(Android Studio JBR, Java 25)에서 시작하지 못한다. 설치된 JDK 21이 없다.
-- Docker 데몬이 꺼져 있어 `docker-compose.yml`로도 띄울 수 없었다.
-- JDK를 새로 내려받는 일은 하지 않았다. JDK 21을 설치하거나 Docker를 켠 뒤, 백엔드를 띄우고 `KEYMANAGE_IT_BASE_URL=http://localhost:<포트>`로 `:server-http:jvmTest`를 돌리면 된다.
+- 처음에는 이 PC에 JDK 21이 없어 실행하지 못했다. Eclipse Temurin 21(winget)을 설치한 뒤 실행했다.
+- 백엔드는 `Back`의 `:app:bootJar`로 만든 jar를 임시 폴더에서 `--server.port=18080 --server.address=127.0.0.1`로 띄웠다. `docker-compose.yml`은 원래 폴더의 데모 스택과 이름·포트·데이터 볼륨이 겹쳐 쓰지 않았다.
+- 실행: `KEYMANAGE_IT_BASE_URL=http://localhost:18080 ./gradlew :server-http:jvmTest --tests '*LocalBackendIntegrationTest*'`. 서버 데이터 폴더에 계정·볼트 파일이 생긴 것으로 실제 요청을 확인했다.
