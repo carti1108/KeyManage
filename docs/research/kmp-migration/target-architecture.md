@@ -90,7 +90,7 @@ flowchart TB
 
 1. Kotlin/Native에서 C API를 부르면 메모리를 직접 다뤄야 해서 같은 키체인 코드가 Swift보다 길다.
 2. 키체인과 생체 인증은 시뮬레이터 제약이 있어 실기기 확인이 필요하다.
-3. carti-RIBs-KMP에 브라우저 대상과 React 브리지가 아직 없다. 라이브러리 쪽에서 추가한다.
+3. carti-RIBs-KMP에 브라우저 대상과 React 브리지가 아직 없다. 라이브러리 쪽에서 추가한다. 설계안은 [react-bridge.md](react-bridge.md).
 
 ## 6. 실험 결과: 키체인 (2026-11-12)
 
