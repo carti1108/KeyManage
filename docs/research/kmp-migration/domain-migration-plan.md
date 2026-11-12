@@ -259,3 +259,43 @@ Android는 컴파일만 확인했다. iOS·macOS는 Windows라 확인하지 않�
 - JVM의 암호 연산은 중단하지 않고 JS의 암호 연산은 실제 이벤트 루프에서 끝난다. 원본 테스트 가운데 "암호화하는 사이 잠금·저장" 같은 끼어들기에 기대는 것은 대상마다 결과가 달라지지 않도록, 작업이 서버 요청의 문(`Gate`)에 닿거나 상태가 바뀔 때까지 기다린 뒤 끼어들게 바꿨다. 바꾼 테스트에는 주석을 달았다. 그중 둘은 기대 결과도 달라졌다.
   - "저장을 기다리는 동안 잠그면 다시 열리지 않는다"는 원본에서 저장이 취소 오류로 끝났다. Kotlin에서는 서버 요청 중에 잠그므로 저장은 끝나고, 다시 열리지 않는 것만 확인한다.
   - 두 탭 저장 테스트 2건(두 탭의 대기 내용 보존, 쓰기 전 병합)은 다른 탭의 기록이 메모리에 병합되기를 기다린 뒤 다음 저장을 한다. 원본은 Promise 순서상 병합이 먼저 끝나 있었다. JS 대상에서 기다리지 않으면, 다음 저장이 병합 전의 볼트로 기기 기록을 덮어 한쪽 항목이 사라졌다. 이 경쟁은 원본에도 있다(병합이 끝나기 전에 화면이 옛 볼트로 저장하면 같다). 별도로 확인할 일로 남긴다.
+
+### 6단계: 서버 HTTP 구현 (2026-11-12)
+
+[ADR-0026](../../adr/ADR-0026-ktor-client-for-shared-kotlin.md)에 따라 새 모듈 `Apps/Shared/server-http`를 만들었다. Ktor Client 3.3.1이고, 엔진은 JS fetch, Android OkHttp, iOS·macOS Darwin, JVM CIO다.
+
+| 옮긴 것 | 원본(`Apps/Web/src/adapters/http/`) | Kotlin(`server-http`, 패키지 `com.keymanage.serverhttp`) |
+| :--- | :--- | :--- |
+| 서버 주소 검사 | `baseUrl.ts` | `BaseUrl.kt`: `resolveBaseUrl`, `InvalidBaseUrlException` |
+| API 클라이언트 | `apiClient.ts` | `ApiClient.kt`: `ApiClient`, 설정을 묶은 `keyManageHttpClient()` |
+| 인증·볼트 어댑터 | `httpAuthApi.ts`, `httpVaultApi.ts`, `responseBody.ts` | `HttpAdapters.kt`: `HttpAuthApi`, `HttpVaultApi` |
+
+- 테스트를 먼저 옮겼다. 시그니처만 있고 본문이 `TODO()`인 코드로 29건 모두 실패하는 것을 확인한 뒤 구현했다.
+- 테스트는 Ktor `MockEngine`으로 한다.
+
+| 테스트 | 건수 | JVM | JS Node | JS 브라우저 |
+| :--- | :--- | :--- | :--- | :--- |
+| 원본 `apiClient.test.ts`에서 옮긴 것 | 16 | 통과 | 통과 | 통과 |
+| 원본 `httpAuthApi.test.ts`·`httpVaultApi.test.ts`에서 옮긴 것 | 12 | 통과 | 통과 | 통과 |
+| 원본에 없던 것(리다이렉트를 따라가지 않음) | 1 | 통과 | 통과 | 통과 |
+| 로컬 백엔드 통합(가입 → 저장 → 잠금 → 잠금 해제) | 1 | 건너뜀 | 대상 아님 | 대상 아님 |
+| `domain` 0~5단계 | 395 | 통과 | 통과 | 통과 |
+
+Android는 두 모듈 모두 컴파일만 확인했다. iOS·macOS는 Windows라 확인하지 않았다.
+
+- 세 대상을 함께 돌린 한 번의 실행에서 `domain`의 5MB 볼트 병합 테스트 1건이 JS Node에서 Mocha 기본 한도(2초)를 넘었다. 직전 실행에서는 통과했다. 4단계에서 브라우저에 준 것과 같이 Node 테스트 한도도 120초로 늘렸고(`domain`·`server-http`의 `build.gradle.kts`), 다시 돌려 통과했다.
+
+원본과 다른 점:
+
+- 원본은 `fetch`에 `redirect: 'error'`를 줘 리다이렉트를 연결 실패로 끝냈다. Ktor는 `followRedirects = false`로 3xx 응답을 받으므로, 3xx를 `NetworkError`로 바꿔 원본과 같게 했다. 이를 확인하는 테스트를 더했다.
+- 원본의 `credentials: 'omit'`(쿠키를 보내지 않음)과 `AbortSignal` 존재 확인은 Kotlin 테스트로 옮기지 않았다. 대신 쿠키 플러그인을 설치하지 않고, 요청마다 시간 초과 30초가 걸려 있는지(`HttpTimeoutCapability`)를 확인한다. JS 엔진이 fetch에 넘기는 `credentials` 값은 이번에 확인하지 않았다. 웹 화면을 공유 코드로 바꿀 때 교차 출처 요청에서 다시 확인한다.
+- kotlinx `Json`은 따옴표 없는 글자(`<html></html>` 등)도 값으로 받는다. 원본 `response.json()`처럼 JSON 문법에 맞지 않는 응답은 형식 오류로 보도록 직접 걸렀다.
+- 원본은 볼트 페이로드의 필드를 복호화할 때 검사했다. Kotlin 포트의 `RemoteVault`는 타입이 있는 페이로드를 담으므로, 응답을 받을 때 `parseEncryptedVaultPayload`로 검사한다. 필드가 틀리면 같은 오류(`UnsupportedPayloadException`)가 더 일찍 난다.
+- prelogin의 `iterations`는 원본처럼 숫자인지만 보지 않고, `Int` 범위의 정수인지까지 본다. Kotlin 포트가 `Int`로 담기 때문이다. 규격 범위 검사는 그대로 domain이 한다.
+- 같은 출처(`""`) 요청은 브라우저에서 페이지 출처로 풀린다(테스트에서 확인함). 모바일 앱은 늘 서버 주소를 넘겨야 한다.
+
+로컬 백엔드 통합 테스트는 실행하지 못했다. 테스트는 `server-http/src/jvmTest`에 두었고, `KEYMANAGE_IT_BASE_URL`이 있을 때만 돈다.
+
+- `Back/`의 Gradle 8.12.1은 이 PC의 유일한 JDK(Android Studio JBR, Java 25)에서 시작하지 못한다. 설치된 JDK 21이 없다.
+- Docker 데몬이 꺼져 있어 `docker-compose.yml`로도 띄울 수 없었다.
+- JDK를 새로 내려받는 일은 하지 않았다. JDK 21을 설치하거나 Docker를 켠 뒤, 백엔드를 띄우고 `KEYMANAGE_IT_BASE_URL=http://localhost:<포트>`로 `:server-http:jvmTest`를 돌리면 된다.
