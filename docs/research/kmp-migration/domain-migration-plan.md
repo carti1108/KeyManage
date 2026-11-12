@@ -168,3 +168,31 @@ Apps/Shared/
 
 - 원본 길이 검사 사례 중 `12.5`·`NaN`은 길이가 `Int` 타입이라 표현할 수 없어 옮기지 않았다. 대신 `0`·`-1`을 넣었다.
 - 클립보드의 경쟁 상태 보호(늦게 끝난 비우기가 새 복사를 덮지 않음, 복사 중 잠금)가 테스트로 지켜지는지 확인하려고, 보호 조건을 하나씩 지운 코드로 돌렸다. 각각 해당 테스트 1건이 실패했고 원래대로 되돌렸다.
+
+### 3단계: 키·볼트 페이로드·탭·인증·기기 기록 (2026-11-12)
+
+계획표에 없던 것이 하나 늘었다. Kotlin `crypto` 모듈에는 암호 연산만 있어서, 웹 `crypto/keys.ts`(반복 횟수·salt 검사, 짝 없는 서로게이트 거부)와 `crypto/vaultCipher.ts`(암호화 페이로드 JSON 형식)를 `domain/crypto`로 함께 옮겼다. 인증이 이 둘을 쓴다. 커밋은 3a(키·페이로드·탭)와 3b(인증·기기 기록)로 나눴다.
+
+| 옮긴 것 | 원본 | Kotlin |
+| :--- | :--- | :--- |
+| 키 유도 | `crypto/keys.ts` | `crypto/Keys.kt`: `deriveKeys`, `assertValidKdf`, `preprocessPassword`. 암호화 키는 바이트를 밖으로 내보이지 않는 `EncryptionKey`로 감싼다 |
+| 볼트 페이로드 | `crypto/vaultCipher.ts` | `crypto/VaultPayload.kt`: `sealVault`·`openVault`, 서버·기기에서 온 값을 믿지 않는 `parseEncryptedVaultPayload` |
+| 탭 포트 | `tabs/tabs.ts`, `tabs/inMemoryTabs.ts` | `tabs/Tabs.kt`: `TabLock`(코루틴 `Mutex`), `TabChannel`, 테스트용 `InMemoryTabHub`, 모바일·대체용 `SingleTab` |
+| 인증 | `auth/authApi.ts`, `auth/authService.ts`, `auth/masterPassword.ts` | `auth/`: 서버 포트 `AuthApi`(`suspend`), `AuthService`, 이메일 정규화, 새 마스터 비밀번호 검사 |
+| 기기 기록 | `device/deviceRecord.ts`, `reconcileDeviceRecord.ts`, `devicePersistence.ts`, `tabMemory.ts` | `device/`: 기록 형식과 검사, 탭 간 맞추기 판단, 순서대로 쓰기, 탭 기억 포트 |
+
+| 테스트 | 건수 | JVM | JS Node | JS 브라우저 |
+| :--- | :--- | :--- | :--- | :--- |
+| 원본 테스트 파일 11개에서 옮긴 것 | 66 | 통과 | 통과 | 통과 |
+| 원본에 없던 것(키를 문자열로 찍어도 바이트가 안 나옴, 페이로드 키 순서, 탭 메시지 이름, 기기 기록 키 순서, 기기 저장 순서·실패 3건 등) | 7 | 통과 | 통과 | 통과 |
+| 0~2단계 | 106 | 통과 | 통과 | 통과 |
+| 합계 | 179 | 통과 | 통과 | 통과 |
+
+- 고정 IV로 만든 페이로드는 테스트 벡터 JSON과 키 순서까지 글자 단위로 같다. 키 유도는 벡터 6건의 인증 해시와 암호화 키를 바이트 단위로 비교한다.
+- 기기 기록은 1단계처럼 실제 웹 코드로 만든 결과와 비교하지 못했다. `deviceRecord.ts`가 확장자 없는 import를 써서 Node가 TypeScript를 바로 실행할 수 없기 때문이다. 대신 `session/deviceSync.ts`가 기록을 만드는 순서와 같은 문자열이 나오는지 테스트로 고정했다.
+- `devicePersistence.ts`는 원본에 전용 테스트가 없어(세션 테스트가 덮는다) 주석의 동작에서 3건을 만들었다. 세션 테스트를 옮기는 5단계에서 다시 확인된다.
+- `device-store` 모듈은 아직 JS 대상만 있어서 `domain`이 의존할 수 없다. 그래서 같은 모양(JSON 문자열)의 `DeviceRecordStore` 포트를 `domain`에 두었다. IndexedDB 구현은 이 포트에 맞춘다.
+- 이메일 검사의 공백 문자는 원본 정규식 `\s`와 같은 문자 목록을 직접 적었다. Kotlin `\s`는 플랫폼마다 범위가 다르다.
+- 테스트를 옮기다 생긴 문제 두 가지(코드 문제는 아니다):
+  - 원본 테스트의 공백이 실제로는 U+2003(em space)이었는데 보이는 대로 일반 공백으로 옮겨 실패했다. 바이트를 확인하고 고쳤다.
+  - 짝 없는 서로게이트를 문자열 상수로 쓰면 Kotlin/JS가 UTF-8 출력에서 U+FFFD로 바꿔 JS 대상에서 검사가 무의미해졌다. 실행 중에 `Char`로 이어 붙여 만들도록 고쳤다(별도 커밋). 3a 실행에서는 통과로 나왔는데 다음 실행에서 실패로 드러났다.
