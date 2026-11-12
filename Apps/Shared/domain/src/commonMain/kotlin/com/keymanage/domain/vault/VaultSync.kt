@@ -54,19 +54,31 @@ class SyncedVault(
     val payload: EncryptedVaultPayload?,
 )
 
-/** 이 기기가 마지막으로 본 서버 revision. 잠금 해제·재로그인으로 동기화를 새로 만들어도 이어서 쓴다 */
-class RevisionMemory(initial: Int = 0) {
-    private var lastSeen = initial
-
-    fun get(): Int = lastSeen
+/**
+ * 이 기기가 마지막으로 본 서버 revision. 잠금 해제·재로그인으로 동기화를 새로 만들어도 이어서 쓴다.
+ * 세션이 로그인마다 기준을 바꿀 수 있는 창을 따로 만들어 넘기므로 인터페이스로 둔다
+ */
+interface RevisionMemory {
+    fun get(): Int
 
     /** 더 큰 값일 때만 바꾼다. 응답 순서가 뒤바뀌어도 기준이 낮아지지 않는다 */
-    fun raise(revision: Int) {
+    fun raise(revision: Int)
+
+    /** 사용자가 되돌림을 받아들였을 때만 쓴다 */
+    fun reset(revision: Int)
+}
+
+/** 메모리에 기준을 두는 기본 구현 */
+fun RevisionMemory(initial: Int = 0): RevisionMemory = object : RevisionMemory {
+    private var lastSeen = initial
+
+    override fun get(): Int = lastSeen
+
+    override fun raise(revision: Int) {
         lastSeen = maxOf(lastSeen, revision)
     }
 
-    /** 사용자가 되돌림을 받아들였을 때만 쓴다 */
-    fun reset(revision: Int) {
+    override fun reset(revision: Int) {
         lastSeen = revision
     }
 }

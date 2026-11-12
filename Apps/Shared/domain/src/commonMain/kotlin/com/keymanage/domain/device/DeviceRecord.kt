@@ -17,6 +17,9 @@ import kotlinx.serialization.json.booleanOrNull
 // 기기에 저장하는 한 계정의 기록 (ADR-0019, VLT-003). 원본: Apps/Web/src/domain/device/deviceRecord.ts
 // 비밀이 아니거나(이메일, KDF 값, revision) 암호화된 값(볼트)만 담는다. 토큰·키·인증 해시·평문은 담지 않는다
 
+/** 기기 저장소를 쓰거나 읽지 못함. 원본: deviceRecord.ts의 DeviceStorageError */
+class DeviceStorageException(cause: Throwable? = null) : Exception("기기 저장소를 쓰지 못함", cause)
+
 /** 기록 형식 버전. 형식을 바꾸면 올리고 이전 기록을 옮기는 절차를 둔다 */
 const val DEVICE_RECORD_VERSION: Int = 1
 
