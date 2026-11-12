@@ -18,7 +18,8 @@ kotlin {
         browser {
             testTask { useKarma { useChromeHeadless() } }
         }
-        nodejs()
+        // 5MB 볼트를 여러 번 암호화하는 테스트가 Mocha 기본 한도(2초)를 넘을 수 있다. 브라우저(karma.config.d)와 같게 둔다
+        nodejs { testTask { useMocha { timeout = "120s" } } }
     }
     iosArm64()
     iosSimulatorArm64()
