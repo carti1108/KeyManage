@@ -159,8 +159,8 @@ Android 테스트는 Windows 환경에서 하기로 해서, 여기서는 코드�
 | :--- | :--- |
 | `crypto`·`secure-store` `androidMain` 컴파일 | 통과(macOS에서 Gradle 실행 중 확인) |
 | `crypto` 기기 테스트 컴파일 | 통과 |
-| `secure-store` 기기 테스트 컴파일 | 확인 안 함 |
-| 에뮬레이터·기기 실행(테스트 벡터, Keystore 5건, 생체 인증 1건) | 확인 안 함(Windows에서 진행) |
+| `secure-store` 기기 테스트 컴파일 | 통과(8.1) |
+| 에뮬레이터·기기 실행(테스트 벡터, Keystore 5건, 생체 인증 1건) | 에뮬레이터 통과(8.1), 실기기 확인 안 함 |
 | 인터페이스 변경 후 Apple | macOS 테스트 통과, iOS 시뮬레이터 테스트 바이너리 링크 성공. 호스트 앱 재실행은 안 함 |
 
 Windows에서 실행하는 방법:
@@ -169,3 +169,22 @@ Windows에서 실행하는 방법:
 - Keystore만: `gradlew :secure-store:connectedAndroidDeviceTest -Pandroid.testInstrumentationRunnerArguments.class=com.keymanage.securestore.KeystoreSecureStoreTest`
 - 생체 인증: 기기에 화면 잠금과 지문을 먼저 등록한다. 테스트 중 logcat에 `KM_BIOMETRIC_PROMPT`가 찍힐 때마다(저장 1회, 조회 1회) `adb emu finger touch 1`을 보낸다.
 - Apple 대상은 Windows에서 빌드되지 않고 `kotlin.native.ignoreDisabledTargets=true`로 건너뛴다.
+
+### 8.1 Windows 에뮬레이터 실행 결과 (2026-11-12)
+
+에뮬레이터(Medium Phone, API 37, x86_64, Google Play 이미지)에서 실행했다. 화면 잠금은 `adb shell locksettings set-pin`으로 설정하고, 지문은 설정 앱 등록 화면에서 `adb emu finger touch 1`로 등록했다.
+
+| 확인 항목 | 결과 |
+| :--- | :--- |
+| `crypto` 테스트 벡터 | 7/7 통과 |
+| `secure-store` Keystore | 5/5 통과 |
+| `secure-store` 생체 보호 Keystore(저장·조회 각 1회 지문 일치) | 1/1 통과 |
+
+Windows에서 처음 빌드할 때 `crypto/build.gradle.kts`의 테스트 벡터 생성 작업을 두 군데 고쳤다. 제품 코드는 고치지 않았다.
+
+- 생성 작업이 `compileTestKotlin*`에만 걸려 있어서 Android 기기 테스트 컴파일(`compileAndroidDeviceTest`)이 상수를 찾지 못했다. 이 작업에도 의존성을 걸었다.
+- Windows에서 체크아웃한 JSON은 줄 끝이 CRLF라 `\r`이 Kotlin 문자열 안에 그대로 들어가 문법 오류가 났다. `\r`을 지운 뒤 변환한다.
+
+`local.properties`의 `sdk.dir`은 역슬래시 대신 `/`로 쓴다. `\U`가 유니코드 이스케이프로 읽혀 Gradle 설정 단계가 실패한다.
+
+아직 확인하지 못한 것: 실기기, 생체 등록 변경 후 키 무효화, 지문 불일치·취소 경로.
