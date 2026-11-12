@@ -1,4 +1,5 @@
 import Foundation
+import KeyManageDomain
 
 public enum AuthMode: Equatable, Sendable {
 	case login
@@ -42,6 +43,21 @@ public struct AuthViewState: Equatable, Sendable {
 		case .register:
 			return password.count >= 12 && password == confirmation
 		}
+	}
+
+	/// 가입 화면에서만, 비밀번호가 있을 때 강도 게이지를 보인다 (SEC-002)
+	public var showsStrengthGauge: Bool {
+		mode == .register && !password.isEmpty
+	}
+
+	/// GEN-001 엔트로피 점수(0~100)
+	public var passwordStrengthScore: Int {
+		EntropyScorer.score(for: password)
+	}
+
+	/// 안내만 하고 가입은 막지 않는다 (SEC-002)
+	public var showsWeakPasswordWarning: Bool {
+		showsStrengthGauge && EntropyScorer.isWeak(score: passwordStrengthScore)
 	}
 }
 

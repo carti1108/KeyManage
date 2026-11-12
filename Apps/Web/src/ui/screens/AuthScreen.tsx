@@ -1,12 +1,14 @@
 // 로그인·가입 화면 (SEC-001, SEC-002)
 import { useId, useState, type FormEvent } from 'react'
 import { checkNewMasterPassword } from '../../domain/auth/masterPassword'
+import { isWeak, scorePassword } from '../../domain/generator/passwordStrength'
 import { Alert } from '../components/Alert'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
+import { EntropyGauge } from '../components/EntropyGauge'
 import { PasswordField } from '../components/PasswordField'
 import { TextField } from '../components/TextField'
-import { MASTER_PASSWORD_SETUP, NEW_PASSWORD_PROBLEMS } from '../messages/authNotices'
+import { MASTER_PASSWORD_SETUP, NEW_PASSWORD_PROBLEMS, WEAK_MASTER_PASSWORD_WARNING } from '../messages/authNotices'
 import type { RollbackOption } from '../session/sessionPort'
 import { SessionFeedback } from '../session/SessionFeedback'
 import { useSessionAction } from '../session/useSessionAction'
@@ -28,6 +30,8 @@ export function AuthScreen({ notice, onDismissNotice, onLogin, onRegister }: Aut
   const action = useSessionAction()
   const registering = mode === 'register'
   const setupHintId = useId()
+  const showsStrength = registering && password !== ''
+  const score = scorePassword(password)
 
   function submit(event: FormEvent) {
     event.preventDefault()
@@ -81,6 +85,15 @@ export function AuthScreen({ notice, onDismissNotice, onLogin, onRegister }: Aut
             aria-describedby={registering ? setupHintId : undefined}
             required
           />
+          {/* 가입 화면 강도 안내. 취약해도 가입은 막지 않는다 (SEC-002) */}
+          {showsStrength && <EntropyGauge score={score} />}
+          {registering && (
+            <div role="status">
+              {showsStrength && isWeak(score) && (
+                <p className="text-sm text-muted-foreground">{WEAK_MASTER_PASSWORD_WARNING}</p>
+              )}
+            </div>
+          )}
           {registering && (
             <PasswordField
               label="마스터 비밀번호 확인"

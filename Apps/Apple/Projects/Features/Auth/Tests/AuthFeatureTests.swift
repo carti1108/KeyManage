@@ -26,9 +26,17 @@ private final class MockAuthPresenter: AuthPresentable {
 	}
 }
 
-@MainActor
 private final class MockLockManagerForAuth: VaultLockManagerProtocol, @unchecked Sendable {
 	var isLocked: Bool = true
+	var lastInteractionTime: Date = Date()
+	var email: String?
+	var sessionToken: String?
+	var salt: Data?
+	var iterations: Int = 600_000
+	var encryptedVault: EncryptedVaultPayload?
+	var revision: Int = 0
+	var masterKey: Data?
+	var encryptionKey: Data?
 	var autoLockTimeout: AutoLockTimeout = .fiveMinutes
 	var isPrivacyCoverActive: Bool = false
 	var hasActiveSession: Bool = false
@@ -55,12 +63,13 @@ private final class MockLockManagerForAuth: VaultLockManagerProtocol, @unchecked
 	func setupSession(email: String, sessionToken: String, salt: Data, iterations: Int, encryptedVault: EncryptedVaultPayload, isBiometricsEnabled: Bool, biometryStateHash: Data?, revision: Int) {}
 	func recordInteraction(at date: Date) {}
 	func exportBackup(now: Date) throws -> (fileName: String, data: Data) { ("", Data()) }
-	func restoreBackup(fileData: Data, password: String, now: Date) throws -> (restoredCount: Int, newVault: VaultData) { (0, VaultData(items: [])) }
+	func restoreBackup(fileData: Data, password: String, now: Date) throws -> (restoredCount: Int, newVault: VaultData) { (0, VaultData(updatedAt: "", items: [])) }
 	func changeMasterPassword(currentPassword: String, newPassword: String, networkClient: AuthNetworkClientProtocol, now: Date) async throws {}
 	func deleteAccount(password: String, confirmationPhrase: String, networkClient: AuthNetworkClientProtocol, now: Date) async throws {}
 	func checkIfPasswordChangedOnServer(networkClient: AuthNetworkClientProtocol) async throws -> Bool { false }
 	func addVaultItem(serviceName: String, username: String, password: String, url: String?, notes: String?, now: Date) throws -> VaultItem {
-		VaultItem(id: "test", serviceName: serviceName, username: username, password: password, createdAt: now, updatedAt: now)
+		let timeString = ISO8601DateFormatter().string(from: now)
+		return VaultItem(id: "test", serviceName: serviceName, username: username, password: password, url: url, notes: notes, createdAt: timeString, updatedAt: timeString)
 	}
 	func updateVaultItem(item: VaultItem, now: Date) throws {}
 	func deleteVaultItem(id: String, now: Date) throws {}
@@ -159,6 +168,40 @@ struct AuthFeatureTests {
 		// 로딩 중에는 제출 불가
 		vm.isLoading = true
 		#expect(!vm.canSubmit)
+	}
+
+	@Test("AuthViewState: 강도 게이지는 회원가입 모드에서 비밀번호가 있을 때만 보인다 (SEC-002)")
+	func viewState_strengthGauge_visibility() {
+		#expect(!AuthViewState(mode: .register, password: "").showsStrengthGauge)
+		#expect(!AuthViewState(mode: .login, password: "Abcdefgh12").showsStrengthGauge)
+		#expect(AuthViewState(mode: .register, password: "a").showsStrengthGauge)
+	}
+
+	@Test("AuthViewState: 59점은 취약 경고, 60점은 경고 없음 (SEC-002, GEN-001 경계값)")
+	func viewState_weakWarning_boundary() {
+		let score59 = AuthViewState(mode: .register, password: "Abcdefgh12")
+		#expect(score59.passwordStrengthScore == 59)
+		#expect(score59.showsWeakPasswordWarning)
+
+		let score60 = AuthViewState(mode: .register, password: "abcdefghijk한")
+		#expect(score60.passwordStrengthScore == 60)
+		#expect(!score60.showsWeakPasswordWarning)
+
+		#expect(!AuthViewState(mode: .login, password: "Abcdefgh12").showsWeakPasswordWarning)
+		#expect(!AuthViewState(mode: .register, password: "").showsWeakPasswordWarning)
+	}
+
+	@Test("AuthViewState: 취약한 비밀번호도 가입은 막지 않는다 (SEC-002)")
+	func viewState_weakPassword_stillSubmittable() {
+		let weak = "aaaaaaaaaaaa"
+		let state = AuthViewState(mode: .register, email: "user@test.com", password: weak, confirmation: weak)
+		#expect(state.showsWeakPasswordWarning)
+		#expect(state.canSubmit)
+	}
+
+	@Test("AuthStrings: 가입 비밀번호 취약 문구 (SEC-002)")
+	func strings_weakPasswordWarning() {
+		#expect(AuthStrings.weakMasterPasswordWarning == "마스터 비밀번호가 보안에 취약합니다. 더 길게 만들거나 여러 종류의 문자를 섞어 주세요.")
 	}
 
 	@Test("AuthInteractor: 로그인 성공 시 didUnlock 호출 및 입력 초기화")

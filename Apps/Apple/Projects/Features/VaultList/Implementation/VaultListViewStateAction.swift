@@ -27,6 +27,25 @@ struct VaultListViewState: Equatable, Sendable {
 	func isPasswordRevealed(id: String) -> Bool {
 		revealedPasswordIds.contains(id)
 	}
+
+	// MARK: - 항목 폼 강도 안내 (GEN-001). 약한 비밀번호도 저장은 허용한다
+
+	var showsFormStrengthGauge: Bool {
+		!formPassword.isEmpty
+	}
+
+	var formPasswordStrengthScore: Int {
+		EntropyScorer.score(for: formPassword)
+	}
+
+	var showsFormWeakPasswordWarning: Bool {
+		showsFormStrengthGauge && EntropyScorer.isWeak(score: formPasswordStrengthScore)
+	}
+
+	/// 점수와 별개로 안내만 한다
+	var showsFormSequentialDigitsNotice: Bool {
+		SequentialDigitsChecker.hasSequentialDigits(formPassword)
+	}
 }
 
 enum VaultListViewAction: Equatable, Sendable {

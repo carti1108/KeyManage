@@ -270,6 +270,32 @@ private final class DummyNetworkClientForVaultList: AuthNetworkClientProtocol, @
 struct VaultListTests {
 
 	// MARK: - 1. Interactor 활성화 시 볼트 아이템 로드 및 Presenter 표시 검증
+	@Test("항목 폼 강도 게이지: 비밀번호가 비어 있으면 숨기고 입력하면 보인다 (GEN-001)")
+	func formStrengthGauge_visibility() {
+		#expect(!VaultListViewState(formPassword: "").showsFormStrengthGauge)
+		#expect(VaultListViewState(formPassword: "a").showsFormStrengthGauge)
+	}
+
+	@Test("항목 폼 강도 게이지: 59점은 취약 경고, 60점은 경고 없음 (GEN-001 경계값)")
+	func formWeakWarning_boundary() {
+		let score59 = VaultListViewState(formPassword: "Abcdefgh12")
+		#expect(score59.formPasswordStrengthScore == 59)
+		#expect(score59.showsFormWeakPasswordWarning)
+
+		let score60 = VaultListViewState(formPassword: "abcdefghijk한")
+		#expect(score60.formPasswordStrengthScore == 60)
+		#expect(!score60.showsFormWeakPasswordWarning)
+
+		#expect(!VaultListViewState(formPassword: "").showsFormWeakPasswordWarning)
+		#expect(EntropyScorer.warningMessage == "현재 비밀번호는 보안에 취약합니다. 80점 이상의 강력한 비밀번호로 재생성하세요.")
+	}
+
+	@Test("항목 폼: 이어지는 숫자 안내는 점수와 별개로 보인다 (GEN-001)")
+	func formSequentialDigitsNotice() {
+		#expect(VaultListViewState(formPassword: "Xk9#mPq2$vL7&123abcdefghijk").showsFormSequentialDigitsNotice)
+		#expect(!VaultListViewState(formPassword: "Abcdefgh12").showsFormSequentialDigitsNotice)
+	}
+
 	@Test("interactor.didBecomeActive() 호출 시 lockManager.decryptedVault?.items를 읽어 presenter.displayItems(_:) 1회 호출 및 아이템 목록 전달 검증")
 	func vaultListInteractor_didBecomeActive_loadsAndDisplaysItems() {
 		// Given

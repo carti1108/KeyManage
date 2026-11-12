@@ -27,6 +27,7 @@ public final class MockAuthRouting: AuthRouting {
 	public var viewControllable: ViewControllable
 	public var interactable: Interactable
 	public var children: [Routing] = []
+	public var lifecycle: AsyncStream<RouterLifecycle> { AsyncStream { $0.finish() } }
 
 	public init(
 		viewControllable: ViewControllable = MockViewControllable(),
@@ -57,17 +58,23 @@ public final class MockAuthBuildable: AuthBuildable {
 }
 
 @MainActor
-private final class MockViewControllable: ViewControllable {
+public final class MockViewControllable: ViewControllable {
+	public init() {}
+
 	#if os(macOS)
-	var nsViewController: PlatformViewController { PlatformViewController() }
+	public var nsViewController: PlatformViewController { PlatformViewController() }
 	#else
-	var uiViewController: PlatformViewController { PlatformViewController() }
+	public var uiViewController: PlatformViewController { PlatformViewController() }
 	#endif
 }
 
 @MainActor
-private final class MockInteractable: Interactable {
+public final class MockInteractable: Interactable {
 	public var isActive: Bool = false
+	public var isActiveStream: AsyncStream<Bool> { AsyncStream { $0.finish() } }
+
+	public init() {}
+
 	public func activate() { isActive = true }
 	public func deactivate() { isActive = false }
 }

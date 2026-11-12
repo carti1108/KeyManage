@@ -400,6 +400,23 @@ struct VaultListView: View {
 					placeholder: "비밀번호 입력 또는 자동 생성",
 					showCopyAction: false
 				)
+
+				// 약한 비밀번호도 저장은 허용하고 안내만 한다 (GEN-001)
+				if viewModel.state.showsFormStrengthGauge {
+					KMGaugeBar(score: viewModel.state.formPasswordStrengthScore)
+				}
+				if viewModel.state.showsFormWeakPasswordWarning {
+					Text(EntropyScorer.warningMessage)
+						.font(.footnote)
+						.foregroundColor(DesignToken.View.mutedForeground)
+						.fixedSize(horizontal: false, vertical: true)
+				}
+				if viewModel.state.showsFormSequentialDigitsNotice {
+					Text(SequentialDigitsChecker.noticeMessage)
+						.font(.footnote)
+						.foregroundColor(DesignToken.View.mutedForeground)
+						.fixedSize(horizontal: false, vertical: true)
+				}
 			}
 
 			formInputField(

@@ -12,3 +12,6 @@ export const NEW_PASSWORD_PROBLEMS: Record<NewMasterPasswordProblem, string> = {
   tooShort: '마스터 비밀번호는 12자 이상이어야 합니다.',
   mismatch: '비밀번호 확인이 일치하지 않습니다.',
 }
+
+/** 가입 화면 강도 게이지가 취약일 때 안내. 가입은 막지 않는다 (SEC-002) */
+export const WEAK_MASTER_PASSWORD_WARNING = '마스터 비밀번호가 보안에 취약합니다. 더 길게 만들거나 여러 종류의 문자를 섞어 주세요.'
