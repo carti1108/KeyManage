@@ -139,7 +139,7 @@ Kotlin 테스트 실행 파일을 앱 번들(`Info.plist` 포함)로 감싸 시�
 | 기존 키체인 테스트 5건 | 같은 실행에서 모두 통과 |
 
 - 결론: 생체 인증과 생체 보호 키체인도 `iosMain` Kotlin 코드만으로 동작한다. 앱이 넘길 것은 없었다. iOS 인증 창은 시스템이 띄우므로 화면 정보가 필요 없다(Android `BiometricPrompt`는 Activity가 필요하다).
-- 실험 설정: 시뮬레이터에 암호가 없어서 접근 수준을 `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`로 했다. 실제 앱에서 기기 암호가 꺼지면 항목을 지우는 `WhenPasscodeSetThisDeviceOnly`를 쓸지는 정책 결정이다(보안 경계라 사람이 정한다).
+- 실험 설정: 시뮬레이터에 암호가 없어서 접근 수준을 `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`로 했다. 이후 `WhenPasscodeSetThisDeviceOnly`로 정했다(11장).
 - 생체 인증 테스트는 Face ID 신호가 필요해서 `iosSimulatorArm64Test`에만 두었다. Gradle 테스트 작업으로는 돌지 않고 호스트 앱 실행으로만 확인된다. macOS 테스트에는 넣지 않았다(개발 기기에서 Touch ID 창이 뜬다).
 - 아직 확인하지 못한 것: 실기기, 생체 등록 변경 후 항목 무효화, Android `BiometricPrompt`.
 
@@ -223,3 +223,18 @@ Windows에서 처음 빌드할 때 `crypto/build.gradle.kts`의 테스트 벡터
 - 결론: 두 구현이 같은 벡터를 바이트 단위로 통과하므로 키 유도와 볼트 암호문 형식이 같다. 웹을 Kotlin 암호로 바꿔도 기존 볼트를 그대로 열 수 있다. 저장 데이터 형식 결정은 생기지 않았다.
 - AES-GCM은 키·IV·AAD가 같으면 결과가 하나로 정해지므로, 무작위 IV 교차 검증(Kotlin이 암호화하고 TypeScript가 복호화)은 따로 하지 않았다.
 - 아직 확인하지 못한 것: Firefox·Safari의 WebCrypto, 5MB 볼트(VLT-001)에서 속도 비교, 백업 파일 형식(`backupFile`)의 Kotlin 구현.
+
+## 11. 결정: 생체 해제용 키의 키체인 접근 수준 (2026-11-12)
+
+iOS 생체 보호 키체인 항목(`BiometricKeychainStore`)의 접근 수준을 `kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly`로 정했다. 보안 경계 결정이라 사용자가 정했다.
+
+| 선택지 | 기기 암호를 끄면 | 판단 |
+| :--- | :--- | :--- |
+| `WhenPasscodeSetThisDeviceOnly` | iOS가 항목을 지운다 | **채택** |
+| `WhenUnlockedThisDeviceOnly`(실험 때 값) | 항목은 남지만 Face ID도 꺼져 생체 보호 항목은 읽을 수 없다 | 채택 안 함 |
+
+- 근거: Android Keystore의 인증 필요 키(`setUserAuthenticationRequired`)는 화면 잠금을 끄면 영구히 무효가 된다. 두 플랫폼이 같은 동작을 하고, 쓸 수 없는 키가 기기에 남지 않는다.
+- 사용자 영향: 기기 암호를 껐다 다시 켜면 생체 해제가 풀려 있다. 마스터 비밀번호로 잠금을 풀고 생체 인증을 다시 켜야 한다. SEC-003 8번(생체 정보 변경 시 생체 해제 무효화)과 같은 흐름이다.
+- 범위: 생체 보호 항목만 바꿨다. 일반 `KeychainSecureStore`(세션 토큰 등)는 `WhenUnlockedThisDeviceOnly` 그대로다.
+- 확인하지 못한 것: Windows에서는 Apple 대상을 빌드할 수 없어 컴파일·실행을 확인하지 않았다. 시뮬레이터에는 기기 암호가 없어 `WhenPasscodeSet` 항목 저장이 실패할 수 있다(`errSecNotAvailable` 예상). 7장의 생체 인증 시뮬레이터 테스트는 Mac에서 다시 돌려 확인해야 하고, 실패하면 실기기에서 확인한다.
+- 정책 반영: `docs/policies/SEC/SEC-003`에는 기기 암호를 끌 때의 동작이 없다. 정책은 main의 SSOT이므로 이 실험 브랜치가 아니라 main에서 따로 고친다.
