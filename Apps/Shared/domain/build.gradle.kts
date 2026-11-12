@@ -38,9 +38,28 @@ kotlin {
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.serialization.json)
         }
-        commonTest.dependencies {
-            implementation(kotlin("test"))
-            implementation(libs.kotlinx.coroutines.test)
+        commonTest {
+            kotlin.srcDir(layout.buildDirectory.dir("generated/testVectors"))
+            dependencies {
+                implementation(kotlin("test"))
+                implementation(libs.kotlinx.coroutines.test)
+            }
         }
     }
 }
+
+// docs/crypto-test-vectors.json을 공통 테스트가 읽을 수 있게 Kotlin 상수로 만든다(crypto 모듈과 같은 방식)
+val vectorsFile = rootProject.layout.projectDirectory.file("../../docs/crypto-test-vectors.json")
+val generateTestVectors by tasks.registering {
+    inputs.file(vectorsFile)
+    val outDir = layout.buildDirectory.dir("generated/testVectors")
+    outputs.dir(outDir)
+    doLast {
+        val json = vectorsFile.asFile.readText()
+        val escaped = json.replace("\\", "\\\\").replace("\"", "\\\"").replace("\$", "\\\$").replace("\r", "").replace("\n", "\\n")
+        val target = outDir.get().file("com/keymanage/domain/crypto/TestVectorsJson.kt").asFile
+        target.parentFile.mkdirs()
+        target.writeText("package com.keymanage.domain.crypto\n\ninternal const val TEST_VECTORS_JSON = \"$escaped\"\n")
+    }
+}
+tasks.matching { it.name.startsWith("compileTestKotlin") }.configureEach { dependsOn(generateTestVectors) }
