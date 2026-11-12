@@ -148,3 +148,23 @@ Apps/Shared/
 - 바이트 비교: `Apps/Shared/domain/compat/generate-vault-fixtures.ts`가 실제 웹 코드(`vaultData.ts`, `mergeVaults.ts`)로 해석 → 추가 → 수정 → 삭제 → 양방향 병합 → 빈 볼트를 만들고, 그 결과를 Kotlin 테스트 상수로 저장한다. 입력에는 모르는 필드, 다른 플랫폼의 `null`, 오프셋 시각, 따옴표·역슬래시·줄바꿈·제어 문자·U+2028·이모지가 들어 있다. Node 23.6 이상이 TypeScript를 바로 실행하므로 빌드 단계가 없다.
 - 이 비교가 실제로 형식 차이를 잡는지 확인하려고 `addItem`의 키 두 개 순서를 바꿔 돌렸다. 6건 중 4건이 실패했고 원래대로 되돌렸다.
 - 원본과 다를 수 있는 곳: 웹의 `Date.parse`는 2월 30일 같은 날짜를 다음 달로 넘겨 받지만 Kotlin `Instant.parse`는 거절한다. 다른 플랫폼이 이런 시각을 쓴 볼트는 Kotlin에서 형식 오류가 된다.
+
+### 2단계: 생성기·자동 잠금·클립보드 (2026-11-12)
+
+| 옮긴 것 | 원본 | Kotlin |
+| :--- | :--- | :--- |
+| 비밀번호 생성 | `generator/passwordGenerator.ts` | `generator/PasswordGenerator.kt`: 거부 샘플링·나머지 편향 제거 그대로. 32비트 난수 포트 `RandomSource`와 기본값 `SecureRandomSource` |
+| 강도 점수·연속 숫자 | `generator/passwordStrength.ts` | `generator/PasswordStrength.kt`: 길이는 원본처럼 코드포인트로 센다 |
+| 자동 잠금 | `lock/autoLock.ts` | `lock/AutoLock.kt`: 시간은 `Clock`·`Duration`, 타이머는 `Scheduler` 포트 |
+| 자동 잠금 설정 | `lock/autoLockSetting.ts` | `lock/AutoLockSetting.kt`: 저장 형식(밀리초 십진 문자열)은 그대로, 저장소 포트 `AutoLockSettingStore` |
+| 클립보드 소각 | `clipboard/clipboardBurner.ts` | `clipboard/ClipboardBurner.kt`: `suspend` 함수와 `StateFlow` 상태. 타이머 만료 뒤 비우기는 주입한 `CoroutineScope`에서 띄운다 |
+
+| 테스트 | 건수 | JVM | JS Node | JS 브라우저 |
+| :--- | :--- | :--- | :--- | :--- |
+| 원본 5개 테스트 파일에서 옮긴 것 | 45 | 통과 | 통과 | 통과 |
+| 원본에 없던 것(보안 난수 범위, 길이·문자군 문제 순서, 설정 저장 형식, 아주 큰 숫자 문자열) | 4 | 통과 | 통과 | 통과 |
+| 0·1단계 | 57 | 통과 | 통과 | 통과 |
+| 합계 | 106 | 통과 | 통과 | 통과 |
+
+- 원본 길이 검사 사례 중 `12.5`·`NaN`은 길이가 `Int` 타입이라 표현할 수 없어 옮기지 않았다. 대신 `0`·`-1`을 넣었다.
+- 클립보드의 경쟁 상태 보호(늦게 끝난 비우기가 새 복사를 덮지 않음, 복사 중 잠금)가 테스트로 지켜지는지 확인하려고, 보호 조건을 하나씩 지운 코드로 돌렸다. 각각 해당 테스트 1건이 실패했고 원래대로 되돌렸다.
