@@ -101,3 +101,27 @@ Apps/Shared/
 2. TypeScript 테스트는 `vi.fn`·가짜 타이머를 많이 쓴다. Kotlin에서는 손으로 만든 가짜 구현과 `runTest`의 가상 시간으로 바꾼다.
 3. Apple 도메인에만 있는 동작이 있는지 아직 대조하지 않았다. 5단계 전에 `VaultLockManager`를 웹 세션 테스트 목록과 대조해 빠진 동작을 찾는다.
 4. 오류를 사용자 문구로 바꾸는 코드(`describeError`)는 웹 `ui`에 있다. 플랫폼 공통 문구라면 RIB 단계에서 `commonMain`으로 옮긴다.
+
+## 9. 진행 기록
+
+### 0단계: 기반 (2026-11-12)
+
+`Apps/Shared/domain` 모듈을 만들었다. 대상은 JVM, Android, JS(브라우저·Node), iOS, macOS다.
+
+| 옮긴 것 | 원본 | Kotlin |
+| :--- | :--- | :--- |
+| 서버 오류 | `server/serverErrors.ts` | `server/ServerErrors.kt`: `ServerErrorCode`(모르는 코드는 `UNKNOWN`), 공통 상위 타입 `ServerFailure` 아래 `ServerError`·`NetworkError`·`UnexpectedResponseError` |
+| Base64 | `crypto/base64.ts` | `encoding/Base64.kt`: 표준 라이브러리 `kotlin.io.encoding.Base64`에 원본과 같은 엄격한 형식 검사(공백·패딩 누락·URL용 문자 거부)를 더했다 |
+| 난수 | `crypto.getRandomValues` 직접 호출 | `platform/RandomBytes.kt`: 인터페이스와 기본 구현 `SecureRandomBytes`(cryptography-kotlin 보안 난수) |
+| 시간 | `new Date()`·주입한 `now` | 표준 라이브러리 `kotlin.time.Clock`을 그대로 쓴다. 별도 포트를 만들지 않았다 |
+
+| 대상 | 테스트 15건(Base64 8, 서버 오류 4, 난수·시간 3) |
+| :--- | :--- |
+| JVM | 15/15 통과 |
+| JS Node | 15/15 통과 |
+| JS 브라우저(Chrome Headless) | 15/15 통과 |
+| Android | 컴파일 통과(기기 테스트는 1단계부터) |
+| iOS·macOS | Windows라 확인 안 함 |
+
+- 원본 TypeScript에는 Base64·서버 오류 전용 테스트가 없어서, 원본 코드의 주석과 동작에서 테스트를 만들었다. 5MB 볼트 크기 입력도 확인한다.
+- `kotlin.time.Clock`·`Instant`는 Kotlin 2.3에서 아직 실험 API라 모듈 전체에 `ExperimentalTime` 사용을 켰다.
