@@ -26,9 +26,17 @@ private final class MockAuthPresenter: AuthPresentable {
 	}
 }
 
-@MainActor
 private final class MockLockManagerForAuth: VaultLockManagerProtocol, @unchecked Sendable {
 	var isLocked: Bool = true
+	var lastInteractionTime: Date = Date()
+	var email: String?
+	var sessionToken: String?
+	var salt: Data?
+	var iterations: Int = 600_000
+	var encryptedVault: EncryptedVaultPayload?
+	var revision: Int = 0
+	var masterKey: Data?
+	var encryptionKey: Data?
 	var autoLockTimeout: AutoLockTimeout = .fiveMinutes
 	var isPrivacyCoverActive: Bool = false
 	var hasActiveSession: Bool = false
@@ -55,12 +63,13 @@ private final class MockLockManagerForAuth: VaultLockManagerProtocol, @unchecked
 	func setupSession(email: String, sessionToken: String, salt: Data, iterations: Int, encryptedVault: EncryptedVaultPayload, isBiometricsEnabled: Bool, biometryStateHash: Data?, revision: Int) {}
 	func recordInteraction(at date: Date) {}
 	func exportBackup(now: Date) throws -> (fileName: String, data: Data) { ("", Data()) }
-	func restoreBackup(fileData: Data, password: String, now: Date) throws -> (restoredCount: Int, newVault: VaultData) { (0, VaultData(items: [])) }
+	func restoreBackup(fileData: Data, password: String, now: Date) throws -> (restoredCount: Int, newVault: VaultData) { (0, VaultData(updatedAt: "", items: [])) }
 	func changeMasterPassword(currentPassword: String, newPassword: String, networkClient: AuthNetworkClientProtocol, now: Date) async throws {}
 	func deleteAccount(password: String, confirmationPhrase: String, networkClient: AuthNetworkClientProtocol, now: Date) async throws {}
 	func checkIfPasswordChangedOnServer(networkClient: AuthNetworkClientProtocol) async throws -> Bool { false }
 	func addVaultItem(serviceName: String, username: String, password: String, url: String?, notes: String?, now: Date) throws -> VaultItem {
-		VaultItem(id: "test", serviceName: serviceName, username: username, password: password, createdAt: now, updatedAt: now)
+		let timeString = ISO8601DateFormatter().string(from: now)
+		return VaultItem(id: "test", serviceName: serviceName, username: username, password: password, url: url, notes: notes, createdAt: timeString, updatedAt: timeString)
 	}
 	func updateVaultItem(item: VaultItem, now: Date) throws {}
 	func deleteVaultItem(id: String, now: Date) throws {}
