@@ -125,3 +125,26 @@ Apps/Shared/
 
 - 원본 TypeScript에는 Base64·서버 오류 전용 테스트가 없어서, 원본 코드의 주석과 동작에서 테스트를 만들었다. 5MB 볼트 크기 입력도 확인한다.
 - `kotlin.time.Clock`·`Instant`는 Kotlin 2.3에서 아직 실험 API라 모듈 전체에 `ExperimentalTime` 사용을 켰다.
+
+### 1단계: 볼트 데이터 (2026-11-12)
+
+| 옮긴 것 | 원본 | Kotlin(`domain/vault`) |
+| :--- | :--- | :--- |
+| 볼트 해석·편집 | `vaultData.ts` | `VaultData.kt`: `parseVaultData`, `encodeVaultData`, `addItem`·`updateItem`·`deleteItem`, `activeItems`, `isReadOnly`, `formatTime` |
+| 항목 병합 | `mergeVaults.ts` | `MergeVaults.kt` |
+| 목록·입력 검사 | `itemList.ts` | `ItemList.kt`(`listItems`, `checkItemFields`, `itemChanges`), `KoreanNaturalOrder.kt` |
+
+- `VaultData`·`VaultItem`은 JSON 객체를 그대로 감싼다. 모르는 필드와 키 순서가 원본과 같게 남는다. 편집도 원본 객체 펼치기(`{ ...item, ...set }`)와 같은 순서로 키를 둔다.
+- 원본의 `null`을 넣어 필드를 지우는 방식(`url: null`)은 `OptionalChange.Keep`·`Remove`·`Set`으로 바꿨다. "그대로 둠"과 "지움"을 타입으로 구분한다.
+- 정렬: 원본은 `Intl.Collator('ko', numeric)`를 썼다. 공통 코드에 같은 기능이 없고 플랫폼 정렬기는 서로 결과가 달라서 `KoreanNaturalOrder`를 직접 만들었다(숫자는 값으로, 한글 → 라틴 순, 대소문자 무시). 악센트·구두점 세부 순서는 원본과 다를 수 있다.
+
+| 테스트 | 건수 | JVM | JS Node | JS 브라우저 |
+| :--- | :--- | :--- | :--- | :--- |
+| 원본 `vaultData.test.ts`·`itemList.test.ts`에서 옮긴 것 | 30 | 통과 | 통과 | 통과 |
+| 원본에 없던 것(숫자 정렬, `itemChanges`, UUID, 초 단위 시각) | 6 | 통과 | 통과 | 통과 |
+| 웹과 바이트 단위 비교(`VaultCompatTest`) | 6 | 통과 | 통과 | 통과 |
+| 0단계 | 15 | 통과 | 통과 | 통과 |
+
+- 바이트 비교: `Apps/Shared/domain/compat/generate-vault-fixtures.ts`가 실제 웹 코드(`vaultData.ts`, `mergeVaults.ts`)로 해석 → 추가 → 수정 → 삭제 → 양방향 병합 → 빈 볼트를 만들고, 그 결과를 Kotlin 테스트 상수로 저장한다. 입력에는 모르는 필드, 다른 플랫폼의 `null`, 오프셋 시각, 따옴표·역슬래시·줄바꿈·제어 문자·U+2028·이모지가 들어 있다. Node 23.6 이상이 TypeScript를 바로 실행하므로 빌드 단계가 없다.
+- 이 비교가 실제로 형식 차이를 잡는지 확인하려고 `addItem`의 키 두 개 순서를 바꿔 돌렸다. 6건 중 4건이 실패했고 원래대로 되돌렸다.
+- 원본과 다를 수 있는 곳: 웹의 `Date.parse`는 2월 30일 같은 날짜를 다음 달로 넘겨 받지만 Kotlin `Instant.parse`는 거절한다. 다른 플랫폼이 이런 시각을 쓴 볼트는 Kotlin에서 형식 오류가 된다.
