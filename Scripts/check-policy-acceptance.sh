@@ -90,6 +90,16 @@ if os.path.isdir(apple_tests_dir):
             ("SEC-003 표준 비밀번호 오류 문구('마스터 비밀번호가 올바르지 않습니다.') 검증", r"마스터 비밀번호가 올바르지 않습니다\."),
             ("SEC-003 빈 볼트 준비 실패 문구('계정은 만들었지만 볼트를 준비하지 못했습니다.') 검증", r"계정은 만들었지만 볼트를 준비하지 못했습니다\."),
         ]
+        # SEC-003 규칙 8: 기기 암호 해제 시 생체 해제 무효화.
+        # 생체 해제용 키를 WhenPasscodeSet 접근 수준으로 저장하는 구현이 들어오면 테스트를 강제한다.
+        apple_source_text = "\n".join(
+            open(p, encoding="utf-8").read()
+            for p in glob.glob(os.path.join(apple_sources_dir, "**", "*.swift"), recursive=True)
+        )
+        if "WhenPasscodeSet" in apple_source_text:
+            apple_autolock_rules.append(
+                ("SEC-003 기기 암호 해제 시 생체 해제 무효화 검증", r"(?i)(passcode|기기 암호)")
+            )
         check_invariants("Apple", "3단계: 자동 잠금(SEC-003)", apple_tests, apple_autolock_rules)
 
     if os.path.isdir(os.path.join(apple_sources_dir, "Generator")):
