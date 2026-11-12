@@ -18,3 +18,4 @@ dependencyResolutionManagement {
 
 include(":crypto")
 include(":secure-store")
+include(":device-store")
