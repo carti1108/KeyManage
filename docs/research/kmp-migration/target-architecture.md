@@ -188,3 +188,20 @@ Windows에서 처음 빌드할 때 `crypto/build.gradle.kts`의 테스트 벡터
 `local.properties`의 `sdk.dir`은 역슬래시 대신 `/`로 쓴다. `\U`가 유니코드 이스케이프로 읽혀 Gradle 설정 단계가 실패한다.
 
 아직 확인하지 못한 것: 실기기, 생체 등록 변경 후 키 무효화, 지문 불일치·취소 경로.
+
+## 9. 실험 결과: 웹 저장소 (2026-11-12)
+
+`Apps/Shared/device-store` 모듈을 새로 만들었다. 공통 인터페이스는 `DeviceStore`(`load`·`save`·`clear`, 모두 `suspend`)이고, 웹 구현은 `jsMain`의 `IndexedDbDeviceStore`다. TypeScript 코드는 없다.
+
+- 기록 형식은 공통 코드가 정한다. 인터페이스는 기록을 JSON 문자열로 주고받고, 플랫폼 구현은 형식을 해석하지 않는다(3장 "저장소" 결정).
+- 지금 웹 앱(`Apps/Web/src/adapters/browser/indexedDbDeviceStore.ts`)과 같은 DB(`keymanage` v1), 저장소(`device`), 키(`account`)를 쓴다. 기록도 문자열이 아닌 객체로 저장한다. 그래서 저장 데이터 형식은 바뀌지 않고, 기존 사용자의 기록을 옮기지 않아도 된다.
+- 동작도 TypeScript 구현과 맞췄다: 열기 제한 시간 3초, 다른 탭의 차단은 실패로 처리, `onversionchange` 때 연결 닫기, 쓰기는 트랜잭션이 끝나야 성공.
+
+| 대상 | 테스트 6건 |
+| :--- | :--- |
+| Chrome Headless 156 (Windows, Karma) | 6/6 통과 |
+
+- 6건: 빈 상태 조회, 저장 후 조회, 덮어쓰기, 삭제, 기존 웹 앱이 쓴 기록 읽기, Kotlin이 쓴 기록이 객체로 저장되는지.
+- 테스트가 실제로 형식을 잡는지 확인하려고 구현을 일부러 문자열 저장으로 바꿔 돌렸다. 3건이 실패했고 원래대로 되돌렸다.
+- 실행: `CHROME_BIN`에 Chrome 경로를 넣고 `gradlew :device-store:jsBrowserTest`.
+- 아직 확인하지 못한 것: Firefox·Safari, 열기 시간 초과·차단 경로 테스트, 저장 공간 부족, `navigator.storage.persist` 요청(지금 웹 앱에는 있다), Android·Apple 구현.
