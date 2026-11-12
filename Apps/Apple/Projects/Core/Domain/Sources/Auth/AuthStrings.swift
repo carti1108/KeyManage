@@ -8,6 +8,7 @@ public enum AuthStrings {
 	public static let registrationDisabledMessage = "현재 새 계정을 만들 수 없습니다."
 	public static let passwordTooShortMessage = "마스터 비밀번호는 12자 이상이어야 합니다."
 	public static let confirmationMismatchMessage = "비밀번호 확인이 일치하지 않습니다."
+	public static let weakMasterPasswordWarning = "마스터 비밀번호가 보안에 취약합니다. 더 길게 만들거나 여러 종류의 문자를 섞어 주세요."
 	public static let invalidEmailFormatMessage = "올바른 이메일 주소를 입력해 주세요."
 	public static let invalidCharacterMessage = "마스터 비밀번호에 쓸 수 없는 문자가 있습니다."
 	public static let serverConnectionFailedMessage = "서버에 연결할 수 없습니다. 네트워크 연결을 확인해 주세요."

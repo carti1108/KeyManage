@@ -170,6 +170,40 @@ struct AuthFeatureTests {
 		#expect(!vm.canSubmit)
 	}
 
+	@Test("AuthViewState: 강도 게이지는 회원가입 모드에서 비밀번호가 있을 때만 보인다 (SEC-002)")
+	func viewState_strengthGauge_visibility() {
+		#expect(!AuthViewState(mode: .register, password: "").showsStrengthGauge)
+		#expect(!AuthViewState(mode: .login, password: "Abcdefgh12").showsStrengthGauge)
+		#expect(AuthViewState(mode: .register, password: "a").showsStrengthGauge)
+	}
+
+	@Test("AuthViewState: 59점은 취약 경고, 60점은 경고 없음 (SEC-002, GEN-001 경계값)")
+	func viewState_weakWarning_boundary() {
+		let score59 = AuthViewState(mode: .register, password: "Abcdefgh12")
+		#expect(score59.passwordStrengthScore == 59)
+		#expect(score59.showsWeakPasswordWarning)
+
+		let score60 = AuthViewState(mode: .register, password: "abcdefghijk한")
+		#expect(score60.passwordStrengthScore == 60)
+		#expect(!score60.showsWeakPasswordWarning)
+
+		#expect(!AuthViewState(mode: .login, password: "Abcdefgh12").showsWeakPasswordWarning)
+		#expect(!AuthViewState(mode: .register, password: "").showsWeakPasswordWarning)
+	}
+
+	@Test("AuthViewState: 취약한 비밀번호도 가입은 막지 않는다 (SEC-002)")
+	func viewState_weakPassword_stillSubmittable() {
+		let weak = "aaaaaaaaaaaa"
+		let state = AuthViewState(mode: .register, email: "user@test.com", password: weak, confirmation: weak)
+		#expect(state.showsWeakPasswordWarning)
+		#expect(state.canSubmit)
+	}
+
+	@Test("AuthStrings: 가입 비밀번호 취약 문구 (SEC-002)")
+	func strings_weakPasswordWarning() {
+		#expect(AuthStrings.weakMasterPasswordWarning == "마스터 비밀번호가 보안에 취약합니다. 더 길게 만들거나 여러 종류의 문자를 섞어 주세요.")
+	}
+
 	@Test("AuthInteractor: 로그인 성공 시 didUnlock 호출 및 입력 초기화")
 	@MainActor
 	func interactor_loginSuccess_triggersListener() async {

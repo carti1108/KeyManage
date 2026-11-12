@@ -92,6 +92,17 @@ public struct AuthView: View {
 									RoundedRectangle(cornerRadius: 8)
 										.stroke(DesignToken.View.border, lineWidth: 1)
 								)
+
+							// 가입 화면 강도 안내. 취약해도 가입은 막지 않는다 (SEC-002)
+							if viewModel.state.showsStrengthGauge {
+								KMGaugeBar(score: viewModel.state.passwordStrengthScore)
+							}
+							if viewModel.state.showsWeakPasswordWarning {
+								Text(AuthStrings.weakMasterPasswordWarning)
+									.font(.footnote)
+									.foregroundColor(DesignToken.View.mutedForeground)
+									.fixedSize(horizontal: false, vertical: true)
+							}
 						}
 
 						// Confirmation Input (Register Mode Only)

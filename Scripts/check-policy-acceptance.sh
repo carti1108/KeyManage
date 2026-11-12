@@ -162,6 +162,17 @@ if os.path.isdir(apple_tests_dir):
         ]
         check_invariants("Apple", "9단계: 마스터 비밀번호 변경(SEC-004)", apple_tests, apple_password_change_rules)
 
+        apple_signup_strength_rules = [
+            ("SEC-002 가입 강도 게이지 59/60 경계값 검증", r"passwordStrengthScore == 59[\s\S]*passwordStrengthScore == 60"),
+            ("SEC-002 가입 비밀번호 취약 문구 검증", r"마스터 비밀번호가 보안에 취약합니다\. 더 길게 만들거나 여러 종류의 문자를 섞어 주세요\."),
+        ]
+        # 가입 화면 상태는 AuthFeature에 있으므로 그 테스트를 함께 읽는다
+        apple_auth_tests_dir = os.path.join(root, "Apps", "Apple", "Projects", "Features", "Auth", "Tests")
+        apple_auth_tests = "\n".join(
+            open(p, encoding="utf-8").read() for p in sorted(glob.glob(os.path.join(apple_auth_tests_dir, "*.swift")))
+        )
+        check_invariants("Apple", "10단계: 가입 강도 게이지(SEC-002)", apple_auth_tests, apple_signup_strength_rules)
+
 
 # ============================================================================
 # 2. Web 플랫폼 감사 (Apps/Web/src/**/*.test.ts*)
@@ -260,6 +271,12 @@ if os.path.isdir(web_src_dir):
         ("SEC-004 완료 문구('마스터 비밀번호를 바꿨습니다.') 검증", r"마스터 비밀번호를 바꿨습니다\."),
     ]
     check_invariants("Web", "9단계: 마스터 비밀번호 변경(SEC-004)", web_tests, web_password_change_rules)
+
+    web_signup_strength_rules = [
+        ("SEC-002 가입 강도 게이지 59/60 경계값 검증", r"aria-valuenow', '59'[\s\S]*aria-valuenow', '60'"),
+        ("SEC-002 가입 비밀번호 취약 문구 검증", r"마스터 비밀번호가 보안에 취약합니다\. 더 길게 만들거나 여러 종류의 문자를 섞어 주세요\."),
+    ]
+    check_invariants("Web", "10단계: 가입 강도 게이지(SEC-002)", web_tests, web_signup_strength_rules)
 
     web_account_deletion_rules = [
         ("SEC-005 삭제 대화상자('계정 삭제') 흐름 검증", r"getByRole\('dialog', \{ name: '계정 삭제' \}\)"),
