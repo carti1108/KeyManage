@@ -54,10 +54,11 @@ val generateTestVectors by tasks.registering {
     outputs.dir(outDir)
     doLast {
         val json = vectorsFile.asFile.readText()
-        val escaped = json.replace("\\", "\\\\").replace("\"", "\\\"").replace("\$", "\\\$").replace("\n", "\\n")
+        val escaped = json.replace("\\", "\\\\").replace("\"", "\\\"").replace("\$", "\\\$").replace("\r", "").replace("\n", "\\n")
         val target = outDir.get().file("com/keymanage/crypto/TestVectorsJson.kt").asFile
         target.parentFile.mkdirs()
         target.writeText("package com.keymanage.crypto\n\ninternal const val TEST_VECTORS_JSON = \"$escaped\"\n")
     }
 }
-tasks.matching { it.name.startsWith("compileTestKotlin") }.configureEach { dependsOn(generateTestVectors) }
+// Android 기기 테스트 컴파일 작업은 이름이 compileAndroidDeviceTest라 따로 묶는다
+tasks.matching { it.name.startsWith("compileTestKotlin") || it.name == "compileAndroidDeviceTest" }.configureEach { dependsOn(generateTestVectors) }
