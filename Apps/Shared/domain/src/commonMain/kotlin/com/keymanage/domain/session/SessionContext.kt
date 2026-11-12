@@ -68,6 +68,12 @@ internal suspend fun <T> SessionContext.inPushChain(block: suspend () -> T): T {
     pushChain = done
     try {
         previous.await()
+    } catch (error: CancellationException) {
+        // 기다리다 취소됐어도 뒤에 선 작업은 앞 작업이 끝난 뒤에 시작해야 한다. 원본 Promise 사슬은 취소되지 않는다
+        previous.invokeOnCompletion { done.complete(Unit) }
+        throw error
+    }
+    try {
         return block()
     } finally {
         done.complete(Unit)

@@ -16,6 +16,8 @@ import com.keymanage.domain.tabs.TabLockName
 import com.keymanage.domain.vault.ReadOnlyVaultException
 import com.keymanage.domain.vault.SyncedVault
 import com.keymanage.domain.vault.VaultSyncConflictException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.cancellation.CancellationException
 
 // 마스터 비밀번호 변경 (SEC-004, ADR-0023). 원본: Apps/Web/src/domain/session/changePassword.ts
@@ -75,8 +77,11 @@ internal suspend fun changeMasterPassword(ctx: SessionContext, currentPassword: 
         // 요청부터 반영까지를 대기 전송 줄에 세운다. 그사이 이 탭의 저장이 보내는 전송은 반영 뒤 새 토큰·키로 나가,
         // 옛 토큰으로 401을 받아 성공한 변경을 버리지 않는다
         val pending = ctx.inPushChain {
-            val changed = request(ctx, accessToken, currentKeys.authHash, keys.authHash, kdf, opened.vault.revision, payload)
-            adopt(ctx, changed, creds, startedGeneration)
+            // 서버가 바꾼 뒤 취소되면 기기 기록에 옛 KDF 값이 남고 새 토큰도 고아가 된다. 요청부터 반영까지는 취소하지 않는다(요청은 제한 시간 안에 끝난다)
+            withContext(NonCancellable) {
+                val changed = request(ctx, accessToken, currentKeys.authHash, keys.authHash, kdf, opened.vault.revision, payload)
+                adopt(ctx, changed, creds, startedGeneration)
+            }
         }
         // 줄 안에서 기다리면 자기 자신을 기다리게 되므로, 대기로 남긴 변경은 줄에서 나온 뒤 보낸다
         if (pending) pushQuietly(ctx)

@@ -98,7 +98,11 @@ class VaultSession(private val deps: VaultSessionDeps) : RestoreTarget {
         // 토큰이 있으면 인증 해시가 필요 없어 바로 지운다. 없으면(기기 기록으로 다시 열었으면) 바로 로그인하고 지운다 (SEC-003, ADR-0019)
         var accessToken = locked.accessToken
         if (accessToken == null) {
-            val resumed = resumeSession(ctx, locked, keys.authHash)
+            val resumed = try {
+                resumeSession(ctx, locked, keys.authHash)
+            } finally {
+                keys.authHash.fill(0)
+            }
             accessToken = resumed.accessToken
             // 오프라인은 조용히 세션 없이 연다. 서버가 거절했으면(출처 거부 등) 사유를 알린다
             val failure = resumed.failure
@@ -129,7 +133,11 @@ class VaultSession(private val deps: VaultSessionDeps) : RestoreTarget {
         if (current.accessToken != null) return
         val startedAt = ctx.epoch
         val keys = verifyOrDetectChange(ctx, password, current).keys
-        val resumed = resumeSession(ctx, current, keys.authHash)
+        val resumed = try {
+            resumeSession(ctx, current, keys.authHash)
+        } finally {
+            keys.authHash.fill(0)
+        }
         // 왜 동기화하지 못하는지 알 수 있게 실제 사유(연결 실패, 서버 오류, 거절)를 그대로 낸다
         val accessToken = resumed.accessToken ?: throw (resumed.failure ?: NetworkError())
         ensureCurrentOrRevoke(ctx, startedAt, accessToken)
@@ -140,7 +148,8 @@ class VaultSession(private val deps: VaultSessionDeps) : RestoreTarget {
             // 서버와 맞추기 전에는 토큰을 세션에 넣지 않는다. 되돌림이면 세션 없이 두고 확인을 받는다
             syncAfterUnlock(ctx, sync, opened.vault, opened.pendingSync, acceptRollback)
         } catch (error: Throwable) {
-            if (error !is CancellationException) revoke(ctx, accessToken)
+            // 취소돼도 폐기한다. 토큰은 아직 세션에 넣지 않아 남겨 두면 만료될 때까지 고아가 된다(revoke는 deps.scope에서 돈다)
+            revoke(ctx, accessToken)
             throw error
         }
         ensureCurrentOrRevoke(ctx, startedAt, accessToken)
