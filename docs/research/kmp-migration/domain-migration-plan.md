@@ -196,3 +196,28 @@ Apps/Shared/
 - 테스트를 옮기다 생긴 문제 두 가지(코드 문제는 아니다):
   - 원본 테스트의 공백이 실제로는 U+2003(em space)이었는데 보이는 대로 일반 공백으로 옮겨 실패했다. 바이트를 확인하고 고쳤다.
   - 짝 없는 서로게이트를 문자열 상수로 쓰면 Kotlin/JS가 UTF-8 출력에서 U+FFFD로 바꿔 JS 대상에서 검사가 무의미해졌다. 실행 중에 `Char`로 이어 붙여 만들도록 고쳤다(별도 커밋). 3a 실행에서는 통과로 나왔는데 다음 실행에서 실패로 드러났다.
+
+### 4단계: 동기화·백업 (2026-11-12)
+
+| 옮긴 것 | 원본 | Kotlin |
+| :--- | :--- | :--- |
+| 볼트 동기화 | `vault/vaultSync.ts`, `vault/vaultApi.ts` | `vault/VaultSync.kt`: 불러오기·저장·409 충돌 병합(최대 3회 재시도)·되돌림 감지, 서버 포트 `VaultApi`, `RevisionMemory`, `isTransientSyncError`, 5MB 한도 |
+| 백업 파일 | `backup/backupFile.ts` | `backup/BackupFile.kt`: 파일 만들기·읽기·비밀번호로 열기, 파일 포트 `BackupFiles` |
+| 복원 규칙 | `backup/restoreBackup.ts`의 `restoreItems` | `backup/RestoreItems.kt` |
+
+- 세션 상태를 쓰는 `restoreBackupInto`는 세션과 함께 5단계에서 옮긴다.
+- 백업 파일 이름은 기기의 현지 날짜를 쓴다. 공통 코드에는 시간대가 없어서 `LocalCalendar` 포트로 플랫폼이 날짜를 알려 준다. kotlinx-datetime을 쓰면 포트가 필요 없지만 새 외부 의존성이라 넣지 않았다.
+- 백업 파일은 원본처럼 두 칸 들여쓰기로 쓴다. 기대값을 Node의 `JSON.stringify(body, null, 2)` 실제 출력에서 가져와 글자 단위로 비교한다.
+- 서버 오류 `UnexpectedResponseError`를 `open`으로 바꿨다. 원본처럼 `RevisionMismatchException`이 그 하위 타입이어야 화면이 응답 형식 오류로 함께 다룬다.
+- 브라우저 테스트의 테스트당 시간 한도(Mocha 기본 2초)를 `domain/karma.config.d/timeout.js`에서 120초로 늘렸다. 5MB 볼트를 여러 번 암호화하는 왕복 테스트가 Chrome에서만 2초를 넘었다. JVM·Node에서는 처음부터 통과했다.
+
+| 테스트 | 건수 | JVM | JS Node | JS 브라우저 |
+| :--- | :--- | :--- | :--- | :--- |
+| 원본 `vaultSync.test.ts`에서 옮긴 것 | 17 | 통과 | 통과 | 통과 |
+| 원본 `backupFile.test.ts`에서 옮긴 것 | 19 | 통과 | 통과 | 통과 |
+| 원본 `backupSession.test.ts` '복원 규칙'에서 옮긴 것 | 9 | 통과 | 통과 | 통과 |
+| 원본에 없던 것(일시 실패 판정 2건, 백업 파일 들여쓰기 글자 비교) | 3 | 통과 | 통과 | 통과 |
+| 0~3단계 | 179 | 통과 | 통과 | 통과 |
+| 합계 | 226 | 통과 | 통과 | 통과 |
+
+- 원본 파일 이름 테스트는 `new Date(2026, 0, 5)`처럼 현지 시각으로 날짜를 정했다. Kotlin에서는 `LocalCalendar`에 날짜를 직접 넣어 같은 두 경우를 확인한다.
