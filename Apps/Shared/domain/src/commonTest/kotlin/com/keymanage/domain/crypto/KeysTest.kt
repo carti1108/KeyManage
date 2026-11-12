@@ -26,8 +26,8 @@ class PreprocessPasswordTest {
 
     @Test
     fun rejectsLoneSurrogates() {
-        assertFailsWith<InvalidPasswordException> { preprocessPassword("ab\uD83Dcd") }
-        assertFailsWith<InvalidPasswordException> { preprocessPassword("\uDD11ab") }
+        assertFailsWith<InvalidPasswordException> { preprocessPassword(withLoneSurrogate("ab", '\uD83D', "cd")) }
+        assertFailsWith<InvalidPasswordException> { preprocessPassword(withLoneSurrogate("", '\uDD11', "ab")) }
         assertEquals("🔑", preprocessPassword("🔑"))
     }
 }
@@ -64,6 +64,11 @@ class DeriveKeysTest {
 
     @Test
     fun rejectsLoneSurrogatePasswordBeforeDerivation() = runTest {
-        assertFailsWith<InvalidPasswordException> { deriveKeys("ab\uD83D", ByteArray(16), MIN_ITERATIONS) }
+        assertFailsWith<InvalidPasswordException> { deriveKeys(withLoneSurrogate("ab", '\uD83D', ""), ByteArray(16), MIN_ITERATIONS) }
     }
 }
+
+// 짝 없는 서로게이트를 문자열 상수로 쓰면 Kotlin/JS가 UTF-8 JS 파일로 내보내며 U+FFFD로 바꿔 버린다.
+// 그래서 실행 중에 Char로 이어 붙여 만든다
+internal fun withLoneSurrogate(before: String, surrogate: Char, after: String): String =
+    before + charArrayOf(surrogate).concatToString() + after
