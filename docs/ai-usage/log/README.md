@@ -82,3 +82,4 @@
 | 074 | 2026-11-02 | [Apple Feature RIBs State-Action 단방향 아키텍처 통일](074-apple-ribs-state-action-refactor.md) |
 | 075 | 2026-11-11 | [디자인 시스템 공통 계약층·플랫폼 표현층 분리와 흑백 팔레트](075-design-system-layers-and-monochrome.md) |
 | 076 | 2026-11-12 | [가입·항목 저장 폼 비밀번호 강도 게이지와 다크모드 버튼 수정 (#122)](076-signup-strength-gauge.md) |
+| 077 | 2026-11-12 | [기기 암호를 끌 때 생체 해제 무효화 정책 추가](077-sec-003-passcode-off-biometric.md) |
