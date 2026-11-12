@@ -20,7 +20,7 @@ import platform.Security.errSecItemNotFound
 import platform.Security.errSecSuccess
 import platform.Security.kSecAccessControlBiometryCurrentSet
 import platform.Security.kSecAttrAccessControl
-import platform.Security.kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+import platform.Security.kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly
 import platform.Security.kSecMatchLimit
 import platform.Security.kSecMatchLimitOne
 import platform.Security.kSecReturnData
@@ -28,6 +28,7 @@ import platform.Security.kSecUseAuthenticationContext
 import platform.Security.kSecValueData
 
 // 키체인 항목에 생체 인증 접근 제어(현재 등록된 생체만 허용)를 건다.
+// 기기 암호를 끄면 iOS가 항목을 지운다(WhenPasscodeSet). Android Keystore 인증 필요 키와 같은 동작이다 (target-architecture.md 11장)
 // 읽을 때는 LAContext로 먼저 인증하고, 그 컨텍스트를 키체인 조회에 넘겨 두 번 묻지 않게 한다
 @OptIn(ExperimentalForeignApi::class)
 class BiometricKeychainStore(
@@ -39,7 +40,7 @@ class BiometricKeychainStore(
         delete(account)
         val access = SecAccessControlCreateWithFlags(
             kCFAllocatorDefault,
-            kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+            kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly,
             kSecAccessControlBiometryCurrentSet,
             null,
         ) ?: throw SecureStoreException(0, "접근 제어 생성")
