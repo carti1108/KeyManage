@@ -205,3 +205,21 @@ Windows에서 처음 빌드할 때 `crypto/build.gradle.kts`의 테스트 벡터
 - 테스트가 실제로 형식을 잡는지 확인하려고 구현을 일부러 문자열 저장으로 바꿔 돌렸다. 3건이 실패했고 원래대로 되돌렸다.
 - 실행: `CHROME_BIN`에 Chrome 경로를 넣고 `gradlew :device-store:jsBrowserTest`.
 - 아직 확인하지 못한 것: Firefox·Safari, 열기 시간 초과·차단 경로 테스트, 저장 공간 부족, `navigator.storage.persist` 요청(지금 웹 앱에는 있다), Android·Apple 구현.
+
+## 10. 실험 결과: 웹 암호 호환 (2026-11-12)
+
+`crypto` 모듈의 JS 대상(cryptography-kotlin, 내부적으로 WebCrypto)이 지금 웹 앱 TypeScript 구현과 같은 결과를 내는지 확인했다. 코드는 고치지 않았다.
+
+- 기준은 `docs/crypto-test-vectors.json`이다. 웹 앱 TypeScript 테스트(`Apps/Web/src/domain/crypto/testVectors.ts`를 쓰는 8개 파일)도 같은 파일을 읽는다.
+- Kotlin 테스트는 비밀번호 전처리(NFC·공백 정리), PBKDF2 마스터 키, HKDF 암호화 키·인증 해시를 바이트 단위로 비교한다. AES-GCM은 벡터의 고정 IV로 암호화해 암호문과 태그를 바이트 단위로 비교하고, 다시 복호화한다.
+
+| 대상 | 결과 |
+| :--- | :--- |
+| Kotlin/JS 브라우저(Chrome Headless 156) | 7/7 통과 |
+| Kotlin/JS Node | 7/7 통과 |
+| Kotlin/JVM | 7/7 통과 |
+| 웹 앱 TypeScript(같은 벡터를 쓰는 테스트 파일 8개) | 141/141 통과 |
+
+- 결론: 두 구현이 같은 벡터를 바이트 단위로 통과하므로 키 유도와 볼트 암호문 형식이 같다. 웹을 Kotlin 암호로 바꿔도 기존 볼트를 그대로 열 수 있다. 저장 데이터 형식 결정은 생기지 않았다.
+- AES-GCM은 키·IV·AAD가 같으면 결과가 하나로 정해지므로, 무작위 IV 교차 검증(Kotlin이 암호화하고 TypeScript가 복호화)은 따로 하지 않았다.
+- 아직 확인하지 못한 것: Firefox·Safari의 WebCrypto, 5MB 볼트(VLT-001)에서 속도 비교, 백업 파일 형식(`backupFile`)의 Kotlin 구현.
