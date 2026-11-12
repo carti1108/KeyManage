@@ -221,3 +221,41 @@ Apps/Shared/
 | 합계 | 226 | 통과 | 통과 | 통과 |
 
 - 원본 파일 이름 테스트는 `new Date(2026, 0, 5)`처럼 현지 시각으로 날짜를 정했다. Kotlin에서는 `LocalCalendar`에 날짜를 직접 넣어 같은 두 경우를 확인한다.
+
+### 5단계: 세션 (2026-11-12)
+
+| 옮긴 것 | 원본 | Kotlin(`domain/session`) |
+| :--- | :--- | :--- |
+| 오류·상태 타입 | `sessionTypes.ts` | `SessionTypes.kt`: 상태는 `SessionState`(`SignedOut`·`Locked`·`Unlocked`), 의존성은 `VaultSessionDeps` |
+| 상태 묶음 | `sessionContext.ts` | `SessionContext.kt`: 대기 전송 줄(`pushChain`)은 `Deferred` 사슬과 `inPushChain`으로 옮겼다 |
+| 기기 기록 쓰기·탭 맞추기 | `deviceSync.ts`, `recordMerge.ts` | `DeviceSync.kt`, `RecordMerge.kt` |
+| 대기 전송 | `pendingPush.ts` | `PendingPush.kt` |
+| 로그인·잠금 해제 단계 | `signIn.ts`, `unlockSteps.ts` | `SignIn.kt`, `UnlockSteps.kt` |
+| 비밀번호 변경·계정 삭제 | `changePassword.ts`, `deleteAccount.ts` | `ChangePassword.kt`, `DeleteAccount.kt` |
+| 세션 진입점 | `vaultSession.ts` | `VaultSession.kt`: 클래스. 리스너 등록은 해제 함수를 돌려준다 |
+| 백업 복원 | `backup/restoreBackup.ts`의 `restoreBackupInto` | `backup/RestoreBackup.kt`: 세션 포트 `RestoreTarget` |
+
+- 커밋은 5a(하위 모듈), 5b(세션 진입점·비밀번호 변경·계정 삭제·복원과 테스트)로 나눴다. 하위 모듈의 테스트는 모두 세션 진입점을 거치므로 5a만으로는 테스트를 돌릴 수 없다.
+- 순서가 바뀌었다: 이번에는 구현을 먼저 쓰고 테스트를 옮겼다. 대신 테스트가 결함을 잡는지 확인하려고 보호 조건 두 개(다른 탭 기록 병합, 보내는 사이 고친 볼트 확인)를 지운 코드로 돌렸다. 세션 테스트 7건이 실패했고 원래대로 되돌렸다.
+
+| 테스트 | 건수 | JVM | JS Node | JS 브라우저 |
+| :--- | :--- | :--- | :--- | :--- |
+| 원본 세션 테스트 9개 파일에서 옮긴 것 | 153 | 통과 | 통과 | 통과 |
+| 원본 `backupSession.test.ts`의 내보내기·복원·복원 예외 | 16 | 통과 | 통과 | 통과 |
+| 0~4단계 | 226 | 통과 | 통과 | 통과 |
+| 합계 | 395 | 통과 | 통과 | 통과 |
+
+Android는 컴파일만 확인했다. iOS·macOS는 Windows라 확인하지 않았다.
+
+원본과 다른 점:
+
+- 세션 상태에는 잠금이 없다. 원본(JS 한 스레드)처럼 한 스레드에서만 부른다고 가정한다. 앱은 메인 디스패처에서 부른다.
+- 기다리지 않는 작업(쓰지 않게 된 토큰 폐기, 다른 탭 알림에 따른 기기 기록 다시 읽기)을 띄울 곳으로 `VaultSessionDeps.scope`를 새로 받는다. 원본처럼 첫 중단점까지는 바로 실행한다(`CoroutineStart.UNDISPATCHED`).
+- `RevisionMemory`를 클래스에서 인터페이스로 바꿨다. 세션이 로그인마다 기준을 바꿀 수 있는 창을 따로 만들어 넘기기 때문이다. 기본 구현은 같은 이름의 함수 `RevisionMemory()`라 기존 코드는 그대로다.
+- 비밀번호 변경의 새 salt는 `VaultSessionDeps.random`에서 받는다. 원본은 `crypto.getRandomValues`를 직접 불렀다.
+- `exportBackup`은 `LocalCalendar`를 함께 받는다(4단계와 같은 이유).
+- 원본 오류 `DeviceStorageError`를 `device/DeviceRecord.kt`의 `DeviceStorageException`으로 옮겼다.
+- 테스트 가짜(서버·기기 저장소)의 모든 `suspend` 함수는 먼저 `yield()`한다. 원본 가짜의 `async` 함수가 늘 한 번 기다리던 것과 같은 끼어들기 순서를 낸다. 원본 테스트가 메서드를 바꿔 끼우던 곳은 `*Hook` 변수로 바꿨다.
+- JVM의 암호 연산은 중단하지 않고 JS의 암호 연산은 실제 이벤트 루프에서 끝난다. 원본 테스트 가운데 "암호화하는 사이 잠금·저장" 같은 끼어들기에 기대는 것은 대상마다 결과가 달라지지 않도록, 작업이 서버 요청의 문(`Gate`)에 닿거나 상태가 바뀔 때까지 기다린 뒤 끼어들게 바꿨다. 바꾼 테스트에는 주석을 달았다. 그중 둘은 기대 결과도 달라졌다.
+  - "저장을 기다리는 동안 잠그면 다시 열리지 않는다"는 원본에서 저장이 취소 오류로 끝났다. Kotlin에서는 서버 요청 중에 잠그므로 저장은 끝나고, 다시 열리지 않는 것만 확인한다.
+  - 두 탭 저장 테스트 2건(두 탭의 대기 내용 보존, 쓰기 전 병합)은 다른 탭의 기록이 메모리에 병합되기를 기다린 뒤 다음 저장을 한다. 원본은 Promise 순서상 병합이 먼저 끝나 있었다. JS 대상에서 기다리지 않으면, 다음 저장이 병합 전의 볼트로 기기 기록을 덮어 한쪽 항목이 사라졌다. 이 경쟁은 원본에도 있다(병합이 끝나기 전에 화면이 옛 볼트로 저장하면 같다). 별도로 확인할 일로 남긴다.
