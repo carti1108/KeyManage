@@ -140,11 +140,11 @@ public struct AuthView: View {
 								if viewModel.state.isLoading {
 									ProgressView()
 										.progressViewStyle(.circular)
-										.tint(.white)
+										.tint(DesignToken.View.primaryForeground)
 								} else {
 									Text(viewModel.state.mode == .register ? AuthStrings.registerTitle : AuthStrings.loginTitle)
 										.font(.body.weight(.bold))
-										.foregroundColor(.white)
+										.foregroundColor(DesignToken.View.primaryForeground)
 								}
 								Spacer()
 							}
