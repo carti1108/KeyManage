@@ -12,6 +12,7 @@ import com.keymanage.domain.vault.VaultSync
 import com.keymanage.domain.vault.activeItems
 import com.keymanage.domain.vault.addItem
 import kotlinx.coroutines.test.runTest
+import org.junit.Assume.assumeTrue
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -37,7 +38,10 @@ class LocalBackendIntegrationTest {
 
     @Test
     fun registerSaveLockUnlockAgainstLocalBackend() = runTest(timeout = 5.minutes) {
-        val baseUrl = System.getenv("KEYMANAGE_IT_BASE_URL") ?: return@runTest
+        val baseUrl = System.getenv("KEYMANAGE_IT_BASE_URL")
+        // 그냥 끝내면 보고서에 통과로 찍힌다. 서버 없이 돌지 않았음을 건너뜀으로 남긴다
+        assumeTrue("KEYMANAGE_IT_BASE_URL이 없어 건너뜀", !baseUrl.isNullOrEmpty())
+        checkNotNull(baseUrl)
         val client = ApiClient(resolveBaseUrl(baseUrl), keyManageHttpClient())
         val session = VaultSession(
             VaultSessionDeps(
