@@ -325,4 +325,19 @@ class JsAppPortsTest {
         unsubscribe()
         assertEquals(0, ports.state.networkListeners.length as Int)
     }
+
+    @Test
+    fun startPassesInitialNoticeToFirstSignInScreenAndIgnoresSecondStart() = runTest(timeout = 2.minutes) {
+        val app = newApp(appPorts(), FakeServer())
+        try {
+            app.start("다른 기기에서 마스터 비밀번호가 바뀌었습니다.")
+            app.start("두 번째 시작은 무시한다")
+            waitUntil("로그인 화면") { app.rootSlot.key() == "auth" }
+            val auth = app.rootSlot.view<WebAuthView>()
+            assertEquals("다른 기기에서 마스터 비밀번호가 바뀌었습니다.", auth.store.getSnapshot().notice)
+        } finally {
+            app.stop()
+            httpClientFactory = { keyManageHttpClient() }
+        }
+    }
 }

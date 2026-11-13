@@ -67,23 +67,34 @@ class WebKeyManageApp(
     /** 지금 보이는 화면이 들어온다. screenKey는 "auth" | "unlock" | "main" */
     val rootSlot: ScreenSlot = ScreenSlot()
 
-    private val app = KeyManageApp(
-        viewFactory = WebViewFactory(rootSlot),
-        session = SessionPortAdapter(session.session),
-        clipboard = JsClipboardAdapter(clipboard),
-        backupFiles = JsBackupFilesAdapter(backupFiles),
-        environment = JsAppEnvironment(environment),
-        randomBytes = SecureRandomBytes,
-    )
+    private val makeApp: (String?) -> KeyManageApp = { initialNotice ->
+        KeyManageApp(
+            viewFactory = WebViewFactory(rootSlot),
+            session = SessionPortAdapter(session.session),
+            clipboard = JsClipboardAdapter(clipboard),
+            backupFiles = JsBackupFilesAdapter(backupFiles),
+            environment = JsAppEnvironment(environment),
+            randomBytes = SecureRandomBytes,
+            initialNotice = initialNotice,
+        )
+    }
+    private var app: KeyManageApp? = null
 
-    /** 세션 상태에 맞는 첫 화면을 [rootSlot]에 붙인다 */
-    fun start() {
-        app.start(RootHost)
+    /**
+     * 세션 상태에 맞는 첫 화면을 [rootSlot]에 붙인다. 기기 기록 복원(session.restore) 뒤에 부른다.
+     * 이미 시작했으면 아무것도 하지 않는다
+     * @param initialNotice 첫 로그인 화면 안내(복원 중 세션 만료·비밀번호 바뀜 등)
+     */
+    fun start(initialNotice: String? = null) {
+        if (app != null) return
+        app = makeApp(initialNotice).also { it.start(RootHost) }
     }
 
     /** RIB 트리를 내리고 rootSlot을 비운다. 세션은 끝내지 않는다 */
     fun stop() {
-        app.stop()
+        val running = app ?: return
+        app = null
+        running.stop()
         // 루트 뷰를 붙이는 호스트가 없어서, 남은 자식 화면은 여기서 거둔다
         (rootSlot.getSnapshot()?.view as? WebViewControllable)?.let(rootSlot::hide)
     }
