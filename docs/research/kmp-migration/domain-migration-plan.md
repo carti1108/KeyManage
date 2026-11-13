@@ -345,3 +345,43 @@ HTTP는 6단계의 `server-http`(Ktor JS 엔진, 브라우저 `fetch`)를 쓴다
   - HIGH: `scope.promise`가 바로 시작하지 않아 원래 TypeScript의 "부르는 즉시 실행되는 앞부분"이 늦었다(잠금 해제 직후 잠금이 무시됨, 잠금 화면 로그아웃 후 화면이 남음). `CoroutineStart.UNDISPATCHED`로 시작한다.
   - 그 밖에: 잠그면 상태 캐시의 평문 볼트를 버린다, 알 수 없는 오류는 `Error`로 감싼다, `Promise<Unit>`은 `undefined`로 끝낸다, 통합 테스트 설정도 같은 별칭(`vite.alias.ts`)을 쓴다.
 - 실제 브라우저에서 확인했다(Vite 개발 서버 + 로컬 백엔드 jar, 임시 데이터 폴더): 가입 → 볼트 화면, 잠그기 → 틀린 비밀번호 문구("마스터 비밀번호가 올바르지 않습니다.") → 잠금 해제, 새로고침 → IndexedDB 기록으로 잠긴 화면. 요청 순서는 원래 웹과 같다(가입 직후 볼트 GET 404 `VAULT_NOT_FOUND` → 첫 저장).
+
+## 11. 화면 전환: 웹·iOS를 공유 RIB으로 (설계)
+
+범위: 웹과 iOS 화면만 옮긴다. Android 뷰는 아직 없으므로 보류한다. 공유 RIB(Interactor·Presenter·Router·Builder)은 `commonMain`에 두고, 각 플랫폼은 `XxxPresentable` 구현(웹은 `ViewStore` + React, iOS는 SwiftUI)만 쓴다(carti-RIBs-KMP ADR-0006, ADR-0009).
+
+### 11.1 RIB 트리
+
+지금 iOS 트리를 그대로 쓴다. 웹 화면은 이 트리에 맞춰 나눈다.
+
+| 공유 RIB | 웹 화면(지금) | iOS RIB(지금) | 맡는 일 |
+| :--- | :--- | :--- | :--- |
+| Root | `SessionRoot` + `App` | Root | 세션 상태(`signedOut`·`locked`·`unlocked`)로 Auth·Unlock·Main 중 하나를 붙인다. 로그인 화면 안내 문구(세션 만료, 다른 기기 비밀번호 변경, 계정 삭제), 세션 리스너 구독 |
+| Auth | `AuthScreen` | Auth | 로그인·가입 모드, 가입 비밀번호 확인·강도, 되돌림 경고 수락 |
+| Unlock | `UnlockScreen` | Unlock | 잠금 해제, 틀린 비밀번호, 로그아웃(대기 변경 확인). 생체 해제는 iOS만 쓰는 선택 기능으로 둔다 |
+| Main | `VaultHomeScreen` | Main | 탭(볼트·생성기·설정), 잠그기·로그아웃, 재연결 안내, 동기화·기기 저장 경고, 오프라인·읽기 전용 배너 |
+| VaultList | `VaultScreen` | VaultList | 목록·검색·상세·추가·수정·삭제·복사 |
+| PasswordGenerator | `PasswordGenerator` | PasswordGenerator | 옵션·생성·강도·복사 |
+| Settings | `SettingsView` + 사이드바 액션 | Settings | 자동 잠금 시간, 백업 내보내기·복원, 비밀번호 변경, 계정 삭제, 정보 표시 |
+
+- 기능은 두 플랫폼을 합친 쪽을 공유 RIB에 둔다. 웹에만 있던 것(재연결, 되돌림 수락, 저장 실패 경고, 세션 만료 안내)은 iOS도 얻고, iOS에만 있던 것(검색, 생체 해제, 연속 숫자 안내)은 웹도 얻을 수 있다. 화면 배치(웹 사이드바 대 iOS 탭, 상세 화면 대 시트)는 플랫폼 뷰가 정한다.
+- 앱 수명주기 연결(자동 잠금 타이머, 탭 가림, 클립보드 소각, 네트워크 감지, 대기 재전송)은 RIB이 아니라 플랫폼 진입점이 세션에 직접 붙인다. 웹은 지금 `app/*Wiring.ts`를 그대로 쓴다.
+
+### 11.2 모듈과 의존
+
+| 모듈 | 대상 | 내용 |
+| :--- | :--- | :--- |
+| `Apps/Shared/feature`(새) | jvm(테스트)·js·iOS·macOS | 공유 RIB 7개. 의존: `:domain`, carti-RIBs-KMP `ribs-core` |
+| `Apps/Shared/web-session` | js | 지금 세션 퍼사드 + RIB 뷰 구현(`WebXxxView`, `ViewStore`)과 진입점 `WebKeyManageApp(rootSlot)`. 의존 추가: `:feature`, `ribs-web` |
+| 웹 React | — | `ribs-react`의 `useViewStore`·`RibSlot`으로 화면을 그린다. 기존 컴포넌트(폼·목록·모달)는 props만 바꿔 다시 쓴다 |
+| iOS(Mac에서) | — | `:feature`가 `ribs-core`를 `export`하는 XCFramework 하나를 만들고 SwiftUI 뷰가 `XxxPresentable`을 구현한다. Swift 도메인과 Swift RIB은 그 뒤 지운다 |
+
+- carti-RIBs-KMP는 `Apps/Shared/settings.gradle.kts`의 `includeBuild("../../../carti-RIBs-KMP")`로 가져온다. 좌표가 정해져 있지 않으므로 `dependencySubstitution`으로 `:ribs-core`·`:ribs-web` 프로젝트에 묶는다.
+- 세션 접근: 공유 RIB은 `VaultSession`(Kotlin)을 직접 쓴다. 웹 진입점은 `web-session`이 이미 만든 세션을 RIB 트리와 TypeScript 앱 배선(`*Wiring.ts`)에 함께 넘긴다.
+
+### 11.3 순서와 확인 기준
+
+1. composite build 연결, `:feature` 뼈대, Root·Auth·Unlock RIB(Interactor 테스트 먼저, JVM에서 가짜 세션으로).
+2. Main·VaultList·PasswordGenerator·Settings RIB.
+3. 웹 뷰(`WebXxxView`)와 React 연결. 기존 화면 테스트(`SessionRoot.test.tsx` 등)를 새 구조에 맞게 옮기고 행동은 그대로 확인한다. 이 단계가 끝나면 `SessionRoot`와 화면 상태 분기 코드를 지운다.
+4. iOS(Mac): XCFramework, SwiftUI 뷰 연결, Swift RIB·도메인 삭제. 이 PC에서는 하지 않는다.
