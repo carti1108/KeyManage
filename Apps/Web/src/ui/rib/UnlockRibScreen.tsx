@@ -7,7 +7,6 @@ import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { ConfirmPrompt } from '../components/ConfirmPrompt'
 import { PasswordField } from '../components/PasswordField'
-import { PENDING_LOGOUT_CONFIRM, ROLLBACK_WARNING } from '../messages/vaultNotices'
 import { useViewStore } from './ribsReact'
 
 export function UnlockRibScreen({ view }: { view: WebUnlockView }) {
@@ -38,10 +37,10 @@ export function UnlockRibScreen({ view }: { view: WebUnlockView }) {
           />
           {state.isConfirmingRollback ? (
             <ConfirmPrompt
-              title={ROLLBACK_WARNING.title}
-              body={ROLLBACK_WARNING.body}
-              confirmLabel={ROLLBACK_WARNING.accept}
-              cancelLabel={ROLLBACK_WARNING.cancel}
+              title={state.rollbackWarning.title}
+              body={state.rollbackWarning.body}
+              confirmLabel={state.rollbackWarning.confirm}
+              cancelLabel={state.rollbackWarning.cancel}
               onConfirm={() => view.acceptRollback()}
               onCancel={() => view.cancelRollback()}
             />
@@ -55,10 +54,10 @@ export function UnlockRibScreen({ view }: { view: WebUnlockView }) {
         {/* 올리지 못한 변경 사항이 있을 때 로그아웃 전에 묻는다 (VLT-002) */}
         {state.isConfirmingLogout && (
           <ConfirmPrompt
-            title={PENDING_LOGOUT_CONFIRM.title}
-            body={PENDING_LOGOUT_CONFIRM.body}
-            confirmLabel={PENDING_LOGOUT_CONFIRM.confirm}
-            cancelLabel={PENDING_LOGOUT_CONFIRM.cancel}
+            title={state.pendingLogoutConfirm.title}
+            body={state.pendingLogoutConfirm.body}
+            confirmLabel={state.pendingLogoutConfirm.confirm}
+            cancelLabel={state.pendingLogoutConfirm.cancel}
             onConfirm={() => view.confirmLogout()}
             onCancel={() => view.cancelLogout()}
           />

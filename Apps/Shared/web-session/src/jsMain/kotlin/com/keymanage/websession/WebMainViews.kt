@@ -52,6 +52,12 @@ data class WebMainState(
     val offlineNotice: String?,
     val readOnlyNotice: String?,
     val deviceStorageWarning: String?,
+    /** [isConfirmingLogout]일 때 그리는 확인 창 문구 (VLT-002) */
+    val pendingLogoutConfirm: WebConfirmText,
+    /** [needsReconnect]일 때 그리는 다시 연결 입력 칸 문구 (SEC-003, ADR-0019) */
+    val reconnectPrompt: WebReconnectPrompt,
+    /** [isConfirmingReconnectRollback]일 때 그리는 확인 창 문구 (VLT-001) */
+    val rollbackWarning: WebConfirmText,
 )
 
 private fun MainTab.wire(): String = when (this) {
@@ -84,6 +90,9 @@ private fun MainViewState.toWeb() = WebMainState(
     offlineNotice = offlineNotice,
     readOnlyNotice = readOnlyNotice,
     deviceStorageWarning = deviceStorageWarning,
+    pendingLogoutConfirm = PENDING_LOGOUT_TEXT,
+    reconnectPrompt = RECONNECT_PROMPT_TEXT,
+    rollbackWarning = ROLLBACK_WARNING_TEXT,
 )
 
 @JsExport

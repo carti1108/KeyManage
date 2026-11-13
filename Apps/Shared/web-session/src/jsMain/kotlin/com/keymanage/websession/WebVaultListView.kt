@@ -85,6 +85,12 @@ class WebVaultListState(
     val formPasswordScore: Int,
     val showsFormWeakWarning: Boolean,
     val showsFormSequentialDigitsNotice: Boolean,
+    /** [isConfirmingDelete]일 때 그리는 확인 창 문구 */
+    val deleteConfirm: WebConfirmText,
+    /** [showsFormWeakWarning]일 때 보이는 경고. 저장은 허용한다 (GEN-001) */
+    val weakPasswordWarning: WebMessage,
+    /** [showsFormSequentialDigitsNotice]일 때 보이는 안내 (GEN-001) */
+    val sequentialDigitsNotice: String,
 )
 
 private fun VaultListScreen.wire(): String = when (this) {
@@ -114,6 +120,9 @@ private fun VaultListViewState.toWeb() = WebVaultListState(
     formPasswordScore = formPasswordScore,
     showsFormWeakWarning = showsFormWeakWarning,
     showsFormSequentialDigitsNotice = showsFormSequentialDigitsNotice,
+    deleteConfirm = DELETE_CONFIRM_TEXT,
+    weakPasswordWarning = WEAK_ITEM_PASSWORD_TEXT,
+    sequentialDigitsNotice = SEQUENTIAL_DIGITS_TEXT,
 )
 
 private fun formFieldOf(wire: String): VaultItemFormField = when (wire) {

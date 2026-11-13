@@ -168,9 +168,10 @@ function ItemDetailPane({ view, state, item }: PaneProps & { item: WebVaultItem 
       </div>
       {state.isConfirmingDelete && (
         <ConfirmPrompt
-          title="항목 삭제"
-          body="이 항목을 삭제할까요? 다른 기기에서도 삭제됩니다."
-          confirmLabel="삭제"
+          title={state.deleteConfirm.title}
+          body={state.deleteConfirm.body}
+          confirmLabel={state.deleteConfirm.confirm}
+          cancelLabel={state.deleteConfirm.cancel}
           pending={state.isSaving}
           onConfirm={() => view.confirmDelete()}
           onCancel={() => view.cancelDelete()}
@@ -260,13 +261,13 @@ function ItemFormPane({ view, state }: PaneProps) {
         {/* 알림 영역은 늘 두고 안의 내용만 바꾼다. 내용과 함께 새로 생긴 영역은 화면 낭독기가 읽지 않는 경우가 있다 */}
         <div role="status">
           {state.showsFormWeakWarning && (
-            <Alert variant="info" title="취약한 비밀번호 경고" live={false}>
-              현재 비밀번호는 보안에 취약합니다. 80점 이상의 강력한 비밀번호로 재생성하세요.
+            <Alert variant="info" title={state.weakPasswordWarning.title ?? undefined} live={false}>
+              {state.weakPasswordWarning.body}
             </Alert>
           )}
           {/* 점수와 별개로 안내만 한다. 점수가 높아도 보인다 (GEN-001) */}
           {state.showsFormSequentialDigitsNotice && (
-            <p className="mt-1 text-sm text-muted-foreground">123처럼 이어지는 숫자가 들어 있어 추측하기 쉽습니다.</p>
+            <p className="mt-1 text-sm text-muted-foreground">{state.sequentialDigitsNotice}</p>
           )}
         </div>
         {state.isGeneratorOpen ? (

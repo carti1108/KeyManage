@@ -6,9 +6,6 @@ import { Button } from '../components/Button'
 import { ModalDialog } from '../components/ModalDialog'
 import { PasswordField } from '../components/PasswordField'
 import { TextField } from '../components/TextField'
-import { DELETE_ACCOUNT_DIALOG, CHANGE_PASSWORD_DIALOG } from '../messages/accountNotices'
-import { NEW_PASSWORD_PROBLEMS } from '../messages/authNotices'
-import { RESTORE_DIALOG } from '../messages/backupNotices'
 
 interface DialogProps {
   view: WebSettingsView
@@ -55,14 +52,14 @@ export function RestoreDialog({ view, state }: DialogProps) {
     <div role="dialog" aria-labelledby={titleId} aria-describedby={bodyId} className="rounded-md border border-border p-3" onKeyDown={closeOnEscape(view)}>
       <form className="flex flex-col gap-3" onSubmit={submitWith(() => view.submitRestore())} noValidate>
         <p id={titleId} className="text-sm font-semibold">
-          {RESTORE_DIALOG.title}
+          {state.restoreDialog.title}
         </p>
         <p id={bodyId} className="text-sm text-muted-foreground">
-          {RESTORE_DIALOG.body}
+          {state.restoreDialog.body}
         </p>
         <PasswordField
           ref={passwordInput}
-          label={RESTORE_DIALOG.passwordLabel}
+          label={state.restoreDialog.passwordLabel}
           autoComplete="off"
           showCopyAction={false}
           value={state.restorePassword}
@@ -73,13 +70,13 @@ export function RestoreDialog({ view, state }: DialogProps) {
         {state.error && <Alert>{state.error}</Alert>}
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => view.cancelModal()} disabled={state.inProgress}>
-            {RESTORE_DIALOG.cancel}
+            {state.restoreDialog.cancel}
           </Button>
           <Button type="submit" size="sm" loading={state.inProgress} disabled={!state.canSubmitRestore}>
-            {RESTORE_DIALOG.submit}
+            {state.restoreDialog.submit}
           </Button>
         </div>
-        {state.inProgress && <ProgressStatus text={RESTORE_DIALOG.progress} />}
+        {state.inProgress && <ProgressStatus text={state.restoreDialog.progress} />}
       </form>
     </div>
   )
@@ -94,14 +91,14 @@ export function ChangePasswordDialog({ view, state }: DialogProps) {
     <ModalDialog labelledBy={titleId} describedBy={bodyId} onKeyDown={closeOnEscape(view)}>
       <form className="flex flex-col gap-3" onSubmit={submitWith(() => view.submitChangePassword())} noValidate>
         <p id={titleId} className="text-sm font-semibold">
-          {CHANGE_PASSWORD_DIALOG.title}
+          {state.changePasswordDialog.title}
         </p>
         <p id={bodyId} className="text-sm text-muted-foreground">
-          {CHANGE_PASSWORD_DIALOG.body}
+          {state.changePasswordDialog.body}
         </p>
         <PasswordField
           ref={currentInput}
-          label={CHANGE_PASSWORD_DIALOG.currentLabel}
+          label={state.changePasswordDialog.currentLabel}
           autoComplete="current-password"
           showCopyAction={false}
           value={state.currentPassword}
@@ -110,7 +107,7 @@ export function ChangePasswordDialog({ view, state }: DialogProps) {
           autoFocus
         />
         <PasswordField
-          label={CHANGE_PASSWORD_DIALOG.newLabel}
+          label={state.changePasswordDialog.newLabel}
           autoComplete="new-password"
           showCopyAction={false}
           value={state.newPassword}
@@ -119,10 +116,10 @@ export function ChangePasswordDialog({ view, state }: DialogProps) {
           aria-describedby={ruleId}
         />
         <p id={ruleId} className="text-xs text-muted-foreground">
-          {NEW_PASSWORD_PROBLEMS.tooShort}
+          {state.changePasswordDialog.newPasswordRule}
         </p>
         <PasswordField
-          label={CHANGE_PASSWORD_DIALOG.confirmLabel}
+          label={state.changePasswordDialog.confirmLabel}
           autoComplete="new-password"
           showCopyAction={false}
           value={state.passwordConfirmation}
@@ -132,13 +129,13 @@ export function ChangePasswordDialog({ view, state }: DialogProps) {
         {state.error && <Alert>{state.error}</Alert>}
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => view.cancelModal()} disabled={state.inProgress}>
-            {CHANGE_PASSWORD_DIALOG.cancel}
+            {state.changePasswordDialog.cancel}
           </Button>
           <Button type="submit" size="sm" loading={state.inProgress} disabled={!state.canSubmitChangePassword}>
-            {CHANGE_PASSWORD_DIALOG.submit}
+            {state.changePasswordDialog.submit}
           </Button>
         </div>
-        {state.inProgress && <ProgressStatus text={CHANGE_PASSWORD_DIALOG.progress} />}
+        {state.inProgress && <ProgressStatus text={state.changePasswordDialog.progress} />}
       </form>
     </ModalDialog>
   )
@@ -152,14 +149,14 @@ export function DeleteAccountDialog({ view, state }: DialogProps) {
     <ModalDialog labelledBy={titleId} describedBy={bodyId} onKeyDown={closeOnEscape(view)}>
       <form className="flex flex-col gap-3" onSubmit={submitWith(() => view.submitDeleteAccount())} noValidate>
         <p id={titleId} className="text-sm font-semibold text-destructive">
-          {DELETE_ACCOUNT_DIALOG.title}
+          {state.deleteAccountDialog.title}
         </p>
         <p id={bodyId} className="text-sm text-muted-foreground">
-          {DELETE_ACCOUNT_DIALOG.body}
+          {state.deleteAccountDialog.body}
         </p>
         <PasswordField
           ref={passwordInput}
-          label={DELETE_ACCOUNT_DIALOG.passwordLabel}
+          label={state.deleteAccountDialog.passwordLabel}
           autoComplete="current-password"
           showCopyAction={false}
           value={state.deletionPassword}
@@ -168,7 +165,7 @@ export function DeleteAccountDialog({ view, state }: DialogProps) {
           autoFocus
         />
         <TextField
-          label={DELETE_ACCOUNT_DIALOG.phraseLabel}
+          label={state.deleteAccountDialog.phraseLabel}
           autoComplete="off"
           spellCheck={false}
           value={state.deletionPhrase}
@@ -178,13 +175,13 @@ export function DeleteAccountDialog({ view, state }: DialogProps) {
         {state.error && <Alert>{state.error}</Alert>}
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => view.cancelModal()} disabled={state.inProgress}>
-            {DELETE_ACCOUNT_DIALOG.cancel}
+            {state.deleteAccountDialog.cancel}
           </Button>
           <Button type="submit" variant="destructive" size="sm" loading={state.inProgress} disabled={!state.canSubmitDeletion}>
-            {DELETE_ACCOUNT_DIALOG.submit}
+            {state.deleteAccountDialog.submit}
           </Button>
         </div>
-        {state.inProgress && <ProgressStatus text={DELETE_ACCOUNT_DIALOG.progress} />}
+        {state.inProgress && <ProgressStatus text={state.deleteAccountDialog.progress} />}
       </form>
     </ModalDialog>
   )

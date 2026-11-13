@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import type { WebUnlockView } from 'keymanage-web-session'
 import { describe, expect, it, vi } from 'vitest'
+import { PENDING_LOGOUT_TEXT, ROLLBACK_WARNING_TEXT } from './policyTextFixtures'
 import { UnlockRibScreen } from './UnlockRibScreen'
 
 const BASE_STATE = {
@@ -11,6 +12,8 @@ const BASE_STATE = {
   isConfirmingRollback: false,
   isConfirmingLogout: false,
   isBiometricsAvailable: false,
+  rollbackWarning: ROLLBACK_WARNING_TEXT,
+  pendingLogoutConfirm: PENDING_LOGOUT_TEXT,
 }
 
 function renderUnlock(overrides: Record<string, unknown> = {}) {
@@ -122,5 +125,37 @@ describe('UnlockRibScreen 오류와 확인', () => {
     renderUnlock()
 
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  })
+})
+
+// 문구는 Kotlin State가 내려 준다. 화면이 직접 들고 있지 않다면 State 값을 바꿨을 때 바뀐 글자가 그려진다
+describe('UnlockRibScreen 정책 문구는 State 값을 그린다', () => {
+  it('되돌림 확인 창의 글자를 State에서 받는다', () => {
+    const view = renderUnlock({
+      isConfirmingRollback: true,
+      rollbackWarning: { title: '되돌림 제목', body: '되돌림 본문', confirm: '되돌림 수락', cancel: '되돌림 취소' },
+    })
+
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('되돌림 제목')
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('되돌림 본문')
+    fireEvent.click(screen.getByRole('button', { name: '되돌림 수락' }))
+    fireEvent.click(screen.getByRole('button', { name: '되돌림 취소' }))
+    expect(view.acceptRollback).toHaveBeenCalledTimes(1)
+    expect(view.cancelRollback).toHaveBeenCalledTimes(1)
+  })
+
+  it('로그아웃 확인 창의 글자를 State에서 받는다', () => {
+    const view = renderUnlock({
+      isConfirmingLogout: true,
+      pendingLogoutConfirm: { title: '대기 제목', body: '대기 본문', confirm: '대기 확인', cancel: '대기 취소' },
+    })
+
+    const prompt = screen.getByRole('alertdialog')
+    expect(prompt).toHaveTextContent('대기 제목')
+    expect(prompt).toHaveTextContent('대기 본문')
+    fireEvent.click(within(prompt).getByRole('button', { name: '대기 확인' }))
+    fireEvent.click(within(prompt).getByRole('button', { name: '대기 취소' }))
+    expect(view.confirmLogout).toHaveBeenCalledTimes(1)
+    expect(view.cancelLogout).toHaveBeenCalledTimes(1)
   })
 })

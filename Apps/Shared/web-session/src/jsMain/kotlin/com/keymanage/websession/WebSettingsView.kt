@@ -6,6 +6,7 @@ import com.carti.ribs.web.ViewStore
 import com.carti.ribs.web.WebViewControllable
 import com.keymanage.domain.lock.AUTO_LOCK_OPTIONS
 import com.keymanage.feature.settings.SettingsModal
+import com.keymanage.feature.settings.SettingsNoticeKind
 import com.keymanage.feature.settings.SettingsPresentable
 import com.keymanage.feature.settings.SettingsViewContract
 import com.keymanage.feature.settings.SettingsPresentableListener
@@ -45,14 +46,33 @@ data class WebSettingsState(
     val error: String?,
     /** 완료·오프라인 안내 */
     val notice: String?,
+    /** [notice]의 성격. 'info' | 'error'. 오프라인처럼 하지 못한 이유는 'error'로 오류 모양으로 보인다 */
+    val noticeKind: String,
     val canExportBackup: Boolean,
     val canRestoreBackup: Boolean,
+    /** 실제로 바꿀 수 있는지(오프라인이면 false). 진입 버튼은 [canStartChangePassword]를 본다 */
     val canChangePassword: Boolean,
     val canDeleteAccount: Boolean,
+    /** 비밀번호 변경 진입 버튼을 켤지. 오프라인이어도 눌러 [notice]로 안내를 받는다 */
+    val canStartChangePassword: Boolean,
+    /** 계정 삭제 진입 버튼을 켤지. 오프라인이어도 눌러 [notice]로 안내를 받는다 */
+    val canStartDeleteAccount: Boolean,
     val canSubmitRestore: Boolean,
     val canSubmitChangePassword: Boolean,
     val canSubmitDeletion: Boolean,
+    /** [modal]이 'exportConfirm'일 때 그리는 안내 문구 (VLT-004) */
+    val exportNotice: WebConfirmText,
+    val restoreDialog: WebRestoreDialogText,
+    /** 진입 버튼 이름도 [WebChangePasswordDialogText.title]이다 */
+    val changePasswordDialog: WebChangePasswordDialogText,
+    /** 진입 버튼 이름도 [WebDeleteAccountDialogText.title]이다 */
+    val deleteAccountDialog: WebDeleteAccountDialogText,
 )
+
+private fun SettingsNoticeKind.wire(): String = when (this) {
+    SettingsNoticeKind.INFO -> "info"
+    SettingsNoticeKind.ERROR -> "error"
+}
 
 private fun SettingsModal.wire(): String = when (this) {
     SettingsModal.NONE -> "none"
@@ -80,13 +100,20 @@ private fun SettingsViewState.toWeb() = WebSettingsState(
     deletionPhrase = deletionPhrase,
     error = error,
     notice = notice,
+    noticeKind = noticeKind.wire(),
     canExportBackup = canExportBackup,
     canRestoreBackup = canRestoreBackup,
     canChangePassword = canChangePassword,
     canDeleteAccount = canDeleteAccount,
+    canStartChangePassword = canStartChangePassword,
+    canStartDeleteAccount = canStartDeleteAccount,
     canSubmitRestore = canSubmitRestore,
     canSubmitChangePassword = canSubmitChangePassword,
     canSubmitDeletion = canSubmitDeletion,
+    exportNotice = EXPORT_NOTICE_TEXT,
+    restoreDialog = RESTORE_DIALOG_TEXT,
+    changePasswordDialog = CHANGE_PASSWORD_DIALOG_TEXT,
+    deleteAccountDialog = DELETE_ACCOUNT_DIALOG_TEXT,
 )
 
 @JsExport

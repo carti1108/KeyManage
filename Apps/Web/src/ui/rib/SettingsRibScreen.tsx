@@ -6,8 +6,6 @@ import { Alert } from '../components/Alert'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { ConfirmPrompt } from '../components/ConfirmPrompt'
-import { CHANGE_PASSWORD_DIALOG, DELETE_ACCOUNT_DIALOG } from '../messages/accountNotices'
-import { EXPORT_NOTICE } from '../messages/backupNotices'
 import { AutoLockSelect } from '../vault/AutoLockSelect'
 import { ChangePasswordDialog, DeleteAccountDialog, RestoreDialog } from './SettingsRibDialogs'
 import { useViewStore } from './ribsReact'
@@ -81,7 +79,7 @@ export function SettingsRibScreen({ view }: { view: WebSettingsView }) {
 
         <SettingsSection title="보안 정책" icon={<Shield aria-hidden className="size-4 text-primary" />}>
           <div className="p-3.5">
-            <AutoLockSelect timeoutMs={state.autoLockTimeoutMs} onChange={(ms) => view.selectAutoLock(ms)} />
+            <AutoLockSelect timeoutMs={state.autoLockTimeoutMs} optionsMs={state.autoLockOptionsMs} onChange={(ms) => view.selectAutoLock(ms)} />
           </div>
           <SettingsRow label="클립보드 자동 삭제" value="30초 (고정, COM-001)" />
           <SettingsRow label="암호화 구조" value="클라이언트 영지식 (AES-256-GCM)" />
@@ -125,10 +123,10 @@ export function SettingsRibScreen({ view }: { view: WebSettingsView }) {
               >
                 <ConfirmPrompt
                   tone="notice"
-                  title={EXPORT_NOTICE.title}
-                  body={EXPORT_NOTICE.body}
-                  confirmLabel={EXPORT_NOTICE.confirm}
-                  cancelLabel={EXPORT_NOTICE.cancel}
+                  title={state.exportNotice.title}
+                  body={state.exportNotice.body}
+                  confirmLabel={state.exportNotice.confirm}
+                  cancelLabel={state.exportNotice.cancel}
                   pending={state.inProgress}
                   onConfirm={() => view.confirmExport()}
                   onCancel={() => view.cancelModal()}
@@ -139,17 +137,17 @@ export function SettingsRibScreen({ view }: { view: WebSettingsView }) {
           </section>
 
           <section className="flex flex-col gap-1.5" aria-label="계정 관리">
-            {/* 오프라인이어도 눌러 안내를 받아야 하므로 오프라인만으로는 막지 않는다 */}
+            {/* 오프라인이어도 눌러 안내를 받아야 하므로, 켜고 끄는 판단은 State(canStart...)가 한다 */}
             <Button
               ref={changePasswordButton}
               variant="outline"
               size="sm"
               className={ENTRY_BUTTON}
               icon={<KeyRound aria-hidden className="size-3.5 shrink-0" />}
-              disabled={!state.canChangePassword && !state.accountOffline}
+              disabled={!state.canStartChangePassword}
               onClick={() => view.startChangePassword()}
             >
-              {CHANGE_PASSWORD_DIALOG.title}
+              {state.changePasswordDialog.title}
             </Button>
             <Button
               ref={deleteButton}
@@ -157,15 +155,15 @@ export function SettingsRibScreen({ view }: { view: WebSettingsView }) {
               size="sm"
               className={`${ENTRY_BUTTON} text-destructive border-destructive/40 hover:bg-destructive/10`}
               icon={<Trash2 aria-hidden className="size-3.5 shrink-0" />}
-              disabled={!state.canDeleteAccount && !state.accountOffline}
+              disabled={!state.canStartDeleteAccount}
               onClick={() => view.startDeleteAccount()}
             >
-              {DELETE_ACCOUNT_DIALOG.title}
+              {state.deleteAccountDialog.title}
             </Button>
           </section>
 
           {showsErrorBelow && <Alert>{state.error}</Alert>}
-          {state.notice !== null && <Alert variant="info">{state.notice}</Alert>}
+          {state.notice !== null && <Alert variant={state.noticeKind === 'error' ? 'error' : 'info'}>{state.notice}</Alert>}
         </Card>
 
         <Card className="p-4 flex flex-col sm:flex-row items-center justify-between gap-3 bg-muted/20">

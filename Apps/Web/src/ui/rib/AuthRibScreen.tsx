@@ -8,8 +8,6 @@ import { ConfirmPrompt } from '../components/ConfirmPrompt'
 import { EntropyGauge } from '../components/EntropyGauge'
 import { PasswordField } from '../components/PasswordField'
 import { TextField } from '../components/TextField'
-import { MASTER_PASSWORD_SETUP, WEAK_MASTER_PASSWORD_WARNING } from '../messages/authNotices'
-import { ROLLBACK_WARNING } from '../messages/vaultNotices'
 import { useViewStore } from './ribsReact'
 
 export function AuthRibScreen({ view }: { view: WebAuthView }) {
@@ -42,8 +40,8 @@ export function AuthRibScreen({ view }: { view: WebAuthView }) {
           {registering && (
             // 잃어버리면 복구할 수 없다는 안내를 입력란 설명으로 읽어 준다 (SEC-001)
             <div id={setupHintId}>
-              <Alert variant="info" live={false} title={MASTER_PASSWORD_SETUP.title}>
-                {MASTER_PASSWORD_SETUP.body}
+              <Alert variant="info" live={false} title={state.masterPasswordSetup.title ?? undefined}>
+                {state.masterPasswordSetup.body}
               </Alert>
             </div>
           )}
@@ -60,7 +58,7 @@ export function AuthRibScreen({ view }: { view: WebAuthView }) {
           {registering && (
             <div role="status">
               {state.showsWeakPasswordWarning && (
-                <p className="text-sm text-muted-foreground">{WEAK_MASTER_PASSWORD_WARNING}</p>
+                <p className="text-sm text-muted-foreground">{state.weakPasswordWarning}</p>
               )}
             </div>
           )}
@@ -75,10 +73,10 @@ export function AuthRibScreen({ view }: { view: WebAuthView }) {
           )}
           {state.isConfirmingRollback ? (
             <ConfirmPrompt
-              title={ROLLBACK_WARNING.title}
-              body={ROLLBACK_WARNING.body}
-              confirmLabel={ROLLBACK_WARNING.accept}
-              cancelLabel={ROLLBACK_WARNING.cancel}
+              title={state.rollbackWarning.title}
+              body={state.rollbackWarning.body}
+              confirmLabel={state.rollbackWarning.confirm}
+              cancelLabel={state.rollbackWarning.cancel}
               onConfirm={() => view.acceptRollback()}
               onCancel={() => view.cancelRollback()}
             />

@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { WebGeneratorView, WebVaultItem, WebVaultItemForm, WebVaultListState, WebVaultListView } from 'keymanage-web-session'
+import type { WebConfirmText, WebGeneratorView, WebMessage, WebVaultItem, WebVaultItemForm, WebVaultListState, WebVaultListView } from 'keymanage-web-session'
+import { asState, DELETE_CONFIRM_TEXT, SEQUENTIAL_DIGITS_TEXT, WEAK_ITEM_PASSWORD_TEXT } from './policyTextFixtures'
 import { VaultListRibScreen } from './VaultListRibScreen'
 
 // Kotlin ViewStore·ScreenSlot을 흉내 내는 가짜. 값을 바꾸고 구독자에게 알린다
@@ -58,6 +59,9 @@ function listState(overrides: Partial<WebVaultListState> = {}): WebVaultListStat
     formPasswordScore: 0,
     showsFormWeakWarning: false,
     showsFormSequentialDigitsNotice: false,
+    deleteConfirm: DELETE_CONFIRM_TEXT,
+    weakPasswordWarning: WEAK_ITEM_PASSWORD_TEXT,
+    sequentialDigitsNotice: SEQUENTIAL_DIGITS_TEXT,
     ...overrides,
   } as WebVaultListState
 }
@@ -498,5 +502,45 @@ describe('VaultListRibScreen', () => {
 
       expect(screen.queryByText('선택된 항목이 없습니다')).not.toBeInTheDocument()
     })
+  })
+})
+
+// 문구는 Kotlin State가 내려 준다. 화면이 직접 들고 있지 않다면 State 값을 바꿨을 때 바뀐 글자가 그려진다
+describe('VaultListRibScreen 정책 문구는 State 값을 그린다', () => {
+  beforeEach(() => vi.stubGlobal('CSS', { supports: (property: string) => property === '-webkit-text-security' }))
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('삭제 확인 창의 글자를 State에서 받는다', () => {
+    // 상세 화면이 처음 뜰 때 제목으로 포커스를 옮기므로, 확인 창은 뜬 뒤에 연다(위 삭제 확인 테스트와 같다)
+    const { view, update } = setup({ screen: 'detail', selected: GITHUB })
+    update({
+      isConfirmingDelete: true,
+      deleteConfirm: asState<WebConfirmText>({ title: '삭제 제목', body: '삭제 본문', confirm: '삭제 확인', cancel: '삭제 취소' }),
+    })
+
+    const dialog = screen.getByRole('alertdialog', { name: '삭제 제목' })
+    expect(dialog).toHaveAccessibleDescription('삭제 본문')
+    expect(within(dialog).getByRole('button', { name: '삭제 취소' })).toHaveFocus()
+    fireEvent.click(within(dialog).getByRole('button', { name: '삭제 확인' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: '삭제 취소' }))
+    expect(view.confirmDelete).toHaveBeenCalledOnce()
+    expect(view.cancelDelete).toHaveBeenCalledOnce()
+  })
+
+  it('약한 비밀번호 경고와 이어지는 숫자 안내의 글자를 State에서 받는다', () => {
+    setup({
+      screen: 'add',
+      showsFormWeakWarning: true,
+      showsFormSequentialDigitsNotice: true,
+      weakPasswordWarning: asState<WebMessage>({ title: '약함 제목', body: '약함 본문' }),
+      sequentialDigitsNotice: '연속 숫자 안내',
+    })
+
+    const region = screen.getByRole('status')
+    expect(region).toHaveTextContent('약함 제목')
+    expect(region).toHaveTextContent('약함 본문')
+    expect(region).toHaveTextContent('연속 숫자 안내')
+    expect(region).not.toHaveTextContent('취약한 비밀번호 경고')
+    expect(region).not.toHaveTextContent('123처럼')
   })
 })

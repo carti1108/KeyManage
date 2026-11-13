@@ -947,6 +947,87 @@ class SettingsInteractorTest {
         assertTrue(listener.events.isEmpty())
     }
 
+    // --- 진입 버튼과 안내 종류 (오프라인 판단 분리) ---
+
+    @Test
+    fun 오프라인이어도_진입_버튼은_눌러_안내를_받을_수_있다() {
+        environment.offline = true
+        attach()
+
+        // 실제로 바꿀 수는 없지만(canX), 진입 버튼은 켜 둔다(canStartX). 오프라인 안내는 눌렀을 때 notice로 온다
+        assertFalse(state.canChangePassword)
+        assertTrue(state.canStartChangePassword)
+        assertFalse(state.canDeleteAccount)
+        assertTrue(state.canStartDeleteAccount)
+    }
+
+    @Test
+    fun 읽기_전용_볼트에서는_비밀번호_변경_진입_버튼만_막고_계정_삭제는_연다() {
+        session.current = unlocked(readOnly = true)
+        attach()
+
+        assertFalse(state.canStartChangePassword)
+        assertTrue(state.canStartDeleteAccount)
+    }
+
+    @Test
+    fun 진행_중에는_두_진입_버튼을_막는다() {
+        val gate = CompletableDeferred<Unit>()
+        session.changeGate = gate
+        attach()
+        openChangePassword()
+
+        send(SettingsViewAction.SubmitChangePassword)
+
+        assertTrue(state.inProgress)
+        assertFalse(state.canStartChangePassword)
+        assertFalse(state.canStartDeleteAccount)
+        gate.complete(Unit)
+        dispatcher.scheduler.runCurrent()
+    }
+
+    @Test
+    fun 오프라인_안내는_오류_종류다() {
+        environment.offline = true
+        attach()
+
+        send(SettingsViewAction.StartChangePassword)
+        assertEquals(PASSWORD_CHANGE_OFFLINE, state.notice)
+        assertEquals(SettingsNoticeKind.ERROR, state.noticeKind)
+
+        send(SettingsViewAction.StartDeleteAccount)
+        assertEquals(ACCOUNT_DELETION_OFFLINE, state.notice)
+        assertEquals(SettingsNoticeKind.ERROR, state.noticeKind)
+    }
+
+    @Test
+    fun 완료_안내는_일반_종류로_바뀐다() {
+        environment.offline = true
+        attach()
+        send(SettingsViewAction.StartChangePassword)
+        assertEquals(SettingsNoticeKind.ERROR, state.noticeKind)
+
+        environment.changeOffline(false)
+        session.fireSyncChange()
+        openChangePassword()
+        send(SettingsViewAction.SubmitChangePassword)
+
+        assertEquals(PASSWORD_CHANGE_DONE, state.notice)
+        assertEquals(SettingsNoticeKind.INFO, state.noticeKind)
+    }
+
+    @Test
+    fun 백업_복원_완료_안내는_일반_종류다() {
+        session.restoreCount = 2
+        attach()
+        pickValidBackup()
+        send(SettingsViewAction.EditRestorePassword("backup-pass"))
+        send(SettingsViewAction.SubmitRestore)
+
+        assertEquals(restoredMessage(2), state.notice)
+        assertEquals(SettingsNoticeKind.INFO, state.noticeKind)
+    }
+
     // --- 도우미 ---
 
     private fun unlocked(

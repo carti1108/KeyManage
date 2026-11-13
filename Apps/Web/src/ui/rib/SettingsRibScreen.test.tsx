@@ -1,6 +1,21 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
-import type { WebSettingsState, WebSettingsView } from 'keymanage-web-session'
+import type {
+  WebChangePasswordDialogText,
+  WebConfirmText,
+  WebDeleteAccountDialogText,
+  WebRestoreDialogText,
+  WebSettingsState,
+  WebSettingsView,
+} from 'keymanage-web-session'
 import { describe, expect, it, vi } from 'vitest'
+import {
+  asState,
+  CHANGE_PASSWORD_DIALOG_TEXT,
+  DELETE_ACCOUNT_DIALOG_TEXT,
+  EXPORT_NOTICE_TEXT,
+  RESTORE_DIALOG_TEXT,
+  withFields,
+} from './policyTextFixtures'
 import { SettingsRibScreen } from './SettingsRibScreen'
 
 type Plain = Omit<WebSettingsState, 'copy' | 'hashCode' | 'equals'>
@@ -23,13 +38,20 @@ const BASE: Plain = {
   deletionPhrase: '',
   error: null,
   notice: null,
+  noticeKind: 'info',
   canExportBackup: true,
   canRestoreBackup: true,
   canChangePassword: true,
   canDeleteAccount: true,
+  canStartChangePassword: true,
+  canStartDeleteAccount: true,
   canSubmitRestore: false,
   canSubmitChangePassword: false,
   canSubmitDeletion: false,
+  exportNotice: EXPORT_NOTICE_TEXT,
+  restoreDialog: RESTORE_DIALOG_TEXT,
+  changePasswordDialog: CHANGE_PASSWORD_DIALOG_TEXT,
+  deleteAccountDialog: DELETE_ACCOUNT_DIALOG_TEXT,
 }
 
 function fakeStore<S>(initial: S) {
@@ -197,7 +219,7 @@ describe('SettingsRibScreen', () => {
     })
 
     it('읽기 전용 볼트에서는 진입점을 막는다', () => {
-      setup({ readOnly: true, canChangePassword: false })
+      setup({ readOnly: true, canChangePassword: false, canStartChangePassword: false })
       expect(screen.getByRole('button', { name: '마스터 비밀번호 변경' })).toBeDisabled()
     })
 
@@ -386,5 +408,167 @@ describe('SettingsRibScreen', () => {
       expect(screen.queryByRole('alert')).not.toBeInTheDocument()
       expect(screen.queryByRole('status')).not.toBeInTheDocument()
     })
+  })
+})
+
+// 문구와 오프라인 판단은 Kotlin State가 한다. 화면이 직접 들고 있지 않다면 State 값을 바꿨을 때 그대로 따라간다
+describe('SettingsRibScreen 진입 버튼은 State의 진입 가능 여부만 본다', () => {
+  it('오프라인 여부와 상관없이 비밀번호 변경 진입 가능 값을 따른다', () => {
+    setup({ accountOffline: true, canStartChangePassword: false })
+    expect(screen.getByRole('button', { name: '마스터 비밀번호 변경' })).toBeDisabled()
+  })
+
+  it('실제 변경 가능 값(canChangePassword)이 꺼져 있어도 진입 가능 값이 켜져 있으면 누를 수 있다', () => {
+    setup({ canChangePassword: false, canStartChangePassword: true })
+    expect(screen.getByRole('button', { name: '마스터 비밀번호 변경' })).toBeEnabled()
+  })
+
+  it('계정 삭제 진입 버튼도 진입 가능 값만 따른다', () => {
+    const { update } = setup({ accountOffline: true, canStartDeleteAccount: false })
+    expect(screen.getByRole('button', { name: '계정 삭제' })).toBeDisabled()
+
+    update({ canDeleteAccount: false, canStartDeleteAccount: true })
+    expect(screen.getByRole('button', { name: '계정 삭제' })).toBeEnabled()
+  })
+})
+
+describe('SettingsRibScreen 안내 종류', () => {
+  it('완료 안내(info)는 안내(status)로 보인다', () => {
+    setup({ notice: '마스터 비밀번호를 바꿨습니다.', noticeKind: 'info' })
+
+    expect(screen.getByRole('status')).toHaveTextContent('마스터 비밀번호를 바꿨습니다.')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('오프라인 안내(error)는 오류(alert) 모양으로 보인다', () => {
+    setup({ notice: '인터넷에 연결된 상태에서만 비밀번호를 바꿀 수 있습니다.', noticeKind: 'error' })
+
+    expect(screen.getByRole('alert')).toHaveTextContent('인터넷에 연결된 상태에서만 비밀번호를 바꿀 수 있습니다.')
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('안내 종류가 바뀌면 모양도 따라 바뀐다', () => {
+    const { update } = setup({ notice: '안내', noticeKind: 'error' })
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+
+    update({ noticeKind: 'info' })
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('안내')
+  })
+})
+
+describe('SettingsRibScreen 자동 잠금 선택지', () => {
+  it('State의 선택지만 그리고 라벨은 분·시간 규칙을 따른다', () => {
+    setup({ autoLockOptionsMs: [0, 60_000, 600_000, 7_200_000], autoLockTimeoutMs: 600_000 })
+
+    const select = screen.getByLabelText('자동 잠금')
+    expect(within(select).getAllByRole('option').map((option) => option.textContent)).toEqual(['즉시', '1분', '10분', '2시간'])
+    expect(select).toHaveValue('600000')
+  })
+
+  it('기본 다섯 가지 선택지는 즉시·1분·5분·15분·1시간으로 읽힌다', () => {
+    setup()
+
+    expect(within(screen.getByLabelText('자동 잠금')).getAllByRole('option').map((option) => option.textContent)).toEqual([
+      '즉시',
+      '1분',
+      '5분',
+      '15분',
+      '1시간',
+    ])
+  })
+})
+
+describe('SettingsRibScreen 정책 문구는 State 값을 그린다', () => {
+  it('진입 버튼 이름과 내보내기 안내 글자를 State에서 받는다', () => {
+    const { view } = setup({
+      modal: 'exportConfirm',
+      exportNotice: asState<WebConfirmText>({ title: '내보내기 제목', body: '내보내기 본문', confirm: '내보내기 확인', cancel: '내보내기 취소' }),
+      changePasswordDialog: withFields(CHANGE_PASSWORD_DIALOG_TEXT, { title: '변경 진입' }),
+      deleteAccountDialog: withFields(DELETE_ACCOUNT_DIALOG_TEXT, { title: '삭제 진입' }),
+    })
+
+    expect(screen.getByRole('button', { name: '변경 진입' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '삭제 진입' })).toBeInTheDocument()
+    const prompt = screen.getByRole('alertdialog', { name: '내보내기 제목' })
+    expect(prompt).toHaveTextContent('내보내기 본문')
+    fireEvent.click(within(prompt).getByRole('button', { name: '내보내기 확인' }))
+    fireEvent.click(within(prompt).getByRole('button', { name: '내보내기 취소' }))
+    expect(view.confirmExport).toHaveBeenCalledTimes(1)
+    expect(view.cancelModal).toHaveBeenCalledTimes(1)
+  })
+
+  it('복원 대화상자의 글자를 State에서 받는다', () => {
+    setup({
+      modal: 'restorePassword',
+      inProgress: true,
+      restoreDialog: asState<WebRestoreDialogText>({
+        title: '복원 제목',
+        body: '복원 본문',
+        passwordLabel: '복원 비밀번호',
+        submit: '복원 실행',
+        cancel: '복원 취소',
+        progress: '복원 진행 중',
+      }),
+    })
+
+    const dialog = screen.getByRole('dialog', { name: '복원 제목' })
+    expect(dialog).toHaveTextContent('복원 본문')
+    expect(within(dialog).getByLabelText('복원 비밀번호')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: '복원 취소' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: '복원 실행' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('status')).toHaveTextContent('복원 진행 중')
+  })
+
+  it('비밀번호 변경 대화상자의 글자와 새 비밀번호 규칙 안내를 State에서 받는다', () => {
+    setup({
+      modal: 'changePassword',
+      inProgress: true,
+      changePasswordDialog: asState<WebChangePasswordDialogText>({
+        title: '변경 제목',
+        body: '변경 본문',
+        currentLabel: '현재 칸',
+        newLabel: '새 칸',
+        confirmLabel: '확인 칸',
+        newPasswordRule: '규칙 안내',
+        submit: '변경 실행',
+        cancel: '변경 취소',
+        progress: '변경 진행 중',
+      }),
+    })
+
+    const dialog = screen.getByRole('dialog', { name: '변경 제목' })
+    expect(dialog).toHaveTextContent('변경 본문')
+    expect(within(dialog).getByLabelText('현재 칸')).toBeInTheDocument()
+    expect(within(dialog).getByLabelText('새 칸')).toHaveAccessibleDescription('규칙 안내')
+    expect(within(dialog).getByLabelText('확인 칸')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: '변경 취소' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: '변경 실행' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('status')).toHaveTextContent('변경 진행 중')
+  })
+
+  it('계정 삭제 대화상자의 글자를 State에서 받는다', () => {
+    setup({
+      modal: 'deleteAccount',
+      inProgress: true,
+      deleteAccountDialog: asState<WebDeleteAccountDialogText>({
+        title: '삭제 제목',
+        body: '삭제 본문',
+        passwordLabel: '삭제 비밀번호 칸',
+        phraseLabel: '삭제 확인 문구 칸',
+        submit: '삭제 실행',
+        cancel: '삭제 취소',
+        progress: '삭제 진행 중',
+      }),
+    })
+
+    const dialog = screen.getByRole('dialog', { name: '삭제 제목' })
+    expect(dialog).toHaveTextContent('삭제 본문')
+    expect(within(dialog).getByLabelText('삭제 비밀번호 칸')).toBeInTheDocument()
+    expect(within(dialog).getByLabelText('삭제 확인 문구 칸')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: '삭제 취소' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: '삭제 실행' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('status')).toHaveTextContent('삭제 진행 중')
   })
 })
