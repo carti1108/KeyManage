@@ -39,6 +39,9 @@ import kotlin.time.Duration
 /** 열려 있는 대화상자. 안내·입력 칸의 문구는 messages 패키지(ExportNotice, RestoreDialog, ChangePasswordDialog, DeleteAccountDialog)를 쓴다 */
 enum class SettingsModal { NONE, EXPORT_CONFIRM, RESTORE_PASSWORD, CHANGE_PASSWORD, DELETE_ACCOUNT }
 
+/** [SettingsViewState.notice]의 성격. 완료는 INFO, 오프라인처럼 하지 못한 이유는 ERROR다(옛 웹은 오프라인 안내를 오류 모양으로 보였다) */
+enum class SettingsNoticeKind { INFO, ERROR }
+
 data class SettingsViewState(
     val email: String = "",
     /** 서버 주소 줄. 같은 출처면 빈 문자열 */
@@ -65,11 +68,22 @@ data class SettingsViewState(
     val error: String? = null,
     /** 완료·오프라인 안내 */
     val notice: String? = null,
+    /** [notice]의 성격. [notice]가 있을 때만 뜻이 있다 */
+    val noticeKind: SettingsNoticeKind = SettingsNoticeKind.INFO,
 ) {
     val canExportBackup: Boolean get() = !inProgress
     val canRestoreBackup: Boolean get() = !readOnly && !inProgress
     val canChangePassword: Boolean get() = !readOnly && !accountOffline && !inProgress
     val canDeleteAccount: Boolean get() = !accountOffline && !inProgress
+
+    /**
+     * 비밀번호 변경 진입 버튼을 켤지. 오프라인이어도 눌러 안내([notice])를 받아야 하므로 [accountOffline]은 보지 않는다.
+     * 실제로 바꿀 수 있는지는 [canChangePassword]
+     */
+    val canStartChangePassword: Boolean get() = !readOnly && !inProgress
+
+    /** 계정 삭제 진입 버튼을 켤지. 오프라인이어도 눌러 안내를 받는다. 실제로 지울 수 있는지는 [canDeleteAccount] */
+    val canStartDeleteAccount: Boolean get() = !inProgress
     val canSubmitRestore: Boolean get() = restorePassword.isNotEmpty() && !inProgress
     val canSubmitChangePassword: Boolean get() = currentPassword.isNotEmpty() && !inProgress
     val canSubmitDeletion: Boolean get() = deletionPassword.isNotEmpty() && deletionPhrase == ACCOUNT_DELETION_PHRASE && !inProgress
@@ -394,7 +408,7 @@ class SettingsInteractor(
             val finished = runExclusive {
                 val count = session.restoreBackup(backup, entered, environment.clock.now())
                 pendingBackup = null
-                update { closed().copy(notice = restoredMessage(count)) }
+                update { closed().copy(notice = restoredMessage(count), noticeKind = SettingsNoticeKind.INFO) }
             }
             if (finished) listener.settingsDidRestoreBackup()
             finishAttempt(finished, endNotice = null)
@@ -407,7 +421,7 @@ class SettingsInteractor(
         if (state.inProgress || state.readOnly) return
         update { copy(error = null) }
         if (state.accountOffline) {
-            update { copy(notice = PASSWORD_CHANGE_OFFLINE) }
+            update { copy(notice = PASSWORD_CHANGE_OFFLINE, noticeKind = SettingsNoticeKind.ERROR) }
             return
         }
         pickTurn += 1
@@ -441,7 +455,7 @@ class SettingsInteractor(
                     update { closed() }
                     return@runExclusive
                 }
-                update { closed().copy(notice = PASSWORD_CHANGE_DONE) }
+                update { closed().copy(notice = PASSWORD_CHANGE_DONE, noticeKind = SettingsNoticeKind.INFO) }
             }
             if (finished && endNotice == null) listener.settingsDidChangeMasterPassword()
             finishAttempt(finished, endNotice)
@@ -454,7 +468,7 @@ class SettingsInteractor(
         if (state.inProgress) return
         update { copy(error = null) }
         if (state.accountOffline) {
-            update { copy(notice = ACCOUNT_DELETION_OFFLINE) }
+            update { copy(notice = ACCOUNT_DELETION_OFFLINE, noticeKind = SettingsNoticeKind.ERROR) }
             return
         }
         pickTurn += 1

@@ -8,7 +8,6 @@ import { Alert } from '../components/Alert'
 import { Button } from '../components/Button'
 import { ConfirmPrompt } from '../components/ConfirmPrompt'
 import { PasswordField } from '../components/PasswordField'
-import { PENDING_LOGOUT_CONFIRM, RECONNECT_PROMPT, ROLLBACK_WARNING } from '../messages/vaultNotices'
 import { GeneratorRibScreen } from './GeneratorRibScreen'
 import { RibSlot, useViewStore } from './ribsReact'
 import { SettingsRibScreen } from './SettingsRibScreen'
@@ -88,10 +87,10 @@ export function MainRibScreen({ view }: { view: WebMainView }) {
         {state.readOnly && state.readOnlyNotice !== null && <Alert variant="info">{state.readOnlyNotice}</Alert>}
         {state.isConfirmingLogout && (
           <ConfirmPrompt
-            title={PENDING_LOGOUT_CONFIRM.title}
-            body={PENDING_LOGOUT_CONFIRM.body}
-            confirmLabel={PENDING_LOGOUT_CONFIRM.confirm}
-            cancelLabel={PENDING_LOGOUT_CONFIRM.cancel}
+            title={state.pendingLogoutConfirm.title}
+            body={state.pendingLogoutConfirm.body}
+            confirmLabel={state.pendingLogoutConfirm.confirm}
+            cancelLabel={state.pendingLogoutConfirm.cancel}
             pending={state.isLoggingOut}
             onConfirm={() => view.confirmLogout()}
             onCancel={() => view.cancelLogout()}
@@ -125,7 +124,7 @@ function ReconnectForm({ view, state }: { view: WebMainView; state: WebMainState
 
   return (
     <form className="flex flex-col gap-3 rounded-md border border-border p-3" onSubmit={submit} noValidate>
-      <p className="text-sm">{RECONNECT_PROMPT.body}</p>
+      <p className="text-sm">{state.reconnectPrompt.body}</p>
       {/* 비밀번호 관리자가 계정을 알아보도록 숨은 사용자 이름을 둔다 */}
       <input type="email" autoComplete="username" value={state.email} readOnly hidden />
       <PasswordField
@@ -137,10 +136,10 @@ function ReconnectForm({ view, state }: { view: WebMainView; state: WebMainState
       />
       {state.isConfirmingReconnectRollback ? (
         <ConfirmPrompt
-          title={ROLLBACK_WARNING.title}
-          body={ROLLBACK_WARNING.body}
-          confirmLabel={ROLLBACK_WARNING.accept}
-          cancelLabel={ROLLBACK_WARNING.cancel}
+          title={state.rollbackWarning.title}
+          body={state.rollbackWarning.body}
+          confirmLabel={state.rollbackWarning.confirm}
+          cancelLabel={state.rollbackWarning.cancel}
           onConfirm={() => view.acceptReconnectRollback()}
           onCancel={() => view.cancelReconnectRollback()}
         />
@@ -148,7 +147,7 @@ function ReconnectForm({ view, state }: { view: WebMainView; state: WebMainState
         state.reconnectError && <Alert title={state.reconnectError.title ?? undefined}>{state.reconnectError.body}</Alert>
       )}
       <Button type="submit" size="sm" loading={state.isReconnecting} disabled={state.isReconnecting} icon={<RefreshCw aria-hidden className="size-4" />} className="self-start">
-        {RECONNECT_PROMPT.action}
+        {state.reconnectPrompt.action}
       </Button>
     </form>
   )

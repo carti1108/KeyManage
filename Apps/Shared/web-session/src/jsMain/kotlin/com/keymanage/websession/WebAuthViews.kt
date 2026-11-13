@@ -37,6 +37,12 @@ data class WebAuthState(
     /** 0~100 */
     val passwordStrengthScore: Int,
     val showsWeakPasswordWarning: Boolean,
+    /** [isConfirmingRollback]일 때 그리는 확인 창 문구 (VLT-001) */
+    val rollbackWarning: WebConfirmText,
+    /** 가입 화면에서 비밀번호 칸 설명으로 보이는 안내 (SEC-001) */
+    val masterPasswordSetup: WebMessage,
+    /** [showsWeakPasswordWarning]일 때 보이는 문구 (SEC-002) */
+    val weakPasswordWarning: String,
 )
 
 private fun AuthViewState.toWeb() = WebAuthState(
@@ -55,6 +61,9 @@ private fun AuthViewState.toWeb() = WebAuthState(
     showsStrengthGauge = showsStrengthGauge,
     passwordStrengthScore = passwordStrengthScore,
     showsWeakPasswordWarning = showsWeakPasswordWarning,
+    rollbackWarning = ROLLBACK_WARNING_TEXT,
+    masterPasswordSetup = MASTER_PASSWORD_SETUP_TEXT,
+    weakPasswordWarning = WEAK_MASTER_PASSWORD_TEXT,
 )
 
 @JsExport
@@ -94,6 +103,10 @@ data class WebUnlockState(
     val isConfirmingLogout: Boolean,
     /** 웹은 항상 false다 */
     val isBiometricsAvailable: Boolean,
+    /** [isConfirmingRollback]일 때 그리는 확인 창 문구 (VLT-001) */
+    val rollbackWarning: WebConfirmText,
+    /** [isConfirmingLogout]일 때 그리는 확인 창 문구 (VLT-002) */
+    val pendingLogoutConfirm: WebConfirmText,
 )
 
 private fun UnlockViewState.toWeb() = WebUnlockState(
@@ -104,6 +117,8 @@ private fun UnlockViewState.toWeb() = WebUnlockState(
     isConfirmingRollback = isConfirmingRollback,
     isConfirmingLogout = isConfirmingLogout,
     isBiometricsAvailable = isBiometricsAvailable,
+    rollbackWarning = ROLLBACK_WARNING_TEXT,
+    pendingLogoutConfirm = PENDING_LOGOUT_TEXT,
 )
 
 @JsExport

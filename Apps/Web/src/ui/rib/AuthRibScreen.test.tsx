@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import type { WebAuthState, WebAuthView } from 'keymanage-web-session'
 import { describe, expect, it, vi } from 'vitest'
 import { AuthRibScreen } from './AuthRibScreen'
+import { MASTER_PASSWORD_SETUP_TEXT, ROLLBACK_WARNING_TEXT, WEAK_MASTER_PASSWORD_TEXT } from './policyTextFixtures'
 
 const SETUP_TITLE = '마스터 비밀번호 설정'
 const SETUP_BODY = '볼트를 열기 위한 마스터 비밀번호를 입력해주세요. 마스터 비밀번호를 잃어버리면 복구할 수 없습니다.'
@@ -20,6 +21,9 @@ const LOGIN_STATE = {
   showsStrengthGauge: false,
   passwordStrengthScore: 0,
   showsWeakPasswordWarning: false,
+  rollbackWarning: ROLLBACK_WARNING_TEXT,
+  masterPasswordSetup: MASTER_PASSWORD_SETUP_TEXT,
+  weakPasswordWarning: WEAK_MASTER_PASSWORD_TEXT,
 }
 
 function renderAuth(overrides: Record<string, unknown> = {}) {
@@ -218,5 +222,38 @@ describe('AuthRibScreen 안내와 오류', () => {
     renderAuth({ isConfirmingRollback: true, error: { title: null, body: '오류 본문' } })
 
     expect(screen.queryByText('오류 본문')).not.toBeInTheDocument()
+  })
+})
+
+// 문구는 Kotlin State가 내려 준다. 화면이 직접 들고 있지 않다면 State 값을 바꿨을 때 바뀐 글자가 그려진다
+describe('AuthRibScreen 정책 문구는 State 값을 그린다', () => {
+  it('되돌림 확인 창의 제목·본문·버튼 글자를 State에서 받는다', () => {
+    const view = renderAuth({
+      isConfirmingRollback: true,
+      rollbackWarning: { title: '되돌림 제목', body: '되돌림 본문', confirm: '되돌림 수락', cancel: '되돌림 취소' },
+    })
+
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('되돌림 제목')
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('되돌림 본문')
+    fireEvent.click(screen.getByRole('button', { name: '되돌림 수락' }))
+    fireEvent.click(screen.getByRole('button', { name: '되돌림 취소' }))
+    expect(view.acceptRollback).toHaveBeenCalledTimes(1)
+    expect(view.cancelRollback).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText('서버 볼트가 이전 상태로 돌아감')).not.toBeInTheDocument()
+  })
+
+  it('가입 안내 제목과 본문을 State에서 받는다', () => {
+    renderAuth({ ...REGISTER, masterPasswordSetup: { title: '설정 제목', body: '설정 본문' } })
+
+    expect(screen.getByText('설정 제목')).toBeInTheDocument()
+    expect(screen.getByText('설정 본문')).toBeInTheDocument()
+    expect(screen.queryByText(SETUP_TITLE)).not.toBeInTheDocument()
+  })
+
+  it('취약 경고 문구를 State에서 받는다', () => {
+    renderAuth({ ...REGISTER, showsStrengthGauge: true, passwordStrengthScore: 10, showsWeakPasswordWarning: true, weakPasswordWarning: '약함 안내' })
+
+    expect(screen.getByText('약함 안내')).toBeInTheDocument()
+    expect(screen.queryByText(WEAK_WARNING)).not.toBeInTheDocument()
   })
 })

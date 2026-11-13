@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
-import type { WebMainState, WebMainView } from 'keymanage-web-session'
+import type { WebConfirmText, WebMainState, WebMainView, WebReconnectPrompt } from 'keymanage-web-session'
 import { describe, expect, it, vi } from 'vitest'
 import { MainRibScreen } from './MainRibScreen'
+import { asState, PENDING_LOGOUT_TEXT, RECONNECT_PROMPT_TEXT, ROLLBACK_WARNING_TEXT } from './policyTextFixtures'
 
 // 탭 안쪽 화면은 다른 담당 파일이므로 가짜로 바꿔 이 화면만 시험한다
 vi.mock('./VaultListRibScreen', () => ({ VaultListRibScreen: () => <div>볼트 목록 화면</div> }))
@@ -27,6 +28,9 @@ const BASE: Plain = {
   offlineNotice: null,
   readOnlyNotice: null,
   deviceStorageWarning: null,
+  pendingLogoutConfirm: PENDING_LOGOUT_TEXT,
+  reconnectPrompt: RECONNECT_PROMPT_TEXT,
+  rollbackWarning: ROLLBACK_WARNING_TEXT,
 }
 
 function message(title: string, body: string): Plain['syncError'] {
@@ -220,5 +224,45 @@ describe('MainRibScreen', () => {
       fireEvent.click(within(prompt).getByRole('button', { name: '취소' }))
       expect(view.cancelReconnectRollback).toHaveBeenCalledTimes(1)
     })
+  })
+})
+
+// 문구는 Kotlin State가 내려 준다. 화면이 직접 들고 있지 않다면 State 값을 바꿨을 때 바뀐 글자가 그려진다
+describe('MainRibScreen 정책 문구는 State 값을 그린다', () => {
+  it('로그아웃 확인 창의 글자를 State에서 받는다', () => {
+    const { view } = setup({
+      isConfirmingLogout: true,
+      pendingLogoutConfirm: asState<WebConfirmText>({ title: '대기 제목', body: '대기 본문', confirm: '대기 확인', cancel: '대기 취소' }),
+    })
+
+    const prompt = screen.getByRole('alertdialog', { name: '대기 제목' })
+    expect(prompt).toHaveTextContent('대기 본문')
+    fireEvent.click(within(prompt).getByRole('button', { name: '대기 확인' }))
+    fireEvent.click(within(prompt).getByRole('button', { name: '대기 취소' }))
+    expect(view.confirmLogout).toHaveBeenCalledTimes(1)
+    expect(view.cancelLogout).toHaveBeenCalledTimes(1)
+  })
+
+  it('다시 연결 안내와 버튼 글자를 State에서 받는다', () => {
+    setup({ needsReconnect: true, reconnectPrompt: asState<WebReconnectPrompt>({ body: '다시 연결 안내', action: '다시 연결' }) })
+
+    expect(screen.getByText('다시 연결 안내')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '다시 연결' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '동기화' })).not.toBeInTheDocument()
+  })
+
+  it('다시 연결 중 되돌림 확인 창의 글자를 State에서 받는다', () => {
+    const { view } = setup({
+      needsReconnect: true,
+      isConfirmingReconnectRollback: true,
+      rollbackWarning: asState<WebConfirmText>({ title: '되돌림 제목', body: '되돌림 본문', confirm: '되돌림 수락', cancel: '되돌림 취소' }),
+    })
+
+    const prompt = screen.getByRole('alertdialog', { name: '되돌림 제목' })
+    expect(prompt).toHaveTextContent('되돌림 본문')
+    fireEvent.click(within(prompt).getByRole('button', { name: '되돌림 수락' }))
+    fireEvent.click(within(prompt).getByRole('button', { name: '되돌림 취소' }))
+    expect(view.acceptReconnectRollback).toHaveBeenCalledTimes(1)
+    expect(view.cancelReconnectRollback).toHaveBeenCalledTimes(1)
   })
 })
