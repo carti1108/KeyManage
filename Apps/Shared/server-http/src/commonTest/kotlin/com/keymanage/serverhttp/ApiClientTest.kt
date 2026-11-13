@@ -121,6 +121,25 @@ class ApiClientRequestTest {
         assertFailsWith<NetworkError> { fake.client().request(HttpMethod.Get, "/vault") }
     }
 
+    // Ktor JS는 fetch 거부를 Exception이 아닌 kotlin.Error("Fail to fetch")로 던진다
+    @Test
+    fun kotlinErrorFromEngineBecomesNetworkError() = runTest {
+        val fake = Fake { throw Error("Fail to fetch") }
+
+        assertFailsWith<NetworkError> { fake.client().request(HttpMethod.Get, "/vault") }
+    }
+
+    @Test
+    fun kotlinErrorWhileReadingBodyBecomesNetworkError() = runTest {
+        val fake = Fake {
+            @Suppress("OPT_IN_USAGE")
+            val body = GlobalScope.writer { throw Error("Fail to fetch") }.channel
+            respond(body, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+        }
+
+        assertFailsWith<NetworkError> { fake.client().request(HttpMethod.Get, "/vault") }
+    }
+
     @Test
     fun timeoutWhileReadingBodyBecomesNetworkError() = runTest {
         val fake = Fake { request ->
