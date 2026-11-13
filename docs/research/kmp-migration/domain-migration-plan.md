@@ -393,3 +393,9 @@ HTTP는 6단계의 `server-http`(Ktor JS 엔진, 브라우저 `fetch`)를 쓴다
 - **화면**: `ui/rib/<Rib>Screen.tsx`가 `useViewStore(view.store)`로 상태를 읽고 입력은 뷰 메서드로 보낸다. 기존 프레젠테이션 컴포넌트(`components/*`, `ItemList`, `ItemForm`, `PasswordField` 등)는 props만 맞춰 다시 쓴다. 세션을 직접 부르던 화면(`SessionRoot`, `VaultScreen`, `*Action.tsx`)은 지운다.
 - **ribs-react**: carti-RIBs-KMP `react/ribs-react/src/index.tsx`는 npm 패키지가 아니라 파일 하나이므로 `ui/rib/ribsReact.tsx`에 복사하고 출처를 적는다.
 - **테스트**: 화면 테스트는 Kotlin 없이 가짜 store(`subscribe`·`getSnapshot`)와 가짜 뷰 메서드로 돈다. 세션 행동(잠금·만료 안내·대기 확인 등)은 이미 `:feature` Interactor 테스트가 확인하므로, 옛 `SessionRoot.*.test.tsx`는 지우고 화면 테스트는 "상태를 그리는가, 입력을 뷰로 보내는가"만 본다. 끝에 실제 브라우저로 가입·잠금·해제·저장을 확인한다.
+
+### 11.5 carti-RIBs-KMP ADR-0010 반영 (2026-11-13)
+
+- 라이브러리가 RIBs-iOS 구조로 바뀌었다(별도 Presenter 수명주기, Interactor의 Router 소유, `dispatchAttach` 삭제). 공유 RIB 7개를 같은 모양으로 옮긴다.
+- 뷰 계약은 `XxxPresentable`(Interactor용) + `XxxViewControllable`(Router용) + 둘을 합친 `XxxViewContract`(플랫폼 뷰가 구현)로 나눈다. `listener` 설정은 Interactor의 `didBecomeActive`·`willResignActive`가 한다. 자식이 있는 RIB은 Router가 `interactor.router`에 자신을 넣는다. 앱은 `LaunchRouter.launch`/`shutdown`을 부른다.
+- 동작은 바꾸지 않는다. 테스트는 가짜 뷰의 타입과 수명주기 호출만 바꾸고 어설션은 그대로 둔다. 붙일 때 "활성화 → 로드" 순서, 탭 자식을 계속 붙여 두는 Main의 활성 상태, 비활성 시 `listener = null` 시점은 리뷰에서 따로 확인한다.
