@@ -2,6 +2,8 @@ package com.keymanage.feature.settings
 
 import com.carti.ribs.RibCoroutinesConfig
 import com.carti.ribs.RibDispatchersProvider
+import com.carti.ribs.RibMount
+import com.carti.ribs.mount
 import com.keymanage.domain.auth.MasterPasswordChangedException
 import com.keymanage.domain.auth.UnlockKdf
 import com.keymanage.domain.backup.BackupFile
@@ -71,6 +73,7 @@ class SettingsInteractorTest {
     private lateinit var view: FakeSettingsView
     private lateinit var listener: FakeSettingsListener
     private lateinit var router: SettingsRouter
+    private var mount: RibMount? = null
 
     @BeforeTest
     fun setUp() {
@@ -84,7 +87,7 @@ class SettingsInteractorTest {
 
     @AfterTest
     fun tearDown() {
-        if (this::router.isInitialized && router.interactor.isAttached()) router.dispatchDetach()
+        mount?.unmount()
         RibCoroutinesConfig.reset()
     }
 
@@ -96,7 +99,7 @@ class SettingsInteractorTest {
             override val environment = this@SettingsInteractorTest.environment
         }
         router = SettingsBuilder(dependency).build(listener)
-        router.dispatchAttach(null)
+        mount = router.mount()
     }
 
     private val state get() = view.states.last()
@@ -695,7 +698,7 @@ class SettingsInteractorTest {
         send(SettingsViewAction.EditPasswordConfirmation("typed-new-password"))
         assertEquals("typed-new-password", state.newPassword)
 
-        router.dispatchDetach()
+        mount?.unmount()
 
         assertEquals("", state.currentPassword)
         assertEquals("", state.newPassword)
@@ -914,7 +917,7 @@ class SettingsInteractorTest {
     fun 비활성이_되면_구독을_풀고_뷰_입력을_받지_않는다() {
         attach()
 
-        router.dispatchDetach()
+        mount?.unmount()
         // 내려가며 평문을 비운 마지막 한 번만 그린다. 그 뒤로는 그리지 않는다
         val rendered = view.states.size
         environment.changeOffline(true)
@@ -937,7 +940,7 @@ class SettingsInteractorTest {
         openDeleteAccount()
         send(SettingsViewAction.SubmitDeleteAccount)
 
-        router.dispatchDetach()
+        mount?.unmount()
         gate.complete(Unit)
         dispatcher.scheduler.runCurrent()
 
@@ -1106,7 +1109,7 @@ class SettingsInteractorTest {
         }
     }
 
-    private class FakeSettingsView : SettingsPresentable {
+    private class FakeSettingsView : SettingsViewContract {
         override var listener: SettingsPresentableListener? = null
         val states = mutableListOf<SettingsViewState>()
 

@@ -7,17 +7,18 @@ import com.carti.ribs.web.ScreenSlot
 import com.carti.ribs.web.ViewStore
 import com.carti.ribs.web.WebViewControllable
 import com.keymanage.feature.main.MainPresentable
+import com.keymanage.feature.main.MainViewContract
 import com.keymanage.feature.main.MainPresentableListener
 import com.keymanage.feature.main.MainTab
 import com.keymanage.feature.main.MainViewAction
 import com.keymanage.feature.main.MainViewState
-import com.keymanage.feature.root.RootPresentable
+import com.keymanage.feature.root.RootViewControllable
 
 // 루트(Root)와 볼트 껍데기(Main)의 웹 뷰. 둘 다 자식 화면을 ScreenSlot으로 보인다
 
 /** 로그인·잠금·볼트 화면 중 지금 것을 [slot]에 보인다. 앱은 [WebKeyManageApp.rootSlot]을 slot으로 넘기므로 React는 rootSlot만 그리면 된다 */
 @JsExport
-class WebRootView internal constructor(val slot: ScreenSlot) : RootPresentable, WebViewControllable {
+class WebRootView internal constructor(val slot: ScreenSlot) : RootViewControllable, WebViewControllable {
     override val screenKey: String = "root"
 
     @JsExport.Ignore
@@ -86,7 +87,7 @@ private fun MainViewState.toWeb() = WebMainState(
 )
 
 @JsExport
-class WebMainView : MainPresentable, WebViewControllable {
+class WebMainView : MainViewContract, WebViewControllable {
     override val screenKey: String = "main"
     val store: ViewStore<WebMainState> = ViewStore(MainViewState().toWeb())
 

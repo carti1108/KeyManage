@@ -2,7 +2,9 @@ package com.keymanage.feature.vaultlist
 
 import com.carti.ribs.RibCoroutinesConfig
 import com.carti.ribs.RibDispatchersProvider
+import com.carti.ribs.RibMount
 import com.carti.ribs.ViewControllable
+import com.carti.ribs.mount
 import com.keymanage.domain.backup.BackupFile
 import com.keymanage.domain.backup.LocalCalendar
 import com.keymanage.domain.backup.VaultBackup
@@ -19,9 +21,9 @@ import com.keymanage.domain.vault.deleteItem
 import com.keymanage.domain.vault.parseVaultData
 import com.keymanage.feature.ClipboardPort
 import com.keymanage.feature.SessionPort
-import com.keymanage.feature.generator.PasswordGeneratorPresentable
 import com.keymanage.feature.generator.PasswordGeneratorPresentableListener
 import com.keymanage.feature.generator.PasswordGeneratorViewAction
+import com.keymanage.feature.generator.PasswordGeneratorViewContract
 import com.keymanage.feature.generator.PasswordGeneratorViewFactory
 import com.keymanage.feature.generator.PasswordGeneratorViewState
 import kotlinx.coroutines.CompletableDeferred
@@ -51,6 +53,7 @@ class VaultListInteractorTest {
     private lateinit var clipboard: FakeClipboard
     private val generatorViews = mutableListOf<FakeGeneratorView>()
     private var router: VaultListRouter? = null
+    private var mount: RibMount? = null
     private val listener = RecordingVaultListListener()
 
     @BeforeTest
@@ -63,7 +66,7 @@ class VaultListInteractorTest {
 
     @AfterTest
     fun tearDown() {
-        router?.dispatchDetach()
+        mount?.unmount()
         RibCoroutinesConfig.reset()
     }
 
@@ -77,7 +80,7 @@ class VaultListInteractorTest {
             override val passwordGeneratorViewFactory = PasswordGeneratorViewFactory { FakeGeneratorView().also(generatorViews::add) }
             override val randomBytes: RandomBytes = Random(7).let { random -> RandomBytes { random.nextBytes(it) } }
         }
-        router = VaultListBuilder(dependency).build(listener).also { it.dispatchAttach(null) }
+        router = VaultListBuilder(dependency).build(listener).also { mount = it.mount() }
     }
 
     private val state get() = checkNotNull(view.states.lastOrNull()) { "아직 그리지 않음" }
@@ -634,7 +637,8 @@ class VaultListInteractorTest {
         assertEquals(1, session.remoteListeners.size)
         assertEquals(1, session.syncListeners.size)
 
-        router?.dispatchDetach()
+        mount?.unmount()
+        mount = null
         router = null
 
         assertEquals(0, session.remoteListeners.size)
@@ -649,7 +653,8 @@ class VaultListInteractorTest {
         open()
         val staleRemote = session.remoteListeners.toList()
         val staleSync = session.syncListeners.toList()
-        router?.dispatchDetach()
+        mount?.unmount()
+        mount = null
         router = null
         val renderedBefore = view.states.size
         val itemsBefore = state.items
@@ -730,7 +735,8 @@ class VaultListInteractorTest {
     fun refreshingFromTheSessionAfterDetachDoesNothing() {
         open()
         val detached = checkNotNull(router)
-        detached.dispatchDetach()
+        mount?.unmount()
+        mount = null
         router = null
         val renderedBefore = view.states.size
 
@@ -803,7 +809,8 @@ class VaultListInteractorTest {
         type(VaultItemFormField.PASSWORD, "typed-secret")
         val detached = checkNotNull(router)
 
-        detached.dispatchDetach()
+        mount?.unmount()
+        mount = null
         router = null
 
         assertEquals(emptyList(), state.items)
@@ -852,7 +859,7 @@ private class RecordingVaultListListener : VaultListListener {
     }
 }
 
-private class FakeVaultListView : VaultListPresentable {
+private class FakeVaultListView : VaultListViewContract {
     override var listener: VaultListPresentableListener? = null
     val states = mutableListOf<VaultListViewState>()
     val shownGenerators = mutableListOf<ViewControllable>()
@@ -871,7 +878,7 @@ private class FakeVaultListView : VaultListPresentable {
     }
 }
 
-private class FakeGeneratorView : PasswordGeneratorPresentable {
+private class FakeGeneratorView : PasswordGeneratorViewContract {
     override var listener: PasswordGeneratorPresentableListener? = null
     val states = mutableListOf<PasswordGeneratorViewState>()
     override fun render(state: PasswordGeneratorViewState) {

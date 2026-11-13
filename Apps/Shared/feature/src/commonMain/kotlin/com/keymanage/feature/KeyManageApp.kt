@@ -7,7 +7,7 @@ import com.keymanage.feature.generator.PasswordGeneratorViewFactory
 import com.keymanage.feature.main.MainViewFactory
 import com.keymanage.feature.root.RootBuilder
 import com.keymanage.feature.root.RootDependency
-import com.keymanage.feature.root.RootPresentable
+import com.keymanage.feature.root.RootViewControllable
 import com.keymanage.feature.root.RootViewFactory
 import com.keymanage.feature.settings.SettingsViewFactory
 import com.keymanage.feature.unlock.UnlockViewFactory
@@ -56,7 +56,7 @@ class KeyManageApp(
     ).build(initialNotice)
 
     /** 루트 화면을 [host]에 보이고 세션 상태에 맞는 첫 화면을 붙인다 */
-    fun start(host: ViewHost<RootPresentable>) {
+    fun start(host: ViewHost<RootViewControllable>) {
         router.launch(host)
     }
 

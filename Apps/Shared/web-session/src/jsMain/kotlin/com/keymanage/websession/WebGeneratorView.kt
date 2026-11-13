@@ -7,6 +7,7 @@ import com.carti.ribs.web.WebViewControllable
 import com.keymanage.domain.generator.isWeak
 import com.keymanage.feature.generator.GeneratorCharset
 import com.keymanage.feature.generator.PasswordGeneratorPresentable
+import com.keymanage.feature.generator.PasswordGeneratorViewContract
 import com.keymanage.feature.generator.PasswordGeneratorPresentableListener
 import com.keymanage.feature.generator.PasswordGeneratorViewAction
 import com.keymanage.feature.generator.PasswordGeneratorViewState
@@ -68,7 +69,7 @@ private fun charsetOf(wire: String): GeneratorCharset = when (wire) {
 }
 
 @JsExport
-class WebGeneratorView : PasswordGeneratorPresentable, WebViewControllable {
+class WebGeneratorView : PasswordGeneratorViewContract, WebViewControllable {
     override val screenKey: String = "passwordGenerator"
     val store: ViewStore<WebGeneratorState> = ViewStore(PasswordGeneratorViewState().toWeb())
 

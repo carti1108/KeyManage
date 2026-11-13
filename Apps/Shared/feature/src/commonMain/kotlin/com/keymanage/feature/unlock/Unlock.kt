@@ -2,12 +2,11 @@ package com.keymanage.feature.unlock
 
 import com.carti.ribs.Builder
 import com.carti.ribs.Dependency
-import com.carti.ribs.Interactor
+import com.carti.ribs.Presentable
+import com.carti.ribs.PresentableInteractor
 import com.carti.ribs.RibDispatchers
-import com.carti.ribs.RibState
 import com.carti.ribs.ViewControllable
-import com.carti.ribs.ViewPresenter
-import com.carti.ribs.ViewRouter
+import com.carti.ribs.ViewableRouter
 import com.carti.ribs.checkMainThread
 import com.keymanage.domain.device.DeviceStorageException
 import com.keymanage.domain.session.SessionState
@@ -63,14 +62,21 @@ interface UnlockPresentableListener {
     fun handle(action: UnlockViewAction)
 }
 
-interface UnlockPresentable : ViewControllable {
+/** Interactor가 쓰는 화면 계약 (RIBs-iOS Presentable, carti ADR-0010) */
+interface UnlockPresentable : Presentable {
     /** 활성 구간에만 설정된다. 비활성이면 null이라 입력이 무시된다 */
     var listener: UnlockPresentableListener?
     fun render(state: UnlockViewState)
 }
 
+/** Router가 쓰는 화면 계약 */
+interface UnlockViewControllable : ViewControllable
+
+/** 플랫폼 뷰가 구현하는 둘의 합 */
+interface UnlockViewContract : UnlockPresentable, UnlockViewControllable
+
 fun interface UnlockViewFactory {
-    fun makeUnlockView(): UnlockPresentable
+    fun makeUnlockView(): UnlockViewContract
 }
 
 interface UnlockDependency : Dependency {
@@ -95,39 +101,18 @@ interface UnlockListener {
 
 class UnlockBuilder(dependency: UnlockDependency) : Builder<UnlockDependency>(dependency) {
     fun build(listener: UnlockListener): UnlockRouter {
-        val presenter = UnlockPresenter(dependency.unlockViewFactory.makeUnlockView())
-        val interactor = UnlockInteractor(presenter, dependency.session, listener)
-        return UnlockRouter(presenter.view, interactor)
-    }
-}
-
-class UnlockPresenter(view: UnlockPresentable) : ViewPresenter<UnlockPresentable>(view), UnlockPresentableListener {
-    var onAction: ((UnlockViewAction) -> Unit)? = null
-
-    override fun didLoad() {
-        view.listener = this
-    }
-
-    override fun willUnload() {
-        view.listener = null
-    }
-
-    override fun handle(action: UnlockViewAction) {
-        onAction?.invoke(action)
-    }
-
-    fun render(state: UnlockViewState) {
-        checkMainThread("UnlockPresenter.render")
-        view.render(state)
+        val view = dependency.unlockViewFactory.makeUnlockView()
+        val interactor = UnlockInteractor(view, dependency.session, listener)
+        return UnlockRouter(interactor, view)
     }
 }
 
 /** 상태를 들고 입력을 해석한다. 요청은 활성 구간 스코프에서 실행하므로 detach되면 취소된다 */
 class UnlockInteractor(
-    presenter: UnlockPresenter,
+    presenter: UnlockPresentable,
     private val session: SessionPort,
     private val listener: UnlockListener,
-) : Interactor<UnlockPresenter, UnlockRouter>(presenter) {
+) : PresentableInteractor<UnlockPresentable>(presenter), UnlockPresentableListener {
     private var state = UnlockViewState()
 
     /** 되돌림 경고를 받아들이면 다시 보낼 비밀번호. 입력 칸은 비우지만 처음 요청의 값을 쓴다 */
@@ -144,18 +129,20 @@ class UnlockInteractor(
      */
     val isFinishingSession: Boolean get() = logoutInFlight
 
-    override fun didBecomeActive(savedInstanceState: RibState?) {
-        presenter.onAction = ::handle
+    override fun didBecomeActive() {
+        presenter.listener = this
         state = state.copy(email = (session.state() as? SessionState.Locked)?.email.orEmpty())
-        presenter.render(state)
+        render()
     }
 
     override fun willResignActive() {
-        presenter.onAction = null
+        presenter.listener = null
         rollbackPassword = null
     }
 
-    private fun handle(action: UnlockViewAction) {
+    override fun handle(action: UnlockViewAction) {
+        // 내려간 뒤 늦게 들어온 입력(뷰가 쥐고 있던 listener)은 무시한다
+        if (!isActive) return
         when (action) {
             is UnlockViewAction.UpdatePassword -> update { copy(password = action.password) }
             UnlockViewAction.Unlock -> unlock(state.password, acceptRollback = false)
@@ -175,7 +162,12 @@ class UnlockInteractor(
     private fun update(change: UnlockViewState.() -> UnlockViewState) {
         state = state.change()
         // 로그아웃은 이 RIB이 내려간 뒤에도 끝까지 하므로 그때는 그리지 않는다
-        if (isAttached()) presenter.render(state)
+        if (isActive) render()
+    }
+
+    private fun render() {
+        checkMainThread("UnlockPresentable.render")
+        presenter.render(state)
     }
 
     private fun acceptRollback() {
@@ -273,5 +265,5 @@ class UnlockInteractor(
     }
 }
 
-class UnlockRouter(view: UnlockPresentable, interactor: UnlockInteractor) :
-    ViewRouter<UnlockPresentable, UnlockInteractor>(view, interactor)
+class UnlockRouter(interactor: UnlockInteractor, view: UnlockViewControllable) :
+    ViewableRouter<UnlockInteractor, UnlockViewControllable>(interactor, view)

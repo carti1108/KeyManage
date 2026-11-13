@@ -6,10 +6,12 @@ import com.carti.ribs.web.ViewStore
 import com.carti.ribs.web.WebViewControllable
 import com.keymanage.feature.auth.AuthMode
 import com.keymanage.feature.auth.AuthPresentable
+import com.keymanage.feature.auth.AuthViewContract
 import com.keymanage.feature.auth.AuthPresentableListener
 import com.keymanage.feature.auth.AuthViewAction
 import com.keymanage.feature.auth.AuthViewState
 import com.keymanage.feature.unlock.UnlockPresentable
+import com.keymanage.feature.unlock.UnlockViewContract
 import com.keymanage.feature.unlock.UnlockPresentableListener
 import com.keymanage.feature.unlock.UnlockViewAction
 import com.keymanage.feature.unlock.UnlockViewState
@@ -56,7 +58,7 @@ private fun AuthViewState.toWeb() = WebAuthState(
 )
 
 @JsExport
-class WebAuthView : AuthPresentable, WebViewControllable {
+class WebAuthView : AuthViewContract, WebViewControllable {
     override val screenKey: String = "auth"
     val store: ViewStore<WebAuthState> = ViewStore(AuthViewState().toWeb())
 
@@ -105,7 +107,7 @@ private fun UnlockViewState.toWeb() = WebUnlockState(
 )
 
 @JsExport
-class WebUnlockView : UnlockPresentable, WebViewControllable {
+class WebUnlockView : UnlockViewContract, WebViewControllable {
     override val screenKey: String = "unlock"
     val store: ViewStore<WebUnlockState> = ViewStore(UnlockViewState().toWeb())
 

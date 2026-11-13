@@ -3,12 +3,11 @@ package com.keymanage.feature.main
 import com.carti.ribs.Builder
 import com.carti.ribs.Component
 import com.carti.ribs.Dependency
-import com.carti.ribs.Interactor
+import com.carti.ribs.Presentable
+import com.carti.ribs.PresentableInteractor
 import com.carti.ribs.RibDispatchers
-import com.carti.ribs.RibState
 import com.carti.ribs.ViewControllable
-import com.carti.ribs.ViewPresenter
-import com.carti.ribs.ViewRouter
+import com.carti.ribs.ViewableRouter
 import com.carti.ribs.checkMainThread
 import com.keymanage.domain.device.DeviceStorageException
 import com.keymanage.domain.platform.RandomBytes
@@ -100,18 +99,25 @@ interface MainPresentableListener {
     fun handle(action: MainViewAction)
 }
 
-interface MainPresentable : ViewControllable {
+/** Interactor가 쓰는 화면 계약 (RIBs-iOS Presentable, carti ADR-0010) */
+interface MainPresentable : Presentable {
     /** 활성 구간에만 설정된다. 비활성이면 null이라 입력이 무시된다 */
     var listener: MainPresentableListener?
     fun render(state: MainViewState)
+}
 
+/** Router가 쓰는 화면 계약 */
+interface MainViewControllable : ViewControllable {
     /** 고른 탭의 자식 화면을 보인다. 이전 탭의 화면은 먼저 [hideScreen]으로 내린다 */
     fun showScreen(view: ViewControllable)
     fun hideScreen(view: ViewControllable)
 }
 
+/** 플랫폼 뷰가 구현하는 둘의 합 */
+interface MainViewContract : MainPresentable, MainViewControllable
+
 fun interface MainViewFactory {
-    fun makeMainView(): MainPresentable
+    fun makeMainView(): MainViewContract
 }
 
 interface MainDependency : Dependency {
@@ -183,11 +189,11 @@ class MainBuilder(dependency: MainDependency) : Builder<MainDependency>(dependen
      */
     fun build(listener: MainListener, offline: Boolean = false): MainRouter {
         val component = MainComponent(dependency)
-        val presenter = MainPresenter(dependency.mainViewFactory.makeMainView())
-        val interactor = MainInteractor(presenter, component.trackedSession, dependency.environment, listener, offline)
+        val view = dependency.mainViewFactory.makeMainView()
+        val interactor = MainInteractor(view, component.trackedSession, dependency.environment, listener, offline)
         return MainRouter(
-            view = presenter.view,
             interactor = interactor,
+            view = view,
             vaultListBuilder = VaultListBuilder(component),
             passwordGeneratorBuilder = PasswordGeneratorBuilder(component),
             settingsBuilder = SettingsBuilder(component),
@@ -195,35 +201,16 @@ class MainBuilder(dependency: MainDependency) : Builder<MainDependency>(dependen
     }
 }
 
-class MainPresenter(view: MainPresentable) : ViewPresenter<MainPresentable>(view), MainPresentableListener {
-    var onAction: ((MainViewAction) -> Unit)? = null
-
-    override fun didLoad() {
-        view.listener = this
-    }
-
-    override fun willUnload() {
-        view.listener = null
-    }
-
-    override fun handle(action: MainViewAction) {
-        onAction?.invoke(action)
-    }
-
-    fun render(state: MainViewState) {
-        checkMainThread("MainPresenter.render")
-        view.render(state)
-    }
-}
-
 class MainInteractor(
-    presenter: MainPresenter,
+    presenter: MainPresentable,
     private val session: MainSessionPort,
     private val environment: AppEnvironment,
     private val listener: MainListener,
     /** 잠금 해제를 오프라인으로 열었는지. 동기화·재연결에 성공하면 내린다 */
     private var openedOffline: Boolean,
-) : Interactor<MainPresenter, MainRouter>(presenter), VaultListListener, SettingsListener {
+) : PresentableInteractor<MainPresentable>(presenter), MainPresentableListener, VaultListListener, SettingsListener {
+    /** Router가 만들어질 때 자신을 넣는다 */
+    var router: MainRouter? = null
     private var state = MainViewState()
     private var unsubscribes: List<() -> Unit> = emptyList()
 
@@ -240,8 +227,8 @@ class MainInteractor(
      */
     val isFinishingSession: Boolean get() = logoutInFlight || session.deletesInFlight > 0
 
-    override fun didBecomeActive(savedInstanceState: RibState?) {
-        presenter.onAction = ::handle
+    override fun didBecomeActive() {
+        presenter.listener = this
         // 콜백은 어느 스레드에서 올지 모르니 메인 스코프에서 처리한다. 알림 도중 이 RIB이 내려갔으면 무시한다
         unsubscribes = listOf(
             session.onSyncChange { error -> post { handleSyncChange(error) } },
@@ -249,21 +236,23 @@ class MainInteractor(
             environment.subscribeNetwork { post { refreshSession() } },
         )
         refreshSession()
-        router.routeTo(MainTab.VAULT)
+        router?.routeTo(MainTab.VAULT)
     }
 
     override fun willResignActive() {
-        presenter.onAction = null
+        presenter.listener = null
         unsubscribes.forEach { it() }
         unsubscribes = emptyList()
         rollbackPassword = null
     }
 
     private fun post(work: () -> Unit) {
-        if (isAttached()) coroutineScope.launch { work() }
+        if (isActive) coroutineScope.launch { work() }
     }
 
-    private fun handle(action: MainViewAction) {
+    override fun handle(action: MainViewAction) {
+        // 내려간 뒤 뷰가 남긴 입력은 무시한다 (옛 Presenter가 onAction을 비우던 동작)
+        if (!isActive) return
         when (action) {
             is MainViewAction.SelectTab -> selectTab(action.tab)
             MainViewAction.RequestLock -> lock()
@@ -284,7 +273,12 @@ class MainInteractor(
 
     private fun update(change: MainViewState.() -> MainViewState) {
         state = state.change()
-        if (isAttached()) presenter.render(state)
+        if (isActive) render()
+    }
+
+    private fun render() {
+        checkMainThread("MainPresentable.render")
+        presenter.render(state)
     }
 
     /**
@@ -293,7 +287,7 @@ class MainInteractor(
      * @return 열려 있는지
      */
     private fun refreshSession(): Boolean {
-        if (!isAttached()) return false
+        if (!isActive) return false
         val current = session.state() as? SessionState.Unlocked ?: return false
         update {
             copy(
@@ -327,9 +321,9 @@ class MainInteractor(
     private fun selectTab(tab: MainTab) {
         if (tab == state.selectedTab) return
         update { copy(selectedTab = tab) }
-        router.routeTo(tab)
+        router?.routeTo(tab)
         // 다른 탭에서 한 복원 같은 알림 없는 변경을 이 탭이 다시 읽는다
-        if (tab == MainTab.VAULT) router.refreshVaultList()
+        if (tab == MainTab.VAULT) router?.refreshVaultList()
     }
 
     // --- 잠금 ---
@@ -419,7 +413,7 @@ class MainInteractor(
                     update { copy(isReconnecting = false, reconnectError = null, syncError = null) }
                     refreshSession()
                     // 재연결은 서버와 맞추며 알림 없이 볼트를 바꿀 수 있다
-                    router.refreshVaultList()
+                    router?.refreshVaultList()
                 }
                 failure is RevisionRollbackException && !acceptRollback -> {
                     rollbackPassword = password
@@ -453,7 +447,7 @@ class MainInteractor(
 
     /** 복원·비밀번호 변경·계정 삭제를 시도했다. 세션이나 볼트가 바뀌었을 수 있으니 다시 읽고, 더 열려 있지 않으면 부모가 알게 한다 */
     override fun settingsDidChangeSession() {
-        if (refreshSession()) router.refreshVaultList() else if (isAttached()) listener.didLock()
+        if (refreshSession()) router?.refreshVaultList() else if (isActive) listener.didLock()
     }
 
     override fun settingsDidRestoreBackup() {
@@ -472,27 +466,31 @@ class MainInteractor(
 }
 
 class MainRouter(
-    view: MainPresentable,
     interactor: MainInteractor,
+    view: MainViewControllable,
     private val vaultListBuilder: VaultListBuilder,
     private val passwordGeneratorBuilder: PasswordGeneratorBuilder,
     private val settingsBuilder: SettingsBuilder,
-) : ViewRouter<MainPresentable, MainInteractor>(view, interactor) {
+) : ViewableRouter<MainInteractor, MainViewControllable>(interactor, view) {
     private var vaultList: VaultListRouter? = null
     private var generator: ViewControllable? = null
     private var settings: ViewControllable? = null
     private var shown: ViewControllable? = null
 
+    init {
+        interactor.router = this
+    }
+
     /** 고른 탭의 화면만 보인다. 처음 고른 탭은 이때 붙이고, 이후에는 붙어 있는 화면을 다시 보인다 */
     fun routeTo(tab: MainTab) {
         val screen = when (tab) {
-            MainTab.VAULT -> (vaultList ?: attachVaultList().also { vaultList = it }).view
+            MainTab.VAULT -> (vaultList ?: attachVaultList().also { vaultList = it }).viewControllable
             MainTab.GENERATOR -> generator ?: attachGenerator().also { generator = it }
             MainTab.SETTINGS -> settings ?: attachSettings().also { settings = it }
         }
         if (shown === screen) return
-        shown?.let(view::hideScreen)
-        view.showScreen(screen)
+        shown?.let(viewController::hideScreen)
+        viewController.showScreen(screen)
         shown = screen
     }
 
@@ -511,12 +509,12 @@ class MainRouter(
         // 생성기 탭은 혼자 쓰므로 부모가 받을 결과가 없고 복사 버튼을 둔다
         val child = passwordGeneratorBuilder.build(listener = null, allowCopy = true)
         attachChild(child)
-        return child.view
+        return child.viewControllable
     }
 
     private fun attachSettings(): ViewControllable {
         val child = settingsBuilder.build(interactor)
         attachChild(child)
-        return child.view
+        return child.viewControllable
     }
 }

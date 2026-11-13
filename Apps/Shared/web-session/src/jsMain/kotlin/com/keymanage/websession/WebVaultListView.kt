@@ -10,6 +10,7 @@ import com.keymanage.domain.vault.VaultItem
 import com.keymanage.feature.vaultlist.VaultItemForm
 import com.keymanage.feature.vaultlist.VaultItemFormField
 import com.keymanage.feature.vaultlist.VaultListPresentable
+import com.keymanage.feature.vaultlist.VaultListViewContract
 import com.keymanage.feature.vaultlist.VaultListPresentableListener
 import com.keymanage.feature.vaultlist.VaultListScreen
 import com.keymanage.feature.vaultlist.VaultListViewAction
@@ -125,7 +126,7 @@ private fun formFieldOf(wire: String): VaultItemFormField = when (wire) {
 }
 
 @JsExport
-class WebVaultListView : VaultListPresentable, WebViewControllable {
+class WebVaultListView : VaultListViewContract, WebViewControllable {
     override val screenKey: String = "vaultList"
     val store: ViewStore<WebVaultListState> = ViewStore(VaultListViewState().toWeb())
 

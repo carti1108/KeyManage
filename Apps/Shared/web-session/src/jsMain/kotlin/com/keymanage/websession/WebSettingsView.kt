@@ -7,6 +7,7 @@ import com.carti.ribs.web.WebViewControllable
 import com.keymanage.domain.lock.AUTO_LOCK_OPTIONS
 import com.keymanage.feature.settings.SettingsModal
 import com.keymanage.feature.settings.SettingsPresentable
+import com.keymanage.feature.settings.SettingsViewContract
 import com.keymanage.feature.settings.SettingsPresentableListener
 import com.keymanage.feature.settings.SettingsViewAction
 import com.keymanage.feature.settings.SettingsViewState
@@ -89,7 +90,7 @@ private fun SettingsViewState.toWeb() = WebSettingsState(
 )
 
 @JsExport
-class WebSettingsView : SettingsPresentable, WebViewControllable {
+class WebSettingsView : SettingsViewContract, WebViewControllable {
     override val screenKey: String = "settings"
     val store: ViewStore<WebSettingsState> = ViewStore(SettingsViewState().toWeb())
 
