@@ -614,6 +614,56 @@ class RootInteractorTest {
         mount.unmount()
     }
 
+    // --- 로그인 화면 유지 (L4) ---
+
+    @Test
+    fun 로그인_화면이_떠_있을_때_안내가_와도_화면을_다시_만들지_않고_이메일은_남긴다() = rootTest {
+        val auth = factory.authViews.single()
+        auth.listener!!.handle(AuthViewAction.UpdateEmail("user@test.com"))
+        auth.listener!!.handle(AuthViewAction.UpdatePassword("correct horse battery"))
+        settle()
+
+        session.fireSync(MasterPasswordChangedException())
+        settle()
+
+        assertEquals(1, factory.authViews.size)
+        assertEquals(listOf(auth), root.visible)
+        assertEquals(PASSWORD_CHANGED, auth.state.notice)
+        assertEquals("user@test.com", auth.state.email)
+        // 비밀번호는 안내와 함께 비운다 (보안)
+        assertEquals("", auth.state.password)
+    }
+
+    @Test
+    fun 로그인_화면이_떠_있을_때_세션_알림만_와도_화면을_다시_만들지_않는다() = rootTest {
+        val auth = factory.authViews.single()
+        auth.listener!!.handle(AuthViewAction.UpdateEmail("user@test.com"))
+        settle()
+
+        session.fireRemote()
+        session.fireLock()
+        settle()
+
+        assertEquals(1, factory.authViews.size)
+        assertEquals("user@test.com", auth.state.email)
+    }
+
+    @Test
+    fun 안내가_두_번_이어_와도_로그인_화면은_하나이고_이메일이_남는다() = rootTest {
+        val auth = factory.authViews.single()
+        auth.listener!!.handle(AuthViewAction.UpdateEmail("user@test.com"))
+        settle()
+
+        session.fireSync(SessionExpiredException())
+        settle()
+        session.fireSync(MasterPasswordChangedException())
+        settle()
+
+        assertEquals(1, factory.authViews.size)
+        assertEquals(PASSWORD_CHANGED, auth.state.notice)
+        assertEquals("user@test.com", auth.state.email)
+    }
+
     // --- 시작할 때 받은 안내 (웹 restoreError) ---
 
     @Test

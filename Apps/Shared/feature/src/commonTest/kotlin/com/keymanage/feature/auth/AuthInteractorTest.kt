@@ -40,6 +40,8 @@ class AuthInteractorTest {
     private lateinit var view: FakeAuthView
     private lateinit var session: FakeAuthSession
     private lateinit var listener: FakeAuthListener
+    private lateinit var router: AuthRouter
+    private val interactor: AuthInteractor get() = router.interactor
 
     @BeforeTest
     fun setUp() {
@@ -55,7 +57,7 @@ class AuthInteractorTest {
     }
 
     private fun mountAuth(notice: String? = null): RibMount {
-        val router = AuthBuilder(
+        router = AuthBuilder(
             object : AuthDependency {
                 override val authViewFactory = AuthViewFactory { view }
                 override val session: SessionPort = this@AuthInteractorTest.session
@@ -99,6 +101,39 @@ class AuthInteractorTest {
         assertFalse(view.state.isLoading)
         assertNull(view.state.error)
         mount.unmount()
+    }
+
+    // --- 안내 갱신 (L4): 화면을 다시 만들지 않고 안내만 바꾼다 ---
+
+    @Test
+    fun showNoticeKeepsEmailAndClearsPasswordAndConfirmation() = authTest {
+        fillRegister("correct horse battery staple")
+
+        interactor.showNotice("다른 곳에서 비밀번호가 바뀌었습니다.")
+        runCurrent()
+
+        assertEquals("다른 곳에서 비밀번호가 바뀌었습니다.", view.state.notice)
+        assertEquals("user@test.com", view.state.email)
+        assertEquals("", view.state.password)
+        assertEquals("", view.state.confirmation)
+        // 안내는 다시 로그인하라는 뜻이므로 로그인 모드로 돌린다
+        assertEquals(AuthMode.LOGIN, view.state.mode)
+    }
+
+    @Test
+    fun showNoticeDropsPendingRollbackConfirmationAndItsStoredPassword() = authTest {
+        session.loginHandler = { _, _, _ -> throw RevisionRollbackException(5, 3) }
+        fillLogin()
+        send(AuthViewAction.Submit)
+        assertTrue(view.state.isConfirmingRollback)
+
+        interactor.showNotice("로그인이 만료되었습니다. 다시 로그인해 주세요.")
+        runCurrent()
+        send(AuthViewAction.AcceptRollback)
+
+        assertFalse(view.state.isConfirmingRollback)
+        // 안내 뒤에는 보관하던 비밀번호로 다시 보내지 않는다
+        assertEquals(1, session.logins.size)
     }
 
     @Test

@@ -11,6 +11,7 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.int
@@ -44,8 +45,15 @@ internal class FakeServer {
     var preloginFailure: Triple<Int, String, Int?>? = null
     val calls = mutableListOf<String>()
 
+    /** 설정하면 로그아웃(토큰 폐기) 요청이 이 문이 열릴 때까지 응답하지 않는다 */
+    var logoutGate: CompletableDeferred<Unit>? = null
+
+    /** 응답까지 끝난 로그아웃 요청 수 */
+    var logoutsCompleted = 0
+
     val engine = MockEngine { request ->
         calls += "${request.method.value} ${request.url.encodedPath}"
+        if (request.url.encodedPath.endsWith("/auth/logout")) logoutGate?.await()
         handle(request)
     }
 
@@ -61,7 +69,10 @@ internal class FakeServer {
                 reply(status, errorBody(code), retryAfter?.let { mapOf(HttpHeaders.RetryAfter to it.toString()) } ?: emptyMap())
             } ?: reply(200, """{"kdf":"PBKDF2-HMAC-SHA256","iterations":${kdf?.get("iterations")},"salt":${kdf?.get("salt")}}""")
             request.method == HttpMethod.Post && path == "/auth/login" -> reply(200, SESSION)
-            request.method == HttpMethod.Post && path == "/auth/logout" -> respond("", HttpStatusCode.NoContent)
+            request.method == HttpMethod.Post && path == "/auth/logout" -> {
+                logoutsCompleted += 1
+                respond("", HttpStatusCode.NoContent)
+            }
             request.method == HttpMethod.Get && path == "/vault" -> {
                 val payload = vaultPayload
                 if (payload == null) reply(404, errorBody("VAULT_NOT_FOUND")) else reply(200, """{"revision":$vaultRevision,"payload":$payload}""")
