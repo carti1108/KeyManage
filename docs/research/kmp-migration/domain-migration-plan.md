@@ -385,3 +385,11 @@ HTTP는 6단계의 `server-http`(Ktor JS 엔진, 브라우저 `fetch`)를 쓴다
 2. Main·VaultList·PasswordGenerator·Settings RIB.
 3. 웹 뷰(`WebXxxView`)와 React 연결. 기존 화면 테스트(`SessionRoot.test.tsx` 등)를 새 구조에 맞게 옮기고 행동은 그대로 확인한다. 이 단계가 끝나면 `SessionRoot`와 화면 상태 분기 코드를 지운다.
 4. iOS(Mac): XCFramework, SwiftUI 뷰 연결, Swift RIB·도메인 삭제. 이 PC에서는 하지 않는다.
+
+### 11.4 React 연결 (3단계 설계, 2026-11-13)
+
+- **진입점**: `app/kotlinApp.ts`가 브라우저 어댑터(기기 저장소·탭·탭 기억·클립보드·백업 파일·네트워크·자동 잠금 설정)를 JS 포트로 바꿔 `WebKeyManageApp`을 만든다. `main.tsx`가 React 밖에서 `start()`를 부르고(StrictMode 이중 마운트 회피, carti ADR-0009), `App`은 `rootSlot`을 `RibSlot`으로 그린다.
+- **앱 배선**: `*Wiring.ts`·`useAutoLockSetting`은 `WebKeyManageApp.session`을 감싼 웹 `VaultSession`을 쓴다. 감싸는 코드는 `createKotlinSession`에서 `wrapKotlinSession`으로 떼어 낸다(같은 세션을 RIB 트리와 배선이 함께 쓴다).
+- **화면**: `ui/rib/<Rib>Screen.tsx`가 `useViewStore(view.store)`로 상태를 읽고 입력은 뷰 메서드로 보낸다. 기존 프레젠테이션 컴포넌트(`components/*`, `ItemList`, `ItemForm`, `PasswordField` 등)는 props만 맞춰 다시 쓴다. 세션을 직접 부르던 화면(`SessionRoot`, `VaultScreen`, `*Action.tsx`)은 지운다.
+- **ribs-react**: carti-RIBs-KMP `react/ribs-react/src/index.tsx`는 npm 패키지가 아니라 파일 하나이므로 `ui/rib/ribsReact.tsx`에 복사하고 출처를 적는다.
+- **테스트**: 화면 테스트는 Kotlin 없이 가짜 store(`subscribe`·`getSnapshot`)와 가짜 뷰 메서드로 돈다. 세션 행동(잠금·만료 안내·대기 확인 등)은 이미 `:feature` Interactor 테스트가 확인하므로, 옛 `SessionRoot.*.test.tsx`는 지우고 화면 테스트는 "상태를 그리는가, 입력을 뷰로 보내는가"만 본다. 끝에 실제 브라우저로 가입·잠금·해제·저장을 확인한다.
