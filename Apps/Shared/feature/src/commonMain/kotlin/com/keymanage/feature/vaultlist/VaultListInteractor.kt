@@ -1,17 +1,7 @@
 package com.keymanage.feature.vaultlist
 
-import com.carti.ribs.Builder
-import com.carti.ribs.Component
-import com.carti.ribs.Dependency
-import com.carti.ribs.Presentable
 import com.carti.ribs.PresentableInteractor
-import com.carti.ribs.ViewControllable
-import com.carti.ribs.ViewableRouter
 import com.carti.ribs.checkMainThread
-import com.keymanage.domain.generator.hasSequentialDigits
-import com.keymanage.domain.generator.isWeak
-import com.keymanage.domain.generator.scorePassword
-import com.keymanage.domain.platform.RandomBytes
 import com.keymanage.domain.session.SessionState
 import com.keymanage.domain.vault.ItemFields
 import com.keymanage.domain.vault.VaultData
@@ -26,11 +16,7 @@ import com.keymanage.domain.vault.listItems
 import com.keymanage.domain.vault.updateItem
 import com.keymanage.feature.ClipboardPort
 import com.keymanage.feature.SessionPort
-import com.keymanage.feature.generator.PasswordGeneratorBuilder
-import com.keymanage.feature.generator.PasswordGeneratorDependency
 import com.keymanage.feature.generator.PasswordGeneratorListener
-import com.keymanage.feature.generator.PasswordGeneratorRouter
-import com.keymanage.feature.generator.PasswordGeneratorViewFactory
 import com.keymanage.feature.messages.ErrorMessage
 import com.keymanage.feature.messages.describeErrorMessage
 import kotlinx.coroutines.CancellationException
@@ -42,176 +28,6 @@ import kotlin.uuid.Uuid
 // 열린 볼트의 목록·검색·상세·추가·수정·삭제·복사 (VLT-001, COM-001).
 // 원본: Apps/Web/src/ui/vault/VaultScreen.tsx, ItemList.tsx, ItemDetail.tsx, ItemForm.tsx
 // 저장은 SessionPort.save에 새 볼트를 넘기는 것으로 끝난다. 바뀐 볼트는 세션이 알려 준다(원격 변경·동기화)
-
-/** 볼트 화면 문구. 버튼 글자 같은 라벨은 뷰가, 상태에 따라 바뀌는 안내는 여기서 정한다 */
-object VaultListMessages {
-    const val EMPTY_VAULT: String = "저장된 항목이 없습니다."
-    const val NO_SEARCH_RESULT: String = "검색 결과가 없습니다."
-    const val SERVICE_NAME_REQUIRED: String = "서비스 이름을 입력해 주세요."
-    const val COPY_FAILED: String = "클립보드에 복사하지 못했습니다."
-
-    /** 약한 비밀번호도 저장은 허용한다. 사이트마다 규칙이 달라 사용자가 고를 수 없는 경우가 있다 (GEN-001) */
-    const val WEAK_PASSWORD_TITLE: String = "취약한 비밀번호 경고"
-    const val WEAK_PASSWORD_BODY: String = "현재 비밀번호는 보안에 취약합니다. 80점 이상의 강력한 비밀번호로 재생성하세요."
-    const val SEQUENTIAL_DIGITS_NOTICE: String = "123처럼 이어지는 숫자가 들어 있어 추측하기 쉽습니다."
-
-    object DeleteConfirm {
-        const val TITLE: String = "항목 삭제"
-        const val BODY: String = "이 항목을 삭제할까요? 다른 기기에서도 삭제됩니다."
-        const val CONFIRM: String = "삭제"
-        const val CANCEL: String = "취소"
-    }
-}
-
-enum class VaultListScreen { LIST, DETAIL, ADD, EDIT }
-
-enum class VaultItemFormField { SERVICE_NAME, USERNAME, PASSWORD, URL, NOTES }
-
-/** 추가·수정 폼에 입력 중인 값 */
-data class VaultItemForm(
-    val serviceName: String = "",
-    val username: String = "",
-    val password: String = "",
-    val url: String = "",
-    val notes: String = "",
-) {
-    fun withField(field: VaultItemFormField, value: String): VaultItemForm = when (field) {
-        VaultItemFormField.SERVICE_NAME -> copy(serviceName = value)
-        VaultItemFormField.USERNAME -> copy(username = value)
-        VaultItemFormField.PASSWORD -> copy(password = value)
-        VaultItemFormField.URL -> copy(url = value)
-        VaultItemFormField.NOTES -> copy(notes = value)
-    }
-
-    companion object {
-        fun of(item: VaultItem): VaultItemForm = VaultItemForm(
-            serviceName = item.serviceName ?: "",
-            username = item.username ?: "",
-            password = item.password ?: "",
-            url = item.url ?: "",
-            notes = item.notes ?: "",
-        )
-    }
-}
-
-data class VaultListViewState(
-    val screen: VaultListScreen = VaultListScreen.LIST,
-    val query: String = "",
-    /** 삭제되지 않은 항목 중 [query]에 걸리는 것을 서비스 이름순으로 */
-    val items: List<VaultItem> = emptyList(),
-    /** 저장된 항목이 하나도 없음. 목록이 비었을 때 "항목 없음"과 "검색 결과 없음"을 가른다 */
-    val isVaultEmpty: Boolean = true,
-    /** 새 버전 앱이 저장한 볼트. 추가·수정·삭제를 막는다 */
-    val readOnly: Boolean = false,
-    /** [VaultListScreen.DETAIL]·[VaultListScreen.EDIT]에서 보고 있는 항목 */
-    val selected: VaultItem? = null,
-    /** 목록으로 돌아올 때 포커스를 돌려줄 항목 */
-    val focusItemId: String? = null,
-    val form: VaultItemForm = VaultItemForm(),
-    /** 폼 안에서 비밀번호 생성기를 열었음. 생성기 화면은 자식 RIB이 보인다 */
-    val isGeneratorOpen: Boolean = false,
-    val isConfirmingDelete: Boolean = false,
-    /** 저장·삭제 요청 중. 이동·취소·삭제를 막는다 */
-    val isSaving: Boolean = false,
-    val saveError: ErrorMessage? = null,
-    val copyError: String? = null,
-) {
-    /** 항목 추가·수정·삭제를 보일지 */
-    val canEdit: Boolean get() = !readOnly
-
-    /** 목록이 비었을 때 보일 안내. 비어 있지 않으면 null */
-    val emptyMessage: String?
-        get() = if (items.isNotEmpty()) null else if (isVaultEmpty) VaultListMessages.EMPTY_VAULT else VaultListMessages.NO_SEARCH_RESULT
-
-    /** 비밀번호를 입력해야 강도를 보인다 (GEN-001) */
-    val showsFormStrength: Boolean get() = form.password.isNotEmpty()
-    val formPasswordScore: Int get() = scorePassword(form.password)
-    val showsFormWeakWarning: Boolean get() = showsFormStrength && isWeak(formPasswordScore)
-
-    /** 점수와 별개로 안내만 한다. 점수가 높아도 보인다 (GEN-001) */
-    val showsFormSequentialDigitsNotice: Boolean get() = hasSequentialDigits(form.password)
-}
-
-sealed interface VaultListViewAction {
-    data class Search(val query: String) : VaultListViewAction
-    data class OpenItem(val id: String) : VaultListViewAction
-    /** 상세에서 목록으로 */
-    data object Back : VaultListViewAction
-    data object StartAdd : VaultListViewAction
-    data object StartEdit : VaultListViewAction
-    data class EditForm(val field: VaultItemFormField, val value: String) : VaultListViewAction
-    data object SubmitForm : VaultListViewAction
-    /** 추가 폼은 목록으로, 수정 폼은 상세로 돌아간다 */
-    data object CancelForm : VaultListViewAction
-    data object OpenGenerator : VaultListViewAction
-    data object RequestDelete : VaultListViewAction
-    data object CancelDelete : VaultListViewAction
-    data object ConfirmDelete : VaultListViewAction
-    data class CopyUsername(val itemId: String) : VaultListViewAction
-    data class CopyPassword(val itemId: String) : VaultListViewAction
-}
-
-interface VaultListPresentableListener {
-    fun handle(action: VaultListViewAction)
-}
-
-/** Interactor가 쓰는 화면 계약 (RIBs-iOS Presentable, carti ADR-0010) */
-interface VaultListPresentable : Presentable {
-    /** 활성 구간에만 설정된다. 비활성이면 null이라 입력이 무시된다 */
-    var listener: VaultListPresentableListener?
-    fun render(state: VaultListViewState)
-}
-
-/** Router가 쓰는 화면 계약. 폼 안의 비밀번호 생성기(자식 RIB) 화면을 붙이고 뗀다 */
-interface VaultListViewControllable : ViewControllable {
-    fun showGenerator(view: ViewControllable)
-    fun hideGenerator(view: ViewControllable)
-}
-
-/** 플랫폼 뷰가 구현하는 둘의 합 */
-interface VaultListViewContract : VaultListPresentable, VaultListViewControllable
-
-fun interface VaultListViewFactory {
-    fun makeVaultListView(): VaultListViewContract
-}
-
-interface VaultListDependency : Dependency {
-    val vaultListViewFactory: VaultListViewFactory
-    val session: SessionPort
-    val clipboard: ClipboardPort
-    val clock: Clock
-    /** 폼 안의 비밀번호 생성기(자식 RIB)가 쓴다 */
-    val passwordGeneratorViewFactory: PasswordGeneratorViewFactory
-    val randomBytes: RandomBytes
-}
-
-/** 부모에게 올리는 이벤트. 잠김·로그아웃은 세션이 알리고 부모(Main)가 처리한다 */
-interface VaultListListener {
-    /** 저장(추가·수정·삭제)이 성공했다. 부모가 지난 동기화 오류를 걷는다 (웹 SessionRoot의 onSave) */
-    fun vaultListDidSave()
-}
-
-class VaultListComponent(dependency: VaultListDependency) :
-    Component<VaultListDependency>(dependency), PasswordGeneratorDependency {
-    override val passwordGeneratorViewFactory: PasswordGeneratorViewFactory get() = dependency.passwordGeneratorViewFactory
-    override val clipboard: ClipboardPort get() = dependency.clipboard
-    override val randomBytes: RandomBytes get() = dependency.randomBytes
-}
-
-class VaultListBuilder(dependency: VaultListDependency) : Builder<VaultListDependency>(dependency) {
-    fun build(listener: VaultListListener): VaultListRouter {
-        val component = VaultListComponent(dependency)
-        val view = dependency.vaultListViewFactory.makeVaultListView()
-        val interactor = VaultListInteractor(
-            presenter = view,
-            session = dependency.session,
-            clipboard = dependency.clipboard,
-            clock = dependency.clock,
-            listener = listener,
-        )
-        return VaultListRouter(interactor, view, PasswordGeneratorBuilder(component))
-    }
-}
 
 class VaultListInteractor(
     presenter: VaultListPresentable,
@@ -494,37 +310,6 @@ class VaultListInteractor(
                 copyError = copyError,
             ),
         )
-    }
-}
-
-class VaultListRouter(
-    interactor: VaultListInteractor,
-    view: VaultListViewControllable,
-    private val generatorBuilder: PasswordGeneratorBuilder,
-) : ViewableRouter<VaultListInteractor, VaultListViewControllable>(interactor, view) {
-    private var generator: PasswordGeneratorRouter? = null
-
-    init {
-        interactor.router = this
-    }
-
-    /** 폼 안에서 쓰는 생성기라 사용·닫기만 두고 복사는 두지 않는다 */
-    fun routeToGenerator() {
-        if (generator != null) return
-        val child = generatorBuilder.build(interactor, allowCopy = false)
-        attachChild(child)
-        viewController.showGenerator(child.viewControllable)
-        generator = child
-    }
-
-    /** 세션이 알림 없이 볼트를 바꿨을 수 있을 때(복원·재연결·탭 전환) 부모가 부른다 */
-    fun refreshFromSession() = interactor.reloadFromSession()
-
-    fun routeAwayFromGenerator() {
-        val child = generator ?: return
-        detachChild(child)
-        viewController.hideGenerator(child.viewControllable)
-        generator = null
     }
 }
 
