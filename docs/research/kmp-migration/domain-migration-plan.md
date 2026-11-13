@@ -404,3 +404,64 @@ HTTP는 6단계의 `server-http`(Ktor JS 엔진, 브라우저 `fetch`)를 쓴다
 
 - 공유 RIB을 한 파일에 두던 것을 RIB 폴더 안 역할별 파일로 나눈다(Apple Features와 같은 단위): `XxxViewState`(State·Action), `XxxViewContract`(Presentable·ViewControllable·ViewContract·ViewFactory), `XxxDependency`(Dependency·Listener), `XxxBuilder`(Builder·Component), `XxxInteractor`, `XxxRouter`, 필요하면 `XxxMessages`. 패키지는 그대로라 다른 코드는 바뀌지 않는다.
 - RIB마다 Gradle 모듈(api/impl)로 나누는 일은 iOS XCFramework 묶음 모듈 설계와 함께 Mac에서 정한다(결정하면 ADR).
+
+## 12. iOS 전환: Swift RIB을 공유 RIB으로 (설계, 2026-11-13)
+
+11.3의 4단계를 Mac에서 진행한다. 범위는 iOS 앱(`KeyManageIOS`)이다. macOS 앱(`KeyManageMac`)은 iOS가 끝난 뒤 같은 방법으로 옮긴다.
+
+### 12.1 지금 상태
+
+| 항목 | 지금 | 옮긴 뒤 |
+| :--- | :--- | :--- |
+| Swift RIB 7개(`Features/*`) | 약 7,100줄, 테스트 약 3,200줄 | SwiftUI 뷰와 `XxxViewContract` 구현만 남는다 |
+| Swift 도메인(`Core/Domain`) | 약 5,200줄(`VaultLockManager` 1,733줄 포함), 테스트 약 7,900줄 | 지운다. 행동은 `:domain`·`:feature` Kotlin 테스트가 확인한다 |
+| `Core/DesignSystem` | 약 730줄 | 그대로 둔다 |
+| 플랫폼 기능 | Swift(`ClipboardManager`, `SystemPasteboard`, 키체인·생체 인증은 `VaultLockManager` 안) | `iosMain` Kotlin. `secure-store`는 `appleMain`이 있고, `device-store`는 `jsMain`만 있어 `appleMain`을 새로 만든다 |
+| 서버 주소 | `URLSessionAuthNetworkClient`의 `http://localhost:8080/api/v1` | `server-http`(Ktor Darwin 엔진). 주소는 진입점이 넘긴다 |
+
+### 12.2 모듈
+
+| 모듈 | 대상 | 내용 |
+| :--- | :--- | :--- |
+| `Apps/Shared/ios-app`(새) | iosArm64·iosSimulatorArm64 | 앱 전용 Kotlin 진입점 `IosKeyManageApp`. `:feature`·`ribs-core`·`:domain`을 `export`하는 정적 XCFramework `KeyManageShared` 하나를 만든다. 앱에는 Kotlin 프레임워크를 하나만 넣을 수 있다(carti-RIBs-KMP README) |
+| `Apps/Shared/device-store` | `appleMain` 추가 | 파일 기반 기기 저장소(앱 Application Support) |
+| `RIBsKMPSwiftUI`(carti-RIBs-KMP `swift/`) | Swift 패키지 | `SwiftUIRenderable`·`RIBScreenSlot`·`RIBSlotView`. Tuist `packages`에 로컬 경로로 넣는다 |
+| `Apps/Apple/Projects/Features/*` | Swift | `Implementation`의 Interactor·Router·Builder를 지우고 `XxxView`(SwiftUI)와 `XxxViewContract` 구현만 남긴다. `Interface`·`Testing` 타깃은 필요 없어지면 지운다 |
+
+- XCFramework는 Tuist가 미리 만든 결과를 참조한다(`.xcframework(path:)`, carti 샘플과 같은 방식). `tuist generate` 전에 `./gradlew :ios-app:assembleKeyManageSharedDebugXCFramework`를 돌리고, `Scripts/verify-apple.sh`에도 이 단계를 넣는다.
+- RIB별 Gradle 모듈 분리(11.6 끝)는 하지 않는다. 프레임워크가 하나뿐이라 나눠도 Swift 쪽에서 얻는 격리가 없다. 필요해지면 ADR로 다시 정한다.
+
+### 12.3 순서와 확인 기준
+
+각 단계 끝에서 `xcodebuild` iOS 시뮬레이터 빌드와 해당 단계 테스트가 통과해야 다음으로 간다.
+
+| 단계 | 할 일 | 확인 기준 |
+| :--- | :--- | :--- |
+| 0 | `ios-app` 모듈, XCFramework 생성, Tuist에 XCFramework·`RIBsKMPSwiftUI` 연결. 아직 화면은 Swift RIB 그대로 | 앱이 빌드되고 Swift에서 `import KeyManageShared`가 된다 |
+| 1 | 플랫폼 구현: `device-store` `appleMain`, 클립보드(`UIPasteboard`), 생체 인증(`LAContext`)·키체인은 `secure-store` 사용, 네트워크 감지(`NWPathMonitor`) | 키체인·기기 저장소 테스트를 호스트 앱 안에서 통과(target-architecture 6.1 방식) |
+| 2 | 진입점: `IosKeyManageApp`이 세션을 만들고 `LaunchRouter.launch`. `App`은 Root 슬롯을 `RIBSlotView`로 그린다. 앱 수명주기 연결(백그라운드 잠금, 자동 잠금 타이머, 클립보드 소각, 대기 재전송)은 진입점이 세션에 직접 붙인다(11.1 끝) | 로컬 백엔드로 가입 → 잠금 → 해제가 시뮬레이터에서 된다 |
+| 3 | 화면을 RIB 단위로 바꾼다: Auth·Unlock → Main → VaultList·PasswordGenerator → Settings. 각 SwiftUI 뷰가 `XxxViewContract`를 구현하고 기존 화면 배치(탭, 시트)는 유지한다 | RIB마다 XCUITest 한 흐름(로그인, 해제, 항목 추가·복사, 생성기, 자동 잠금 변경) 통과 |
+| 4 | 삭제: Swift RIB 코드, `Core/Domain`, `Core/Data`, Swift 도메인 테스트, `Scripts/check-swift-architecture.sh`의 지운 계층 규칙 | 남은 Swift는 뷰·진입점·DesignSystem뿐. `verify-apple.sh` 통과 |
+| 5 | 실기기 확인: 키체인 접근 제어, Face ID 해제 | target-architecture 4장 기준 통과 |
+
+- Swift 테스트는 단계 3·4에서 지운다. 지우는 기준은 5장과 같다: 같은 행동을 Kotlin 테스트가 확인하고, 그 화면의 XCUITest가 통과한다. 지울 테스트 중 Kotlin에 대응 테스트가 없는 것은 먼저 `:feature`·`:domain` `commonTest`로 옮긴다.
+- 생체 해제는 지금 Swift Unlock에만 있다. 공유 Unlock RIB에 선택 기능(포트 `BiometricUnlock`, 웹은 없음)으로 넣고 Interactor 테스트부터 쓴다.
+
+### 12.4 정해야 할 것
+
+| 항목 | 추천 | 이유 |
+| :--- | :--- | :--- |
+| XCFramework 연결 | 미리 만든 결과 참조 + 검증 스크립트에서 생성 | Xcode 빌드 단계에서 Gradle을 부르면 증분 빌드가 느려지고 Tuist 캐시와 맞지 않는다. carti 샘플이 이미 이 방식으로 확인됐다 |
+| Swift 동시성 | Kotlin 콜백은 `@MainActor` 뷰에서만 받는다 | Kotlin/Native 객체는 Sendable이 아니다. carti ADR-0006의 어댑터가 메인 스레드 전달을 전제한다 |
+| 기존 저장 데이터 | 옮기지 않는다(실험 브랜치) | iOS 앱은 배포 전이다. 배포 뒤라면 Swift 저장 형식 → Kotlin 기기 기록(버전 1) 변환이 필요하고 그때는 확인받는다 |
+| macOS 앱 | iOS 완료 뒤 같은 방법 | `secure-store`가 macOS에서 이미 통과했다. `ios-app`에 macosArm64를 더하면 된다 |
+
+### 12.5 진행 기록
+
+#### 0단계: XCFramework 연결 (2026-11-13)
+
+- `Apps/Shared/ios-app` 모듈을 만들었다. 대상은 iosArm64·iosSimulatorArm64이고, `:feature`·`:domain`·`ribs-core`를 export하는 정적 XCFramework `KeyManageShared`를 만든다(`./gradlew :ios-app:assembleKeyManageSharedDebugXCFramework`).
+- 소스가 없으면 링크 태스크가 NO-SOURCE로 건너뛰어 프레임워크가 생기지 않는다. 그래서 `iosMain`에 패키지 선언 파일 하나를 두었다. 2단계에서 진입점이 들어오면 지운다.
+- Tuist: `KeyManageIOS` 타깃에 XCFramework와 `RIBsKMPSwiftUI`(로컬 패키지)를 연결했다. `RIBsKMPSwiftUI`가 iOS 17 이상이라 iOS 앱 타깃의 최소 버전을 15.0에서 17.0으로 올렸다. Core·Features 모듈은 15.0 그대로다.
+- 확인: `KeyManageIOS` 시뮬레이터 빌드 통과. `import KeyManageShared`·`import RIBsKMPSwiftUI` 후 `LaunchRouting`·`RootInteractor`·`VaultSession` 참조가 타입 검사를 통과했다. 화면은 아직 Swift RIB이다.
+- 남은 것: `Scripts/verify-apple.sh`에 XCFramework 생성 단계 추가는 1단계 전에 한다.
