@@ -1,7 +1,7 @@
 // @vitest-environment node
 // 마스터 비밀번호 변경 요청을 만들고 인증 해시 바이트를 남기지 않는다 (SEC-004, api-spec 2.5.5)
 import { describe, expect, it } from 'vitest'
-import { FakeAuthApi, FakeVaultApi } from '../../test/sessionFixtures'
+import { FakeAuthApi, FakeVaultApi } from '../../test/fakeServerApis'
 import { toBase64 } from '../crypto/base64'
 import type { EncryptedVaultPayload } from '../crypto/vaultCipher'
 import { ServerError } from '../server/serverErrors'

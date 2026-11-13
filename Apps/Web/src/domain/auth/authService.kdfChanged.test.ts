@@ -1,7 +1,7 @@
 // @vitest-environment node
 // 잠금 해제 실패 뒤 서버의 KDF 값만 확인한다. 비밀번호·인증 해시는 보내지 않는다 (SEC-003 규칙 11)
 import { describe, expect, it } from 'vitest'
-import { FakeAuthApi } from '../../test/sessionFixtures'
+import { FakeAuthApi } from '../../test/fakeServerApis'
 import { NetworkError } from '../server/serverErrors'
 import { createAuthService } from './authService'
 

@@ -2,7 +2,7 @@
 // 같은 계정을 연 탭끼리 조작을 나눠 타이머를 함께 연장하고, 보이는 탭의 시간 초과만 모든 탭에 퍼뜨린다 (ADR-WEB-001)
 import { bindAutoLockEvents, browserScheduler, isPageVisible } from '../adapters/browser/autoLockEvents'
 import { DEFAULT_AUTO_LOCK_MS, createAutoLock } from '../domain/lock/autoLock'
-import type { VaultSession } from '../domain/session/vaultSession'
+import type { VaultSession } from '../domain/session/sessionTypes'
 import { createSingleTabFallback } from '../domain/tabs/inMemoryTabs'
 import type { Tabs } from '../domain/tabs/tabs'
 

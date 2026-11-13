@@ -334,11 +334,11 @@ HTTP는 6단계의 `server-http`(Ktor JS 엔진, 브라우저 `fetch`)를 쓴다
 | 웹 전체(`npm run check`: 타입 검사·oxlint·vitest) | 859/859 |
 | `vite build` | 성공 |
 
-- 빌드 순서: 웹을 빌드·테스트하기 전에 `npm run kotlin`(`:web-session:jsBrowserProductionLibraryDistribution`)으로 Kotlin 결과물을 만들어야 한다. Vite 별칭과 `tsconfig.app.json` `paths`가 그 결과물을 가리킨다. 웹 CI는 아직 이 순서를 모르므로 이 브랜치에서는 깨진다.
+- 빌드 순서: 웹을 빌드·테스트하기 전에 `npm run kotlin`(`:web-session:jsBrowserProductionLibraryDistribution`)으로 Kotlin 결과물을 만들어야 한다. Vite 별칭과 `tsconfig.app.json` `paths`가 그 결과물을 가리킨다. `npm run kotlin`은 `scripts/buildKotlin.ts`가 운영체제에 맞는 Gradle 래퍼(Windows는 `gradlew.bat`)를 불러 어디서나 돈다. 웹 CI(`web`·`integration`·`desktop` job)는 `.github/actions/build-web-session`으로 JDK 21 준비, carti-RIBs-KMP checkout, 이 빌드를 먼저 한다.
 - 번들 크기: 메인 JS가 358KB(gzip 110KB)에서 1.21MB(gzip 344KB)로 늘었다. Kotlin 표준 라이브러리·코루틴·Ktor·cryptography-kotlin이 들어간 몫이다. 줄이는 일은 아직 하지 않았다.
 - Ktor JS는 Node 웹소켓용으로 `ws`를 동적으로 가져온다. 이 앱은 웹소켓을 쓰지 않으므로 Vite 별칭으로 빈 모듈(`adapters/kotlin/wsStub.ts`)을 넣었다.
 - Kotlin/JS는 nullable을 `T | null | undefined`로 내보낸다. 어댑터는 `== null`로 둘 다 받는다.
-- 아직 지우지 않음: `Apps/Web/src/domain/session/`. 어댑터가 웹 오류 클래스와 `VaultSession` 타입을 여기서 가져오고, 화면 테스트 픽스처가 TS 세션을 쓴다. 오류 클래스·타입을 옮긴 뒤 지우는 일은 다음 작업이다. 웹 `adapters/http`도 남아 있다.
+- 지운 것: `Apps/Web/src/domain/session/`의 TS 세션 구현과 테스트(오류 클래스·`SessionState`·`VaultSession` 인터페이스만 `sessionTypes.ts`에 남김), 그것만 쓰던 `domain/backup/restoreBackup.ts`, `domain/device/{devicePersistence,reconcileDeviceRecord}.ts`, `domain/vault/itemList.ts`, 세션 테스트 픽스처. 남긴 것: 웹 `adapters/http`(`Scripts/check-api-contract.sh`가 이 폴더의 엔드포인트를 대조한다)와 `domain/generator`(`check-policy-acceptance.sh`가 TS 형태의 19/40점 샘플을 찾는다). 두 감사가 Kotlin 쪽 테스트·`server-http`를 보게 바뀌면 함께 지운다.
 - 독립 코드 리뷰(실제 빌드 결과로 재현)에서 나온 문제를 고쳤다. 모두 수정 전 실패하는 테스트를 먼저 추가했다.
   - CRITICAL: Ktor JS는 연결 실패를 `kotlin.Error`(Exception 아님)로 던져 `server-http`가 `NetworkError`로 바꾸지 못했다. 오프라인 잠금 해제가 실패했다. `catch (Throwable)`로 바꿨다.
   - HIGH: 브라우저 포트가 reject한 JS `Error`도 Exception이 아니어서 도메인의 오류 처리를 건너뛰었다(기기 저장 실패 시 로그아웃이 서버 토큰을 폐기하지 않음 등). 기기 저장소 오류는 `DeviceStorageException`, 탭 잠금 오류는 `TabLockException`으로 감싼다.
@@ -376,7 +376,7 @@ HTTP는 6단계의 `server-http`(Ktor JS 엔진, 브라우저 `fetch`)를 쓴다
 | 웹 React | — | `ribs-react`의 `useViewStore`·`RibSlot`으로 화면을 그린다. 기존 컴포넌트(폼·목록·모달)는 props만 바꿔 다시 쓴다 |
 | iOS(Mac에서) | — | `:feature`가 `ribs-core`를 `export`하는 XCFramework 하나를 만들고 SwiftUI 뷰가 `XxxPresentable`을 구현한다. Swift 도메인과 Swift RIB은 그 뒤 지운다 |
 
-- carti-RIBs-KMP는 `Apps/Shared/settings.gradle.kts`의 `includeBuild("../../../carti-RIBs-KMP")`로 가져온다. 좌표가 정해져 있지 않으므로 `dependencySubstitution`으로 `:ribs-core`·`:ribs-web` 프로젝트에 묶는다.
+- carti-RIBs-KMP는 `Apps/Shared/settings.gradle.kts`의 `includeBuild`로 가져온다. 기본 경로는 `../../../carti-RIBs-KMP`(저장소 바깥 형제 폴더)이고, 환경 변수 `CARTI_RIBS_DIR`로 바꿀 수 있다(CI는 워크스페이스 안에만 checkout할 수 있어 이 변수를 쓴다). 좌표가 정해져 있지 않으므로 `dependencySubstitution`으로 `:ribs-core`·`:ribs-web` 프로젝트에 묶는다.
 - 세션 접근: 공유 RIB은 `VaultSession`(Kotlin)을 직접 쓴다. 웹 진입점은 `web-session`이 이미 만든 세션을 RIB 트리와 TypeScript 앱 배선(`*Wiring.ts`)에 함께 넘긴다.
 
 ### 11.3 순서와 확인 기준

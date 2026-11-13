@@ -4,7 +4,7 @@ import { BACKUP_FORMAT, backupFileName, type BackupFile, type VaultBackup } from
 import type { DeviceStore } from '../../domain/device/deviceRecord'
 import type { TabMemory } from '../../domain/device/tabMemory'
 import type { LockScope, RollbackOption, SyncChangeListener } from '../../domain/session/sessionTypes'
-import type { VaultSession } from '../../domain/session/vaultSession'
+import type { VaultSession } from '../../domain/session/sessionTypes'
 import type { Tabs } from '../../domain/tabs/tabs'
 import type { VaultData } from '../../domain/vault/vaultData'
 import { createErrorTranslator } from './kotlinErrors'
