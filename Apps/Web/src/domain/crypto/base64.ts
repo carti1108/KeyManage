@@ -12,17 +12,6 @@ export class InvalidBase64Error extends Error {
 // 4글자 묶음 반복((?:...{4})*)은 볼트 한도 근처(약 7MB) 문자열에서 정규식 스택이 넘치므로, 문자 반복과 길이 검사로 나눈다
 const STANDARD = /^[A-Za-z0-9+/]*={0,2}$/
 
-// 5MB 볼트도 빠르게 처리하도록 한 글자씩이 아니라 묶음 단위로 문자열을 만든다
-const CHUNK = 0x8000
-
-export function toBase64(bytes: Uint8Array): string {
-  let binary = ''
-  for (let i = 0; i < bytes.length; i += CHUNK) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK))
-  }
-  return btoa(binary)
-}
-
 /** @throws InvalidBase64Error 표준 Base64가 아닐 때 */
 export function fromBase64(text: string): Uint8Array<ArrayBuffer> {
   if (text.length % 4 !== 0 || !STANDARD.test(text)) throw new InvalidBase64Error()

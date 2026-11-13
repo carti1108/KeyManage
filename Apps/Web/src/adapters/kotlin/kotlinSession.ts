@@ -20,10 +20,10 @@ export interface KotlinSessionDeps {
   readonly tabMemory: TabMemory
 }
 
-// 백업 파일의 kdf.name. backupFile.ts의 값과 같다(파일 형식이 정한 고정값)
+// 백업 파일의 kdf.name. 파일 형식이 정한 고정값이다 (VLT-004)
 const BACKUP_KDF_NAME = 'PBKDF2-HMAC-SHA256'
 
-// createBackupFile과 같은 필드 순서·들여쓰기로 쓴다. Kotlin의 parseBackup이 읽는 그 형식이다
+// 백업 파일 형식(vault-spec 6장)대로 필드 순서·들여쓰기를 맞춰 쓴다. Kotlin의 parseBackup이 읽는 그 형식이다
 function backupToJson(backup: VaultBackup): string {
   return JSON.stringify(
     {

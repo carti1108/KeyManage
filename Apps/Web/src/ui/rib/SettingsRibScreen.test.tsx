@@ -14,6 +14,7 @@ import {
   DELETE_ACCOUNT_DIALOG_TEXT,
   EXPORT_NOTICE_TEXT,
   RESTORE_DIALOG_TEXT,
+  SETTINGS_SECURITY_POLICY_TEXT,
   withFields,
 } from './policyTextFixtures'
 import { SettingsRibScreen } from './SettingsRibScreen'
@@ -24,6 +25,7 @@ const BASE: Plain = {
   email: 'user@example.com',
   serverAddress: 'https://keymanage.example.com',
   syncOffline: false,
+  syncStatus: '최신 상태 (동기화 완료)',
   readOnly: false,
   accountOffline: false,
   autoLockOptionsMs: [0, 60_000, 300_000, 900_000, 3_600_000],
@@ -48,6 +50,7 @@ const BASE: Plain = {
   canSubmitRestore: false,
   canSubmitChangePassword: false,
   canSubmitDeletion: false,
+  securityPolicy: SETTINGS_SECURITY_POLICY_TEXT,
   exportNotice: EXPORT_NOTICE_TEXT,
   restoreDialog: RESTORE_DIALOG_TEXT,
   changePasswordDialog: CHANGE_PASSWORD_DIALOG_TEXT,
@@ -111,8 +114,22 @@ describe('SettingsRibScreen', () => {
     })
 
     it('오프라인이면 동기화 상태를 오프라인으로 보인다', () => {
-      setup({ syncOffline: true })
+      setup({ syncOffline: true, syncStatus: '오프라인' })
       expect(screen.getByText('오프라인')).toBeInTheDocument()
+    })
+
+    it('동기화 상태와 보안 정책 줄 문구는 화면이 아니라 State 값을 그대로 그린다', () => {
+      setup({
+        syncStatus: '상태 문구 샘플',
+        securityPolicy: asState({ clipboardLabel: '이름 가', clipboardValue: '값 가', encryptionLabel: '이름 나', encryptionValue: '값 나' }),
+      })
+
+      expect(screen.getByText('상태 문구 샘플')).toBeInTheDocument()
+      expect(screen.getByText('이름 가')).toBeInTheDocument()
+      expect(screen.getByText('값 가')).toBeInTheDocument()
+      expect(screen.getByText('이름 나')).toBeInTheDocument()
+      expect(screen.getByText('값 나')).toBeInTheDocument()
+      expect(screen.queryByText('30초 (고정, COM-001)')).not.toBeInTheDocument()
     })
 
     it('서버 주소가 비어 있으면 현재 출처를 보인다', () => {

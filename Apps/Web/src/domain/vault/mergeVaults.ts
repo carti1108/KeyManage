@@ -1,4 +1,5 @@
 // 409 충돌 뒤 로컬 볼트와 서버 볼트를 항목 단위로 합친다 (vault-spec 4장, VLT-001)
+// 앱은 공유 Kotlin(Apps/Shared/domain의 MergeVaults)을 쓴다. 이 구현은 Kotlin 호환 픽스처 생성기(Apps/Shared/domain/compat)의 기준값을 만드는 데만 남겨 둔다
 import type { VaultData, VaultItem } from './vaultData'
 
 /** 같은 id면 최종 변경 시각이 늦은 쪽을 통째로 고르고, 같으면 서버(remote) 쪽을 고른다 */
