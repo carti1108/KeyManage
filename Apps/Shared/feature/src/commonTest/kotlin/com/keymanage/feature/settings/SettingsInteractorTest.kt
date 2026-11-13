@@ -364,7 +364,7 @@ class SettingsInteractorTest {
         assertEquals(restoredMessage(3), state.notice)
         assertEquals(SettingsModal.NONE, state.modal)
         assertEquals("", state.restorePassword)
-        assertEquals(listOf("changed"), listener.events)
+        assertEquals(listOf("restored", "changed"), listener.events)
     }
 
     @Test
@@ -596,7 +596,7 @@ class SettingsInteractorTest {
         assertEquals("", state.newPassword)
         assertEquals("", state.passwordConfirmation)
         assertNull(state.error)
-        assertEquals(listOf("changed"), listener.events)
+        assertEquals(listOf("passwordChanged", "changed"), listener.events)
     }
 
     @Test
@@ -671,6 +671,38 @@ class SettingsInteractorTest {
         assertEquals("", state.newPassword)
         assertEquals("", state.passwordConfirmation)
         assertNull(state.error)
+    }
+
+    @Test
+    fun 복원에_실패하면_성공_이벤트는_올리지_않고_시도만_알린다() {
+        session.restoreError = BackupDecryptException()
+        attach()
+        pickValidBackup()
+        send(SettingsViewAction.EditRestorePassword("wrong"))
+
+        send(SettingsViewAction.SubmitRestore)
+
+        assertEquals(listOf("changed"), listener.events)
+    }
+
+    // --- 내려갈 때 평문 정리 ---
+
+    @Test
+    fun 내려가기_전에_입력해_둔_비밀번호를_State에서_비우고_그려_둔다() {
+        attach()
+        openChangePassword()
+        send(SettingsViewAction.EditNewPassword("typed-new-password"))
+        send(SettingsViewAction.EditPasswordConfirmation("typed-new-password"))
+        assertEquals("typed-new-password", state.newPassword)
+
+        router.dispatchDetach()
+
+        assertEquals("", state.currentPassword)
+        assertEquals("", state.newPassword)
+        assertEquals("", state.passwordConfirmation)
+        assertEquals("", state.restorePassword)
+        assertEquals("", state.deletionPassword)
+        assertEquals("", state.deletionPhrase)
     }
 
     // --- 계정 삭제 ---
@@ -849,9 +881,10 @@ class SettingsInteractorTest {
     @Test
     fun 비활성이_되면_구독을_풀고_뷰_입력을_받지_않는다() {
         attach()
-        val rendered = view.states.size
 
         router.dispatchDetach()
+        // 내려가며 평문을 비운 마지막 한 번만 그린다. 그 뒤로는 그리지 않는다
+        val rendered = view.states.size
         environment.changeOffline(true)
         session.fireSyncChange()
         environment.autoLock.emit(60.minutes)
@@ -1059,6 +1092,14 @@ class SettingsInteractorTest {
 
         override fun settingsDidRequestLogout() {
             events += "logout"
+        }
+
+        override fun settingsDidRestoreBackup() {
+            events += "restored"
+        }
+
+        override fun settingsDidChangeMasterPassword() {
+            events += "passwordChanged"
         }
 
         override fun settingsDidChangeSession() {

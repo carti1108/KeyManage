@@ -13,6 +13,7 @@ import com.keymanage.domain.session.SyncChangeListener
 import com.keymanage.domain.vault.ReadOnlyVaultException
 import com.keymanage.domain.vault.SyncedVault
 import com.keymanage.domain.vault.VaultData
+import com.keymanage.domain.vault.VaultSyncConflictException
 import com.keymanage.domain.vault.VaultTooLargeException
 import com.keymanage.domain.vault.deleteItem
 import com.keymanage.domain.vault.parseVaultData
@@ -50,6 +51,7 @@ class VaultListInteractorTest {
     private lateinit var clipboard: FakeClipboard
     private val generatorViews = mutableListOf<FakeGeneratorView>()
     private var router: VaultListRouter? = null
+    private val listener = RecordingVaultListListener()
 
     @BeforeTest
     fun setUp() {
@@ -75,7 +77,7 @@ class VaultListInteractorTest {
             override val passwordGeneratorViewFactory = PasswordGeneratorViewFactory { FakeGeneratorView().also(generatorViews::add) }
             override val randomBytes: RandomBytes = Random(7).let { random -> RandomBytes { random.nextBytes(it) } }
         }
-        router = VaultListBuilder(dependency).build(object : VaultListListener {}).also { it.dispatchAttach(null) }
+        router = VaultListBuilder(dependency).build(listener).also { it.dispatchAttach(null) }
     }
 
     private val state get() = checkNotNull(view.states.lastOrNull()) { "아직 그리지 않음" }
@@ -649,10 +651,165 @@ class VaultListInteractorTest {
         val staleSync = session.syncListeners.toList()
         router?.dispatchDetach()
         router = null
+        val renderedBefore = view.states.size
+        val itemsBefore = state.items
 
+        // 내려간 뒤 세션의 볼트가 바뀌어도 늦게 온 알림은 아무것도 읽거나 그리지 않는다
+        session.replace(vaultOf(itemOf("late", "Late", "u", "p")))
         staleRemote.forEach { it() }
         staleSync.forEach { it(null) }
         dispatcher.scheduler.runCurrent()
+
+        assertEquals(renderedBefore, view.states.size)
+        assertEquals(itemsBefore, state.items)
+        assertNull(view.listener)
+    }
+
+    // --- 세션이 알림 없이 바꾼 볼트 (복원·재연결·거절된 저장) ---
+
+    @Test
+    fun savesOnTopOfTheSessionsVaultEvenWhenItChangedWithoutNotice() {
+        open()
+        // 백업 복원은 알림 없이 세션의 볼트를 바꾼다
+        session.replace(vaultOf(itemOf("gh", "GitHub", "octo", "gh-secret"), itemOf("r1", "R1", "", ""), itemOf("r2", "R2", "", "")))
+
+        act(VaultListViewAction.StartAdd)
+        type(VaultItemFormField.SERVICE_NAME, "New")
+        act(VaultListViewAction.SubmitForm)
+
+        val saved = session.saved.single()
+        assertEquals(4, saved.items.size)
+        assertEquals(listOf("GitHub", "New", "R1", "R2"), saved.items.mapNotNull { it.serviceName }.sorted())
+        assertEquals(listOf("GitHub", "New", "R1", "R2"), state.items.map { it.serviceName })
+    }
+
+    @Test
+    fun editsAndDeletesOnTopOfTheSessionsVaultToo() {
+        open()
+        act(VaultListViewAction.OpenItem("gh"), VaultListViewAction.StartEdit)
+        session.replace(vaultOf(itemOf("gh", "GitHub", "octo", "gh-secret"), itemOf("r1", "R1", "", "")))
+        type(VaultItemFormField.USERNAME, "octocat")
+        act(VaultListViewAction.SubmitForm)
+
+        assertEquals(setOf("gh", "r1"), session.saved.single().items.map { it.id }.toSet())
+
+        session.replace(vaultOf(itemOf("gh", "GitHub", "octocat", "gh-secret"), itemOf("r1", "R1", "", ""), itemOf("r2", "R2", "", "")))
+        act(VaultListViewAction.RequestDelete, VaultListViewAction.ConfirmDelete)
+
+        assertEquals(setOf("gh", "r1", "r2"), session.saved.last().items.map { it.id }.toSet())
+        assertEquals(listOf("R1", "R2"), state.items.map { it.serviceName })
+    }
+
+    @Test
+    fun refreshingFromTheSessionPicksUpAChangeWithoutNoticeAndKeepsTheInput() {
+        open()
+        act(VaultListViewAction.StartAdd)
+        type(VaultItemFormField.SERVICE_NAME, "typing")
+        session.replace(vaultOf(itemOf("r1", "R1", "", "")))
+
+        checkNotNull(router).refreshFromSession()
+
+        assertEquals(listOf("R1"), state.items.map { it.serviceName })
+        assertEquals("typing", state.form.serviceName)
+        assertEquals(VaultListScreen.ADD, state.screen)
+    }
+
+    @Test
+    fun refreshingFromTheSessionLeavesTheDetailOfAnItemThatIsGone() {
+        open()
+        act(VaultListViewAction.OpenItem("gh"))
+        session.replace(vaultOf(itemOf("r1", "R1", "", "")))
+
+        checkNotNull(router).refreshFromSession()
+
+        assertEquals(VaultListScreen.LIST, state.screen)
+        assertNull(state.selected)
+    }
+
+    @Test
+    fun refreshingFromTheSessionAfterDetachDoesNothing() {
+        open()
+        val detached = checkNotNull(router)
+        detached.dispatchDetach()
+        router = null
+        val renderedBefore = view.states.size
+
+        detached.refreshFromSession()
+
+        assertEquals(renderedBefore, view.states.size)
+    }
+
+    // --- 거절돼도 먼저 반영된 저장 (웹 SessionRoot.test.tsx 대응) ---
+
+    @Test
+    fun rereadsTheSessionWhenASaveIsRefusedAfterItWasApplied() {
+        open()
+        session.applyThenFail = VaultSyncConflictException()
+
+        act(VaultListViewAction.StartAdd)
+        type(VaultItemFormField.SERVICE_NAME, "Naver")
+        act(VaultListViewAction.SubmitForm)
+
+        assertNotNull(state.saveError)
+        assertEquals(VaultListScreen.ADD, state.screen)
+        // 세션이 먼저 반영했으므로 목록에는 이미 보인다
+        assertEquals(listOf("Apple", "GitHub", "Naver"), state.items.map { it.serviceName })
+
+        act(VaultListViewAction.CancelForm)
+
+        assertEquals(listOf("Apple", "GitHub", "Naver"), state.items.map { it.serviceName })
+    }
+
+    @Test
+    fun rereadsTheSessionWhenASaveIsRefusedAndTheEditedItemIsGone() {
+        open()
+        act(VaultListViewAction.OpenItem("gh"), VaultListViewAction.StartEdit)
+        type(VaultItemFormField.USERNAME, "changed")
+        // 저장을 보내는 사이 세션이 항목을 지웠다
+        session.replaceOnSave = vaultOf(itemOf("ap", "Apple", "tim", "apple-secret"))
+        session.applyThenFail = VaultSyncConflictException()
+
+        act(VaultListViewAction.SubmitForm)
+
+        assertNotNull(state.saveError)
+        assertEquals(listOf("Apple"), state.items.map { it.serviceName })
+        assertNull(state.selected)
+        assertEquals(VaultListScreen.LIST, state.screen)
+    }
+
+    // --- 저장 성공을 부모에게 ---
+
+    @Test
+    fun tellsTheParentOnlyWhenASaveSucceeded() {
+        open()
+        session.failNext = VaultTooLargeException(6_000_000)
+        act(VaultListViewAction.StartAdd)
+        type(VaultItemFormField.SERVICE_NAME, "Naver")
+        act(VaultListViewAction.SubmitForm)
+
+        assertEquals(0, listener.saves)
+
+        act(VaultListViewAction.SubmitForm)
+
+        assertEquals(1, listener.saves)
+    }
+
+    // --- 평문 정리 (L3) ---
+
+    @Test
+    fun clearsTheVaultAndTheFormFromTheViewWhenDetached() {
+        open()
+        act(VaultListViewAction.OpenItem("gh"), VaultListViewAction.StartEdit)
+        type(VaultItemFormField.PASSWORD, "typed-secret")
+        val detached = checkNotNull(router)
+
+        detached.dispatchDetach()
+        router = null
+
+        assertEquals(emptyList(), state.items)
+        assertNull(state.selected)
+        assertEquals(VaultItemForm(), state.form)
+        assertEquals(VaultListScreen.LIST, state.screen)
     }
 }
 
@@ -685,6 +842,14 @@ private class SingleDispatcher(dispatcher: CoroutineDispatcher) : RibDispatchers
     override val MainImmediate: CoroutineDispatcher = dispatcher
     override val Default: CoroutineDispatcher = dispatcher
     override val Unconfined: CoroutineDispatcher = dispatcher
+}
+
+private class RecordingVaultListListener : VaultListListener {
+    var saves = 0
+
+    override fun vaultListDidSave() {
+        saves += 1
+    }
 }
 
 private class FakeVaultListView : VaultListPresentable {
@@ -732,6 +897,12 @@ private class FakeSession(initial: VaultData, private var readOnly: Boolean) : S
     var saveCalls = 0
         private set
     var failNext: Throwable? = null
+
+    /** 세션이 볼트를 반영한 뒤에 거절한다. 실제 세션은 서버 충돌 같은 거절을 기기 저장 뒤에 던질 수 있다 */
+    var applyThenFail: Throwable? = null
+
+    /** 저장을 보내는 사이 세션이 다른 볼트로 바뀐다(원격 병합). 있으면 보낸 볼트 대신 이것을 반영한다 */
+    var replaceOnSave: VaultData? = null
     var gate: CompletableDeferred<Unit>? = null
     val remoteListeners = mutableSetOf<() -> Unit>()
     val syncListeners = mutableSetOf<SyncChangeListener>()
@@ -761,6 +932,11 @@ private class FakeSession(initial: VaultData, private var readOnly: Boolean) : S
         gate?.await()
         failNext?.let {
             failNext = null
+            throw it
+        }
+        applyThenFail?.let {
+            applyThenFail = null
+            replace(replaceOnSave ?: data)
             throw it
         }
         saved += data

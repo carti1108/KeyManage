@@ -135,7 +135,13 @@ interface SettingsListener {
     /** 로그아웃 버튼. 동기화 대기 내용 확인(VLT-002)은 부모가 한다 */
     fun settingsDidRequestLogout()
 
-    /** 복원·비밀번호 변경·계정 삭제를 시도했다. 세션이나 볼트가 바뀌었을 수 있으니 부모가 다시 읽는다 */
+    /** 백업 복원에 성공했다. 부모가 지난 동기화 오류를 걷는다. 이어서 [settingsDidChangeSession]도 불린다 (웹 SessionRoot의 onRestore) */
+    fun settingsDidRestoreBackup()
+
+    /** 마스터 비밀번호 변경에 성공했다. 부모가 지난 동기화 오류와 오프라인 표시를 걷는다. 이어서 [settingsDidChangeSession]도 불린다 (웹 SessionRoot의 onChange) */
+    fun settingsDidChangeMasterPassword()
+
+    /** 복원·비밀번호 변경·계정 삭제를 시도했다. 성공·실패와 상관없이 불리며, 세션이나 볼트가 바뀌었을 수 있으니 부모가 다시 읽는다 */
     fun settingsDidChangeSession()
 
     /**
@@ -205,6 +211,21 @@ class SettingsInteractor(
         unsubscribes.forEach { it() }
         unsubscribes = emptyList()
         pendingBackup = null
+        clearPlaintext()
+    }
+
+    /** 내려가기 전에 입력해 둔 비밀번호를 비우고 그려, 뷰가 마지막으로 받은 상태에 남지 않게 한다 */
+    private fun clearPlaintext() {
+        update {
+            copy(
+                restorePassword = "",
+                currentPassword = "",
+                newPassword = "",
+                passwordConfirmation = "",
+                deletionPassword = "",
+                deletionPhrase = "",
+            )
+        }
     }
 
     private fun handle(action: SettingsViewAction) {
@@ -383,6 +404,7 @@ class SettingsInteractor(
                 pendingBackup = null
                 update { closed().copy(notice = restoredMessage(count)) }
             }
+            if (finished) listener.settingsDidRestoreBackup()
             finishAttempt(finished, endNotice = null)
         }
     }
@@ -429,6 +451,7 @@ class SettingsInteractor(
                 }
                 update { closed().copy(notice = PASSWORD_CHANGE_DONE) }
             }
+            if (finished && endNotice == null) listener.settingsDidChangeMasterPassword()
             finishAttempt(finished, endNotice)
         }
     }

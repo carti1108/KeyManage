@@ -168,6 +168,9 @@ class PasswordGeneratorInteractor(
 
     override fun willResignActive() {
         presenter.onAction = null
+        // 내려가기 전에 만든 비밀번호를 비우고 그려, 뷰가 마지막으로 받은 상태에 남지 않게 한다
+        password = ""
+        render(showsPassword = false)
     }
 
     private fun handle(action: PasswordGeneratorViewAction) {
@@ -227,7 +230,7 @@ class PasswordGeneratorInteractor(
         }
     }
 
-    private fun render() {
+    private fun render(showsPassword: Boolean = true) {
         val problem = currentProblem()
         val shownProblem = when {
             problem == GeneratorOptionsProblem.NO_CHARSET -> PasswordGeneratorMessages.NO_CHARSET_PROBLEM
@@ -241,7 +244,7 @@ class PasswordGeneratorInteractor(
                 lowercase = charsets.lowercase,
                 digits = charsets.digits,
                 symbols = charsets.symbols,
-                generated = if (problem == null) describe(password) else null,
+                generated = if (problem == null && showsPassword) describe(password) else null,
                 problemMessage = shownProblem,
                 announcement = announcement,
                 copyError = copyError,

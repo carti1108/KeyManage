@@ -83,11 +83,11 @@ class RootComponent(dependency: RootDependency) :
 }
 
 class RootBuilder(dependency: RootDependency) : Builder<RootDependency>(dependency) {
-    fun build(): RootRouter {
+    fun build(initialNotice: String? = null): RootRouter {
         val component = RootComponent(dependency)
         return RootRouter(
             view = dependency.rootViewFactory.makeRootView(),
-            interactor = RootInteractor(dependency.session),
+            interactor = RootInteractor(dependency.session, initialNotice),
             authBuilder = AuthBuilder(component),
             unlockBuilder = UnlockBuilder(component),
             mainBuilder = MainBuilder(component),
@@ -105,12 +105,16 @@ enum class RootScreen { AUTH, UNLOCK, MAIN }
  * 진행 중인 자식의 작업이 취소되고 그 결과(오프라인으로 열었는지, 안내 문구)가 사라진다. 그래서 알림은 다음 턴에 처리하고,
  * 로그인·잠금 해제 화면은 결과를 알릴 때까지, 볼트 화면은 세션을 끝내는 작업이 끝날 때까지 내리지 않는다
  */
-class RootInteractor(private val session: SessionPort) :
+class RootInteractor(
+    private val session: SessionPort,
+    /** 앱을 시작할 때 이미 정해진 로그인 화면 안내(세션 복구 실패 등). 첫 로그인 화면에 보이고 비운다 (웹 SessionRoot의 restoreError) */
+    initialNotice: String? = null,
+) :
     Interactor<Unit, RootRouter>(Unit), AuthListener, UnlockListener, MainListener {
     private var unsubscribes: List<() -> Unit> = emptyList()
 
     /** 다음 로그인 화면에 보일 안내(세션 만료 등). 로그인 화면에 넘기면 비운다 */
-    private var pendingNotice: String? = null
+    private var pendingNotice: String? = initialNotice
 
     override fun didBecomeActive(savedInstanceState: RibState?) {
         unsubscribes = listOf(
@@ -155,7 +159,7 @@ class RootInteractor(private val session: SessionPort) :
                 router.routeToMain(offline)
             }
             else -> {
-                if (current == RootScreen.MAIN && router.isMainFinishingSession) return
+                if (router.isFinishingSession) return
                 if (state is SessionState.Locked) {
                     router.routeToUnlock()
                 } else {
@@ -217,8 +221,23 @@ class RootRouter(
             else -> null
         }
 
-    /** 볼트 화면이 세션을 끝내는 작업(로그아웃, 계정 삭제)을 하는 중인지. 이 동안은 화면을 내리지 않는다 */
-    val isMainFinishingSession: Boolean get() = main?.interactor?.isFinishingSession ?: false
+    /** 볼트 화면이나 잠금 화면이 세션을 끝내는 작업(로그아웃, 계정 삭제)을 하는 중인지. 이 동안은 화면을 내리지 않는다 */
+    val isFinishingSession: Boolean
+        get() = (main?.interactor?.isFinishingSession ?: false) || (unlock?.interactor?.isFinishingSession ?: false)
+
+    /**
+     * 끝내면 붙어 있던 화면을 내리고 필드를 비운다. 비우지 않으면 다시 시작할 때 이미 붙어 있다고 보고 새로 붙이지 않으며,
+     * 루트 뷰를 다시 쓰는 플랫폼에서는 이전 화면이 남는다
+     */
+    override fun willDetach() {
+        auth?.let { view.hideScreen(it.view) }
+        unlock?.let { view.hideScreen(it.view) }
+        main?.let { view.hideScreen(it.view) }
+        auth = null
+        authNotice = null
+        unlock = null
+        main = null
+    }
 
     /**
      * @param notice 로그인 화면에 보일 안내. 이미 로그인 화면이 떠 있으면 안내가 있고 이미 보인 것과 다를 때만 새로 만든다

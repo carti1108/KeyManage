@@ -36,6 +36,7 @@ import com.keymanage.feature.settings.SettingsViewFactory
 import com.keymanage.feature.vaultlist.VaultListBuilder
 import com.keymanage.feature.vaultlist.VaultListDependency
 import com.keymanage.feature.vaultlist.VaultListListener
+import com.keymanage.feature.vaultlist.VaultListRouter
 import com.keymanage.feature.vaultlist.VaultListViewFactory
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -327,6 +328,8 @@ class MainInteractor(
         if (tab == state.selectedTab) return
         update { copy(selectedTab = tab) }
         router.routeTo(tab)
+        // 다른 탭에서 한 복원 같은 알림 없는 변경을 이 탭이 다시 읽는다
+        if (tab == MainTab.VAULT) router.refreshVaultList()
     }
 
     // --- 잠금 ---
@@ -413,8 +416,10 @@ class MainInteractor(
                 failure == null -> {
                     // 서버에 닿아 맞췄다. 맞추지 못했으면 동기화 대기(pendingSync)로 계속 오프라인으로 보인다
                     openedOffline = false
-                    update { copy(isReconnecting = false, reconnectError = null) }
+                    update { copy(isReconnecting = false, reconnectError = null, syncError = null) }
                     refreshSession()
+                    // 재연결은 서버와 맞추며 알림 없이 볼트를 바꿀 수 있다
+                    router.refreshVaultList()
                 }
                 failure is RevisionRollbackException && !acceptRollback -> {
                     rollbackPassword = password
@@ -434,6 +439,12 @@ class MainInteractor(
         }
     }
 
+    // --- VaultListListener ---
+
+    override fun vaultListDidSave() {
+        update { copy(syncError = null) }
+    }
+
     // --- SettingsListener ---
 
     override fun settingsDidRequestLock() = lock()
@@ -442,7 +453,17 @@ class MainInteractor(
 
     /** 복원·비밀번호 변경·계정 삭제를 시도했다. 세션이나 볼트가 바뀌었을 수 있으니 다시 읽고, 더 열려 있지 않으면 부모가 알게 한다 */
     override fun settingsDidChangeSession() {
-        if (!refreshSession() && isAttached()) listener.didLock()
+        if (refreshSession()) router.refreshVaultList() else if (isAttached()) listener.didLock()
+    }
+
+    override fun settingsDidRestoreBackup() {
+        update { copy(syncError = null) }
+    }
+
+    override fun settingsDidChangeMasterPassword() {
+        openedOffline = false
+        update { copy(syncError = null) }
+        refreshSession()
     }
 
     override fun settingsDidEndSession(notice: String) {
@@ -457,7 +478,7 @@ class MainRouter(
     private val passwordGeneratorBuilder: PasswordGeneratorBuilder,
     private val settingsBuilder: SettingsBuilder,
 ) : ViewRouter<MainPresentable, MainInteractor>(view, interactor) {
-    private var vaultList: ViewControllable? = null
+    private var vaultList: VaultListRouter? = null
     private var generator: ViewControllable? = null
     private var settings: ViewControllable? = null
     private var shown: ViewControllable? = null
@@ -465,7 +486,7 @@ class MainRouter(
     /** 고른 탭의 화면만 보인다. 처음 고른 탭은 이때 붙이고, 이후에는 붙어 있는 화면을 다시 보인다 */
     fun routeTo(tab: MainTab) {
         val screen = when (tab) {
-            MainTab.VAULT -> vaultList ?: attachVaultList().also { vaultList = it }
+            MainTab.VAULT -> (vaultList ?: attachVaultList().also { vaultList = it }).view
             MainTab.GENERATOR -> generator ?: attachGenerator().also { generator = it }
             MainTab.SETTINGS -> settings ?: attachSettings().also { settings = it }
         }
@@ -475,10 +496,15 @@ class MainRouter(
         shown = screen
     }
 
-    private fun attachVaultList(): ViewControllable {
+    /** 세션이 알림 없이 볼트를 바꿨을 수 있을 때 볼트 목록이 붙어 있으면 세션에서 다시 읽게 한다 (복원·재연결·탭 전환) */
+    fun refreshVaultList() {
+        vaultList?.refreshFromSession()
+    }
+
+    private fun attachVaultList(): VaultListRouter {
         val child = vaultListBuilder.build(interactor)
         attachChild(child)
-        return child.view
+        return child
     }
 
     private fun attachGenerator(): ViewControllable {

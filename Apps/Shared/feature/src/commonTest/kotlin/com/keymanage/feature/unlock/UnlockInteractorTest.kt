@@ -18,6 +18,7 @@ import com.keymanage.domain.session.WrongMasterPasswordException
 import com.keymanage.domain.vault.RevisionRollbackException
 import com.keymanage.domain.vault.VaultData
 import com.keymanage.feature.SessionPort
+import com.keymanage.feature.messages.LOGOUT_CLEAR_FAILED
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -55,8 +56,10 @@ class UnlockInteractorTest {
         RibCoroutinesConfig.reset()
     }
 
+    private lateinit var router: UnlockRouter
+
     private fun mountUnlock(): RibMount {
-        val router = UnlockBuilder(
+        router = UnlockBuilder(
             object : UnlockDependency {
                 override val unlockViewFactory = UnlockViewFactory { view }
                 override val session: SessionPort = this@UnlockInteractorTest.session
@@ -367,6 +370,30 @@ class UnlockInteractorTest {
         assertTrue(session.unlocks.isEmpty())
 
         gate.complete(Unit)
+    }
+
+    @Test
+    fun logoutIsFinishedEvenWhenTheScreenIsTakenDownAndTheParentIsToldTheResult() = unlockTest { mount ->
+        val gate = CompletableDeferred<Unit>()
+        var finished = false
+        session.logoutHandler = {
+            gate.await()
+            finished = true
+            throw DeviceStorageException(IllegalStateException("삭제 실패"))
+        }
+        assertFalse(router.interactor.isFinishingSession)
+
+        send(UnlockViewAction.RequestLogout)
+        assertTrue(router.interactor.isFinishingSession)
+
+        // 세션이 먼저 로그인 전 상태로 알려 부모가 이 화면을 내리더라도 기기 기록 정리와 토큰 폐기는 끝까지 한다
+        mount.unmount()
+        gate.complete(Unit)
+        runCurrent()
+
+        assertTrue(finished)
+        assertFalse(router.interactor.isFinishingSession)
+        assertEquals(listOf<String?>(LOGOUT_CLEAR_FAILED), listener.loggedOut)
     }
 
     @Test

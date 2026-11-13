@@ -267,6 +267,17 @@ class PasswordGeneratorInteractorTest {
 
         assertNull(view.listener)
     }
+
+    @Test
+    fun clearsTheGeneratedPasswordFromTheViewWhenDetached() {
+        open()
+        assertNotNull(state.generated)
+
+        router?.dispatchDetach()
+        router = null
+
+        assertNull(state.generated)
+    }
 }
 
 private class SingleDispatcher(dispatcher: CoroutineDispatcher) : RibDispatchersProvider {

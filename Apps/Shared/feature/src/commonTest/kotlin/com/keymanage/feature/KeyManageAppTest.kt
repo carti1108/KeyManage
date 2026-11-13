@@ -34,13 +34,14 @@ class KeyManageAppTest {
         RibCoroutinesConfig.reset()
     }
 
-    private fun makeApp() = KeyManageApp(
+    private fun makeApp(initialNotice: String? = null) = KeyManageApp(
         viewFactory = factory,
         session = session,
         clipboard = FakeClipboard(),
         backupFiles = FakeBackupFiles(),
         environment = environment,
         randomBytes = FakeRandomBytes(),
+        initialNotice = initialNotice,
     )
 
     @Test
@@ -106,4 +107,58 @@ class KeyManageAppTest {
 
         assertEquals(1, host.hidden.size)
     }
+    @Test
+    fun 끝낸_뒤_다시_시작하면_로그인_화면을_새로_붙이고_이전_화면을_남기지_않는다() {
+        val app = makeApp()
+        app.start(host)
+        val first = factory.authViews.single()
+        app.stop()
+
+        app.start(host)
+
+        assertEquals(2, factory.authViews.size)
+        assertEquals(2, host.shown.size)
+        val root = factory.rootViews.single()
+        assertEquals(1, root.visible.size)
+        assertSame(factory.authViews.last(), root.visible.single())
+        assertTrue(root.visible.single() !== first)
+        app.stop()
+    }
+
+    @Test
+    fun 끝낸_뒤_다시_시작하면_열린_볼트의_화면도_새로_붙인다() {
+        session.startUnlocked()
+        val app = makeApp()
+        app.start(host)
+        app.stop()
+
+        app.start(host)
+
+        assertEquals(2, factory.mainViews.size)
+        assertEquals(2, factory.vaultListViews.size)
+        assertEquals(1, factory.rootViews.single().visible.size)
+        assertSame(factory.mainViews.last(), factory.rootViews.single().visible.single())
+        app.stop()
+    }
+
+    @Test
+    fun 시작할_때_받은_안내를_로그인_화면에_보인다() {
+        val app = makeApp(initialNotice = "로그인이 만료되었습니다. 다시 로그인해 주세요.")
+
+        app.start(host)
+
+        assertEquals("로그인이 만료되었습니다. 다시 로그인해 주세요.", factory.authViews.single().state.notice)
+        app.stop()
+    }
+
+    @Test
+    fun 안내를_안_넘기면_로그인_화면에_안내가_없다() {
+        val app = makeApp()
+
+        app.start(host)
+
+        assertNull(factory.authViews.single().state.notice)
+        app.stop()
+    }
+
 }

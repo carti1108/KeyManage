@@ -10,6 +10,7 @@ import com.keymanage.domain.session.LockScope
 import com.keymanage.domain.session.SessionExpiredException
 import com.keymanage.domain.session.WrongMasterPasswordException
 import com.keymanage.domain.vault.RevisionRollbackException
+import com.keymanage.domain.vault.VaultTooLargeException
 import com.keymanage.feature.AppEnvironment
 import com.keymanage.feature.BackupFilesPort
 import com.keymanage.feature.ClipboardPort
@@ -30,6 +31,9 @@ import com.keymanage.feature.testing.FakeRandomBytes
 import com.keymanage.feature.testing.FakeSession
 import com.keymanage.feature.testing.FakeViewFactory
 import com.keymanage.feature.testing.installTestDispatcher
+import com.keymanage.feature.testing.testVault
+import com.keymanage.feature.vaultlist.VaultItemFormField
+import com.keymanage.feature.vaultlist.VaultListViewAction
 import com.keymanage.feature.vaultlist.VaultListViewFactory
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -634,6 +638,142 @@ class MainInteractorTest {
         router().interactor.settingsDidChangeSession()
 
         assertEquals(1, listener.locks)
+    }
+
+    // --- 알림 없이 바뀌는 세션의 볼트 (복원·재연결·거절된 저장) ---
+
+    private fun vaultListNames(): List<String?> = factory.vaultListViews.single().states.last().items.map { it.serviceName }
+
+    @Test
+    fun 볼트_탭으로_돌아오면_볼트_목록이_세션의_볼트를_다시_읽는다() = mainTest {
+        send(MainViewAction.SelectTab(MainTab.SETTINGS))
+        // 설정 탭에서 한 복원은 알림 없이 세션의 볼트를 바꾼다
+        session.replaceVault(testVault("R1", "R2"))
+
+        send(MainViewAction.SelectTab(MainTab.VAULT))
+
+        assertEquals(listOf("R1", "R2"), vaultListNames())
+    }
+
+    @Test
+    fun 설정에서_세션이_바뀌었다고_알리면_볼트_목록도_다시_읽는다() = mainTest {
+        send(MainViewAction.SelectTab(MainTab.SETTINGS))
+        session.replaceVault(testVault("R1", "R2"))
+
+        router().interactor.settingsDidChangeSession()
+
+        assertEquals(listOf("R1", "R2"), vaultListNames())
+    }
+
+    @Test
+    fun 재연결에_성공하면_볼트_목록도_다시_읽는다() = mainTest {
+        startWithoutSession()
+        session.fireRemote()
+        runCurrent()
+        session.reconnectHandler = { _, _ -> session.replaceVault(testVault("Merged")) }
+        send(MainViewAction.UpdateReconnectPassword("correct horse battery"))
+
+        send(MainViewAction.Reconnect)
+
+        assertEquals(listOf("Merged"), vaultListNames())
+    }
+
+    @Test
+    fun 볼트_목록에서_저장하면_세션이_바꾼_볼트_위에_더한다() = mainTest {
+        send(MainViewAction.SelectTab(MainTab.SETTINGS))
+        session.replaceVault(testVault("R1", "R2"))
+        send(MainViewAction.SelectTab(MainTab.VAULT))
+        val vaultList = factory.vaultListViews.single().listener!!
+
+        vaultList.handle(VaultListViewAction.StartAdd)
+        vaultList.handle(VaultListViewAction.EditForm(VaultItemFormField.SERVICE_NAME, "New"))
+        vaultList.handle(VaultListViewAction.SubmitForm)
+        runCurrent()
+
+        assertEquals(listOf("New", "R1", "R2"), session.saved.single().items.mapNotNull { it.serviceName }.sorted())
+    }
+
+    // --- 성공하면 지난 동기화 오류를 걷는다 (웹 SessionRoot) ---
+
+    private fun TestScope.failSync() {
+        session.fireSync(NetworkError())
+        runCurrent()
+        assertNotNull(state.syncError)
+    }
+
+    @Test
+    fun 저장에_성공하면_지난_동기화_오류를_걷는다() = mainTest {
+        failSync()
+        val vaultList = factory.vaultListViews.single().listener!!
+
+        vaultList.handle(VaultListViewAction.StartAdd)
+        vaultList.handle(VaultListViewAction.EditForm(VaultItemFormField.SERVICE_NAME, "New"))
+        vaultList.handle(VaultListViewAction.SubmitForm)
+        runCurrent()
+
+        assertEquals(1, session.saved.size)
+        assertNull(state.syncError)
+    }
+
+    @Test
+    fun 저장이_거절되면_지난_동기화_오류를_그대로_둔다() = mainTest {
+        failSync()
+        session.saveHandler = { throw VaultTooLargeException(6_000_000) }
+        val vaultList = factory.vaultListViews.single().listener!!
+
+        vaultList.handle(VaultListViewAction.StartAdd)
+        vaultList.handle(VaultListViewAction.EditForm(VaultItemFormField.SERVICE_NAME, "New"))
+        vaultList.handle(VaultListViewAction.SubmitForm)
+        runCurrent()
+
+        assertNotNull(state.syncError)
+    }
+
+    @Test
+    fun 복원에_성공하면_지난_동기화_오류를_걷는다() = mainTest {
+        failSync()
+
+        router().interactor.settingsDidRestoreBackup()
+
+        assertNull(state.syncError)
+    }
+
+    @Test
+    fun 비밀번호를_바꾸면_지난_동기화_오류와_오프라인_표시를_걷는다() = mainTest(offline = true) {
+        failSync()
+        assertTrue(state.offline)
+
+        router().interactor.settingsDidChangeMasterPassword()
+
+        assertNull(state.syncError)
+        assertFalse(state.offline)
+    }
+
+    @Test
+    fun 재연결에_성공하면_지난_동기화_오류를_걷는다() = mainTest {
+        failSync()
+        startWithoutSession()
+        session.fireRemote()
+        runCurrent()
+        send(MainViewAction.UpdateReconnectPassword("correct horse battery"))
+
+        send(MainViewAction.Reconnect)
+
+        assertNull(state.syncError)
+    }
+
+    @Test
+    fun 재연결이_거절되면_지난_동기화_오류를_그대로_둔다() = mainTest {
+        failSync()
+        startWithoutSession()
+        session.fireRemote()
+        runCurrent()
+        session.reconnectHandler = { _, _ -> throw WrongMasterPasswordException() }
+        send(MainViewAction.UpdateReconnectPassword("wrong"))
+
+        send(MainViewAction.Reconnect)
+
+        assertNotNull(state.syncError)
     }
 
     // --- 생명주기 ---

@@ -177,8 +177,11 @@ interface VaultListDependency : Dependency {
     val randomBytes: RandomBytes
 }
 
-/** 부모에게 올릴 이벤트는 아직 없다. 잠김·로그아웃은 세션이 알리고 부모(Main)가 처리한다 */
-interface VaultListListener
+/** 부모에게 올리는 이벤트. 잠김·로그아웃은 세션이 알리고 부모(Main)가 처리한다 */
+interface VaultListListener {
+    /** 저장(추가·수정·삭제)이 성공했다. 부모가 지난 동기화 오류를 걷는다 (웹 SessionRoot의 onSave) */
+    fun vaultListDidSave()
+}
 
 class VaultListComponent(dependency: VaultListDependency) :
     Component<VaultListDependency>(dependency), PasswordGeneratorDependency {
@@ -229,7 +232,7 @@ class VaultListInteractor(
     private val session: SessionPort,
     private val clipboard: ClipboardPort,
     private val clock: Clock,
-    @Suppress("unused") private val listener: VaultListListener,
+    private val listener: VaultListListener,
 ) : Interactor<VaultListPresenter, VaultListRouter>(presenter), PasswordGeneratorListener {
     private var data: VaultData = emptyVault(clock.now())
     private var readOnly = false
@@ -251,8 +254,8 @@ class VaultListInteractor(
         // 내려간 뒤 늦게 온 알림은 무시한다. 세션은 알림을 복사한 목록으로 돌아 해지한 콜백도 한 번 더 불릴 수 있고,
         // 이때 비활성 스코프에 접근하면 던져서 세션의 알림 반복이 깨진다
         unsubscribers = listOf(
-            session.onRemoteChange { if (isAttached()) coroutineScope.launch { refreshFromSession() } },
-            session.onSyncChange { if (isAttached()) coroutineScope.launch { refreshFromSession() } },
+            session.onRemoteChange { if (isAttached()) coroutineScope.launch { reloadFromSession() } },
+            session.onSyncChange { if (isAttached()) coroutineScope.launch { reloadFromSession() } },
         )
         syncFromSession()
         render()
@@ -262,6 +265,22 @@ class VaultListInteractor(
         presenter.onAction = null
         unsubscribers.forEach { it() }
         unsubscribers = emptyList()
+        clearPlaintext()
+    }
+
+    /** 내려가기 전에 볼트와 폼의 평문을 비우고 빈 화면을 그려, 뷰가 마지막으로 받은 상태에 비밀이 남지 않게 한다 */
+    private fun clearPlaintext() {
+        closeGenerator()
+        data = emptyVault(clock.now())
+        screen = VaultListScreen.LIST
+        query = ""
+        selectedId = null
+        focusItemId = null
+        form = VaultItemForm()
+        isConfirmingDelete = false
+        saveError = null
+        copyError = null
+        render()
     }
 
     private fun handle(action: VaultListViewAction) {
@@ -349,7 +368,12 @@ class VaultListInteractor(
 
     // --- 세션의 볼트 ---
 
-    private fun refreshFromSession() {
+    /**
+     * 세션이 알림 없이 볼트를 바꿨을 수 있을 때(백업 복원·재연결·거절된 저장) 부모가 부른다. 입력 중인 폼은 건드리지 않는다.
+     * 내려간 뒤에는 아무것도 하지 않는다
+     */
+    fun reloadFromSession() {
+        if (!isAttached()) return
         if (!syncFromSession()) return
         render()
     }
@@ -369,27 +393,30 @@ class VaultListInteractor(
 
     /**
      * 볼트 저장을 한 번에 하나만 보내고 실패는 정책 문구로 바꾼다 (웹 useSave).
-     * [build]가 새 볼트를 만들고, 성공하면 [onSaved], 실패하면 [onFailed]를 부른다
+     * [build]가 저장 직전 세션의 볼트를 받아 새 볼트를 만들고, 성공하면 [onSaved], 실패하면 [onFailed]를 부른다.
+     * 복원·재연결·거절된 저장은 알림 없이 세션의 볼트를 바꾸므로, 캐시한 볼트가 아니라 세션의 현재 볼트를 기준으로 한다
      */
-    private fun save(build: () -> VaultData, onSaved: () -> Unit, onFailed: () -> Unit = {}) {
+    private fun save(build: (VaultData) -> VaultData, onSaved: () -> Unit, onFailed: () -> Unit = {}) {
         if (isSaving) return
         isSaving = true
         saveError = null
         coroutineScope.launch {
             val failure = try {
-                val next = build()
+                val next = build((session.state() as? SessionState.Unlocked)?.vault?.data ?: data)
                 session.save(next)
                 data = next
-                syncFromSession()
                 null
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
                 error
             }
+            // 거절돼도 변경 사항이 먼저 반영돼 있을 수 있으니 성공과 실패 모두 세션의 볼트를 다시 읽는다 (웹 useSave의 finally)
+            syncFromSession()
             isSaving = false
             if (failure == null) {
                 onSaved()
+                listener.vaultListDidSave()
             } else {
                 saveError = describeErrorMessage(failure)
                 onFailed()
@@ -413,7 +440,7 @@ class VaultListInteractor(
         val id = randomItemId()
         // 새 항목에는 비어 있는 선택 필드를 넣지 않는다
         val added = fields.copy(url = fields.url?.ifEmpty { null }, notes = fields.notes?.ifEmpty { null })
-        save(build = { addItem(data, added, clock.now(), id) }, onSaved = { showDetail(id) })
+        save(build = { base -> addItem(base, added, clock.now(), id) }, onSaved = { showDetail(id) })
     }
 
     private fun submitEdit(item: VaultItem, fields: ItemFields) {
@@ -423,14 +450,14 @@ class VaultListInteractor(
             navigate(VaultListScreen.DETAIL, item.id)
             return
         }
-        save(build = { updateItem(data, item.id, changes, clock.now()) }, onSaved = { navigate(VaultListScreen.DETAIL, item.id) })
+        save(build = { base -> updateItem(base, item.id, changes, clock.now()) }, onSaved = { navigate(VaultListScreen.DETAIL, item.id) })
     }
 
     private fun confirmDelete() {
         val id = selectedId
         if (isSaving || readOnly || screen != VaultListScreen.DETAIL || !isConfirmingDelete || id == null) return
         save(
-            build = { deleteItem(data, id, clock.now()) },
+            build = { base -> deleteItem(base, id, clock.now()) },
             onSaved = {
                 // 삭제하는 사이 다른 항목으로 옮겼다면 그 화면을 둔다
                 if (screen == VaultListScreen.DETAIL && selectedId == id) navigate(VaultListScreen.LIST)
@@ -494,6 +521,9 @@ class VaultListRouter(
         view.showGenerator(child.view)
         generator = child
     }
+
+    /** 세션이 알림 없이 볼트를 바꿨을 수 있을 때(복원·재연결·탭 전환) 부모가 부른다 */
+    fun refreshFromSession() = interactor.reloadFromSession()
 
     fun routeAwayFromGenerator() {
         val child = generator ?: return

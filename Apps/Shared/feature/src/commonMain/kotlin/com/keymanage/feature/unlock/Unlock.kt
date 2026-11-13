@@ -3,6 +3,7 @@ package com.keymanage.feature.unlock
 import com.carti.ribs.Builder
 import com.carti.ribs.Dependency
 import com.carti.ribs.Interactor
+import com.carti.ribs.RibDispatchers
 import com.carti.ribs.RibState
 import com.carti.ribs.ViewControllable
 import com.carti.ribs.ViewPresenter
@@ -18,6 +19,8 @@ import com.keymanage.feature.messages.describeError
 import com.keymanage.feature.messages.describeErrorMessage
 import com.keymanage.feature.messages.sendsToSignIn
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 // 잠금 화면 (SEC-003). 마스터 비밀번호로 열고, 동기화 대기 변경을 확인한 뒤 로그아웃한다 (VLT-002)
@@ -133,6 +136,14 @@ class UnlockInteractor(
     // 다른 탭의 대기 내용을 확인하는 동안 로그아웃을 다시 받지 않는다
     private var isCheckingLogout = false
 
+    private var logoutInFlight = false
+
+    /**
+     * 로그아웃이 진행 중이다. 세션이 먼저 로그인 전 상태로 알려도 부모는 이 작업이 끝나 결과를 알릴 때까지 이 화면을 내리지 않는다.
+     * 내리면 기기 기록 정리와 서버 토큰 폐기가 취소된다 (ADR-0019, SEC-002)
+     */
+    val isFinishingSession: Boolean get() = logoutInFlight
+
     override fun didBecomeActive(savedInstanceState: RibState?) {
         presenter.onAction = ::handle
         state = state.copy(email = (session.state() as? SessionState.Locked)?.email.orEmpty())
@@ -163,7 +174,8 @@ class UnlockInteractor(
 
     private fun update(change: UnlockViewState.() -> UnlockViewState) {
         state = state.change()
-        presenter.render(state)
+        // 로그아웃은 이 RIB이 내려간 뒤에도 끝까지 하므로 그때는 그리지 않는다
+        if (isAttached()) presenter.render(state)
     }
 
     private fun acceptRollback() {
@@ -232,11 +244,16 @@ class UnlockInteractor(
         }
     }
 
-    /** 서버 토큰 폐기까지 기다린 결과로 부모에 알린다 (웹은 기다리지 않고 화면을 바꿨다) */
+    /**
+     * 서버 토큰 폐기까지 기다린 결과로 부모에 알린다 (웹은 기다리지 않고 화면을 바꿨다).
+     * 세션은 이 기기 기록을 정리하는 도중 알림을 보내 부모가 이 화면을 내릴 수 있다. 그래도 정리와 토큰 폐기는 끝까지 해야 하고
+     * 결과(기록을 지우지 못했다는 안내)도 알려야 하므로 이 RIB의 스코프가 아닌 별도 스코프에서 한다
+     */
     private fun logout() {
         if (state.isLoading) return
+        logoutInFlight = true
         update { copy(isLoading = true, error = null, isConfirmingLogout = false) }
-        coroutineScope.launch {
+        CoroutineScope(SupervisorJob() + RibDispatchers.MainImmediate).launch {
             val notice = try {
                 session.logout()
                 null
@@ -249,6 +266,7 @@ class UnlockInteractor(
                 // 서버 토큰 폐기만 실패했다. 이 기기는 이미 로그아웃됐고 서버 토큰은 만료(30일)를 기다린다 (SEC-002)
                 null
             }
+            logoutInFlight = false
             update { copy(isLoading = false, password = "") }
             listener.didLogout(notice)
         }
