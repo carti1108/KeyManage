@@ -3,7 +3,8 @@
 import { IDBFactory } from 'fake-indexeddb'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { createIndexedDbDeviceStore } from '../adapters/browser/indexedDbDeviceStore'
-import { createServices } from '../app/services'
+import * as kotlinModule from 'keymanage-web-session'
+import { createKotlinApp } from '../app/kotlinApp'
 import { ServerError } from '../domain/server/serverErrors'
 import { SessionStateError, WrongMasterPasswordError, type VaultSession } from '../domain/session/vaultSession'
 import { activeItems, addItem, deleteItem, type VaultData } from '../domain/vault/vaultData'
@@ -15,7 +16,7 @@ const PASSWORD = 'integration-master-password'
 
 // 기기마다 따로 만든다. 되돌림 감지 기준도 기기마다 따로 둔다
 // 기기마다 따로 둔 메모리 IndexedDB로 실제 기기 저장 어댑터를 쓴다. Node에는 IndexedDB가 없다 (ADR-0020)
-const device = (): VaultSession => createServices(API, createIndexedDbDeviceStore(new IDBFactory())).session
+const device = (): VaultSession => createKotlinApp(kotlinModule, { apiBaseUrl: API, deviceStore: createIndexedDbDeviceStore(new IDBFactory()) }).session
 
 function unlocked(session: VaultSession) {
   const state = session.state()

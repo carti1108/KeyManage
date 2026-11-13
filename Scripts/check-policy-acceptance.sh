@@ -175,7 +175,7 @@ if os.path.isdir(apple_tests_dir):
 
 
 # ============================================================================
-# 2. Web 플랫폼 감사 (Apps/Web/src/**/*.test.ts*)
+# 2. Web 플랫폼 감사 (Apps/Web/src/**/*.test.ts*, Apps/Shared/*/src/*Test/**/*.kt)
 # ============================================================================
 web_src_dir = os.path.join(root, "Apps", "Web", "src")
 if os.path.isdir(web_src_dir):
@@ -183,6 +183,8 @@ if os.path.isdir(web_src_dir):
     web_test_files = sorted(
         glob.glob(os.path.join(web_src_dir, "**", "*.test.ts"), recursive=True)
         + glob.glob(os.path.join(web_src_dir, "**", "*.test.tsx"), recursive=True)
+        # 웹 화면 로직은 공유 RIB(Kotlin)으로 옮겼다. 그 테스트도 웹 정책 근거로 본다 (domain-migration-plan 11.4)
+        + glob.glob(os.path.join(root, "Apps", "Shared", "*", "src", "*Test", "**", "*.kt"), recursive=True)
     )
     web_tests = "\n".join(open(p, encoding="utf-8").read() for p in web_test_files)
 
@@ -280,8 +282,9 @@ if os.path.isdir(web_src_dir):
 
     web_account_deletion_rules = [
         ("SEC-005 삭제 대화상자('계정 삭제') 흐름 검증", r"getByRole\('dialog', \{ name: '계정 삭제' \}\)"),
-        ("SEC-005 확인 문구 앞뒤 공백 불일치 경계값 검증", r"'계정 삭제 ', ' 계정 삭제'"),
-        ("SEC-005 확인 문구 일치 시 삭제 버튼 활성 검증", r"fill\(dialog, \{ phrase: '계정 삭제' \}\)\s*expect\(deleteButton\(dialog\)\)\.toBeEnabled\(\)"),
+        # 확인 문구 판정(앞뒤 공백·일치 시 활성)은 Kotlin Interactor 테스트로 옮겼다. 따옴표 관용구(TS '…', Kotlin "…")에 묶지 않고 두 형태를 모두 받는다
+        ("SEC-005 확인 문구 앞뒤 공백 불일치 경계값 검증", r"""["']계정 삭제 ["'][\s\S]*["'] 계정 삭제["']"""),
+        ("SEC-005 확인 문구 일치 시 삭제 버튼 활성 검증", r"""(?:fill\(dialog, \{ phrase: '계정 삭제' \}\)\s*expect\(deleteButton\(dialog\)\)\.toBeEnabled\(\)|EditDeletionPhrase\("계정 삭제"\)\)\s*assertTrue\(state\.canSubmitDeletion\))"""),
         ("SEC-005 확인 문구 NFC 정규화 경계값 검증", r"'계정 삭제'\.normalize\('NFD'\)"),
         ("SEC-005 오프라인 거절(AccountDeletionOfflineError) 검증", r"AccountDeletionOfflineError"),
         ("SEC-005 기기 기록 삭제 실패(AccountDeletedDeviceNotClearedError) 검증", r"AccountDeletedDeviceNotClearedError"),

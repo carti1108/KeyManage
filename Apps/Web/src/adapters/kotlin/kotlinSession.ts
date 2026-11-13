@@ -10,7 +10,7 @@ import type { VaultData } from '../../domain/vault/vaultData'
 import { createErrorTranslator } from './kotlinErrors'
 import { toJsDeviceStore, toJsTabMemory, toJsTabs } from './kotlinPorts'
 import { createStateReader } from './kotlinState'
-import type { KotlinModule } from './kotlinTypes'
+import type { KotlinModule, KotlinVaultSession } from './kotlinTypes'
 
 export interface KotlinSessionDeps {
   /** 서버 주소. 없으면 Kotlin이 기본값을 쓴다. 규칙에 맞지 않으면 만들 때 InvalidBaseUrlError */
@@ -53,6 +53,21 @@ function once(unsubscribe: () => void): () => void {
  * @throws InvalidBaseUrlError 서버 주소가 규칙에 맞지 않음
  */
 export function createKotlinSession(kotlin: KotlinModule, deps: KotlinSessionDeps): VaultSession {
+  const { translate } = createErrorTranslator(kotlin.errorInfo)
+  let session: KotlinVaultSession
+  try {
+    session = kotlin.createKotlinSession(deps.apiBaseUrl ?? null, toJsDeviceStore(deps.deviceStore), toJsTabs(deps.tabs), toJsTabMemory(deps.tabMemory))
+  } catch (error) {
+    throw translate(error)
+  }
+  return wrapKotlinSession(kotlin, session)
+}
+
+/**
+ * 이미 만든 Kotlin 세션(예: WebKeyManageApp.session)을 웹 VaultSession으로 감싼다.
+ * RIB 화면과 앱 배선(*Wiring.ts)이 같은 세션을 쓰게 한다 (domain-migration-plan 11.4)
+ */
+export function wrapKotlinSession(kotlin: Pick<KotlinModule, 'errorInfo'>, session: KotlinVaultSession): VaultSession {
   const { translate, translateSyncError } = createErrorTranslator(kotlin.errorInfo)
   // 동기 throw와 Promise reject를 같이 바꾼다
   async function call<T>(fn: () => Promise<T>): Promise<T> {
@@ -74,7 +89,6 @@ export function createKotlinSession(kotlin: KotlinModule, deps: KotlinSessionDep
     }
   }
 
-  const session = callSync(() => kotlin.createKotlinSession(deps.apiBaseUrl ?? null, toJsDeviceStore(deps.deviceStore), toJsTabs(deps.tabs), toJsTabMemory(deps.tabMemory)))
   const readState = createStateReader(() => session.state())
 
   return {

@@ -3,7 +3,8 @@
 import { IDBFactory } from 'fake-indexeddb'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { createIndexedDbDeviceStore } from '../adapters/browser/indexedDbDeviceStore'
-import { createServices } from '../app/services'
+import * as kotlinModule from 'keymanage-web-session'
+import { createKotlinApp } from '../app/kotlinApp'
 import { SessionExpiredError, WrongMasterPasswordError, type VaultSession } from '../domain/session/vaultSession'
 import { createSingleTabFallback } from '../domain/tabs/inMemoryTabs'
 import { activeItems, addItem } from '../domain/vault/vaultData'
@@ -13,7 +14,7 @@ const API = env?.KEYMANAGE_API_URL ?? 'http://localhost:8080'
 const PASSWORD = 'integration-delete-master-password'
 
 // 기기마다 저장소와 탭 알림을 따로 둔다. 같은 프로세스의 BroadcastChannel을 나누면 같은 브라우저의 탭이 된다
-const device = (): VaultSession => createServices(API, createIndexedDbDeviceStore(new IDBFactory()), createSingleTabFallback()).session
+const device = (): VaultSession => createKotlinApp(kotlinModule, { apiBaseUrl: API, deviceStore: createIndexedDbDeviceStore(new IDBFactory()), tabs: createSingleTabFallback() }).session
 
 function names(session: VaultSession) {
   const state = session.state()
