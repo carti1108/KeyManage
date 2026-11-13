@@ -299,3 +299,25 @@ Android는 두 모듈 모두 컴파일만 확인했다. iOS·macOS는 Windows라
 - 처음에는 이 PC에 JDK 21이 없어 실행하지 못했다. Eclipse Temurin 21(winget)을 설치한 뒤 실행했다.
 - 백엔드는 `Back`의 `:app:bootJar`로 만든 jar를 임시 폴더에서 `--server.port=18080 --server.address=127.0.0.1`로 띄웠다. `docker-compose.yml`은 원래 폴더의 데모 스택과 이름·포트·데이터 볼륨이 겹쳐 쓰지 않았다.
 - 실행: `KEYMANAGE_IT_BASE_URL=http://localhost:18080 ./gradlew :server-http:jvmTest --tests '*LocalBackendIntegrationTest*'`. 서버 데이터 폴더에 계정·볼트 파일이 생긴 것으로 실제 요청을 확인했다.
+
+## 10. 앱 전환 1조각: 웹 세션 포트 교체 (설계)
+
+5장의 순서를 하나 바꾼다. 공유 Kotlin 세션은 메모리 상태를 TypeScript 세션과 나눌 수 없으므로 잠금 해제 화면만 따로 옮길 수 없다. 그래서 화면(RIB)보다 먼저 웹 `SessionPort` 뒤의 세션을 통째로 Kotlin으로 바꾼다. React 화면은 그대로 둔다. 화면을 RIB으로 옮기는 일은 그다음 조각이다(그때 carti-RIBs-KMP는 composite build로 가져온다).
+
+### 10.1 구조
+
+| 층 | 위치 | 하는 일 |
+| :--- | :--- | :--- |
+| Kotlin/JS 내보내기 | 새 모듈 `Apps/Shared/web-session` (`js { browser() }`, `binaries.library()`, TypeScript 정의, ES 모듈) | `VaultSession`과 `server-http`를 묶어 `@JsExport` 퍼사드로 내보낸다. suspend 함수는 `Promise`로, 상태는 JS 객체로, 볼트는 `encodeVaultData` JSON 문자열로 넘긴다 |
+| 브라우저 포트 | 같은 모듈이 TypeScript 함수 객체를 받는다 | 기기 저장소·탭 잠금·탭 채널·탭 기억은 지금 TypeScript 어댑터(IndexedDB, `navigator.locks`, `BroadcastChannel`, `sessionStorage`)를 그대로 쓴다. Kotlin은 `Promise`를 `await()`로 감싼다. 이 어댑터들은 이미 브라우저 테스트가 있다 |
+| TypeScript 어댑터 | `Apps/Web/src/adapters/kotlin/kotlinSession.ts` | `SessionPort`를 구현한다. 상태의 볼트 JSON은 웹 `parseVaultData`로 읽고, Kotlin 오류는 오류 이름(`kind`)으로 웹 오류 클래스(화면이 `instanceof`로 가르는 22종)로 바꾼다 |
+| 조립 | `app/services.ts` | `createVaultSession` 대신 `createKotlinSession`을 넘긴다 |
+
+HTTP는 6단계의 `server-http`(Ktor JS 엔진, 브라우저 `fetch`)를 쓴다. 웹 `adapters/http`는 이 조각에서는 지우지 않는다.
+
+### 10.2 확인 기준
+
+- `kotlinSession` 계약 테스트(vitest): 가짜 `fetch` 서버와 메모리 포트로 가입 → 저장 → 잠금 → 잠금 해제, 오류 변환(잘못된 비밀번호, 서버 오류, 되돌림), 리스너 해제를 Kotlin 빌드 결과에 대고 확인한다.
+- 웹 전체 테스트(`npm test`)와 타입 검사가 그대로 통과한다. 화면 테스트는 가짜 세션을 쓰므로 바뀌지 않는다.
+- 웹이 저장한 기기 기록(IndexedDB)을 Kotlin 세션이 그대로 읽는다(3단계에서 형식 호환 확인함).
+- 지우기: 이 조각이 끝나면 `Apps/Web/src/domain/session/`과 이를 쓰던 테스트를 지운다. 다른 웹 domain 코드(`vaultData` 등)는 화면이 아직 쓰므로 남긴다.
