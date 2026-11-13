@@ -1,0 +1,36 @@
+# 웹이 쓰는 공유 Kotlin 세션(Apps/Shared/web-session)을 JS 라이브러리로 빌드한다 (domain-migration-plan 10장)
+# 웹의 타입 검사·번들·통합 테스트가 모두 이 빌드 결과(keymanage-web-session 별칭)를 먼저 요구한다.
+# 호출하는 job은 이 저장소를 먼저 actions/checkout 해 두어야 한다
+name: Kotlin 웹 세션 빌드
+description: JDK 21과 공유 RIB 라이브러리(carti-RIBs-KMP)를 준비하고 web-session을 JS 라이브러리로 빌드한다
+
+inputs:
+  ribs-token:
+    description: 비공개 저장소 carti1108/carti-RIBs-KMP를 읽을 수 있는 토큰(secrets.CARTI_RIBS_TOKEN)
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: "21"
+
+    - uses: gradle/actions/setup-gradle@v4
+
+    # Apps/Shared/settings.gradle.kts는 carti-RIBs-KMP를 composite build로 가져온다. 기본 경로(저장소 바깥 형제 폴더)는
+    # checkout이 쓸 수 없는 위치라, 워크스페이스 안에 받고 CARTI_RIBS_DIR로 경로를 알려 준다
+    - uses: actions/checkout@v4
+      with:
+        repository: carti1108/carti-RIBs-KMP
+        ref: main
+        path: carti-RIBs-KMP
+        token: ${{ inputs.ribs-token }}
+
+    - name: web-session JS 라이브러리 빌드
+      shell: bash
+      working-directory: Apps/Shared
+      env:
+        CARTI_RIBS_DIR: ${{ github.workspace }}/carti-RIBs-KMP
+      run: ./gradlew :web-session:jsBrowserProductionLibraryDistribution --console=plain
