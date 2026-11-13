@@ -3,9 +3,10 @@ import ProjectDescriptionHelpers
 
 let project = Project(
 	name: "KeyManageApp",
-	// 공유 RIB용 SwiftUI 어댑터(carti-RIBs-KMP). 저장소와 같은 상위 폴더의 형제 폴더에 있어야 한다 (domain-migration-plan 12.2)
+	// 공유 RIB용 SwiftUI 어댑터(carti-RIBs-KMP). 기본은 저장소와 같은 상위 폴더의 형제 폴더이고,
+	// CI처럼 다른 곳에 받으면 TUIST_CARTI_RIBS_DIR(절대 경로)로 알려 준다 (domain-migration-plan 12.2)
 	packages: [
-		.local(path: "../../../../../carti-RIBs-KMP/swift/RIBsKMPSwiftUI")
+		.local(path: .path("\(Environment.cartiRibsDir.getString(default: "../../../../../carti-RIBs-KMP"))/swift/RIBsKMPSwiftUI"))
 	],
 	settings: .swift6Settings,
 	targets: [

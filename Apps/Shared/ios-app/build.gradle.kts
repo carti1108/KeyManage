@@ -28,6 +28,14 @@ kotlin {
             api(project(":feature"))
             api(project(":domain"))
             api("com.carti.ribs:ribs-core")
+            // iOS 플랫폼 구현(domain-migration-plan 12.3의 1단계). 진입점만 쓰므로 export하지 않는다
+            implementation(project(":device-store"))
+            implementation(project(":secure-store"))
+            implementation(libs.kotlinx.coroutines.core)
+        }
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }

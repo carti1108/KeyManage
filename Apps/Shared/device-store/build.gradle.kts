@@ -4,7 +4,7 @@ plugins {
 }
 
 kotlin {
-    // 웹 실험부터 시작한다. Android·Apple 구현은 이후 같은 인터페이스로 추가한다
+    // 웹은 IndexedDB(jsMain), Apple은 앱 Application Support 폴더의 파일(appleMain). Android는 이후 같은 인터페이스로 추가한다
     js {
         browser {
             testTask {
@@ -12,6 +12,11 @@ kotlin {
             }
         }
     }
+    iosArm64()
+    iosSimulatorArm64()
+    macosArm64()
+
+    applyDefaultHierarchyTemplate()
 
     sourceSets {
         commonMain.dependencies {

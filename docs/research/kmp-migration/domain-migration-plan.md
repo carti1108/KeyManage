@@ -465,3 +465,25 @@ HTTP는 6단계의 `server-http`(Ktor JS 엔진, 브라우저 `fetch`)를 쓴다
 - Tuist: `KeyManageIOS` 타깃에 XCFramework와 `RIBsKMPSwiftUI`(로컬 패키지)를 연결했다. `RIBsKMPSwiftUI`가 iOS 17 이상이라 iOS 앱 타깃의 최소 버전을 15.0에서 17.0으로 올렸다. Core·Features 모듈은 15.0 그대로다.
 - 확인: `KeyManageIOS` 시뮬레이터 빌드 통과. `import KeyManageShared`·`import RIBsKMPSwiftUI` 후 `LaunchRouting`·`RootInteractor`·`VaultSession` 참조가 타입 검사를 통과했다. 화면은 아직 Swift RIB이다.
 - 남은 것: `Scripts/verify-apple.sh`에 XCFramework 생성 단계 추가는 1단계 전에 한다.
+
+#### 1단계: iOS 플랫폼 구현 (2026-11-13)
+
+공유 RIB·세션이 받는 포트 중 플랫폼이 채워야 하는 것을 Kotlin으로 구현했다. Swift 코드는 고치지 않았다.
+
+| 포트 | iOS 구현 | 위치 |
+| :--- | :--- | :--- |
+| `DeviceStore` → `DeviceRecordStore` | `FileDeviceStore`(Application Support/KeyManage/device-record.json, 원자적 쓰기) + `DeviceRecordStoreAdapter`(실패를 도메인 `DeviceStorageException`으로 바꿈) | `device-store` `appleMain`, `ios-app` `iosMain` |
+| `ClipboardWriter`(`ClipboardBurner`가 씀) | `PasteboardClipboardWriter`(`UIPasteboard`. 빈 값이면 항목을 모두 지움, Swift `SystemPasteboard`와 같다) | `ios-app` `iosMain` |
+| `Scheduler` | `CoroutineScheduler`(진입점이 넘긴 메인 스레드 범위에서 `delay`) | `ios-app` `iosMain` |
+| `AutoLockSettingStore` | `UserDefaultsAutoLockSettingStore`(키 `keymanage.autoLockTimeoutMs`, 밀리초 십진 문자열. 탭이 하나라 `subscribe`는 알리지 않음) | `ios-app` `iosMain` |
+| `AppEnvironment` | `IosAppEnvironment` + `NetworkStatus`·`NetworkPathMonitor`(`NWPathMonitor`, 메인 큐) + `TimeZoneCalendar`(`NSCalendar`, 현지 시간대) | `ios-app` `iosMain` |
+| `Tabs`·`TabMemory` | 도메인의 `SingleTab`, `TabMemory`는 넘기지 않음(null) | 새 코드 없음 |
+| 생체 인증·키체인 | `secure-store` `appleMain`의 `LocalBiometricAuthenticator`(`LAContext`)·`BiometricKeychainStore`·`KeychainSecureStore`를 `ios-app` 의존성으로 넣었다 | 새 공통 포트 없음 |
+
+- 생체 해제 포트(`BiometricUnlock`)는 정하지 않았다. 3단계에서 Unlock RIB Interactor 테스트와 함께 정하고, iOS 구현은 위 `secure-store` 두 클래스를 감싼다. Swift의 14일 비밀번호 재요구와 생체 정보 변경 무효화(SEC-003 8번)는 세션 규칙이라 그때 공통 코드로 옮긴다. 변경 무효화는 키체인 항목의 `kSecAccessControlBiometryCurrentSet`이 이미 맡는다.
+- 백업 파일(`BackupFilesPort`)은 문서 선택기(`UIDocumentPickerViewController`)를 띄울 화면이 필요해 3단계 Settings 화면과 함께 만든다.
+- 0단계의 `ios-app` `iosMain` 패키지 선언 파일(`Package.kt`)은 소스가 생겨 지웠다.
+- `Scripts/verify-apple.sh` 4번 단계에서 `tuist generate` 전에 `./gradlew :ios-app:assembleKeyManageSharedDebugXCFramework`를 돌린다.
+- 확인: `:device-store:allTests`(js 6, macosArm64 7, iosSimulatorArm64 7) 통과, `:ios-app:iosSimulatorArm64Test` 14건 통과, XCFramework 생성 통과. 파일·UserDefaults·UIPasteboard(이름 붙인 보드)는 호스트 앱 없이 시뮬레이터 테스트에서 돈다.
+- 확인하지 못한 것: `NWPathMonitor` 실제 경로 알림(상태 갱신 로직만 테스트), 일반 `UIPasteboard`, 키체인·Face ID를 앱 안에서 쓰는 것(호스트 앱·실기기, 2단계와 5단계). 12.3 1단계 확인 기준의 "호스트 앱 안에서 키체인·기기 저장소 테스트"는 기기 저장소가 호스트 없이 통과해 키체인만 남았고, 키체인은 target-architecture 6.1의 결과 그대로다.
+- 별개 문제: `:kotlinStoreYarnLock`이 이 단계 변경 전에도 실패한다(빌드 중 생기는 yarn.lock에 `typescript`·`ws`가 더해짐). `allTests`는 `-x kotlinStoreYarnLock`으로 돌렸다.

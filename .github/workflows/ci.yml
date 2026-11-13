@@ -234,5 +234,21 @@ jobs:
             ~/.cache/tuist
           key: tuist-${{ runner.os }}-${{ hashFiles('Apps/Apple/Tuist/Package.resolved', 'Apps/Apple/Tuist/Package.swift') }}
 
+      # verify-apple.sh가 공유 Kotlin XCFramework(Apps/Shared/ios-app)를 먼저 만든다. JDK 21과 carti-RIBs-KMP가 필요하다
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/checkout@v4
+        with:
+          repository: carti1108/carti-RIBs-KMP
+          ref: main
+          path: carti-RIBs-KMP
+          token: ${{ secrets.CARTI_RIBS_TOKEN }}
+
       - name: Apple 6중 기계적 통합 검증
+        env:
+          CARTI_RIBS_DIR: ${{ github.workspace }}/carti-RIBs-KMP
+          TUIST_CARTI_RIBS_DIR: ${{ github.workspace }}/carti-RIBs-KMP
         run: bash Scripts/verify-apple.sh

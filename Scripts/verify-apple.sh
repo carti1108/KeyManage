@@ -35,7 +35,9 @@ bash "${ROOT_DIR}/Scripts/check-api-contract.sh" "${ROOT_DIR}"
 bash "${ROOT_DIR}/Scripts/verify-tdd-integrity.sh"
 
 # 4. Tuist 외부 의존성 설치 및 프로젝트 생성
-echo ">> [4/6] Tuist 의존성 확인 및 프로젝트 생성..."
+echo ">> [4/6] 공유 Kotlin XCFramework 생성, Tuist 의존성 확인 및 프로젝트 생성..."
+# KeyManageIOS가 참조하는 KeyManageShared.xcframework를 tuist generate 전에 만든다 (domain-migration-plan 12.2)
+(cd "${ROOT_DIR}/Apps/Shared" && ./gradlew :ios-app:assembleKeyManageSharedDebugXCFramework)
 cd "${APPLE_DIR}"
 if [ ! -d "Tuist/.build/checkouts" ]; then
   "${TUIST_BIN}" install
