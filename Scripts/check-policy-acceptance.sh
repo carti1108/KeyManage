@@ -188,16 +188,19 @@ if os.path.isdir(web_src_dir):
     )
     web_tests = "\n".join(open(p, encoding="utf-8").read() for p in web_test_files)
 
+    # 웹의 암호·세션·화면 로직은 공유 Kotlin으로 옮겼으므로 아래 규칙은 TS 표기(옛 형태)와 Kotlin 표기를 모두 받는다.
+    # Kotlin 오류 타입은 *Exception, 옛 TS 오류 클래스는 *Error 이름을 쓴다
     web_crypto_rules = [
-        ("교차 플랫폼 테스트 벡터(vectors.keyDerivationCases) 검증", r"vectors\.keyDerivationCases"),
+        ("교차 플랫폼 테스트 벡터(vectors.keyDerivationCases) 검증", r"""vectors\.keyDerivationCases|getValue\("keyDerivationCases"\)"""),
         ("PBKDF2 600,000회 하한 경계값(MIN_ITERATIONS - 1) 검증", r"MIN_ITERATIONS\s*-\s*1"),
-        ("암호화 키 추출 불가(extractable === false) 검증", r"encryptionKey\.extractable"),
-        ("AES-GCM 변조/AAD 복호화 거부(VaultDecryptError) 검증", r"VaultDecryptError"),
+        # Kotlin의 암호화 키(EncryptionKey)는 WebCrypto extractable 대신, 바이트를 밖으로 내지 않고 문자열로 찍어도 내용이 나오지 않는 것으로 검증한다
+        ("암호화 키 추출 불가(extractable === false 또는 EncryptionKey 바이트 비노출) 검증", r"""encryptionKey\.extractable|EncryptionKey\(\*\*\*\)"""),
+        ("AES-GCM 변조/AAD 복호화 거부(VaultDecryptError / VaultDecryptException / VaultDecryptionException) 검증", r"VaultDecrypt(?:ion)?(?:Error|Exception)"),
     ]
     check_invariants("Web", "1단계: 암호 모듈(vault-spec)", web_tests, web_crypto_rules)
 
     web_vault_rules = [
-        ("상위 버전 읽기 전용(ReadOnlyVaultError / readOnly) 검증", r"ReadOnlyVaultError"),
+        ("상위 버전 읽기 전용(ReadOnlyVaultError / ReadOnlyVaultException / readOnly) 검증", r"ReadOnlyVault(?:Error|Exception)"),
         ("상위 버전 읽기 전용 표준 문구 검증", r"새 버전 앱에서 저장한 볼트입니다\. 앱을 업데이트하기 전까지는 읽기만 할 수 있습니다\."),
         ("5MB 용량 초과(VaultTooLargeError) 및 표준 문구 검증", r"볼트 허용 용량\(5MB\)을 초과했거나 데이터 규격이 올바르지 않습니다\."),
         ("톰스톤(deletedAt) 삭제 및 병합 검증", r"\bdeletedAt\b"),
@@ -217,8 +220,9 @@ if os.path.isdir(web_src_dir):
     web_generator_rules = [
         ("길이 하한(8자)·상한(64자) 및 범위 밖(7, 65) 거부 검증", r"\b64\b"),
         ("거부 샘플링 1,000회 반복 검증", r"\b1000\b"),
-        ("플랫폼 공통 샘플('123456' -> 19점) 검증", r"\['123456',\s*19\]"),
-        ("플랫폼 공통 샘플('abc~~~~~' -> 40점) 검증", r"\['abc~~~~~',\s*40\]"),
+        # TS 표(['123456', 19])와 Kotlin 표("123456" to 19, assertEquals(19, scorePassword("123456")))를 모두 받는다
+        ("플랫폼 공통 샘플('123456' -> 19점) 검증", r"""\['123456',\s*19\]|"123456"\s+to\s+19\b|assertEquals\(\s*19\s*,\s*scorePassword\(\s*"123456"\s*\)"""),
+        ("플랫폼 공통 샘플('abc~~~~~' -> 40점) 검증", r"""\['abc~~~~~',\s*40\]|"abc~~~~~"\s+to\s+40\b|assertEquals\(\s*40\s*,\s*scorePassword\(\s*"abc~~~~~"\s*\)"""),
         ("표준 길이 에러 문구('비밀번호 길이는 최소 8자 이상 64자 이하이어야 합니다.') 검증", r"비밀번호 길이는 최소 8자 이상 64자 이하이어야 합니다\."),
         ("표준 문자군 에러 문구('최소 1개 이상의 문자 종류를 선택해야 합니다.') 검증", r"최소 1개 이상의 문자 종류를 선택해야 합니다\."),
         ("연속 숫자 감지(hasSequentialDigits) 검증", r"hasSequentialDigits"),
@@ -263,10 +267,10 @@ if os.path.isdir(web_src_dir):
 
     web_password_change_rules = [
         ("SEC-004 변경 흐름(changeMasterPassword) 검증", r"changeMasterPassword"),
-        ("SEC-004 새 salt 16바이트 경계값 검증", r"kdf\.salt\)\)\.toHaveLength\(16\)"),
-        ("SEC-004 새 비밀번호 SEC-002 길이 미달 거절(NewMasterPasswordTooShortError) 검증", r"NewMasterPasswordTooShortError"),
-        ("SEC-004 현재와 같음 거절(SameMasterPasswordError) 검증", r"SameMasterPasswordError"),
-        ("SEC-004 오프라인 거절(PasswordChangeOfflineError) 검증", r"PasswordChangeOfflineError"),
+        ("SEC-004 새 salt 16바이트 경계값 검증", r"""kdf\.salt\)\)\.toHaveLength\(16\)|assertEquals\(\s*16\s*,\s*fromBase64\([^)]*salt\)\.size\)"""),
+        ("SEC-004 새 비밀번호 SEC-002 길이 미달 거절(NewMasterPasswordTooShortError / Exception) 검증", r"NewMasterPasswordTooShort(?:Error|Exception)"),
+        ("SEC-004 현재와 같음 거절(SameMasterPasswordError / Exception) 검증", r"SameMasterPassword(?:Error|Exception)"),
+        ("SEC-004 오프라인 거절(PasswordChangeOfflineError / Exception) 검증", r"PasswordChangeOffline(?:Error|Exception)"),
         ("SEC-004 변경 전 안내 본문 검증", r"비밀번호를 바꾸면 다른 기기는 모두 로그아웃되고, 새 비밀번호로 다시 로그인해야 합니다\. 다른 기기에서 아직 올리지 못한 변경 사항은 사라집니다\. 예전에 내보낸 백업은 예전 비밀번호로 엽니다\."),
         ("SEC-004 현재와 같음 문구('새 비밀번호가 지금 비밀번호와 같습니다.') 검증", r"새 비밀번호가 지금 비밀번호와 같습니다\."),
         ("SEC-004 오프라인 문구('인터넷에 연결된 상태에서만 비밀번호를 바꿀 수 있습니다.') 검증", r"인터넷에 연결된 상태에서만 비밀번호를 바꿀 수 있습니다\."),
@@ -286,8 +290,8 @@ if os.path.isdir(web_src_dir):
         ("SEC-005 확인 문구 앞뒤 공백 불일치 경계값 검증", r"""["']계정 삭제 ["'][\s\S]*["'] 계정 삭제["']"""),
         ("SEC-005 확인 문구 일치 시 삭제 버튼 활성 검증", r"""(?:fill\(dialog, \{ phrase: '계정 삭제' \}\)\s*expect\(deleteButton\(dialog\)\)\.toBeEnabled\(\)|EditDeletionPhrase\("계정 삭제"\)\)\s*assertTrue\(state\.canSubmitDeletion\))"""),
         ("SEC-005 확인 문구 NFC 정규화 경계값 검증", r"'계정 삭제'\.normalize\('NFD'\)"),
-        ("SEC-005 오프라인 거절(AccountDeletionOfflineError) 검증", r"AccountDeletionOfflineError"),
-        ("SEC-005 기기 기록 삭제 실패(AccountDeletedDeviceNotClearedError) 검증", r"AccountDeletedDeviceNotClearedError"),
+        ("SEC-005 오프라인 거절(AccountDeletionOfflineError / Exception) 검증", r"AccountDeletionOffline(?:Error|Exception)"),
+        ("SEC-005 기기 기록 삭제 실패(AccountDeletedDeviceNotClearedError / Exception) 검증", r"AccountDeletedDeviceNotCleared(?:Error|Exception)"),
         ("SEC-005 삭제 전 안내 본문 검증", r"계정과 볼트가 서버에서 바로 지워지고 되돌릴 수 없습니다\. 다른 기기도 모두 로그아웃되고, 아직 올리지 못한 변경 사항은 사라집니다\. 필요하면 먼저 백업을 내보내 주세요\."),
         ("SEC-005 확인 문구 입력 칸 문구 검증", r"확인을 위해 '계정 삭제'를 입력해 주세요\."),
         ("SEC-005 비밀번호 틀림 문구('마스터 비밀번호가 올바르지 않습니다.') 검증", r"마스터 비밀번호가 올바르지 않습니다\."),

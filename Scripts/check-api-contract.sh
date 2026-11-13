@@ -2,7 +2,7 @@
 # API 명세(docs/api-spec.md) ↔ 백엔드·클라이언트 코드 계약 드리프트 정적 감사 (API Contract Drift Gate)
 #
 # docs/api-spec.md에 정의된 REST 엔드포인트(메서드·경로) 및 표준 오류 코드·메시지를 추출하여
-# Back/api 및 클라이언트(Apps/Web, 그리고 HTTP 어댑터가 구현된 Apps/Apple·Apps/Android)와
+# Back/api 및 클라이언트(Apps/Web이 쓰는 공유 Kotlin Apps/Shared/server-http, 그리고 HTTP 어댑터가 구현된 Apps/Apple·Apps/Android)와
 # 불일치(Drift)가 없는지 0초 만에 기계적으로 대조한다.
 
 set -euo pipefail
@@ -131,45 +131,89 @@ if os.path.isdir(back_api_dir):
         violations.append(f"[Back/api] Controller에만 존재하고 docs/api-spec.md에 없는 엔드포인트: {extra_ep_back}")
 
 # 4. Apps/Web 계약 대조
+# 웹이 실제로 쓰는 서버 통신 구현은 공유 Kotlin(Apps/Shared/server-http의 HttpAdapters.kt, domain의 ServerErrors.kt)이다.
+# 옛 TS 구현(Apps/Web/src/adapters/http, domain/server/serverErrors.ts)이 남아 있으면 그쪽도 같은 기준으로 대조한다.
 web_src_dir = os.path.join(root, "Apps", "Web", "src")
-if os.path.isdir(web_src_dir):
-    # 4-1. SERVER_ERROR_CODES 대조
+shared_dir = os.path.join(root, "Apps", "Shared")
+if os.path.isdir(web_src_dir) or os.path.isdir(shared_dir):
+    # 4-1. 오류 코드 대조 (Kotlin ServerErrorCode enum, 옛 TS SERVER_ERROR_CODES)
+    web_code_sources = []  # (표시 이름, 코드 집합)
+    kt_error_files = glob.glob(
+        os.path.join(shared_dir, "domain", "src", "commonMain", "**", "ServerErrors.kt"), recursive=True
+    )
+    for kpath in kt_error_files:
+        with open(kpath, encoding="utf-8") as f:
+            kt_text = f.read()
+        enum_m = re.search(r"enum\s+class\s+ServerErrorCode\s*\{(.*?)\bcompanion\b", kt_text, re.S)
+        # 정의에서 // 주석을 걷어내고 대문자 상수명만 모은다. UNKNOWN은 서버 코드가 아닌 클라이언트 대체값이다
+        enum_body = re.sub(r"//[^\n]*", "", enum_m.group(1)) if enum_m else ""
+        kt_codes = set(re.findall(r"\b([A-Z][A-Z0-9_]+)\b", enum_body)) - {"UNKNOWN"}
+        if not kt_codes:
+            violations.append("[Apps/Shared] ServerErrors.kt에서 ServerErrorCode enum을 파싱할 수 없습니다.")
+        web_code_sources.append(("ServerErrorCode(Kotlin)", kt_codes))
+
     server_errors_path = os.path.join(web_src_dir, "domain", "server", "serverErrors.ts")
-    if not os.path.isfile(server_errors_path):
-        violations.append("[Apps/Web] src/domain/server/serverErrors.ts 파일을 찾을 수 없습니다.")
-    else:
+    if os.path.isfile(server_errors_path):
         with open(server_errors_path, encoding="utf-8") as f:
             se_text = f.read()
         block_m = re.search(r"SERVER_ERROR_CODES\s*=\s*\[(.*?)\]\s*as\s*const", se_text, re.S)
-        web_codes = set(re.findall(r"'([A-Z][A-Z0-9_]+)'", block_m.group(1))) if block_m else set()
+        web_code_sources.append(
+            ("SERVER_ERROR_CODES(TS)", set(re.findall(r"'([A-Z][A-Z0-9_]+)'", block_m.group(1))) if block_m else set())
+        )
 
+    if not web_code_sources:
+        violations.append(
+            "[Apps/Web] 서버 오류 코드 정의(Apps/Shared/domain ServerErrors.kt 또는 src/domain/server/serverErrors.ts)를 찾을 수 없습니다."
+        )
+    for source_name, web_codes in web_code_sources:
         missing_in_web = sorted(spec_error_codes - web_codes)
         extra_in_web = sorted(web_codes - spec_error_codes)
         if missing_in_web:
-            violations.append(f"[Apps/Web] docs/api-spec.md에 정의되었으나 SERVER_ERROR_CODES에 누락된 오류 코드: {', '.join(missing_in_web)}")
+            violations.append(f"[Apps/Web] docs/api-spec.md에 정의되었으나 {source_name}에 누락된 오류 코드: {', '.join(missing_in_web)}")
         if extra_in_web:
-            violations.append(f"[Apps/Web] SERVER_ERROR_CODES에만 존재하고 docs/api-spec.md에 없는 오류 코드: {', '.join(extra_in_web)}")
+            violations.append(f"[Apps/Web] {source_name}에만 존재하고 docs/api-spec.md에 없는 오류 코드: {', '.join(extra_in_web)}")
 
-    # 4-2. HTTP 어댑터 엔드포인트 대조
+    # 4-2. HTTP 어댑터 엔드포인트 대조 (Kotlin: client.request(HttpMethod.Post, "/auth/login" ...), 옛 TS: client.request('POST', '/auth/login' ...))
+    web_endpoint_sources = []  # (표시 이름, 엔드포인트 집합)
+
+    def to_full_path(sub_path):
+        return sub_path if sub_path.startswith("/api/v1") else f"/api/v1{sub_path}"
+
+    kt_http_files = [
+        p
+        for p in glob.glob(os.path.join(shared_dir, "server-http", "src", "commonMain", "**", "*.kt"), recursive=True)
+        if os.path.isfile(p)
+    ]
+    if kt_http_files:
+        kt_endpoints = set()
+        for kpath in kt_http_files:
+            with open(kpath, encoding="utf-8") as f:
+                ktext = f.read()
+            for m in re.finditer(r'client\.request\(\s*HttpMethod\.(Get|Post|Put|Delete|Patch)\s*,\s*"(/[^"]*)"', ktext):
+                kt_endpoints.add((m.group(1).upper(), to_full_path(m.group(2))))
+        web_endpoint_sources.append(("Apps/Shared/server-http HTTP 어댑터", kt_endpoints))
+
     http_dir = os.path.join(web_src_dir, "adapters", "http")
-    if os.path.isdir(http_dir):
-        web_endpoints = set()
-        for tpath in glob.glob(os.path.join(http_dir, "*.ts")):
-            if tpath.endswith(".test.ts"):
-                continue
-            with open(tpath, encoding="utf-8") as f:
-                ttext = f.read()
-            for m in re.finditer(r"client\.request\(\s*'(GET|POST|PUT|DELETE|PATCH)'\s*,\s*'(/[^']*)'", ttext):
-                sub_path = m.group(2)
-                full_path = sub_path if sub_path.startswith("/api/v1") else f"/api/v1{sub_path}"
-                web_endpoints.add((m.group(1), full_path))
+    ts_http_files = [p for p in glob.glob(os.path.join(http_dir, "*.ts")) if not p.endswith(".test.ts")]
+    ts_endpoints = set()
+    for tpath in ts_http_files:
+        with open(tpath, encoding="utf-8") as f:
+            ttext = f.read()
+        for m in re.finditer(r"client\.request\(\s*'(GET|POST|PUT|DELETE|PATCH)'\s*,\s*'(/[^']*)'", ttext):
+            ts_endpoints.add((m.group(1), to_full_path(m.group(2))))
+    # 옛 TS 어댑터는 엔드포인트가 남아 있을 때만 대조한다 (Kotlin으로 옮긴 뒤 지워도 감사가 깨지지 않게)
+    if ts_endpoints:
+        web_endpoint_sources.append(("Apps/Web HTTP 어댑터(TS)", ts_endpoints))
 
+    if not web_endpoint_sources:
+        violations.append("[Apps/Web] HTTP 어댑터(Apps/Shared/server-http HttpAdapters.kt)를 찾을 수 없습니다.")
+    for source_name, web_endpoints in web_endpoint_sources:
         missing_ep_web = sorted(spec_endpoints - web_endpoints)
         extra_ep_web = sorted(web_endpoints - spec_endpoints)
         if missing_ep_web:
-            violations.append(f"[Apps/Web] docs/api-spec.md에 정의되었으나 HTTP 어댑터에 누락된 엔드포인트: {missing_ep_web}")
+            violations.append(f"[Apps/Web] docs/api-spec.md에 정의되었으나 {source_name}에 누락된 엔드포인트: {missing_ep_web}")
         if extra_ep_web:
-            violations.append(f"[Apps/Web] HTTP 어댑터에만 존재하고 docs/api-spec.md에 없는 엔드포인트: {extra_ep_web}")
+            violations.append(f"[Apps/Web] {source_name}에만 존재하고 docs/api-spec.md에 없는 엔드포인트: {extra_ep_web}")
 
 if violations:
     print("API 명세(docs/api-spec.md) 계약 드리프트 위반 발견:")
