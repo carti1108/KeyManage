@@ -62,7 +62,7 @@ class RootInteractorTest {
         RibCoroutinesConfig.reset()
     }
 
-    private fun mountRoot(): RibMount {
+    private fun mountRoot(initialNotice: String? = null): RibMount {
         val dependency = object : RootDependency {
             override val rootViewFactory = RootViewFactory { factory.makeRootView() }
             override val authViewFactory = AuthViewFactory { factory.makeAuthView() }
@@ -77,7 +77,7 @@ class RootInteractorTest {
             override val environment: AppEnvironment = this@RootInteractorTest.environment
             override val randomBytes: RandomBytes = FakeRandomBytes()
         }
-        return RootBuilder(dependency).build().mount()
+        return RootBuilder(dependency).build(initialNotice).mount()
     }
 
     private fun rootTest(block: suspend TestScope.(RibMount) -> Unit) = runTest(dispatcher) {
@@ -561,6 +561,86 @@ class RootInteractorTest {
             gate.complete(Unit)
             settle()
         }
+    }
+
+    @Test
+    fun 잠금_화면의_로그아웃은_세션_알림이_와도_끝날_때까지_화면을_내리지_않는다() = runTest(dispatcher) {
+        session.startLocked()
+        var finished = false
+        val gate = CompletableDeferred<Unit>()
+        // 세션은 기기 기록을 정리한 뒤 서버에 토큰 폐기를 요청한다. 정리는 이미 끝났고 이 탭은 로그인 전 상태다
+        session.logoutHandler = {
+            gate.await()
+            finished = true
+        }
+        val mount = mountRoot()
+        val unlockScreen = root.visible.single()
+
+        factory.unlockViews.single().listener!!.handle(UnlockViewAction.RequestLogout)
+        settle()
+        session.fireRemote()
+        settle()
+
+        assertEquals(0, factory.authViews.size)
+        assertEquals(1, root.visible.size)
+        assertSame(unlockScreen, root.visible.single())
+
+        gate.complete(Unit)
+        settle()
+
+        assertTrue(finished)
+        assertEquals(1, factory.authViews.size)
+        assertEquals(listOf(factory.authViews.single()), root.visible)
+        mount.unmount()
+    }
+
+    @Test
+    fun 잠금_화면의_로그아웃_중_기기_기록을_지우지_못해도_안내가_로그인_화면에_닿는다() = runTest(dispatcher) {
+        session.startLocked()
+        val gate = CompletableDeferred<Unit>()
+        session.logoutHandler = {
+            gate.await()
+            throw DeviceStorageException(IllegalStateException("삭제 실패"))
+        }
+        val mount = mountRoot()
+
+        factory.unlockViews.single().listener!!.handle(UnlockViewAction.RequestLogout)
+        settle()
+        session.fireRemote()
+        gate.complete(Unit)
+        settle()
+
+        assertEquals(LOGOUT_CLEAR_FAILED, factory.authViews.last().state.notice)
+        mount.unmount()
+    }
+
+    // --- 시작할 때 받은 안내 (웹 restoreError) ---
+
+    @Test
+    fun 시작할_때_받은_안내를_첫_로그인_화면에_보이고_다음_로그인_화면에는_없다() = runTest(dispatcher) {
+        val mount = mountRoot(initialNotice = "로그인이 만료되었습니다. 다시 로그인해 주세요.")
+
+        assertEquals("로그인이 만료되었습니다. 다시 로그인해 주세요.", factory.authViews.single().state.notice)
+
+        signIn()
+        mainListener().handle(MainViewAction.RequestLogout)
+        settle()
+
+        assertNull(factory.authViews.last().state.notice)
+        mount.unmount()
+    }
+
+    @Test
+    fun 시작할_때_받은_안내는_로그인_화면이_아닌_첫_화면에서는_쓰지_않고_로그인_화면이_뜰_때까지_들고_있다() = runTest(dispatcher) {
+        session.startLocked()
+        val mount = mountRoot(initialNotice = "만료 안내")
+        assertEquals(0, factory.authViews.size)
+
+        session.remoteLogout()
+        settle()
+
+        assertEquals("만료 안내", factory.authViews.single().state.notice)
+        mount.unmount()
     }
 
     // --- 생명주기 ---

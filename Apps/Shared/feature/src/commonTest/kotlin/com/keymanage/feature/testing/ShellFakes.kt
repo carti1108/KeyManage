@@ -15,8 +15,10 @@ import com.keymanage.domain.platform.RandomBytes
 import com.keymanage.domain.session.LockScope
 import com.keymanage.domain.session.SessionState
 import com.keymanage.domain.session.SyncChangeListener
+import com.keymanage.domain.vault.ItemFields
 import com.keymanage.domain.vault.SyncedVault
 import com.keymanage.domain.vault.VaultData
+import com.keymanage.domain.vault.addItem
 import com.keymanage.domain.vault.emptyVault
 import com.keymanage.feature.AppEnvironment
 import com.keymanage.feature.BackupFilesPort
@@ -56,6 +58,10 @@ import kotlin.time.Instant
 val TEST_NOW: Instant = Instant.fromEpochSeconds(1_700_000_000)
 const val TEST_EMAIL = "user@test.com"
 
+/** 서비스 이름이 [names]인 항목만 든 볼트. 항목 id는 "id-이름" */
+fun testVault(vararg names: String): VaultData =
+    names.fold(emptyVault(TEST_NOW)) { vault, name -> addItem(vault, ItemFields(name, "", ""), TEST_NOW, "id-$name") }
+
 class TestDispatchers(dispatcher: CoroutineDispatcher) : RibDispatchersProvider {
     override val Main: CoroutineDispatcher = dispatcher
     override val MainImmediate: CoroutineDispatcher = dispatcher
@@ -82,6 +88,9 @@ class FakeSession : SessionPort {
     var readOnly = false
     var current: SessionState = SessionState.SignedOut
 
+    /** 열린 볼트의 내용. 저장하면 바뀌고, [replaceVault]로 알림 없이 바꿀 수도 있다 */
+    var vault: VaultData = emptyVault(TEST_NOW)
+
     var loginHandler: suspend () -> Unit = {}
     var unlockHandler: suspend (String, Boolean) -> Boolean = { _, _ -> false }
     var reconnectHandler: suspend (String, Boolean) -> Unit = { _, _ -> }
@@ -89,10 +98,14 @@ class FakeSession : SessionPort {
     var deleteAccountHandler: suspend (String) -> Unit = {}
     var pendingOnDeviceHandler: suspend () -> Boolean = { false }
 
+    /** 저장을 반영한 뒤 부른다. 던지면 실제 세션처럼 "반영한 뒤 거절"이 된다 */
+    var saveHandler: suspend (VaultData) -> Unit = {}
+
     val logins = mutableListOf<Triple<String, String, Boolean>>()
     val unlocks = mutableListOf<Pair<String, Boolean>>()
     val reconnects = mutableListOf<Pair<String, Boolean>>()
     val deletes = mutableListOf<String>()
+    val saved = mutableListOf<VaultData>()
     val lockScopes = mutableListOf<LockScope>()
     var logoutCalls = 0
     var pendingOnDeviceCalls = 0
@@ -105,7 +118,7 @@ class FakeSession : SessionPort {
 
     fun unlockedState(): SessionState.Unlocked = SessionState.Unlocked(
         email = email,
-        vault = SyncedVault(revision = 1, data = emptyVault(TEST_NOW), readOnly = readOnly, payload = null),
+        vault = SyncedVault(revision = 1, data = vault, readOnly = readOnly, payload = null),
         pendingSync = pendingSync,
         signedIn = signedIn,
         storedOnDevice = storedOnDevice,
@@ -118,6 +131,12 @@ class FakeSession : SessionPort {
     /** 상태 값(pendingSync 등)을 바꾼 뒤 열린 상태를 다시 만든다. 알리지 않는다 */
     fun refreshUnlocked() {
         current = unlockedState()
+    }
+
+    /** 복원·재연결처럼 알림 없이 세션의 볼트가 바뀐다 */
+    fun replaceVault(next: VaultData) {
+        vault = next
+        if (current is SessionState.Unlocked) refreshUnlocked()
     }
 
     // --- 실제 세션처럼 상태를 바꾸고 알린다 ---
@@ -191,7 +210,11 @@ class FakeSession : SessionPort {
         refreshUnlocked()
     }
 
-    override suspend fun save(data: VaultData) = Unit
+    override suspend fun save(data: VaultData) {
+        saved += data
+        replaceVault(data)
+        saveHandler(data)
+    }
 
     override suspend fun exportBackup(now: Instant, calendar: LocalCalendar): BackupFile = error("이 테스트에서 쓰지 않는 기능")
 

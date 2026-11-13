@@ -25,7 +25,9 @@ interface KeyManageViewFactory :
 
 /**
  * 플랫폼 진입점. 뷰 팩토리와 바깥 기능을 받아 루트 RIB을 만들고, [start]/[stop]으로 트리를 시작하고 끝낸다.
- * 생명주기 호출은 메인 스레드에서 한다
+ * 생명주기 호출은 메인 스레드에서 한다. 끝낸 뒤 다시 [start]할 수 있다
+ *
+ * @param initialNotice 시작할 때 이미 정해진 로그인 화면 안내. 세션을 복구하다 만료됐을 때처럼 첫 로그인 화면에 보일 문구를 넘긴다
  */
 class KeyManageApp(
     viewFactory: KeyManageViewFactory,
@@ -34,6 +36,7 @@ class KeyManageApp(
     backupFiles: BackupFilesPort,
     environment: AppEnvironment,
     randomBytes: RandomBytes,
+    initialNotice: String? = null,
 ) {
     private val router = RootBuilder(
         object : RootDependency {
@@ -50,7 +53,7 @@ class KeyManageApp(
             override val backupFiles: BackupFilesPort = backupFiles
             override val randomBytes: RandomBytes = randomBytes
         },
-    ).build()
+    ).build(initialNotice)
 
     /** 루트 화면을 [host]에 보이고 세션 상태에 맞는 첫 화면을 붙인다 */
     fun start(host: ViewHost<RootPresentable>) {
