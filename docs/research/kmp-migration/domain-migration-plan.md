@@ -321,3 +321,27 @@ HTTP는 6단계의 `server-http`(Ktor JS 엔진, 브라우저 `fetch`)를 쓴다
 - 웹 전체 테스트(`npm test`)와 타입 검사가 그대로 통과한다. 화면 테스트는 가짜 세션을 쓰므로 바뀌지 않는다.
 - 웹이 저장한 기기 기록(IndexedDB)을 Kotlin 세션이 그대로 읽는다(3단계에서 형식 호환 확인함).
 - 지우기: 이 조각이 끝나면 `Apps/Web/src/domain/session/`과 이를 쓰던 테스트를 지운다. 다른 웹 domain 코드(`vaultData` 등)는 화면이 아직 쓰므로 남긴다.
+
+### 10.3 진행 기록 (2026-11-13)
+
+웹 `services.ts`가 이제 TypeScript 세션 대신 공유 Kotlin 세션(`Apps/Shared/web-session`)을 쓴다. React 화면과 브라우저 어댑터(IndexedDB·`navigator.locks`·`BroadcastChannel`·`sessionStorage`)는 그대로다.
+
+| 확인 | 결과 |
+| :--- | :--- |
+| `web-session` Kotlin 테스트(Chrome Headless, MockEngine 서버, 실제 JS fetch 거부) | 37/37 |
+| 웹 어댑터 단위 테스트(가짜 Kotlin 모듈) | 94/94 |
+| 웹 계약 테스트(실제 Kotlin 빌드 + 가짜 `fetch` 서버): 가입 → 저장 → 잠금 → 잠금 해제, 오류 변환, 기기 기록 복원 | 3/3 |
+| 웹 전체(`npm run check`: 타입 검사·oxlint·vitest) | 859/859 |
+| `vite build` | 성공 |
+
+- 빌드 순서: 웹을 빌드·테스트하기 전에 `npm run kotlin`(`:web-session:jsBrowserProductionLibraryDistribution`)으로 Kotlin 결과물을 만들어야 한다. Vite 별칭과 `tsconfig.app.json` `paths`가 그 결과물을 가리킨다. 웹 CI는 아직 이 순서를 모르므로 이 브랜치에서는 깨진다.
+- 번들 크기: 메인 JS가 358KB(gzip 110KB)에서 1.21MB(gzip 344KB)로 늘었다. Kotlin 표준 라이브러리·코루틴·Ktor·cryptography-kotlin이 들어간 몫이다. 줄이는 일은 아직 하지 않았다.
+- Ktor JS는 Node 웹소켓용으로 `ws`를 동적으로 가져온다. 이 앱은 웹소켓을 쓰지 않으므로 Vite 별칭으로 빈 모듈(`adapters/kotlin/wsStub.ts`)을 넣었다.
+- Kotlin/JS는 nullable을 `T | null | undefined`로 내보낸다. 어댑터는 `== null`로 둘 다 받는다.
+- 아직 지우지 않음: `Apps/Web/src/domain/session/`. 어댑터가 웹 오류 클래스와 `VaultSession` 타입을 여기서 가져오고, 화면 테스트 픽스처가 TS 세션을 쓴다. 오류 클래스·타입을 옮긴 뒤 지우는 일은 다음 작업이다. 웹 `adapters/http`도 남아 있다.
+- 독립 코드 리뷰(실제 빌드 결과로 재현)에서 나온 문제를 고쳤다. 모두 수정 전 실패하는 테스트를 먼저 추가했다.
+  - CRITICAL: Ktor JS는 연결 실패를 `kotlin.Error`(Exception 아님)로 던져 `server-http`가 `NetworkError`로 바꾸지 못했다. 오프라인 잠금 해제가 실패했다. `catch (Throwable)`로 바꿨다.
+  - HIGH: 브라우저 포트가 reject한 JS `Error`도 Exception이 아니어서 도메인의 오류 처리를 건너뛰었다(기기 저장 실패 시 로그아웃이 서버 토큰을 폐기하지 않음 등). 기기 저장소 오류는 `DeviceStorageException`, 탭 잠금 오류는 `TabLockException`으로 감싼다.
+  - HIGH: `scope.promise`가 바로 시작하지 않아 원래 TypeScript의 "부르는 즉시 실행되는 앞부분"이 늦었다(잠금 해제 직후 잠금이 무시됨, 잠금 화면 로그아웃 후 화면이 남음). `CoroutineStart.UNDISPATCHED`로 시작한다.
+  - 그 밖에: 잠그면 상태 캐시의 평문 볼트를 버린다, 알 수 없는 오류는 `Error`로 감싼다, `Promise<Unit>`은 `undefined`로 끝낸다, 통합 테스트 설정도 같은 별칭(`vite.alias.ts`)을 쓴다.
+- 실제 브라우저에서 확인했다(Vite 개발 서버 + 로컬 백엔드 jar, 임시 데이터 폴더): 가입 → 볼트 화면, 잠그기 → 틀린 비밀번호 문구("마스터 비밀번호가 올바르지 않습니다.") → 잠금 해제, 새로고침 → IndexedDB 기록으로 잠긴 화면. 요청 순서는 원래 웹과 같다(가입 직후 볼트 GET 404 `VAULT_NOT_FOUND` → 첫 저장).
