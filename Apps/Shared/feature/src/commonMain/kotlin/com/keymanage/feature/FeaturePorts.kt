@@ -29,6 +29,10 @@ interface SessionPort {
     suspend fun restoreBackup(backup: VaultBackup, password: String, now: Instant): Int
     suspend fun changeMasterPassword(currentPassword: String, newPassword: String)
     suspend fun deleteAccount(password: String)
+    /**
+     * 이 기기의 세션과 기록을 지운다. 서버 토큰 폐기는 기다리지 않으며(세션의 범위에서 끝까지 한다, 실패해도 알리지 않는다) 화면 수명과 무관하다.
+     * @throws DeviceStorageException 기기 기록을 지우지 못함
+     */
     suspend fun logout()
     suspend fun pendingOnDevice(): Boolean
     fun onRemoteChange(listener: () -> Unit): () -> Unit
@@ -49,7 +53,7 @@ class SessionPortAdapter(private val session: VaultSession) : SessionPort {
     override suspend fun restoreBackup(backup: VaultBackup, password: String, now: Instant) = session.restoreBackup(backup, password, now)
     override suspend fun changeMasterPassword(currentPassword: String, newPassword: String) = session.changeMasterPassword(currentPassword, newPassword)
     override suspend fun deleteAccount(password: String) = session.deleteAccount(password)
-    override suspend fun logout() = session.logout()
+    override suspend fun logout() = session.logoutAndRevokeInBackground()
     override suspend fun pendingOnDevice() = session.pendingOnDevice()
     override fun onRemoteChange(listener: () -> Unit) = session.onRemoteChange(listener)
     override fun onLock(listener: () -> Unit) = session.onLock(listener)

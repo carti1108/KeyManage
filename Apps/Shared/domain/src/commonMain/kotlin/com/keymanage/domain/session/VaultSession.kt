@@ -273,25 +273,52 @@ class VaultSession(private val deps: VaultSessionDeps) : RestoreTarget {
      * @throws DeviceStorageException 기기 기록을 지우지 못함(서버 폐기 오류보다 먼저 알린다), 그 밖에 서버 폐기 요청 오류
      */
     suspend fun logout() {
-        val account = ctx.account
-        val token = account?.accessToken
-        resetSignIn(ctx)
-        // 이 기기의 기록도 지운다 (ADR-0019). 지우지 못했으면 서버 폐기 결과보다 먼저 알린다
-        val cleared = deps.tabs.lock.run(TabLockName.DEVICE) { device.clear() } == true
-        // 같은 계정의 다른 탭도 로그아웃한다. 기기 기록은 이 탭이 지웠다
-        if (account != null) deps.tabs.channel.post(TabMessage.LOGGED_OUT)
+        val local = logoutLocally(revokeInBackground = false)
         var serverError: Exception? = null
-        if (token != null) {
+        if (local.token != null) {
             try {
-                deps.auth.logout(token)
+                deps.auth.logout(local.token)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
                 serverError = error
             }
         }
-        if (!cleared) throw DeviceStorageException(IllegalStateException("로그아웃 때 기기 기록을 지우지 못함"))
+        local.throwIfRecordNotCleared()
         serverError?.let { throw it }
+    }
+
+    /**
+     * [logout]과 같이 이 기기의 세션과 기록을 먼저 지우지만, 서버 토큰 폐기는 기다리지 않는다. 폐기는 [VaultSessionDeps.scope]에서 끝까지 하며
+     * 실패해도 알리지 않는다(토큰은 만료(30일)로 정리된다, SEC-002). 오프라인이거나 서버가 느려도 화면이 바로 로그인 전으로 바뀌게 한다.
+     * 이 함수를 부른 화면이 내려가도 폐기는 취소되지 않는다
+     * @throws DeviceStorageException 기기 기록을 지우지 못함
+     */
+    suspend fun logoutAndRevokeInBackground() {
+        val local = logoutLocally(revokeInBackground = true)
+        local.throwIfRecordNotCleared()
+    }
+
+    /**
+     * 로그인 상태와 기기 기록을 지우고 다른 탭에 알린다. [revokeInBackground]면 기기 기록을 지우려고 기다리기 전에 토큰 폐기 요청을
+     * [VaultSessionDeps.scope]에 띄운다. 아니면 폐기는 부른 쪽이 한다
+     */
+    private suspend fun logoutLocally(revokeInBackground: Boolean): LocalLogout {
+        val account = ctx.account
+        val token = account?.accessToken
+        resetSignIn(ctx)
+        if (revokeInBackground && token != null) revoke(ctx, token)
+        // 이 기기의 기록도 지운다 (ADR-0019). 지우지 못했으면 서버 폐기 결과보다 먼저 알린다
+        val cleared = deps.tabs.lock.run(TabLockName.DEVICE) { device.clear() } == true
+        // 같은 계정의 다른 탭도 로그아웃한다. 기기 기록은 이 탭이 지웠다
+        if (account != null) deps.tabs.channel.post(TabMessage.LOGGED_OUT)
+        return LocalLogout(token, cleared)
+    }
+
+    private class LocalLogout(val token: String?, private val recordCleared: Boolean) {
+        fun throwIfRecordNotCleared() {
+            if (!recordCleared) throw DeviceStorageException(IllegalStateException("로그아웃 때 기기 기록을 지우지 못함"))
+        }
     }
 
     /**

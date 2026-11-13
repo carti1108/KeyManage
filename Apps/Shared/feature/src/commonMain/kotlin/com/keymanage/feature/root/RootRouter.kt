@@ -50,13 +50,17 @@ class RootRouter(
     }
 
     /**
-     * @param notice 로그인 화면에 보일 안내. 이미 로그인 화면이 떠 있으면 안내가 있고 이미 보인 것과 다를 때만 새로 만든다
+     * @param notice 로그인 화면에 보일 안내. 이미 로그인 화면이 떠 있으면 화면을 다시 만들지 않는다(입력한 이메일이 사라지므로).
+     * 안내가 있고 이미 보인 것과 다를 때만 떠 있는 화면에 안내를 갈아 끼운다
      * (안내가 화면을 만든 뒤에 도착하는 경우: 로그아웃 결과, 다른 곳의 비밀번호 변경)
      */
     fun routeToAuth(notice: String?) {
-        if (auth != null) {
-            if (notice == null || notice == authNotice) return
-            removeAuth()
+        auth?.let { shown ->
+            if (notice != null && notice != authNotice) {
+                shown.interactor.showNotice(notice)
+                authNotice = notice
+            }
+            return
         }
         removeUnlock()
         removeMain()

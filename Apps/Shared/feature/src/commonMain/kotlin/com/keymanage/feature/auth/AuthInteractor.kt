@@ -53,6 +53,25 @@ class AuthInteractor(
         }
     }
 
+    /**
+     * 이미 떠 있는 로그인 화면에 새 안내(세션 만료, 다른 곳의 비밀번호 변경 등)를 보인다. 화면을 다시 만들지 않으므로 이메일은 남는다.
+     * 비밀번호·확인 입력과 되돌림 경고(보관한 비밀번호 포함)는 비운다. 안내는 다시 로그인하라는 뜻이라 로그인 모드로 돌린다 (SEC-002, SEC-003)
+     */
+    fun showNotice(notice: String) {
+        if (!isActive) return
+        rollbackRetry = null
+        update {
+            copy(
+                mode = AuthMode.LOGIN,
+                password = "",
+                confirmation = "",
+                notice = notice,
+                error = null,
+                isConfirmingRollback = false,
+            )
+        }
+    }
+
     private fun update(change: AuthViewState.() -> AuthViewState) {
         state = state.change()
         render()
