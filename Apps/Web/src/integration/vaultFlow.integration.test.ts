@@ -6,7 +6,7 @@ import { createIndexedDbDeviceStore } from '../adapters/browser/indexedDbDeviceS
 import * as kotlinModule from 'keymanage-web-session'
 import { createKotlinApp } from '../app/kotlinApp'
 import { ServerError } from '../domain/server/serverErrors'
-import { SessionStateError, WrongMasterPasswordError, type VaultSession } from '../domain/session/vaultSession'
+import { SessionStateError, WrongMasterPasswordError, type VaultSession } from '../domain/session/sessionTypes'
 import { activeItems, addItem, deleteItem, type VaultData } from '../domain/vault/vaultData'
 
 // 앱 tsconfig는 브라우저 기준이라 Node의 process 타입이 없다. 통합 테스트는 Node에서만 돈다

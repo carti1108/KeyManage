@@ -5,7 +5,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { createIndexedDbDeviceStore } from '../adapters/browser/indexedDbDeviceStore'
 import * as kotlinModule from 'keymanage-web-session'
 import { createKotlinApp } from '../app/kotlinApp'
-import { SessionExpiredError, WrongMasterPasswordError, type VaultSession } from '../domain/session/vaultSession'
+import { SessionExpiredError, WrongMasterPasswordError, type VaultSession } from '../domain/session/sessionTypes'
 import { createSingleTabFallback } from '../domain/tabs/inMemoryTabs'
 import { activeItems, addItem } from '../domain/vault/vaultData'
 

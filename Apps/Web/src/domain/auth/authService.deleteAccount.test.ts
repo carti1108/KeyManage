@@ -1,7 +1,7 @@
 // @vitest-environment node
 // 계정 삭제 요청을 만들고 인증 해시 바이트를 남기지 않는다 (SEC-005, api-spec 2.5.6)
 import { describe, expect, it } from 'vitest'
-import { FakeAuthApi } from '../../test/sessionFixtures'
+import { FakeAuthApi } from '../../test/fakeServerApis'
 import { toBase64 } from '../crypto/base64'
 import { ServerError } from '../server/serverErrors'
 import { createAuthService } from './authService'

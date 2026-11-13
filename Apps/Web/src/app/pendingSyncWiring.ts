@@ -1,5 +1,5 @@
 // 동기화 대기 내용을 재연결·주기마다 다시 보내고, 기기에 저장하지 못한 대기 내용이 있으면 탭을 떠날 때 확인을 받는다 (VLT-002)
-import type { VaultSession } from '../domain/session/vaultSession'
+import type { VaultSession } from '../domain/session/sessionTypes'
 import type { Tabs } from '../domain/tabs/tabs'
 
 /** 대기 내용 재전송 간격 (VLT-002) */

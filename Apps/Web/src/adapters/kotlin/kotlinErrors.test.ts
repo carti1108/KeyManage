@@ -16,7 +16,7 @@ import {
   SessionStateError,
   VaultSetupError,
   WrongMasterPasswordError,
-} from '../../domain/session/vaultSession'
+} from '../../domain/session/sessionTypes'
 import { InvalidVaultDataError } from '../../domain/vault/vaultData'
 import { ReadOnlyVaultError, RevisionRollbackError, VaultSyncConflictError, VaultTooLargeError } from '../../domain/vault/vaultSync'
 import { FakeKotlinThrowable, createFakeKotlin } from '../../test/fakeKotlinModule'

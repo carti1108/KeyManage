@@ -3,9 +3,10 @@
 import * as kotlin from 'keymanage-web-session'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DeviceRecord, DeviceStore } from '../../domain/device/deviceRecord'
+import { fromBase64 } from '../../domain/crypto/base64'
 import { createInMemoryTabHub } from '../../domain/tabs/inMemoryTabs'
 import { ServerError } from '../../domain/server/serverErrors'
-import { WrongMasterPasswordError } from '../../domain/session/vaultSession'
+import { WrongMasterPasswordError } from '../../domain/session/sessionTypes'
 import { addItem } from '../../domain/vault/vaultData'
 import { createKotlinSession } from './kotlinSession'
 
@@ -25,6 +26,7 @@ function fakeServer() {
   const tokens = new Set<string>()
   let vault: { revision: number; payload: unknown } | null = null
   let issued = 0
+  let lastChange: Record<string, unknown> | null = null
   let failNext: { status: number; code: string; retryAfter?: string } | null = null
   const json = (status: number, body: unknown, headers: Record<string, string> = {}) =>
     new Response(body === null ? null : JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', ...headers } })
@@ -61,6 +63,18 @@ function fakeServer() {
         if (!account || account.authHash !== body.authHash) return error(401, 'AUTH_FAILED')
         return json(200, session())
       }
+      case '/api/v1/auth/change-password': {
+        if (!tokens.has(token)) return error(401, 'UNAUTHORIZED')
+        const [email, account] = [...accounts].find(([, candidate]) => candidate.authHash === body.currentAuthHash) ?? []
+        if (email === undefined || account === undefined) return error(401, 'AUTH_FAILED')
+        const kdf = body.kdf as { iterations: number; salt: string }
+        const sent = body.vault as { expectedRevision: number; payload: unknown }
+        if ((vault?.revision ?? 0) !== sent.expectedRevision) return error(409, 'VAULT_CONFLICT')
+        lastChange = body
+        accounts.set(email, { authHash: String(body.newAuthHash), salt: kdf.salt, iterations: kdf.iterations })
+        vault = { revision: sent.expectedRevision + 1, payload: sent.payload }
+        return json(200, { ...session(), revision: vault.revision })
+      }
       case '/api/v1/auth/logout':
         tokens.delete(token)
         return new Response(null, { status: 204 })
@@ -80,6 +94,7 @@ function fakeServer() {
       failNext = { status, code, retryAfter }
     },
     vaultRevision: () => vault?.revision ?? 0,
+    lastChange: () => lastChange,
   }
 }
 
@@ -169,5 +184,22 @@ describe('Kotlin 세션 계약', { timeout: 120_000 }, () => {
     await next.session.restore()
 
     expect(next.session.state()).toEqual({ status: 'locked', email: EMAIL, pendingSync: false })
+  })
+
+  // SEC-004: 비밀번호를 바꿀 때 새 salt는 16바이트이고 반복 횟수는 지금 값을 유지한다
+  it('비밀번호를 바꾸면 새 16바이트 salt와 새 인증 해시로 서버에 보낸다', async () => {
+    const { session } = newSession()
+    await session.register(EMAIL, PASSWORD)
+    const registered = session.state()
+    if (registered.status !== 'unlocked') throw new Error('가입 뒤 열려 있지 않음')
+
+    await session.changeMasterPassword(PASSWORD, 'another correct horse battery')
+
+    const request = server.lastChange() as { currentAuthHash: string; newAuthHash: string; kdf: { iterations: number; salt: string } } | null
+    if (request === null) throw new Error('비밀번호 변경 요청이 없음')
+    expect(fromBase64(request.kdf.salt)).toHaveLength(16)
+    expect(request.kdf.iterations).toBe(600_000)
+    expect(request.newAuthHash).not.toBe(request.currentAuthHash)
+    expect(session.state().status).toBe('unlocked')
   })
 })

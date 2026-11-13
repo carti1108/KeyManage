@@ -19,7 +19,7 @@ import {
   SessionExpiredError,
   VaultSetupError,
   WrongMasterPasswordError,
-} from '../../domain/session/vaultSession'
+} from '../../domain/session/sessionTypes'
 
 export interface ErrorMessage {
   readonly title?: string

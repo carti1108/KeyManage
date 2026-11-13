@@ -13,14 +13,14 @@ import { toJsDeviceStore, toJsTabMemory, toJsTabs } from '../adapters/kotlin/kot
 import { wrapKotlinSession } from '../adapters/kotlin/kotlinSession'
 import { requestPersistentStorage } from '../adapters/browser/indexedDbDeviceStore'
 import { MasterPasswordChangedError } from '../domain/auth/authService'
-import { SessionExpiredError } from '../domain/session/vaultSession'
+import { SessionExpiredError } from '../domain/session/sessionTypes'
 import { describeError } from '../ui/messages/errorMessage'
 import type { BackupFiles } from '../domain/backup/backupFile'
 import { createClipboardBurner, type ClipboardBurner } from '../domain/clipboard/clipboardBurner'
 import type { DeviceStore } from '../domain/device/deviceRecord'
 import type { TabMemory } from '../domain/device/tabMemory'
 import type { AutoLockSettingStore } from '../domain/lock/autoLockSetting'
-import type { VaultSession } from '../domain/session/vaultSession'
+import type { VaultSession } from '../domain/session/sessionTypes'
 import type { Tabs } from '../domain/tabs/tabs'
 
 /** Kotlin 빌드 결과에서 이 파일이 쓰는 값. 테스트는 가짜를 넣는다 */

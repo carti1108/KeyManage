@@ -5,7 +5,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { createIndexedDbDeviceStore } from '../adapters/browser/indexedDbDeviceStore'
 import * as kotlinModule from 'keymanage-web-session'
 import { createKotlinApp } from '../app/kotlinApp'
-import { SessionExpiredError, WrongMasterPasswordError, type VaultSession } from '../domain/session/vaultSession'
+import { SessionExpiredError, WrongMasterPasswordError, type VaultSession } from '../domain/session/sessionTypes'
 import { activeItems, addItem } from '../domain/vault/vaultData'
 
 const env = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env
