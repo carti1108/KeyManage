@@ -3,6 +3,10 @@ import ProjectDescriptionHelpers
 
 let project = Project(
 	name: "KeyManageApp",
+	// 공유 RIB용 SwiftUI 어댑터(carti-RIBs-KMP). 저장소와 같은 상위 폴더의 형제 폴더에 있어야 한다 (domain-migration-plan 12.2)
+	packages: [
+		.local(path: "../../../../../carti-RIBs-KMP/swift/RIBsKMPSwiftUI")
+	],
 	settings: .swift6Settings,
 	targets: [
 		.target(
@@ -40,7 +44,7 @@ let project = Project(
 			destinations: [.iPhone, .iPad],
 			product: .app,
 			bundleId: "com.keymanage.ios",
-			deploymentTargets: .iOS("15.0"),
+			deploymentTargets: .iOS("17.0"),
 			infoPlist: .extendingDefault(with: [
 				"UILaunchScreen": [:]
 			]),
@@ -64,7 +68,10 @@ let project = Project(
 				.project(target: "RootFeatureImplementation", path: "../Features/Root"),
 				.project(target: "AuthFeatureInterface", path: "../Features/Auth"),
 				.project(target: "AuthFeatureImplementation", path: "../Features/Auth"),
-				.external(name: "MicroRIBs")
+				.external(name: "MicroRIBs"),
+				// 실행 전에 Apps/Shared에서 `./gradlew :ios-app:assembleKeyManageSharedDebugXCFramework`로 만든다
+				.xcframework(path: "../../../Shared/ios-app/build/XCFrameworks/debug/KeyManageShared.xcframework"),
+				.package(product: "RIBsKMPSwiftUI")
 			]
 		)
 	]
