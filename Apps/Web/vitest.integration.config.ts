@@ -1,7 +1,10 @@
 // 실제 백엔드에 붙는 통합 테스트 설정. 백엔드를 먼저 띄운 뒤 npm run test:integration으로 돌린다
 import { defineConfig } from 'vitest/config'
+import { kotlinSessionAliases } from './vite.alias.ts'
 
 export default defineConfig({
+  // services.ts가 가져오는 Kotlin 세션 별칭을 일반 설정(vite.config.ts)과 똑같이 쓴다
+  resolve: { alias: kotlinSessionAliases },
   test: {
     include: ['src/**/*.integration.test.ts'],
     environment: 'node',

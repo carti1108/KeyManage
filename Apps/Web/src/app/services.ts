@@ -6,18 +6,15 @@ import { createBrowserTabs } from '../adapters/browser/browserTabs'
 import { createIndexedDbDeviceStore } from '../adapters/browser/indexedDbDeviceStore'
 import { createLocalStorageAutoLockSetting } from '../adapters/browser/localStorageAutoLockSetting'
 import { createSessionStorageTabMemory } from '../adapters/browser/sessionStorageTabMemory'
-import { createApiClient, resolveBaseUrl } from '../adapters/http/apiClient'
-import { createHttpAuthApi } from '../adapters/http/httpAuthApi'
-import { createHttpVaultApi } from '../adapters/http/httpVaultApi'
-import { createAuthService } from '../domain/auth/authService'
+import * as kotlinSessionModule from 'keymanage-web-session'
+import { createKotlinSession } from '../adapters/kotlin/kotlinSession'
 import { createClipboardBurner, type ClipboardBurner } from '../domain/clipboard/clipboardBurner'
 import type { DeviceStore } from '../domain/device/deviceRecord'
 import type { TabMemory } from '../domain/device/tabMemory'
 import type { AutoLockSettingStore } from '../domain/lock/autoLockSetting'
 import type { BackupFiles } from '../domain/backup/backupFile'
-import { createVaultSession, type VaultSession } from '../domain/session/vaultSession'
+import type { VaultSession } from '../domain/session/vaultSession'
 import type { Tabs } from '../domain/tabs/tabs'
-import { createRevisionMemory, createVaultSync } from '../domain/vault/vaultSync'
 
 export interface Services {
   /** 로그인·가입·잠금·잠금 해제·로그아웃과 볼트 저장 (SEC-002, SEC-003) */
@@ -46,20 +43,9 @@ export function createServices(
   autoLockSetting: AutoLockSettingStore = createLocalStorageAutoLockSetting(),
   tabMemory: TabMemory = createSessionStorageTabMemory(),
 ): Services {
-  const client = createApiClient({ baseUrl: resolveBaseUrl(apiBaseUrl), fetch: globalThis.fetch.bind(globalThis) })
-  // 잠금 해제·재로그인으로 동기화를 새로 만들어도 되돌림 감지 기준을 이어 간다
-  const revisionMemory = createRevisionMemory()
   return {
-    session: createVaultSession({
-      auth: createAuthService(createHttpAuthApi(client)),
-      // 세션이 로그인마다 따로 넘기는 기억을 쓴다. 이전 로그인의 늦은 응답이 기준을 바꾸지 못한다
-      vaultSyncFor: (accessToken, encryptionKey, memory) =>
-        createVaultSync({ api: createHttpVaultApi(client, accessToken), encryptionKey, now: () => new Date(), revisionMemory: memory }),
-      revisionMemory,
-      deviceStore,
-      tabs,
-      tabMemory,
-    }),
+    // 세션은 공유 Kotlin 도메인이 맡는다. 서버 주소 검사와 HTTP도 Kotlin(server-http)이 한다 (domain-migration-plan 10장)
+    session: createKotlinSession(kotlinSessionModule, { apiBaseUrl, deviceStore, tabs, tabMemory }),
     clipboard: createClipboardBurner({ clipboard: browserClipboard, scheduler: browserScheduler, now: () => Date.now() }),
     tabs,
     autoLockSetting,

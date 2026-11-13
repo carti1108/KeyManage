@@ -8,6 +8,9 @@
     "allowArbitraryExtensions": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
+    "paths": {
+      "keymanage-web-session": ["../Shared/web-session/build/dist/js/productionLibrary/keymanage-shared-web-session.d.mts"]
+    },
 
     /* Bundler mode */
     "moduleResolution": "bundler",
