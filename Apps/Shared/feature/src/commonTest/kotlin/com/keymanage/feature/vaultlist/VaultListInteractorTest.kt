@@ -639,6 +639,21 @@ class VaultListInteractorTest {
         assertEquals(0, session.syncListeners.size)
         assertNull(view.listener)
     }
+
+    // 세션은 알림을 보낼 때 목록을 복사해 돈다. 앞선 구독자가 이 RIB을 내리면(부모가 잠금 알림에 화면을 바꿈) 이미 해지한 콜백이
+    // 같은 알림에서 한 번 더 불린다. 이때 던지면 세션의 알림 반복과 그 안에서 도는 세션 코드가 깨진다
+    @Test
+    fun staleSessionNotificationAfterDetachIsIgnored() {
+        open()
+        val staleRemote = session.remoteListeners.toList()
+        val staleSync = session.syncListeners.toList()
+        router?.dispatchDetach()
+        router = null
+
+        staleRemote.forEach { it() }
+        staleSync.forEach { it(null) }
+        dispatcher.scheduler.runCurrent()
+    }
 }
 
 private val NOW: Instant = Instant.parse("2026-10-31T00:00:00Z")
