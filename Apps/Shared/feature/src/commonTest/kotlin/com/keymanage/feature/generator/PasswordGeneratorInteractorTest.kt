@@ -189,6 +189,20 @@ class PasswordGeneratorInteractorTest {
     }
 
     @Test
+    fun noCharsetWarningUsesTheStandardPolicyMessage() {
+        open()
+
+        GeneratorCharset.entries.forEach { send(PasswordGeneratorViewAction.SetCharset(it, false)) }
+
+        // 정책(GEN-001) 표준 문구 그대로. 문구가 바뀌면 이 테스트로 먼저 드러난다
+        assertEquals("최소 1개 이상의 문자 종류를 선택해야 합니다.", state.problemMessage)
+        // 한 종류라도 다시 켜면 경고가 걷히고 다시 만든다
+        send(PasswordGeneratorViewAction.SetCharset(GeneratorCharset.entries.first(), true))
+        assertNull(state.problemMessage)
+        assertTrue(state.canUseGenerated)
+    }
+
+    @Test
     fun announcesWhenANewPasswordIsMade() {
         open()
         assertEquals("", state.announcement)

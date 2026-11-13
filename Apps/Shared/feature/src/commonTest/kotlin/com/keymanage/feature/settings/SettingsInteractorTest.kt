@@ -766,6 +766,38 @@ class SettingsInteractorTest {
     }
 
     @Test
+    fun 확인_문구는_앞뒤_공백이_하나라도_붙으면_다르고_정확히_같을_때만_삭제_버튼이_켜진다() {
+        attach()
+        send(SettingsViewAction.StartDeleteAccount)
+        send(SettingsViewAction.EditDeletionPassword(LONG_PASSWORD))
+
+        send(SettingsViewAction.EditDeletionPhrase("계정 삭제 "))
+        assertFalse(state.canSubmitDeletion)
+        send(SettingsViewAction.EditDeletionPhrase(" 계정 삭제"))
+        assertFalse(state.canSubmitDeletion)
+        send(SettingsViewAction.EditDeletionPhrase(" 계정 삭제 "))
+        assertFalse(state.canSubmitDeletion)
+        send(SettingsViewAction.SubmitDeleteAccount)
+        assertTrue(session.deleteCalls.isEmpty())
+
+        send(SettingsViewAction.EditDeletionPhrase("계정 삭제"))
+        assertTrue(state.canSubmitDeletion)
+        send(SettingsViewAction.SubmitDeleteAccount)
+        assertEquals(listOf(LONG_PASSWORD), session.deleteCalls)
+    }
+
+    @Test
+    fun 지운_뒤_로그인_화면에_보이는_완료_안내는_정책_문구_그대로다() {
+        attach()
+        openDeleteAccount()
+
+        send(SettingsViewAction.SubmitDeleteAccount)
+
+        // 정책(SEC-005) 표준 문구. 상수를 거치지 않고 문구 자체를 고정한다
+        assertEquals(listOf("end:계정을 삭제했습니다."), listener.events)
+    }
+
+    @Test
     fun 지우면_로그인_화면으로_보내며_완료_안내를_알린다() {
         attach()
         openDeleteAccount()
