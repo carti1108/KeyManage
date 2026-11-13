@@ -248,9 +248,11 @@ class VaultListInteractor(
     override fun didBecomeActive(savedInstanceState: RibState?) {
         presenter.onAction = ::handle
         // 다른 기기·탭의 변경과 동기화 결과로 볼트가 바뀐다. 콜백은 어느 스레드에서 올지 모르니 메인 스코프에서 처리한다
+        // 내려간 뒤 늦게 온 알림은 무시한다. 세션은 알림을 복사한 목록으로 돌아 해지한 콜백도 한 번 더 불릴 수 있고,
+        // 이때 비활성 스코프에 접근하면 던져서 세션의 알림 반복이 깨진다
         unsubscribers = listOf(
-            session.onRemoteChange { coroutineScope.launch { refreshFromSession() } },
-            session.onSyncChange { coroutineScope.launch { refreshFromSession() } },
+            session.onRemoteChange { if (isAttached()) coroutineScope.launch { refreshFromSession() } },
+            session.onSyncChange { if (isAttached()) coroutineScope.launch { refreshFromSession() } },
         )
         syncFromSession()
         render()
