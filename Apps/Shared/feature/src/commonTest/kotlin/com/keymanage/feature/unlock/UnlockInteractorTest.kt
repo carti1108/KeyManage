@@ -452,7 +452,7 @@ private class UnlockTestDispatchers(dispatcher: CoroutineDispatcher) : RibDispat
     override val Unconfined: CoroutineDispatcher = dispatcher
 }
 
-private class FakeUnlockView : UnlockPresentable {
+private class FakeUnlockView : UnlockViewContract {
     override var listener: UnlockPresentableListener? = null
     val states = mutableListOf<UnlockViewState>()
     val state: UnlockViewState get() = states.last()

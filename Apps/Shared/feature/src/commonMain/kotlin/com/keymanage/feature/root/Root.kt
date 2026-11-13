@@ -6,8 +6,7 @@ import com.carti.ribs.Dependency
 import com.carti.ribs.Interactor
 import com.carti.ribs.LaunchRouter
 import com.carti.ribs.RibDispatchers
-import com.carti.ribs.RibState
-import com.carti.ribs.Router
+import com.carti.ribs.Routing
 import com.carti.ribs.ViewControllable
 import com.keymanage.domain.platform.RandomBytes
 import com.keymanage.domain.session.SessionState
@@ -40,14 +39,14 @@ import kotlinx.coroutines.launch
 // 세션 상태에 따라 로그인·잠금·볼트 화면 중 하나를 붙인다 (SEC-001~003, VLT-002)
 // 원본: Apps/Web/src/ui/session/SessionRoot.tsx, iOS Features/Root
 
-/** 루트 뷰 계약. 자식 RIB 화면 하나를 보여 준다. 플랫폼이 구현한다 */
-interface RootPresentable : ViewControllable {
+/** 루트 뷰 계약. 자식 RIB 화면 하나를 보여 준다. 플랫폼이 구현한다. Interactor가 그릴 상태가 없어 Presentable은 없다 */
+interface RootViewControllable : ViewControllable {
     fun showScreen(view: ViewControllable)
     fun hideScreen(view: ViewControllable)
 }
 
 fun interface RootViewFactory {
-    fun makeRootView(): RootPresentable
+    fun makeRootView(): RootViewControllable
 }
 
 interface RootDependency : Dependency {
@@ -86,8 +85,8 @@ class RootBuilder(dependency: RootDependency) : Builder<RootDependency>(dependen
     fun build(initialNotice: String? = null): RootRouter {
         val component = RootComponent(dependency)
         return RootRouter(
-            view = dependency.rootViewFactory.makeRootView(),
             interactor = RootInteractor(dependency.session, initialNotice),
+            view = dependency.rootViewFactory.makeRootView(),
             authBuilder = AuthBuilder(component),
             unlockBuilder = UnlockBuilder(component),
             mainBuilder = MainBuilder(component),
@@ -110,13 +109,15 @@ class RootInteractor(
     /** 앱을 시작할 때 이미 정해진 로그인 화면 안내(세션 복구 실패 등). 첫 로그인 화면에 보이고 비운다 (웹 SessionRoot의 restoreError) */
     initialNotice: String? = null,
 ) :
-    Interactor<Unit, RootRouter>(Unit), AuthListener, UnlockListener, MainListener {
+    Interactor(), AuthListener, UnlockListener, MainListener {
+    /** Router가 만들어질 때 자신을 넣는다 */
+    var router: RootRouter? = null
     private var unsubscribes: List<() -> Unit> = emptyList()
 
     /** 다음 로그인 화면에 보일 안내(세션 만료 등). 로그인 화면에 넘기면 비운다 */
     private var pendingNotice: String? = initialNotice
 
-    override fun didBecomeActive(savedInstanceState: RibState?) {
+    override fun didBecomeActive() {
         unsubscribes = listOf(
             session.onLock { post { refresh(fromChild = false) } },
             session.onUnlock { post { refresh(fromChild = false) } },
@@ -138,11 +139,14 @@ class RootInteractor(
     override fun willResignActive() {
         unsubscribes.forEach { it() }
         unsubscribes = emptyList()
+        // 붙어 있던 화면을 내리고 필드를 비운다. 비우지 않으면 다시 시작할 때 이미 붙어 있다고 보고 새로 붙이지 않으며,
+        // 루트 뷰를 다시 쓰는 플랫폼에서는 이전 화면이 남는다
+        router?.clearScreens()
     }
 
     /** 세션 콜백은 어느 스레드에서 올지 모르고 요청 도중에 올 수 있으니 메인 디스패처의 다음 턴에 처리한다. 내려갔으면 무시한다 */
     private fun post(work: () -> Unit) {
-        if (isAttached()) coroutineScope.launch(RibDispatchers.Main) { work() }
+        if (isActive) coroutineScope.launch(RibDispatchers.Main) { work() }
     }
 
     /**
@@ -150,7 +154,8 @@ class RootInteractor(
      * @param offline 잠금 해제를 서버에 닿지 못해 기기에 저장한 볼트로 열었다
      */
     private fun refresh(fromChild: Boolean, offline: Boolean = false) {
-        if (!isAttached()) return
+        if (!isActive) return
+        val router = router ?: return
         val current = router.current
         when (val state = session.state()) {
             is SessionState.Unlocked -> {
@@ -202,16 +207,20 @@ class RootInteractor(
 }
 
 class RootRouter(
-    view: RootPresentable,
     interactor: RootInteractor,
+    view: RootViewControllable,
     private val authBuilder: AuthBuilder,
     private val unlockBuilder: UnlockBuilder,
     private val mainBuilder: MainBuilder,
-) : LaunchRouter<RootPresentable, RootInteractor>(view, interactor) {
+) : LaunchRouter<RootInteractor, RootViewControllable>(interactor, view) {
     private var auth: AuthRouter? = null
     private var authNotice: String? = null
     private var unlock: UnlockRouter? = null
     private var main: MainRouter? = null
+
+    init {
+        interactor.router = this
+    }
 
     val current: RootScreen?
         get() = when {
@@ -225,14 +234,11 @@ class RootRouter(
     val isFinishingSession: Boolean
         get() = (main?.interactor?.isFinishingSession ?: false) || (unlock?.interactor?.isFinishingSession ?: false)
 
-    /**
-     * 끝내면 붙어 있던 화면을 내리고 필드를 비운다. 비우지 않으면 다시 시작할 때 이미 붙어 있다고 보고 새로 붙이지 않으며,
-     * 루트 뷰를 다시 쓰는 플랫폼에서는 이전 화면이 남는다
-     */
-    override fun willDetach() {
-        auth?.let { view.hideScreen(it.view) }
-        unlock?.let { view.hideScreen(it.view) }
-        main?.let { view.hideScreen(it.view) }
+    /** 끝낼 때 [RootInteractor]가 부른다. 붙어 있던 화면을 내리고 필드를 비운다. 자식 RIB은 트리를 끝내며 이어서 떼어진다 */
+    fun clearScreens() {
+        auth?.let { viewController.hideScreen(it.viewControllable) }
+        unlock?.let { viewController.hideScreen(it.viewControllable) }
+        main?.let { viewController.hideScreen(it.viewControllable) }
         auth = null
         authNotice = null
         unlock = null
@@ -252,7 +258,7 @@ class RootRouter(
         removeMain()
         val child = authBuilder.build(interactor, notice)
         attachChild(child)
-        view.showScreen(child.view)
+        viewController.showScreen(child.viewControllable)
         auth = child
         authNotice = notice
     }
@@ -263,7 +269,7 @@ class RootRouter(
         removeMain()
         val child = unlockBuilder.build(interactor)
         attachChild(child)
-        view.showScreen(child.view)
+        viewController.showScreen(child.viewControllable)
         unlock = child
     }
 
@@ -273,31 +279,31 @@ class RootRouter(
         removeUnlock()
         val child = mainBuilder.build(interactor, offline)
         attachChild(child)
-        view.showScreen(child.view)
+        viewController.showScreen(child.viewControllable)
         main = child
     }
 
     private fun removeAuth() {
         val child = auth ?: return
-        remove(child, child.view)
+        remove(child, child.viewControllable)
         auth = null
         authNotice = null
     }
 
     private fun removeUnlock() {
         val child = unlock ?: return
-        remove(child, child.view)
+        remove(child, child.viewControllable)
         unlock = null
     }
 
     private fun removeMain() {
         val child = main ?: return
-        remove(child, child.view)
+        remove(child, child.viewControllable)
         main = null
     }
 
-    private fun remove(child: Router<*>, screen: ViewControllable) {
+    private fun remove(child: Routing, screen: ViewControllable) {
         detachChild(child)
-        view.hideScreen(screen)
+        viewController.hideScreen(screen)
     }
 }

@@ -3,11 +3,10 @@ package com.keymanage.feature.vaultlist
 import com.carti.ribs.Builder
 import com.carti.ribs.Component
 import com.carti.ribs.Dependency
-import com.carti.ribs.Interactor
-import com.carti.ribs.RibState
+import com.carti.ribs.Presentable
+import com.carti.ribs.PresentableInteractor
 import com.carti.ribs.ViewControllable
-import com.carti.ribs.ViewPresenter
-import com.carti.ribs.ViewRouter
+import com.carti.ribs.ViewableRouter
 import com.carti.ribs.checkMainThread
 import com.keymanage.domain.generator.hasSequentialDigits
 import com.keymanage.domain.generator.isWeak
@@ -156,15 +155,24 @@ interface VaultListPresentableListener {
     fun handle(action: VaultListViewAction)
 }
 
-interface VaultListPresentable : ViewControllable {
+/** Interactor가 쓰는 화면 계약 (RIBs-iOS Presentable, carti ADR-0010) */
+interface VaultListPresentable : Presentable {
+    /** 활성 구간에만 설정된다. 비활성이면 null이라 입력이 무시된다 */
     var listener: VaultListPresentableListener?
     fun render(state: VaultListViewState)
+}
+
+/** Router가 쓰는 화면 계약. 폼 안의 비밀번호 생성기(자식 RIB) 화면을 붙이고 뗀다 */
+interface VaultListViewControllable : ViewControllable {
     fun showGenerator(view: ViewControllable)
     fun hideGenerator(view: ViewControllable)
 }
 
+/** 플랫폼 뷰가 구현하는 둘의 합 */
+interface VaultListViewContract : VaultListPresentable, VaultListViewControllable
+
 fun interface VaultListViewFactory {
-    fun makeVaultListView(): VaultListPresentable
+    fun makeVaultListView(): VaultListViewContract
 }
 
 interface VaultListDependency : Dependency {
@@ -193,47 +201,27 @@ class VaultListComponent(dependency: VaultListDependency) :
 class VaultListBuilder(dependency: VaultListDependency) : Builder<VaultListDependency>(dependency) {
     fun build(listener: VaultListListener): VaultListRouter {
         val component = VaultListComponent(dependency)
-        val presenter = VaultListPresenter(dependency.vaultListViewFactory.makeVaultListView())
+        val view = dependency.vaultListViewFactory.makeVaultListView()
         val interactor = VaultListInteractor(
-            presenter = presenter,
+            presenter = view,
             session = dependency.session,
             clipboard = dependency.clipboard,
             clock = dependency.clock,
             listener = listener,
         )
-        return VaultListRouter(presenter.view, interactor, PasswordGeneratorBuilder(component))
-    }
-}
-
-class VaultListPresenter(view: VaultListPresentable) :
-    ViewPresenter<VaultListPresentable>(view), VaultListPresentableListener {
-    var onAction: ((VaultListViewAction) -> Unit)? = null
-
-    override fun didLoad() {
-        view.listener = this
-    }
-
-    override fun willUnload() {
-        view.listener = null
-    }
-
-    override fun handle(action: VaultListViewAction) {
-        onAction?.invoke(action)
-    }
-
-    fun render(state: VaultListViewState) {
-        checkMainThread("VaultListPresenter.render")
-        view.render(state)
+        return VaultListRouter(interactor, view, PasswordGeneratorBuilder(component))
     }
 }
 
 class VaultListInteractor(
-    presenter: VaultListPresenter,
+    presenter: VaultListPresentable,
     private val session: SessionPort,
     private val clipboard: ClipboardPort,
     private val clock: Clock,
     private val listener: VaultListListener,
-) : Interactor<VaultListPresenter, VaultListRouter>(presenter), PasswordGeneratorListener {
+) : PresentableInteractor<VaultListPresentable>(presenter), VaultListPresentableListener, PasswordGeneratorListener {
+    var router: VaultListRouter? = null
+
     private var data: VaultData = emptyVault(clock.now())
     private var readOnly = false
     private var query = ""
@@ -248,21 +236,21 @@ class VaultListInteractor(
     private var copyError: String? = null
     private var unsubscribers: List<() -> Unit> = emptyList()
 
-    override fun didBecomeActive(savedInstanceState: RibState?) {
-        presenter.onAction = ::handle
+    override fun didBecomeActive() {
+        presenter.listener = this
         // 다른 기기·탭의 변경과 동기화 결과로 볼트가 바뀐다. 콜백은 어느 스레드에서 올지 모르니 메인 스코프에서 처리한다
         // 내려간 뒤 늦게 온 알림은 무시한다. 세션은 알림을 복사한 목록으로 돌아 해지한 콜백도 한 번 더 불릴 수 있고,
         // 이때 비활성 스코프에 접근하면 던져서 세션의 알림 반복이 깨진다
         unsubscribers = listOf(
-            session.onRemoteChange { if (isAttached()) coroutineScope.launch { reloadFromSession() } },
-            session.onSyncChange { if (isAttached()) coroutineScope.launch { reloadFromSession() } },
+            session.onRemoteChange { if (isActive) coroutineScope.launch { reloadFromSession() } },
+            session.onSyncChange { if (isActive) coroutineScope.launch { reloadFromSession() } },
         )
         syncFromSession()
         render()
     }
 
     override fun willResignActive() {
-        presenter.onAction = null
+        presenter.listener = null
         unsubscribers.forEach { it() }
         unsubscribers = emptyList()
         clearPlaintext()
@@ -283,7 +271,9 @@ class VaultListInteractor(
         render()
     }
 
-    private fun handle(action: VaultListViewAction) {
+    override fun handle(action: VaultListViewAction) {
+        // 비활성 뒤 늦게 온 입력은 무시한다(옛 Presenter가 onAction을 비워 막던 것)
+        if (!isActive) return
         when (action) {
             is VaultListViewAction.Search -> query = action.query
             is VaultListViewAction.OpenItem -> if (!isSaving) showDetail(action.id)
@@ -320,13 +310,13 @@ class VaultListInteractor(
     private fun openGenerator() {
         if (!isFormScreen() || isGeneratorOpen) return
         isGeneratorOpen = true
-        router.routeToGenerator()
+        router?.routeToGenerator()
     }
 
     private fun closeGenerator() {
         if (!isGeneratorOpen) return
         isGeneratorOpen = false
-        router.routeAwayFromGenerator()
+        router?.routeAwayFromGenerator()
     }
 
     // --- 이동 ---
@@ -373,7 +363,7 @@ class VaultListInteractor(
      * 내려간 뒤에는 아무것도 하지 않는다
      */
     fun reloadFromSession() {
-        if (!isAttached()) return
+        if (!isActive) return
         if (!syncFromSession()) return
         render()
     }
@@ -486,6 +476,7 @@ class VaultListInteractor(
     }
 
     private fun render() {
+        checkMainThread("VaultListPresentable.render")
         presenter.render(
             VaultListViewState(
                 screen = screen,
@@ -507,18 +498,22 @@ class VaultListInteractor(
 }
 
 class VaultListRouter(
-    view: VaultListPresentable,
     interactor: VaultListInteractor,
+    view: VaultListViewControllable,
     private val generatorBuilder: PasswordGeneratorBuilder,
-) : ViewRouter<VaultListPresentable, VaultListInteractor>(view, interactor) {
+) : ViewableRouter<VaultListInteractor, VaultListViewControllable>(interactor, view) {
     private var generator: PasswordGeneratorRouter? = null
+
+    init {
+        interactor.router = this
+    }
 
     /** 폼 안에서 쓰는 생성기라 사용·닫기만 두고 복사는 두지 않는다 */
     fun routeToGenerator() {
         if (generator != null) return
         val child = generatorBuilder.build(interactor, allowCopy = false)
         attachChild(child)
-        view.showGenerator(child.view)
+        viewController.showGenerator(child.viewControllable)
         generator = child
     }
 
@@ -528,7 +523,7 @@ class VaultListRouter(
     fun routeAwayFromGenerator() {
         val child = generator ?: return
         detachChild(child)
-        view.hideGenerator(child.view)
+        viewController.hideGenerator(child.viewControllable)
         generator = null
     }
 }

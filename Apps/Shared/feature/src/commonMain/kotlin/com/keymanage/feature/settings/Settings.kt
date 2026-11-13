@@ -2,11 +2,11 @@ package com.keymanage.feature.settings
 
 import com.carti.ribs.Builder
 import com.carti.ribs.Dependency
-import com.carti.ribs.Interactor
-import com.carti.ribs.RibState
+import com.carti.ribs.Presentable
+import com.carti.ribs.PresentableInteractor
 import com.carti.ribs.ViewControllable
-import com.carti.ribs.ViewPresenter
-import com.carti.ribs.ViewRouter
+import com.carti.ribs.ViewableRouter
+import com.carti.ribs.checkMainThread
 import com.keymanage.domain.auth.checkNewMasterPassword
 import com.keymanage.domain.backup.VaultBackup
 import com.keymanage.domain.backup.readBackupFile
@@ -111,13 +111,21 @@ interface SettingsPresentableListener {
     fun handle(action: SettingsViewAction)
 }
 
-interface SettingsPresentable : ViewControllable {
+/** Interactor가 쓰는 화면 계약 (RIBs-iOS Presentable, carti ADR-0010) */
+interface SettingsPresentable : Presentable {
+    /** 활성 구간에만 설정된다. 비활성이면 null이라 입력이 무시된다 */
     var listener: SettingsPresentableListener?
     fun render(state: SettingsViewState)
 }
 
+/** Router가 쓰는 화면 계약. 자식 RIB이 없어 붙일 메서드는 없다 */
+interface SettingsViewControllable : ViewControllable
+
+/** 플랫폼 뷰가 구현하는 둘의 합 */
+interface SettingsViewContract : SettingsPresentable, SettingsViewControllable
+
 fun interface SettingsViewFactory {
-    fun makeSettingsView(): SettingsPresentable
+    fun makeSettingsView(): SettingsViewContract
 }
 
 interface SettingsDependency : Dependency {
@@ -153,39 +161,19 @@ interface SettingsListener {
 
 class SettingsBuilder(dependency: SettingsDependency) : Builder<SettingsDependency>(dependency) {
     fun build(listener: SettingsListener): SettingsRouter {
-        val presenter = SettingsPresenter(dependency.settingsViewFactory.makeSettingsView())
-        val interactor = SettingsInteractor(presenter, dependency.session, dependency.backupFiles, dependency.environment, listener)
-        return SettingsRouter(presenter.view, interactor)
-    }
-}
-
-class SettingsPresenter(view: SettingsPresentable) : ViewPresenter<SettingsPresentable>(view), SettingsPresentableListener {
-    var onAction: ((SettingsViewAction) -> Unit)? = null
-
-    override fun didLoad() {
-        view.listener = this
-    }
-
-    override fun willUnload() {
-        view.listener = null
-    }
-
-    override fun handle(action: SettingsViewAction) {
-        onAction?.invoke(action)
-    }
-
-    fun render(state: SettingsViewState) {
-        view.render(state)
+        val view = dependency.settingsViewFactory.makeSettingsView()
+        val interactor = SettingsInteractor(view, dependency.session, dependency.backupFiles, dependency.environment, listener)
+        return SettingsRouter(interactor, view)
     }
 }
 
 class SettingsInteractor(
-    presenter: SettingsPresenter,
+    presenter: SettingsPresentable,
     private val session: SessionPort,
     private val backupFiles: BackupFilesPort,
     private val environment: AppEnvironment,
     private val listener: SettingsListener,
-) : Interactor<SettingsPresenter, SettingsRouter>(presenter) {
+) : PresentableInteractor<SettingsPresentable>(presenter), SettingsPresentableListener {
     private var state = SettingsViewState()
     private var unsubscribes: List<() -> Unit> = emptyList()
 
@@ -195,8 +183,8 @@ class SettingsInteractor(
     // 파일 선택 차례. 새 선택이나 다른 동작을 시작하면 올려, 늦게 끝난 이전 선택 결과를 버린다
     private var pickTurn = 0
 
-    override fun didBecomeActive(savedInstanceState: RibState?) {
-        presenter.onAction = ::handle
+    override fun didBecomeActive() {
+        presenter.listener = this
         unsubscribes = listOf(
             environment.subscribeNetwork { refreshInfo() },
             session.onSyncChange { refreshInfo() },
@@ -207,7 +195,7 @@ class SettingsInteractor(
     }
 
     override fun willResignActive() {
-        presenter.onAction = null
+        presenter.listener = null
         unsubscribes.forEach { it() }
         unsubscribes = emptyList()
         pendingBackup = null
@@ -228,7 +216,9 @@ class SettingsInteractor(
         }
     }
 
-    private fun handle(action: SettingsViewAction) {
+    override fun handle(action: SettingsViewAction) {
+        // 비활성 뒤 늦게 온 입력은 무시한다(옛 Presenter가 onAction을 비워 막던 것)
+        if (!isActive) return
         when (action) {
             is SettingsViewAction.SelectAutoLock -> selectAutoLock(action.timeout)
             SettingsViewAction.RequestLock -> listener.settingsDidRequestLock()
@@ -256,7 +246,9 @@ class SettingsInteractor(
 
     private fun update(change: SettingsViewState.() -> SettingsViewState) {
         state = state.change()
-        if (isAttached()) presenter.render(state)
+        if (!isActive) return
+        checkMainThread("SettingsPresentable.render")
+        presenter.render(state)
     }
 
     /** 진행 중에는 입력 칸이 막혀 있다 */
@@ -492,5 +484,5 @@ class SettingsInteractor(
     }
 }
 
-class SettingsRouter(view: SettingsPresentable, interactor: SettingsInteractor) :
-    ViewRouter<SettingsPresentable, SettingsInteractor>(view, interactor)
+class SettingsRouter(interactor: SettingsInteractor, view: SettingsViewControllable) :
+    ViewableRouter<SettingsInteractor, SettingsViewControllable>(interactor, view)

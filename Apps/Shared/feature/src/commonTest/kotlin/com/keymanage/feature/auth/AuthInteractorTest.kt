@@ -450,7 +450,7 @@ private class AuthTestDispatchers(dispatcher: CoroutineDispatcher) : RibDispatch
     override val Unconfined: CoroutineDispatcher = dispatcher
 }
 
-private class FakeAuthView : AuthPresentable {
+private class FakeAuthView : AuthViewContract {
     override var listener: AuthPresentableListener? = null
     val states = mutableListOf<AuthViewState>()
     val state: AuthViewState get() = states.last()

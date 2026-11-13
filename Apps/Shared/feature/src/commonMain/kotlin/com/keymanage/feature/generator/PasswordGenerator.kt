@@ -2,11 +2,10 @@ package com.keymanage.feature.generator
 
 import com.carti.ribs.Builder
 import com.carti.ribs.Dependency
-import com.carti.ribs.Interactor
-import com.carti.ribs.RibState
+import com.carti.ribs.Presentable
+import com.carti.ribs.PresentableInteractor
 import com.carti.ribs.ViewControllable
-import com.carti.ribs.ViewPresenter
-import com.carti.ribs.ViewRouter
+import com.carti.ribs.ViewableRouter
 import com.carti.ribs.checkMainThread
 import com.keymanage.domain.generator.DEFAULT_GENERATOR_OPTIONS
 import com.keymanage.domain.generator.GeneratorOptions
@@ -83,13 +82,21 @@ interface PasswordGeneratorPresentableListener {
     fun handle(action: PasswordGeneratorViewAction)
 }
 
-interface PasswordGeneratorPresentable : ViewControllable {
+/** Interactor가 쓰는 화면 계약 (RIBs-iOS Presentable, carti ADR-0010) */
+interface PasswordGeneratorPresentable : Presentable {
+    /** 활성 구간에만 설정된다. 비활성이면 null이라 입력이 무시된다 */
     var listener: PasswordGeneratorPresentableListener?
     fun render(state: PasswordGeneratorViewState)
 }
 
+/** Router가 쓰는 화면 계약 */
+interface PasswordGeneratorViewControllable : ViewControllable
+
+/** 플랫폼 뷰가 구현하는 둘의 합 */
+interface PasswordGeneratorViewContract : PasswordGeneratorPresentable, PasswordGeneratorViewControllable
+
 fun interface PasswordGeneratorViewFactory {
-    fun makePasswordGeneratorView(): PasswordGeneratorPresentable
+    fun makePasswordGeneratorView(): PasswordGeneratorViewContract
 }
 
 interface PasswordGeneratorDependency : Dependency {
@@ -110,47 +117,25 @@ class PasswordGeneratorBuilder(dependency: PasswordGeneratorDependency) : Builde
      * @param allowCopy 복사 버튼을 둘지. 생성기 탭에서 true
      */
     fun build(listener: PasswordGeneratorListener?, allowCopy: Boolean): PasswordGeneratorRouter {
-        val presenter = PasswordGeneratorPresenter(dependency.passwordGeneratorViewFactory.makePasswordGeneratorView())
+        val view = dependency.passwordGeneratorViewFactory.makePasswordGeneratorView()
         val interactor = PasswordGeneratorInteractor(
-            presenter = presenter,
+            presenter = view,
             clipboard = dependency.clipboard,
             random = randomSourceOf(dependency.randomBytes),
             listener = listener,
             allowCopy = allowCopy,
         )
-        return PasswordGeneratorRouter(presenter.view, interactor)
-    }
-}
-
-class PasswordGeneratorPresenter(view: PasswordGeneratorPresentable) :
-    ViewPresenter<PasswordGeneratorPresentable>(view), PasswordGeneratorPresentableListener {
-    var onAction: ((PasswordGeneratorViewAction) -> Unit)? = null
-
-    override fun didLoad() {
-        view.listener = this
-    }
-
-    override fun willUnload() {
-        view.listener = null
-    }
-
-    override fun handle(action: PasswordGeneratorViewAction) {
-        onAction?.invoke(action)
-    }
-
-    fun render(state: PasswordGeneratorViewState) {
-        checkMainThread("PasswordGeneratorPresenter.render")
-        view.render(state)
+        return PasswordGeneratorRouter(interactor, view)
     }
 }
 
 class PasswordGeneratorInteractor(
-    presenter: PasswordGeneratorPresenter,
+    presenter: PasswordGeneratorPresentable,
     private val clipboard: ClipboardPort,
     private val random: RandomSource,
     private val listener: PasswordGeneratorListener?,
     private val allowCopy: Boolean,
-) : Interactor<PasswordGeneratorPresenter, PasswordGeneratorRouter>(presenter) {
+) : PresentableInteractor<PasswordGeneratorPresentable>(presenter), PasswordGeneratorPresentableListener {
     private var lengthText = DEFAULT_GENERATOR_OPTIONS.length.toString()
     private var charsets = DEFAULT_GENERATOR_OPTIONS
     private var password = ""
@@ -159,21 +144,23 @@ class PasswordGeneratorInteractor(
     private var announcement = ""
     private var copyError: String? = null
 
-    override fun didBecomeActive(savedInstanceState: RibState?) {
-        presenter.onAction = ::handle
+    override fun didBecomeActive() {
+        presenter.listener = this
         // 열면 기본 옵션으로 하나 만들어 보여 준다
         password = generatePassword(DEFAULT_GENERATOR_OPTIONS, random)
         render()
     }
 
     override fun willResignActive() {
-        presenter.onAction = null
+        presenter.listener = null
         // 내려가기 전에 만든 비밀번호를 비우고 그려, 뷰가 마지막으로 받은 상태에 남지 않게 한다
         password = ""
         render(showsPassword = false)
     }
 
-    private fun handle(action: PasswordGeneratorViewAction) {
+    override fun handle(action: PasswordGeneratorViewAction) {
+        // 내려간 뒤 늦게 들어온 입력(뷰가 쥐고 있던 listener)은 무시한다
+        if (!isActive) return
         when (action) {
             is PasswordGeneratorViewAction.ChangeLength -> {
                 lengthText = action.text
@@ -231,6 +218,7 @@ class PasswordGeneratorInteractor(
     }
 
     private fun render(showsPassword: Boolean = true) {
+        checkMainThread("PasswordGeneratorPresentable.render")
         val problem = currentProblem()
         val shownProblem = when {
             problem == GeneratorOptionsProblem.NO_CHARSET -> PasswordGeneratorMessages.NO_CHARSET_PROBLEM
@@ -256,8 +244,8 @@ class PasswordGeneratorInteractor(
     }
 }
 
-class PasswordGeneratorRouter(view: PasswordGeneratorPresentable, interactor: PasswordGeneratorInteractor) :
-    ViewRouter<PasswordGeneratorPresentable, PasswordGeneratorInteractor>(view, interactor)
+class PasswordGeneratorRouter(interactor: PasswordGeneratorInteractor, view: PasswordGeneratorViewControllable) :
+    ViewableRouter<PasswordGeneratorInteractor, PasswordGeneratorViewControllable>(interactor, view)
 
 private fun describe(password: String) =
     GeneratedPassword(text = password, score = scorePassword(password), hasSequentialDigits = hasSequentialDigits(password))

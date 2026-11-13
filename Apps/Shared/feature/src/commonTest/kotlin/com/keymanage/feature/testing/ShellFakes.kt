@@ -25,23 +25,23 @@ import com.keymanage.feature.BackupFilesPort
 import com.keymanage.feature.ClipboardPort
 import com.keymanage.feature.KeyManageViewFactory
 import com.keymanage.feature.SessionPort
-import com.keymanage.feature.auth.AuthPresentable
+import com.keymanage.feature.auth.AuthViewContract
 import com.keymanage.feature.auth.AuthPresentableListener
 import com.keymanage.feature.auth.AuthViewState
-import com.keymanage.feature.generator.PasswordGeneratorPresentable
+import com.keymanage.feature.generator.PasswordGeneratorViewContract
 import com.keymanage.feature.generator.PasswordGeneratorPresentableListener
 import com.keymanage.feature.generator.PasswordGeneratorViewState
-import com.keymanage.feature.main.MainPresentable
+import com.keymanage.feature.main.MainViewContract
 import com.keymanage.feature.main.MainPresentableListener
 import com.keymanage.feature.main.MainViewState
-import com.keymanage.feature.root.RootPresentable
-import com.keymanage.feature.settings.SettingsPresentable
+import com.keymanage.feature.root.RootViewControllable
+import com.keymanage.feature.settings.SettingsViewContract
 import com.keymanage.feature.settings.SettingsPresentableListener
 import com.keymanage.feature.settings.SettingsViewState
-import com.keymanage.feature.unlock.UnlockPresentable
+import com.keymanage.feature.unlock.UnlockViewContract
 import com.keymanage.feature.unlock.UnlockPresentableListener
 import com.keymanage.feature.unlock.UnlockViewState
-import com.keymanage.feature.vaultlist.VaultListPresentable
+import com.keymanage.feature.vaultlist.VaultListViewContract
 import com.keymanage.feature.vaultlist.VaultListPresentableListener
 import com.keymanage.feature.vaultlist.VaultListViewState
 import kotlinx.coroutines.CoroutineDispatcher
@@ -320,7 +320,7 @@ class FakeRandomBytes : RandomBytes {
 
 // --- 뷰 ---
 
-class FakeRootView : RootPresentable {
+class FakeRootView : RootViewControllable {
     val shown = mutableListOf<ViewControllable>()
     val hidden = mutableListOf<ViewControllable>()
     val visible: List<ViewControllable> get() = shown.filter { view -> shown.count { it === view } > hidden.count { it === view } }.distinct()
@@ -334,20 +334,20 @@ class FakeRootView : RootPresentable {
     }
 }
 
-class FakeHost : ViewHost<RootPresentable> {
-    val shown = mutableListOf<RootPresentable>()
-    val hidden = mutableListOf<RootPresentable>()
+class FakeHost : ViewHost<RootViewControllable> {
+    val shown = mutableListOf<RootViewControllable>()
+    val hidden = mutableListOf<RootViewControllable>()
 
-    override fun show(view: RootPresentable) {
+    override fun show(view: RootViewControllable) {
         shown += view
     }
 
-    override fun hide(view: RootPresentable) {
+    override fun hide(view: RootViewControllable) {
         hidden += view
     }
 }
 
-class FakeAuthView : AuthPresentable {
+class FakeAuthView : AuthViewContract {
     override var listener: AuthPresentableListener? = null
     val states = mutableListOf<AuthViewState>()
     val state: AuthViewState get() = states.last()
@@ -357,7 +357,7 @@ class FakeAuthView : AuthPresentable {
     }
 }
 
-class FakeUnlockView : UnlockPresentable {
+class FakeUnlockView : UnlockViewContract {
     override var listener: UnlockPresentableListener? = null
     val states = mutableListOf<UnlockViewState>()
     val state: UnlockViewState get() = states.last()
@@ -367,7 +367,7 @@ class FakeUnlockView : UnlockPresentable {
     }
 }
 
-class FakeMainView : MainPresentable {
+class FakeMainView : MainViewContract {
     override var listener: MainPresentableListener? = null
     val states = mutableListOf<MainViewState>()
     val state: MainViewState get() = states.last()
@@ -390,7 +390,7 @@ class FakeMainView : MainPresentable {
     }
 }
 
-class FakeVaultListView : VaultListPresentable {
+class FakeVaultListView : VaultListViewContract {
     override var listener: VaultListPresentableListener? = null
     val states = mutableListOf<VaultListViewState>()
 
@@ -402,7 +402,7 @@ class FakeVaultListView : VaultListPresentable {
     override fun hideGenerator(view: ViewControllable) = Unit
 }
 
-class FakeGeneratorView : PasswordGeneratorPresentable {
+class FakeGeneratorView : PasswordGeneratorViewContract {
     override var listener: PasswordGeneratorPresentableListener? = null
     val states = mutableListOf<PasswordGeneratorViewState>()
 
@@ -411,7 +411,7 @@ class FakeGeneratorView : PasswordGeneratorPresentable {
     }
 }
 
-class FakeSettingsView : SettingsPresentable {
+class FakeSettingsView : SettingsViewContract {
     override var listener: SettingsPresentableListener? = null
     val states = mutableListOf<SettingsViewState>()
     val state: SettingsViewState get() = states.last()

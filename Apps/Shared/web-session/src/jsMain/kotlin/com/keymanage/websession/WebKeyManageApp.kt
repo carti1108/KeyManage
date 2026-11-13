@@ -10,12 +10,18 @@ import com.keymanage.feature.KeyManageApp
 import com.keymanage.feature.KeyManageViewFactory
 import com.keymanage.feature.SessionPortAdapter
 import com.keymanage.feature.auth.AuthPresentable
+import com.keymanage.feature.auth.AuthViewContract
 import com.keymanage.feature.generator.PasswordGeneratorPresentable
+import com.keymanage.feature.generator.PasswordGeneratorViewContract
 import com.keymanage.feature.main.MainPresentable
-import com.keymanage.feature.root.RootPresentable
+import com.keymanage.feature.main.MainViewContract
+import com.keymanage.feature.root.RootViewControllable
 import com.keymanage.feature.settings.SettingsPresentable
+import com.keymanage.feature.settings.SettingsViewContract
 import com.keymanage.feature.unlock.UnlockPresentable
+import com.keymanage.feature.unlock.UnlockViewContract
 import com.keymanage.feature.vaultlist.VaultListPresentable
+import com.keymanage.feature.vaultlist.VaultListViewContract
 import com.keymanage.serverhttp.keyManageHttpClient
 import io.ktor.client.HttpClient
 
@@ -23,19 +29,19 @@ import io.ktor.client.HttpClient
 
 /** 화면마다 웹 뷰를 하나씩 만든다. 루트 뷰는 [rootSlot]에 자식 화면을 보인다 */
 internal class WebViewFactory(private val rootSlot: ScreenSlot) : KeyManageViewFactory {
-    override fun makeRootView(): RootPresentable = WebRootView(rootSlot)
-    override fun makeAuthView(): AuthPresentable = WebAuthView()
-    override fun makeUnlockView(): UnlockPresentable = WebUnlockView()
-    override fun makeMainView(): MainPresentable = WebMainView()
-    override fun makeVaultListView(): VaultListPresentable = WebVaultListView()
-    override fun makePasswordGeneratorView(): PasswordGeneratorPresentable = WebGeneratorView()
-    override fun makeSettingsView(): SettingsPresentable = WebSettingsView()
+    override fun makeRootView(): RootViewControllable = WebRootView(rootSlot)
+    override fun makeAuthView(): AuthViewContract = WebAuthView()
+    override fun makeUnlockView(): UnlockViewContract = WebUnlockView()
+    override fun makeMainView(): MainViewContract = WebMainView()
+    override fun makeVaultListView(): VaultListViewContract = WebVaultListView()
+    override fun makePasswordGeneratorView(): PasswordGeneratorViewContract = WebGeneratorView()
+    override fun makeSettingsView(): SettingsViewContract = WebSettingsView()
 }
 
 /** 루트 뷰는 자식 화면을 rootSlot에 직접 보이므로 루트 뷰 자체를 붙일 곳은 없다 */
-private object RootHost : ViewHost<RootPresentable> {
-    override fun show(view: RootPresentable) = Unit
-    override fun hide(view: RootPresentable) = Unit
+private object RootHost : ViewHost<RootViewControllable> {
+    override fun show(view: RootViewControllable) = Unit
+    override fun hide(view: RootViewControllable) = Unit
 }
 
 /** 테스트가 MockEngine 클라이언트를 넣는 자리. 앱은 바꾸지 않는다 */

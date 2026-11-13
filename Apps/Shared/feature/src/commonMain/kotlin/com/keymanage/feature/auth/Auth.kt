@@ -2,11 +2,10 @@ package com.keymanage.feature.auth
 
 import com.carti.ribs.Builder
 import com.carti.ribs.Dependency
-import com.carti.ribs.Interactor
-import com.carti.ribs.RibState
+import com.carti.ribs.Presentable
+import com.carti.ribs.PresentableInteractor
 import com.carti.ribs.ViewControllable
-import com.carti.ribs.ViewPresenter
-import com.carti.ribs.ViewRouter
+import com.carti.ribs.ViewableRouter
 import com.carti.ribs.checkMainThread
 import com.keymanage.domain.auth.checkNewMasterPassword
 import com.keymanage.domain.generator.isWeak
@@ -66,14 +65,21 @@ interface AuthPresentableListener {
     fun handle(action: AuthViewAction)
 }
 
-interface AuthPresentable : ViewControllable {
+/** Interactor가 쓰는 화면 계약 (RIBs-iOS Presentable, carti ADR-0010) */
+interface AuthPresentable : Presentable {
     /** 활성 구간에만 설정된다. 비활성이면 null이라 입력이 무시된다 */
     var listener: AuthPresentableListener?
     fun render(state: AuthViewState)
 }
 
+/** Router가 쓰는 화면 계약 */
+interface AuthViewControllable : ViewControllable
+
+/** 플랫폼 뷰가 구현하는 둘의 합 */
+interface AuthViewContract : AuthPresentable, AuthViewControllable
+
 fun interface AuthViewFactory {
-    fun makeAuthView(): AuthPresentable
+    fun makeAuthView(): AuthViewContract
 }
 
 interface AuthDependency : Dependency {
@@ -93,56 +99,37 @@ class AuthBuilder(dependency: AuthDependency) : Builder<AuthDependency>(dependen
      * 사용자가 다시 시도하거나 모드를 바꾸면 이 RIB이 화면에서 지운다. 부모는 넘긴 뒤 자기 값을 비운다
      */
     fun build(listener: AuthListener, notice: String? = null): AuthRouter {
-        val presenter = AuthPresenter(dependency.authViewFactory.makeAuthView())
-        val interactor = AuthInteractor(presenter, dependency.session, listener, notice)
-        return AuthRouter(presenter.view, interactor)
-    }
-}
-
-class AuthPresenter(view: AuthPresentable) : ViewPresenter<AuthPresentable>(view), AuthPresentableListener {
-    var onAction: ((AuthViewAction) -> Unit)? = null
-
-    override fun didLoad() {
-        view.listener = this
-    }
-
-    override fun willUnload() {
-        view.listener = null
-    }
-
-    override fun handle(action: AuthViewAction) {
-        onAction?.invoke(action)
-    }
-
-    fun render(state: AuthViewState) {
-        checkMainThread("AuthPresenter.render")
-        view.render(state)
+        val view = dependency.authViewFactory.makeAuthView()
+        val interactor = AuthInteractor(view, dependency.session, listener, notice)
+        return AuthRouter(interactor, view)
     }
 }
 
 /** 상태를 들고 입력을 해석한다. 요청은 활성 구간 스코프에서 실행하므로 detach되면 취소된다 */
 class AuthInteractor(
-    presenter: AuthPresenter,
+    presenter: AuthPresentable,
     private val session: SessionPort,
     private val listener: AuthListener,
     notice: String? = null,
-) : Interactor<AuthPresenter, AuthRouter>(presenter) {
+) : PresentableInteractor<AuthPresentable>(presenter), AuthPresentableListener {
     private var state = AuthViewState(notice = notice)
 
     /** 되돌림 경고를 받아들이면 다시 보낼 로그인 요청. 입력 칸이 바뀌어도 처음 요청의 값을 쓴다 */
     private var rollbackRetry: LoginRequest? = null
 
-    override fun didBecomeActive(savedInstanceState: RibState?) {
-        presenter.onAction = ::handle
-        presenter.render(state)
+    override fun didBecomeActive() {
+        presenter.listener = this
+        render()
     }
 
     override fun willResignActive() {
-        presenter.onAction = null
+        presenter.listener = null
         rollbackRetry = null
     }
 
-    private fun handle(action: AuthViewAction) {
+    override fun handle(action: AuthViewAction) {
+        // 비활성 뒤 늦게 온 입력은 무시한다(옛 Presenter가 onAction을 비워 막던 것)
+        if (!isActive) return
         when (action) {
             AuthViewAction.SwitchMode -> switchMode()
             is AuthViewAction.UpdateEmail -> update { copy(email = action.email) }
@@ -159,6 +146,11 @@ class AuthInteractor(
 
     private fun update(change: AuthViewState.() -> AuthViewState) {
         state = state.change()
+        render()
+    }
+
+    private fun render() {
+        checkMainThread("AuthPresentable.render")
         presenter.render(state)
     }
 
@@ -233,5 +225,5 @@ class AuthInteractor(
     private class LoginRequest(val email: String, val password: String)
 }
 
-class AuthRouter(view: AuthPresentable, interactor: AuthInteractor) :
-    ViewRouter<AuthPresentable, AuthInteractor>(view, interactor)
+class AuthRouter(interactor: AuthInteractor, view: AuthViewControllable) :
+    ViewableRouter<AuthInteractor, AuthViewControllable>(interactor, view)

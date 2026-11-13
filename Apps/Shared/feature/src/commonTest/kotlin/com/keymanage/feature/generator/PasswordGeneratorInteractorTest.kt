@@ -2,6 +2,8 @@ package com.keymanage.feature.generator
 
 import com.carti.ribs.RibCoroutinesConfig
 import com.carti.ribs.RibDispatchersProvider
+import com.carti.ribs.RibMount
+import com.carti.ribs.mount
 import com.keymanage.domain.generator.SYMBOLS
 import com.keymanage.domain.generator.WEAK_BELOW
 import com.keymanage.domain.platform.RandomBytes
@@ -31,7 +33,7 @@ class PasswordGeneratorInteractorTest {
     private lateinit var clipboard: FakeClipboard
     private lateinit var random: CountingRandomBytes
     private lateinit var listener: RecordingListener
-    private var router: PasswordGeneratorRouter? = null
+    private var mount: RibMount? = null
 
     @BeforeTest
     fun setUp() {
@@ -44,7 +46,7 @@ class PasswordGeneratorInteractorTest {
 
     @AfterTest
     fun tearDown() {
-        router?.dispatchDetach()
+        mount?.unmount()
         RibCoroutinesConfig.reset()
     }
 
@@ -54,7 +56,7 @@ class PasswordGeneratorInteractorTest {
             override val clipboard = this@PasswordGeneratorInteractorTest.clipboard
             override val randomBytes: RandomBytes = random
         }
-        router = PasswordGeneratorBuilder(dependency).build(if (withListener) listener else null, allowCopy).also { it.dispatchAttach(null) }
+        mount = PasswordGeneratorBuilder(dependency).build(if (withListener) listener else null, allowCopy).mount()
     }
 
     private val state get() = checkNotNull(view.states.lastOrNull()) { "아직 그리지 않음" }
@@ -145,8 +147,8 @@ class PasswordGeneratorInteractorTest {
 
             assertEquals(PasswordGeneratorMessages.LENGTH_PROBLEM, state.problemMessage, length)
             assertEquals(callsBefore, random.calls, length)
-            router?.dispatchDetach()
-            router = null
+            mount?.unmount()
+            mount = null
         }
     }
 
@@ -263,7 +265,7 @@ class PasswordGeneratorInteractorTest {
         scope.runCurrent()
         assertEquals(emptyList(), clipboard.copied)
 
-        router?.dispatchDetach()
+        mount?.unmount()
         open(withListener = false, allowCopy = true)
         send(PasswordGeneratorViewAction.ChangeLength("7"))
         send(PasswordGeneratorViewAction.Copy)
@@ -276,8 +278,8 @@ class PasswordGeneratorInteractorTest {
         open()
         assertNotNull(view.listener)
 
-        router?.dispatchDetach()
-        router = null
+        mount?.unmount()
+        mount = null
 
         assertNull(view.listener)
     }
@@ -287,8 +289,8 @@ class PasswordGeneratorInteractorTest {
         open()
         assertNotNull(state.generated)
 
-        router?.dispatchDetach()
-        router = null
+        mount?.unmount()
+        mount = null
 
         assertNull(state.generated)
     }
@@ -301,7 +303,7 @@ private class SingleDispatcher(dispatcher: CoroutineDispatcher) : RibDispatchers
     override val Unconfined: CoroutineDispatcher = dispatcher
 }
 
-private class FakeGeneratorView : PasswordGeneratorPresentable {
+private class FakeGeneratorView : PasswordGeneratorViewContract {
     override var listener: PasswordGeneratorPresentableListener? = null
     val states = mutableListOf<PasswordGeneratorViewState>()
     override fun render(state: PasswordGeneratorViewState) {
