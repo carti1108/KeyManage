@@ -34,7 +34,7 @@ import kotlin.time.Instant
 // Promise가 reject할 때 값은 Kotlin 예외 그대로다. TypeScript는 errorInfo(e)로 읽는다
 
 /** 기기의 현지 날짜(JS Date 기준). 백업 파일 이름에 쓴다 */
-private val jsCalendar = LocalCalendar { time ->
+internal val jsCalendar = LocalCalendar { time ->
     val date = Date(time.toEpochMilliseconds().toDouble())
     LocalDay(date.getFullYear(), date.getMonth() + 1, date.getDate())
 }
@@ -43,7 +43,7 @@ private fun instantOf(epochMillis: Double): Instant = Instant.fromEpochMilliseco
 
 @JsExport
 class KotlinVaultSession internal constructor(
-    private val session: VaultSession,
+    internal val session: VaultSession,
     private val scope: CoroutineScope,
 ) {
     // 같은 상태면 볼트를 다시 JSON으로 만들지 않는다. SessionState는 값 비교, 볼트는 객체 동일성으로 같다
