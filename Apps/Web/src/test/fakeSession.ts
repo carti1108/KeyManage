@@ -4,7 +4,7 @@ import { backupFileName, type VaultBackup } from '../domain/backup/backupFile'
 import type { SessionState } from '../domain/session/vaultSession'
 import { emptyVault, type VaultData } from '../domain/vault/vaultData'
 import type { SyncedVault } from '../domain/vault/vaultSync'
-import type { SessionPort } from '../ui/session/sessionPort'
+import type { VaultSession } from '../domain/session/vaultSession'
 
 export function fakeVault(overrides: Partial<SyncedVault> = {}): SyncedVault {
   return { revision: 1, data: emptyVault(new Date('2026-10-31T00:00:00Z')), readOnly: false, payload: null, ...overrides }
@@ -109,7 +109,7 @@ export function createFakeSession(initial: SessionState = { status: 'signedOut' 
       syncListeners.add(listener)
       return () => syncListeners.delete(listener)
     },
-  } satisfies SessionPort
+  } satisfies Partial<VaultSession>
 
   return { session, control }
 }

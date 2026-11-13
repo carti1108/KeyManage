@@ -6,9 +6,16 @@ import { DEVICE_RECORD_VERSION } from '../domain/device/deviceRecord'
 import type { RememberedKdf, TabMemory } from '../domain/device/tabMemory'
 import { createSingleTabFallback } from '../domain/tabs/inMemoryTabs'
 import App from './App'
-import { createServices } from './services'
+import * as kotlinModule from 'keymanage-web-session'
+import { bootKotlinApp, createKotlinApp, type KotlinAppDeps } from './kotlinApp'
 
 const API = 'http://localhost:8080'
+
+async function renderApp(deps: KotlinAppDeps) {
+  const kotlinApp = createKotlinApp(kotlinModule, { apiBaseUrl: API, ...deps })
+  await bootKotlinApp(kotlinApp)
+  render(<App kotlinApp={kotlinApp} />)
+}
 
 function memoryOf(value: RememberedKdf | null): TabMemory {
   let current = value
@@ -37,7 +44,7 @@ describe('App 새로 열린 탭의 비밀번호 바뀜 감지 (SEC-003 규칙 11
     })
     const remembered = memoryOf({ email: 'user@example.com', salt: 'BBBBBBBBBBBBBBBBBBBBBB==', iterations: 600_000 })
 
-    render(<App services={createServices(API, createIndexedDbDeviceStore(factory), createSingleTabFallback(), undefined, remembered)} />)
+    await renderApp({ deviceStore: createIndexedDbDeviceStore(factory), tabs: createSingleTabFallback(), tabMemory: remembered })
 
     expect(await screen.findByText('마스터 비밀번호가 바뀌었습니다. 새 비밀번호로 로그인해 주세요.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '로그인' })).toBeInTheDocument()

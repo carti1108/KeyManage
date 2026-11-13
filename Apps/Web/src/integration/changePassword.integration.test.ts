@@ -3,7 +3,8 @@
 import { IDBFactory } from 'fake-indexeddb'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { createIndexedDbDeviceStore } from '../adapters/browser/indexedDbDeviceStore'
-import { createServices } from '../app/services'
+import * as kotlinModule from 'keymanage-web-session'
+import { createKotlinApp } from '../app/kotlinApp'
 import { SessionExpiredError, WrongMasterPasswordError, type VaultSession } from '../domain/session/vaultSession'
 import { activeItems, addItem } from '../domain/vault/vaultData'
 
@@ -12,7 +13,7 @@ const API = env?.KEYMANAGE_API_URL ?? 'http://localhost:8080'
 const OLD_PASSWORD = 'integration-old-master-password'
 const NEW_PASSWORD = 'integration-new-master-password'
 
-const device = (): VaultSession => createServices(API, createIndexedDbDeviceStore(new IDBFactory())).session
+const device = (): VaultSession => createKotlinApp(kotlinModule, { apiBaseUrl: API, deviceStore: createIndexedDbDeviceStore(new IDBFactory()) }).session
 
 function names(session: VaultSession) {
   const state = session.state()
