@@ -2,9 +2,13 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { configDefaults } from 'vitest/config'
+import { kotlinSessionAliases } from './vite.alias.ts'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: kotlinSessionAliases,
+  },
   server: {
     // 데스크톱 틀(tauri.conf.json devUrl)이 이 포트를 열므로, 사용 중이면 다른 포트로 넘어가지 않고 실패한다
     port: 5173,
