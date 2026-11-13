@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { parseBackup, type VaultBackup } from '../../domain/backup/backupFile'
+import type { VaultBackup } from '../../domain/backup/backupFile'
 import { createSingleTabFallback } from '../../domain/tabs/inMemoryTabs'
 import { NetworkError, ServerError } from '../../domain/server/serverErrors'
 import { WrongMasterPasswordError, type SessionState } from '../../domain/session/sessionTypes'
@@ -242,7 +242,14 @@ describe('메서드 위임', () => {
     const [json, password, nowMs] = kotlin.restoreBackup.mock.calls[0] ?? []
     expect(password).toBe('pw')
     expect(nowMs).toBe(now.getTime())
-    expect(parseBackup(json ?? '')).toEqual(backup)
+    // 옛 TS parseBackup으로 되읽어 backup과 같은지 보던 검증을, 파일 JSON을 직접 비교하는 것으로 바꿨다(TS 구현 삭제)
+    expect(JSON.parse(json ?? '')).toEqual({
+      format: 'keymanage-backup',
+      formatVersion: backup.formatVersion,
+      createdAt: backup.createdAt,
+      kdf: { name: 'PBKDF2-HMAC-SHA256', ...KDF },
+      vault: backup.vault,
+    })
     expect(JSON.parse(json ?? '{}')).toMatchObject({ format: 'keymanage-backup', kdf: { name: 'PBKDF2-HMAC-SHA256', ...KDF } })
   })
 

@@ -7,6 +7,7 @@ import type {
   WebMessage,
   WebReconnectPrompt,
   WebRestoreDialogText,
+  WebSettingsPolicyText,
 } from 'keymanage-web-session'
 
 /** Kotlin 데이터 클래스(copy·equals 등이 붙은 타입)를 평범한 객체로 흉내 낸다. 테스트에서 State 일부를 바꿔 넣을 때 쓴다 */
@@ -58,6 +59,13 @@ export const WEAK_ITEM_PASSWORD_TEXT = asState<WebMessage>({
 })
 
 export const SEQUENTIAL_DIGITS_TEXT = '123처럼 이어지는 숫자가 들어 있어 추측하기 쉽습니다.'
+
+export const SETTINGS_SECURITY_POLICY_TEXT = asState<WebSettingsPolicyText>({
+  clipboardLabel: '클립보드 자동 삭제',
+  clipboardValue: '30초 (고정, COM-001)',
+  encryptionLabel: '암호화 구조',
+  encryptionValue: '클라이언트 영지식 (AES-256-GCM)',
+})
 
 export const EXPORT_NOTICE_TEXT = asState<WebConfirmText>({
   title: '백업 내보내기',

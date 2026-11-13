@@ -64,6 +64,15 @@ data class WebDeleteAccountDialogText(
     val progress: String,
 )
 
+/** 설정 화면에 늘 보이는 고정 보안 정책 줄(이름과 값). 값은 사용자가 바꿀 수 없다 (COM-001, vault-spec) */
+@JsExport
+data class WebSettingsPolicyText(
+    val clipboardLabel: String,
+    val clipboardValue: String,
+    val encryptionLabel: String,
+    val encryptionValue: String,
+)
+
 /** 서버 볼트가 이전 상태로 돌아갔다는 경고를 받아들일지 묻는 창 (VLT-001) */
 internal val ROLLBACK_WARNING_TEXT = WebConfirmText(
     title = RollbackWarning.TITLE,
@@ -140,3 +149,15 @@ internal val DELETE_ACCOUNT_DIALOG_TEXT = WebDeleteAccountDialogText(
     cancel = DeleteAccountDialog.CANCEL,
     progress = DeleteAccountDialog.PROGRESS,
 )
+
+/** 설정 화면의 고정 보안 정책 줄. 클립보드 30초는 COM-001의 고정값이다 */
+internal val SETTINGS_SECURITY_POLICY_TEXT = WebSettingsPolicyText(
+    clipboardLabel = "클립보드 자동 삭제",
+    clipboardValue = "30초 (고정, COM-001)",
+    encryptionLabel = "암호화 구조",
+    encryptionValue = "클라이언트 영지식 (AES-256-GCM)",
+)
+
+/** 설정 화면의 동기화 상태 줄 문구 (VLT-002). 서버에 올리지 못한 변경이 있으면 오프라인으로 본다 */
+internal const val SYNC_STATUS_OFFLINE_TEXT: String = "오프라인"
+internal const val SYNC_STATUS_UP_TO_DATE_TEXT: String = "최신 상태 (동기화 완료)"

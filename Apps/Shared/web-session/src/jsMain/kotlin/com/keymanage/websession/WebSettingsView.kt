@@ -25,8 +25,10 @@ data class WebSettingsState(
     val email: String,
     /** 서버 주소 줄. 같은 출처면 빈 문자열 */
     val serverAddress: String,
-    /** true면 "오프라인", false면 "최신 상태 (동기화 완료)" */
+    /** true면 "오프라인", false면 "최신 상태 (동기화 완료)". 화면은 이 값이 아니라 [syncStatus]를 그린다 */
     val syncOffline: Boolean,
+    /** 동기화 상태 줄에 그대로 보이는 문구 (VLT-002) */
+    val syncStatus: String,
     val readOnly: Boolean,
     /** 서버에 닿지 못함. 비밀번호 변경·계정 삭제를 막는다 */
     val accountOffline: Boolean,
@@ -60,6 +62,8 @@ data class WebSettingsState(
     val canSubmitRestore: Boolean,
     val canSubmitChangePassword: Boolean,
     val canSubmitDeletion: Boolean,
+    /** 보안 정책 줄에 그대로 보이는 고정 문구 (COM-001) */
+    val securityPolicy: WebSettingsPolicyText,
     /** [modal]이 'exportConfirm'일 때 그리는 안내 문구 (VLT-004) */
     val exportNotice: WebConfirmText,
     val restoreDialog: WebRestoreDialogText,
@@ -86,6 +90,7 @@ private fun SettingsViewState.toWeb() = WebSettingsState(
     email = email,
     serverAddress = serverAddress,
     syncOffline = syncOffline,
+    syncStatus = if (syncOffline) SYNC_STATUS_OFFLINE_TEXT else SYNC_STATUS_UP_TO_DATE_TEXT,
     readOnly = readOnly,
     accountOffline = accountOffline,
     autoLockOptionsMs = if (autoLockOptions == AUTO_LOCK_OPTIONS) AUTO_LOCK_OPTION_MS else autoLockOptions.map { it.inWholeMilliseconds.toInt() }.toTypedArray(),
@@ -110,6 +115,7 @@ private fun SettingsViewState.toWeb() = WebSettingsState(
     canSubmitRestore = canSubmitRestore,
     canSubmitChangePassword = canSubmitChangePassword,
     canSubmitDeletion = canSubmitDeletion,
+    securityPolicy = SETTINGS_SECURITY_POLICY_TEXT,
     exportNotice = EXPORT_NOTICE_TEXT,
     restoreDialog = RESTORE_DIALOG_TEXT,
     changePasswordDialog = CHANGE_PASSWORD_DIALOG_TEXT,

@@ -74,15 +74,15 @@ export function SettingsRibScreen({ view }: { view: WebSettingsView }) {
       <div className="flex flex-col gap-4">
         <SettingsSection title="계정" icon={<User aria-hidden className="size-4 text-primary" />}>
           <SettingsRow label="이메일" value={state.email} />
-          <SettingsRow label="동기화 상태" value={state.syncOffline ? '오프라인' : '최신 상태 (동기화 완료)'} />
+          <SettingsRow label="동기화 상태" value={state.syncStatus} />
         </SettingsSection>
 
         <SettingsSection title="보안 정책" icon={<Shield aria-hidden className="size-4 text-primary" />}>
           <div className="p-3.5">
             <AutoLockSelect timeoutMs={state.autoLockTimeoutMs} optionsMs={state.autoLockOptionsMs} onChange={(ms) => view.selectAutoLock(ms)} />
           </div>
-          <SettingsRow label="클립보드 자동 삭제" value="30초 (고정, COM-001)" />
-          <SettingsRow label="암호화 구조" value="클라이언트 영지식 (AES-256-GCM)" />
+          <SettingsRow label={state.securityPolicy.clipboardLabel} value={state.securityPolicy.clipboardValue} />
+          <SettingsRow label={state.securityPolicy.encryptionLabel} value={state.securityPolicy.encryptionValue} />
         </SettingsSection>
 
         <SettingsSection title="서버" icon={<Globe aria-hidden className="size-4 text-primary" />}>
