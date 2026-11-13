@@ -16,6 +16,8 @@ kotlin {
 
     compilerOptions {
         optIn.add("kotlin.time.ExperimentalTime")
+        // 뷰 계약의 Objective-C 이름(iOS). 같은 이름(render·handle)이 RIB마다 있어 Swift에서 이름이 깨지지 않게 RIB별로 정한다
+        optIn.add("kotlin.experimental.ExperimentalObjCName")
     }
 
     sourceSets {

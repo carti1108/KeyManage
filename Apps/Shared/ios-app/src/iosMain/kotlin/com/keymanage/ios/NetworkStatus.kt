@@ -33,10 +33,10 @@ class NetworkStatus {
 
 /** NWPathMonitor로 [NetworkStatus]를 갱신한다. 경로 알림은 메인 큐로 받는다 */
 @OptIn(ExperimentalForeignApi::class)
-class NetworkPathMonitor(private val status: NetworkStatus) {
+class NetworkPathMonitor(private val status: NetworkStatus) : NetworkMonitoring {
     private var monitor: nw_path_monitor_t = null
 
-    fun start() {
+    override fun start() {
         if (monitor != null) return
         val created = nw_path_monitor_create()
         nw_path_monitor_set_queue(created, dispatch_get_main_queue())
@@ -47,7 +47,7 @@ class NetworkPathMonitor(private val status: NetworkStatus) {
         monitor = created
     }
 
-    fun stop() {
+    override fun stop() {
         monitor?.let(::nw_path_monitor_cancel)
         monitor = null
     }

@@ -487,3 +487,23 @@ HTTP는 6단계의 `server-http`(Ktor JS 엔진, 브라우저 `fetch`)를 쓴다
 - 확인: `:device-store:allTests`(js 6, macosArm64 7, iosSimulatorArm64 7) 통과, `:ios-app:iosSimulatorArm64Test` 14건 통과, XCFramework 생성 통과. 파일·UserDefaults·UIPasteboard(이름 붙인 보드)는 호스트 앱 없이 시뮬레이터 테스트에서 돈다.
 - 확인하지 못한 것: `NWPathMonitor` 실제 경로 알림(상태 갱신 로직만 테스트), 일반 `UIPasteboard`, 키체인·Face ID를 앱 안에서 쓰는 것(호스트 앱·실기기, 2단계와 5단계). 12.3 1단계 확인 기준의 "호스트 앱 안에서 키체인·기기 저장소 테스트"는 기기 저장소가 호스트 없이 통과해 키체인만 남았고, 키체인은 target-architecture 6.1의 결과 그대로다.
 - 별개 문제: `:kotlinStoreYarnLock`이 이 단계 변경 전에도 실패한다(빌드 중 생기는 yarn.lock에 `typescript`·`ws`가 더해짐). `allTests`는 `-x kotlinStoreYarnLock`으로 돌렸다.
+
+#### 2단계: iOS 진입점 (2026-11-13)
+
+iOS 앱의 `@main`이 공유 RIB 트리를 띄운다. 옛 Swift RIB 경로는 macOS 앱(`KeyManageMac`)이 그대로 쓰고, iOS 쪽 Swift RIB·도메인은 4단계에서 지운다.
+
+| 위치 | 내용 |
+| :--- | :--- |
+| `ios-app` `IosKeyManageApp` | `IosKeyManageApp.companion.create(serverOrigin:viewFactory:)`가 세션(`server-http` Darwin 엔진, 기기 저장소 파일, `SingleTab`)과 `KeyManageApp`을 조립한다. `start(host:)`는 기기 기록을 읽은 뒤(`restore`) 첫 화면을 붙이고, 복원 중 세션 만료·비밀번호 바뀜이면 로그인 화면 안내를 넘긴다(웹 `bootKotlinApp`과 같다). `stop()`은 트리와 수명주기 배선을 내린다. `didEnterBackground`·`willEnterForeground`·`userActivity`는 실행 중일 때만 배선에 넘긴다 |
+| `ios-app` `AppLifecycleWiring` | 웹 `app/*Wiring.ts`와 같은 일. 잠금 해제부터 자동 잠금 타이머(도메인 `createAutoLock`), 백그라운드는 "즉시"일 때만 잠금, 앞으로 오면 경과 시간으로 판정(Swift `VaultLockManager.didEnterBackground`·`willEnterForeground`와 같다), 잠기면 클립보드 바로 소각, 30초마다·네트워크 복구 때 대기 재전송(VLT-002), `NWPathMonitor` 시작·중지. 설정 화면이 자동 잠금 시간을 바꾸면 그때부터 새 시간으로 잰다(SEC-003) |
+| `ios-app` `DocumentsBackupFiles` | 백업 내보내기는 앱 문서 폴더에 쓴다. 파일 고르기는 문서 선택기가 필요해 3단계 Settings 화면과 함께 만들고, 지금은 고른 파일이 없다고 답한다 |
+| `feature` 뷰 계약 | `render`·`handle`가 RIB마다 같은 이름이라 Objective-C 헤더에서 `render(state__:)`처럼 깨졌다. `@ObjCName`으로 `renderAuth`·`handleAuth` 등 RIB별 이름을 붙였다. Kotlin·웹 코드는 바뀌지 않는다 |
+| iOS `Sources/iOS` | `SharedAppLauncher`(`ViewHost`, 창 슬롯, 장면 상태 전달), `SharedViewFactory`, 화면 7개(`Shared*Screen`). Auth·Unlock·Main은 상태를 다 그리고, 탭 화면(볼트 목록·생성기·설정)은 목록·생성·잠그기만 그린다. 화면 입력은 모두 자동 잠금 조작으로 넘긴다. 백그라운드·비활성 장면에서는 가림 화면을 씌운다(SEC-003 3번) |
+| Tuist `KeyManageIOSUITests` | 로컬 백엔드로 가입 → 잠금 → 틀린 비밀번호 → 해제를 확인한다. 3단계에서 RIB별 흐름을 더한다 |
+
+- 서버 주소: `server-http`의 `resolveBaseUrl`은 출처만 받으므로 Swift 앱이 쓰던 `http://localhost:8080/api/v1` 대신 출처 `http://localhost:8080`(`LOCAL_DEV_SERVER_ORIGIN`)을 기본으로 둔다. 실행 인자 `-serverOrigin`으로 바꿀 수 있다.
+- 사용자 조작: 화면이 `listener`로 보내는 입력(누름·글자 입력)을 자동 잠금 조작으로 넘긴다. 루트 뷰에 탭 제스처를 겹쳐 받는 방법은 화면 버튼과 겹칠 수 있어 쓰지 않았다.
+- 입력 칸(`SharedTextInput`): 칸이 글자를 먼저 받고 같은 입력 이벤트 안에서 공유 코드로 보낸다. `onChange`로 늦게 보내면 XCUITest처럼 치자마자 제출할 때 마지막 입력보다 제출이 먼저 처리돼 가입 비밀번호가 짧다는 오류가 났다. 공유 코드를 거쳐 돌아온 값은 칸을 덮지 않고, 공유 코드가 다른 값을 정할 때(지움)만 칸을 고친다.
+- 확인: `:ios-app:iosSimulatorArm64Test` 33건 통과(새 `AppLifecycleWiringTest` 11건, `IosKeyManageAppTest` 8건), `:feature:jvmTest`·`:web-session:compileKotlinJs` 통과, `KeyManageIOS` 시뮬레이터 빌드(Swift 6 strict concurrency) 통과, `KeyManageIOSUITests`가 로컬 백엔드로 가입 → 잠금 → 해제 통과, `Scripts/verify-apple.sh` 통과(macOS 앱은 옛 Swift 경로 그대로 빌드).
+- 확인하지 못한 것: 실제 백그라운드 전환·자동 잠금 시간 경과·클립보드 소각·네트워크 끊김을 시뮬레이터에서 직접 일으킨 확인(로직은 Kotlin 테스트로만 확인), 키체인·Face ID(5단계), 백업 파일 고르기(3단계).
+- 리뷰 반영: `start(host, onFailure)`가 첫 화면을 붙이지 못하면 붙인 트리를 거두고 문구를 넘기며 다시 시작할 수 있게 했다(Swift는 "다시 시도" 버튼을 보인다). `create`의 조립 실패는 `AppSetupException`(`@Throws`)으로 바꿔 Swift가 잡는다. `NSLog`에 Kotlin 문자열을 `%@` 인자로 넘기면 시뮬레이터 테스트에서 프로세스가 죽어 문자열 하나로 넘긴다. `verify-apple.sh` 4번은 JDK 21을 찾지 못하거나 XCFramework 생성이 실패하면 멈춘다. 2단계 설정 화면에는 백업 복원 버튼이 없다.

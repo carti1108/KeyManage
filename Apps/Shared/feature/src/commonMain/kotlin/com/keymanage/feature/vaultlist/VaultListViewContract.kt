@@ -2,8 +2,10 @@ package com.keymanage.feature.vaultlist
 
 import com.carti.ribs.Presentable
 import com.carti.ribs.ViewControllable
+import kotlin.native.ObjCName
 
 interface VaultListPresentableListener {
+    @ObjCName("handleVaultList")
     fun handle(action: VaultListViewAction)
 }
 
@@ -11,6 +13,7 @@ interface VaultListPresentableListener {
 interface VaultListPresentable : Presentable {
     /** 활성 구간에만 설정된다. 비활성이면 null이라 입력이 무시된다 */
     var listener: VaultListPresentableListener?
+    @ObjCName("renderVaultList")
     fun render(state: VaultListViewState)
 }
 

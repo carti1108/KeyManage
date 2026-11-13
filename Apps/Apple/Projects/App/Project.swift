@@ -74,6 +74,17 @@ let project = Project(
 				.xcframework(path: "../../../Shared/ios-app/build/XCFrameworks/debug/KeyManageShared.xcframework"),
 				.package(product: "RIBsKMPSwiftUI")
 			]
+		),
+		// 공유 RIB 화면 흐름을 로컬 백엔드(localhost:8080)에 붙여 확인한다 (domain-migration-plan 12.3의 2·3단계)
+		.target(
+			name: "KeyManageIOSUITests",
+			destinations: [.iPhone],
+			product: .uiTests,
+			bundleId: "com.keymanage.ios.uitests",
+			deploymentTargets: .iOS("17.0"),
+			infoPlist: .default,
+			sources: ["UITests/iOS/**"],
+			dependencies: [.target(name: "KeyManageIOS")]
 		)
 	]
 )

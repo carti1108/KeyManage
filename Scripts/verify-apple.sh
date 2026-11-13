@@ -37,7 +37,19 @@ bash "${ROOT_DIR}/Scripts/verify-tdd-integrity.sh"
 # 4. Tuist 외부 의존성 설치 및 프로젝트 생성
 echo ">> [4/6] 공유 Kotlin XCFramework 생성, Tuist 의존성 확인 및 프로젝트 생성..."
 # KeyManageIOS가 참조하는 KeyManageShared.xcframework를 tuist generate 전에 만든다 (domain-migration-plan 12.2)
-(cd "${ROOT_DIR}/Apps/Shared" && ./gradlew :ios-app:assembleKeyManageSharedDebugXCFramework)
+# Gradle·Java가 실패하면 예전 XCFramework로 빌드되지 않도록 여기서 멈춘다
+if [ -z "${JAVA_HOME:-}" ]; then
+  if JAVA_HOME="$(/usr/libexec/java_home -v 21 2>/dev/null)"; then
+    export JAVA_HOME
+  else
+    echo "오류: JAVA_HOME이 없고 /usr/libexec/java_home -v 21로도 JDK 21을 찾지 못했습니다." >&2
+    exit 2
+  fi
+fi
+if ! (cd "${ROOT_DIR}/Apps/Shared" && ./gradlew :ios-app:assembleKeyManageSharedDebugXCFramework); then
+  echo "오류: KeyManageShared XCFramework 생성에 실패했습니다." >&2
+  exit 1
+fi
 cd "${APPLE_DIR}"
 if [ ! -d "Tuist/.build/checkouts" ]; then
   "${TUIST_BIN}" install

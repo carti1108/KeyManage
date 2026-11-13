@@ -2,8 +2,10 @@ package com.keymanage.feature.auth
 
 import com.carti.ribs.Presentable
 import com.carti.ribs.ViewControllable
+import kotlin.native.ObjCName
 
 interface AuthPresentableListener {
+    @ObjCName("handleAuth")
     fun handle(action: AuthViewAction)
 }
 
@@ -11,6 +13,7 @@ interface AuthPresentableListener {
 interface AuthPresentable : Presentable {
     /** 활성 구간에만 설정된다. 비활성이면 null이라 입력이 무시된다 */
     var listener: AuthPresentableListener?
+    @ObjCName("renderAuth")
     fun render(state: AuthViewState)
 }
 

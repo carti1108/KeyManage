@@ -2,8 +2,10 @@ package com.keymanage.feature.main
 
 import com.carti.ribs.Presentable
 import com.carti.ribs.ViewControllable
+import kotlin.native.ObjCName
 
 interface MainPresentableListener {
+    @ObjCName("handleMain")
     fun handle(action: MainViewAction)
 }
 
@@ -11,6 +13,7 @@ interface MainPresentableListener {
 interface MainPresentable : Presentable {
     /** 활성 구간에만 설정된다. 비활성이면 null이라 입력이 무시된다 */
     var listener: MainPresentableListener?
+    @ObjCName("renderMain")
     fun render(state: MainViewState)
 }
 

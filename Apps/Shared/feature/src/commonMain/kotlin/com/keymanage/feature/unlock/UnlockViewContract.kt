@@ -2,8 +2,10 @@ package com.keymanage.feature.unlock
 
 import com.carti.ribs.Presentable
 import com.carti.ribs.ViewControllable
+import kotlin.native.ObjCName
 
 interface UnlockPresentableListener {
+    @ObjCName("handleUnlock")
     fun handle(action: UnlockViewAction)
 }
 
@@ -11,6 +13,7 @@ interface UnlockPresentableListener {
 interface UnlockPresentable : Presentable {
     /** 활성 구간에만 설정된다. 비활성이면 null이라 입력이 무시된다 */
     var listener: UnlockPresentableListener?
+    @ObjCName("renderUnlock")
     fun render(state: UnlockViewState)
 }
 
