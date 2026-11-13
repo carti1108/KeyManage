@@ -1,18 +1,12 @@
 package com.keymanage.feature.unlock
 
-import com.carti.ribs.Builder
-import com.carti.ribs.Dependency
-import com.carti.ribs.Presentable
 import com.carti.ribs.PresentableInteractor
 import com.carti.ribs.RibDispatchers
-import com.carti.ribs.ViewControllable
-import com.carti.ribs.ViewableRouter
 import com.carti.ribs.checkMainThread
 import com.keymanage.domain.device.DeviceStorageException
 import com.keymanage.domain.session.SessionState
 import com.keymanage.domain.vault.RevisionRollbackException
 import com.keymanage.feature.SessionPort
-import com.keymanage.feature.messages.ErrorMessage
 import com.keymanage.feature.messages.LOGOUT_CLEAR_FAILED
 import com.keymanage.feature.messages.describeError
 import com.keymanage.feature.messages.describeErrorMessage
@@ -24,88 +18,6 @@ import kotlinx.coroutines.launch
 
 // 잠금 화면 (SEC-003). 마스터 비밀번호로 열고, 동기화 대기 변경을 확인한 뒤 로그아웃한다 (VLT-002)
 // 원본: Apps/Web/src/ui/screens/UnlockScreen.tsx, ui/session/SessionRoot.tsx의 unlock·logout 흐름, iOS Features/Unlock
-
-/** 화면이 그리는 전부 */
-data class UnlockViewState(
-    val email: String = "",
-    val password: String = "",
-    /** 잠금 해제 또는 로그아웃 요청이 진행 중 */
-    val isLoading: Boolean = false,
-    val error: ErrorMessage? = null,
-    /** 서버 볼트가 이전 상태로 돌아갔다는 경고를 받아들일지 묻는 중 (VLT-001). [error]와 함께 보이지 않는다 */
-    val isConfirmingRollback: Boolean = false,
-    /** 올리지 못한 변경 사항이 사라진다고 알리고 로그아웃할지 묻는 중 (VLT-002) */
-    val isConfirmingLogout: Boolean = false,
-    /** 생체 해제를 쓸 수 있음. 아직 연결하지 않았으므로 항상 false다 (웹에는 없고 iOS만 쓰는 선택 기능) */
-    val isBiometricsAvailable: Boolean = false,
-)
-
-/** 화면 입력 전부 */
-sealed interface UnlockViewAction {
-    data class UpdatePassword(val password: String) : UnlockViewAction
-    data object Unlock : UnlockViewAction
-
-    /** 연결 전이라 아무 일도 하지 않는다 */
-    data object UnlockWithBiometrics : UnlockViewAction
-
-    /** 되돌림 경고를 받아들이고 처음 입력한 비밀번호로 다시 연다 */
-    data object AcceptRollback : UnlockViewAction
-    data object CancelRollback : UnlockViewAction
-
-    /** 로그아웃 버튼. 대기 중인 변경 사항이 있으면 확인을 먼저 묻는다 */
-    data object RequestLogout : UnlockViewAction
-    data object ConfirmLogout : UnlockViewAction
-    data object CancelLogout : UnlockViewAction
-}
-
-interface UnlockPresentableListener {
-    fun handle(action: UnlockViewAction)
-}
-
-/** Interactor가 쓰는 화면 계약 (RIBs-iOS Presentable, carti ADR-0010) */
-interface UnlockPresentable : Presentable {
-    /** 활성 구간에만 설정된다. 비활성이면 null이라 입력이 무시된다 */
-    var listener: UnlockPresentableListener?
-    fun render(state: UnlockViewState)
-}
-
-/** Router가 쓰는 화면 계약 */
-interface UnlockViewControllable : ViewControllable
-
-/** 플랫폼 뷰가 구현하는 둘의 합 */
-interface UnlockViewContract : UnlockPresentable, UnlockViewControllable
-
-fun interface UnlockViewFactory {
-    fun makeUnlockView(): UnlockViewContract
-}
-
-interface UnlockDependency : Dependency {
-    val unlockViewFactory: UnlockViewFactory
-    val session: SessionPort
-}
-
-/** 자식 → 부모 */
-interface UnlockListener {
-    /** 볼트를 열었다. [offline]이 true면 서버에 닿지 못해 기기에 저장한 볼트로 열었다 (VLT-002) */
-    fun didUnlock(offline: Boolean)
-
-    /**
-     * 로그아웃했다. 이 기기의 볼트 기록을 지우지 못했으면 로그인 화면에 보일 [notice]를 담는다 (ADR-0019).
-     * 서버 토큰 폐기만 실패한 경우는 이 기기가 이미 로그아웃됐으므로 알리지 않는다 (SEC-002)
-     */
-    fun didLogout(notice: String?)
-
-    /** 세션이 만료됐거나 다른 기기에서 마스터 비밀번호를 바꿨다. 로그인 화면에 [notice]를 보인다 (SEC-002, SEC-003) */
-    fun didRequireSignIn(notice: String)
-}
-
-class UnlockBuilder(dependency: UnlockDependency) : Builder<UnlockDependency>(dependency) {
-    fun build(listener: UnlockListener): UnlockRouter {
-        val view = dependency.unlockViewFactory.makeUnlockView()
-        val interactor = UnlockInteractor(view, dependency.session, listener)
-        return UnlockRouter(interactor, view)
-    }
-}
 
 /** 상태를 들고 입력을 해석한다. 요청은 활성 구간 스코프에서 실행하므로 detach되면 취소된다 */
 class UnlockInteractor(
@@ -264,6 +176,3 @@ class UnlockInteractor(
         }
     }
 }
-
-class UnlockRouter(interactor: UnlockInteractor, view: UnlockViewControllable) :
-    ViewableRouter<UnlockInteractor, UnlockViewControllable>(interactor, view)

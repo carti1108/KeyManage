@@ -399,3 +399,8 @@ HTTP는 6단계의 `server-http`(Ktor JS 엔진, 브라우저 `fetch`)를 쓴다
 - 라이브러리가 RIBs-iOS 구조로 바뀌었다(별도 Presenter 수명주기, Interactor의 Router 소유, `dispatchAttach` 삭제). 공유 RIB 7개를 같은 모양으로 옮긴다.
 - 뷰 계약은 `XxxPresentable`(Interactor용) + `XxxViewControllable`(Router용) + 둘을 합친 `XxxViewContract`(플랫폼 뷰가 구현)로 나눈다. `listener` 설정은 Interactor의 `didBecomeActive`·`willResignActive`가 한다. 자식이 있는 RIB은 Router가 `interactor.router`에 자신을 넣는다. 앱은 `LaunchRouter.launch`/`shutdown`을 부른다.
 - 동작은 바꾸지 않는다. 테스트는 가짜 뷰의 타입과 수명주기 호출만 바꾸고 어설션은 그대로 둔다. 붙일 때 "활성화 → 로드" 순서, 탭 자식을 계속 붙여 두는 Main의 활성 상태, 비활성 시 `listener = null` 시점은 리뷰에서 따로 확인한다.
+
+### 11.6 RIB 파일 나누기 (2026-11-13)
+
+- 공유 RIB을 한 파일에 두던 것을 RIB 폴더 안 역할별 파일로 나눈다(Apple Features와 같은 단위): `XxxViewState`(State·Action), `XxxViewContract`(Presentable·ViewControllable·ViewContract·ViewFactory), `XxxDependency`(Dependency·Listener), `XxxBuilder`(Builder·Component), `XxxInteractor`, `XxxRouter`, 필요하면 `XxxMessages`. 패키지는 그대로라 다른 코드는 바뀌지 않는다.
+- RIB마다 Gradle 모듈(api/impl)로 나누는 일은 iOS XCFramework 묶음 모듈 설계와 함께 Mac에서 정한다(결정하면 ADR).
