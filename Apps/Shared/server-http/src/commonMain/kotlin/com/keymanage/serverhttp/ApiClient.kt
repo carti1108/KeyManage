@@ -70,7 +70,8 @@ class ApiClient(
             }
         } catch (error: CancellationException) {
             throw error
-        } catch (_: Exception) {
+        } catch (_: Throwable) {
+            // Ktor JS는 fetch 거부를 Exception이 아닌 kotlin.Error("Fail to fetch")로 던진다. Throwable로 받아야 오프라인을 놓치지 않는다
             throw NetworkError()
         }
 
@@ -82,7 +83,7 @@ class ApiClient(
             response.bodyAsText()
         } catch (error: CancellationException) {
             throw error
-        } catch (_: Exception) {
+        } catch (_: Throwable) {
             // 제한 시간은 본문을 받는 동안에도 적용된다. 느린 회선을 형식 오류로 오해하지 않게 구분한다
             throw NetworkError("응답을 받는 중 시간이 초과됨")
         }
@@ -114,7 +115,7 @@ private suspend fun toServerError(response: HttpResponse): ServerError {
         if (raw != null && raw.isString) ServerErrorCode.fromWire(raw.content) else ServerErrorCode.UNKNOWN
     } catch (error: CancellationException) {
         throw error
-    } catch (_: Exception) {
+    } catch (_: Throwable) {
         // 프록시가 만든 HTML 오류 페이지 등. 코드 없이 상태만 알린다
         ServerErrorCode.UNKNOWN
     }
