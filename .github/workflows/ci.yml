@@ -210,6 +210,9 @@ jobs:
       - name: 생성 파일 검사
         run: node Tools/design-tokens/generate.mjs --check
 
+      - name: 컴포넌트 계약 검사 (design-system.md 6.1절 ↔ 웹·Apple 구현)
+        run: node Tools/design-tokens/check-components.mjs
+
   # Apple 클라이언트(iOS·macOS): 정적 린트·정책 합격 기준·Tuist 생성·Swift 6 빌드·단위 테스트 (ADR-0014, ADR-0015)
   apple:
     runs-on: macos-15
