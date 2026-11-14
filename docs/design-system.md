@@ -34,25 +34,25 @@
 
 ## 2. 색상 토큰
 
-모든 플랫폼은 아래 shadcn/ui 표준 이름을 쓴다. 팔레트는 무채색(Neutral) 단계와 Emerald·Red 신호색으로만 이뤄진다. 값은 **브랜드 기준값**이다. 웹과 데스크톱은 이 값을 그대로 쓰고, 다른 플랫폼은 1.2의 규칙 안에서 조정할 수 있다. 기본 모드는 다크다.
+모든 플랫폼은 아래 shadcn/ui 표준 이름을 쓴다. 팔레트는 무채색(Neutral) 단계와 Emerald·Red 신호색으로만 이뤄진다. 라이트·다크 **브랜드 기준값**은 [`tokens.json`](../Tools/design-tokens/tokens.json) 한 곳에만 적고, 플랫폼 코드는 여기서 생성한다([ADR-0026](adr/ADR-0026-design-token-generation.md)). 웹과 데스크톱은 이 값을 그대로 쓰고, 다른 플랫폼은 1.2의 규칙 안에서 조정할 수 있다. 기본 모드는 다크다.
 
-| 토큰 | 라이트 | 다크(기본) | 의미 | 플랫폼 조정 |
-| :--- | :--- | :--- | :--- | :--- |
-| `--background` | `#FFFFFF` (White) | `#000000` (Black) | 전체 화면 기본 배경 | 허용(시스템 배경 사용 가능) |
-| `--foreground` | `#0A0A0A` (Neutral 950) | `#FAFAFA` (Neutral 50) | 기본 본문 텍스트 | 허용(시스템 레이블 색 사용 가능) |
-| `--card` | `#FFFFFF` (White) | `#141414` (Neutral 900) | 볼트 카드, 다이얼로그 표면 | 허용(시스템 재질 사용 가능) |
-| `--card-foreground` | `#0A0A0A` (Neutral 950) | `#FAFAFA` (Neutral 50) | 카드 안 텍스트 | 허용 |
-| `--primary` | `#0A0A0A` (Neutral 950) | `#FAFAFA` (Neutral 50) | 주요 액션, 활성 탭, 강도 '보통' | **무채색(블랙·화이트) 고정** |
-| `--primary-foreground` | `#FFFFFF` | `#0A0A0A` | 주요 버튼 텍스트 | 허용 |
-| `--accent` (Secure) | `#059669` (Emerald 600) | `#10B981` (Emerald 500) | 안전, 생성·저장 강조 | **Emerald 계열 고정** |
-| `--accent-foreground` | `#FFFFFF` | `#0A0A0A` | 악센트 버튼 텍스트 | 허용 |
-| `--muted` | `#F5F5F5` (Neutral 100) | `#262626` (Neutral 800) | 비활성 영역, 칩 배경 | 허용 |
-| `--muted-foreground` | `#737373` (Neutral 500) | `#A3A3A3` (Neutral 400) | 타임스탬프, 보조 캡션 | 허용 |
-| `--destructive` (Danger) | `#DC2626` (Red 600) | `#EF4444` (Red 500) | 위험, 취약 암호, 삭제 액션 | **Red 계열 고정** |
-| `--destructive-foreground` | `#FFFFFF` | `#FFFFFF` | 경고 버튼 텍스트 | 허용 |
-| `--border` | `#E5E5E5` (Neutral 200) | `rgba(255, 255, 255, 0.12)` | 카드와 입력창 테두리 | 허용(시스템 구분선 사용 가능) |
-| `--input` | `#E5E5E5` (Neutral 200) | `#262626` (Neutral 800) | 입력 필드 외곽선 | 허용 |
-| `--ring` | `#0A0A0A` (Neutral 950) | `#FAFAFA` (Neutral 50) | 포커스 링 | 허용(시스템 포커스 표시 사용 가능) |
+| 토큰 | 의미 | 플랫폼 조정 |
+| :--- | :--- | :--- |
+| `--background` | 전체 화면 기본 배경 | 허용(시스템 배경 사용 가능) |
+| `--foreground` | 기본 본문 텍스트 | 허용(시스템 레이블 색 사용 가능) |
+| `--card` | 볼트 카드, 다이얼로그 표면 | 허용(시스템 재질 사용 가능) |
+| `--card-foreground` | 카드 안 텍스트 | 허용 |
+| `--primary` | 주요 액션, 활성 탭, 강도 '보통' | **무채색(블랙·화이트) 고정** |
+| `--primary-foreground` | 주요 버튼 텍스트 | 허용 |
+| `--accent` (Secure) | 안전, 생성·저장 강조 | **Emerald 계열 고정** |
+| `--accent-foreground` | 악센트 버튼 텍스트 | 허용 |
+| `--muted` | 비활성 영역, 칩 배경 | 허용 |
+| `--muted-foreground` | 타임스탬프, 보조 캡션 | 허용 |
+| `--destructive` (Danger) | 위험, 취약 암호, 삭제 액션 | **Red 계열 고정** |
+| `--destructive-foreground` | 경고 버튼 텍스트 | 허용 |
+| `--border` | 카드와 입력창 테두리 | 허용(시스템 구분선 사용 가능) |
+| `--input` | 입력 필드 외곽선 | 허용 |
+| `--ring` | 포커스 링 | 허용(시스템 포커스 표시 사용 가능) |
 
 어느 플랫폼이든 텍스트와 배경의 대비는 WCAG AA(본문 4.5:1, 큰 글자 3:1) 이상이어야 한다.
 
@@ -60,19 +60,19 @@
 
 ## 3. 간격·모서리 토큰
 
-간격과 모서리도 이름은 공통으로 쓴다. 값은 4pt 그리드를 기준으로 한다. 모서리는 플랫폼이 시스템 모양(예: Apple의 연속 곡률, Material 3의 shape scale)을 쓸 때 조정할 수 있다.
+간격과 모서리도 이름은 공통으로 쓴다. 값은 4pt 그리드를 기준으로 하며 [`tokens.json`](../Tools/design-tokens/tokens.json)에 적는다. 모서리는 플랫폼이 시스템 모양(예: Apple의 연속 곡률, Material 3의 shape scale)을 쓸 때 조정할 수 있다.
 
-| 토큰 | 기준값 | 용도 |
-| :--- | :--- | :--- |
-| `space-1` | 4pt | 아이콘과 레이블 사이 |
-| `space-2` | 8pt | 같은 그룹 안 요소 사이 |
-| `space-3` | 12pt | 입력 필드 안쪽 여백, 카드 `sm` 패딩 |
-| `space-4` | 16pt | 카드 `md` 패딩, 섹션 안 요소 사이 |
-| `space-5` | 20pt | 카드 `lg` 패딩 |
-| `space-6` | 24pt | 섹션 사이 |
-| `radius-sm` | 6pt | 칩, 배지 |
-| `radius-md` | 8pt | 버튼, 입력 필드, 알림 |
-| `radius-lg` | 12pt | 카드, 다이얼로그 |
+| 토큰 | 용도 |
+| :--- | :--- |
+| `space-1` | 아이콘과 레이블 사이 |
+| `space-2` | 같은 그룹 안 요소 사이 |
+| `space-3` | 입력 필드 안쪽 여백, 카드 `sm` 패딩 |
+| `space-4` | 카드 `md` 패딩, 섹션 안 요소 사이 |
+| `space-5` | 카드 `lg` 패딩 |
+| `space-6` | 섹션 사이 |
+| `radius-sm` | 칩, 배지 |
+| `radius-md` | 버튼, 입력 필드, 알림 |
+| `radius-lg` | 카드, 다이얼로그 |
 
 ---
 
