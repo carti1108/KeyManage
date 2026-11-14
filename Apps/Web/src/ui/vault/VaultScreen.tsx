@@ -195,10 +195,10 @@ function VaultView({
 
     // 데스크톱에서 아직 항목을 선택하지 않았을 때의 빈 상태 안내
     return (
-      <div className="flex h-64 flex-col items-center justify-center rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground">
+      <div className="flex h-64 flex-col items-center justify-center rounded-lg border border-dashed border-border p-6 text-center text-muted-foreground">
         <Shield aria-hidden className="mb-2 size-8 text-muted-foreground/40" />
-        <p className="text-sm font-medium">선택된 항목이 없습니다</p>
-        <p className="text-xs text-muted-foreground">목록에서 항목을 선택하거나 새 항목을 추가해 주세요.</p>
+        <p className="text-label font-medium">선택된 항목이 없습니다</p>
+        <p className="text-caption text-muted-foreground">목록에서 항목을 선택하거나 새 항목을 추가해 주세요.</p>
       </div>
     )
   }

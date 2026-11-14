@@ -83,3 +83,9 @@
 | 075 | 2026-11-11 | [디자인 시스템 공통 계약층·플랫폼 표현층 분리와 흑백 팔레트](075-design-system-layers-and-monochrome.md) |
 | 076 | 2026-11-12 | [가입·항목 저장 폼 비밀번호 강도 게이지와 다크모드 버튼 수정 (#122)](076-signup-strength-gauge.md) |
 | 077 | 2026-11-12 | [기기 암호를 끌 때 생체 해제 무효화 정책 추가](077-sec-003-passcode-off-biometric.md) |
+| 078 | 2026-11-14 | [디자인 토큰 JSON 원본과 웹·Apple 코드 생성기 도입](078-design-token-generation.md) |
+| 079 | 2026-11-14 | [Apple 화면 간격·모서리 리터럴을 토큰으로 교체하고 금지 게이트 추가](079-apple-spacing-radius-tokens.md) |
+| 080 | 2026-11-14 | [Apple 화면 색상 리터럴을 의미 토큰으로 교체하고 금지 게이트 추가](080-apple-color-tokens.md) |
+| 081 | 2026-11-14 | [웹 화면 간격·색 리터럴을 토큰으로 맞추고 검사 스크립트 추가](081-web-design-literal-gate.md) |
+| 082 | 2026-11-14 | [타이포그래피 역할 토큰 도입과 웹·Apple 적용](082-typography-role-tokens.md) |
+| 083 | 2026-11-14 | [컴포넌트 계약 게이트 추가와 문서 어긋남 정정](083-component-contract-gate.md) |

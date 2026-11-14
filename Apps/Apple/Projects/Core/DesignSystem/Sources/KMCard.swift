@@ -38,9 +38,9 @@ public struct KMCard<Content: View>: View {
         }
         .padding(padding.value)
         .background(DesignToken.View.card)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(RoundedRectangle(cornerRadius: DesignToken.Radius.md))
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: DesignToken.Radius.md)
                 .stroke(DesignToken.View.border, lineWidth: 1)
         )
         .scaleEffect(isInteractive ? (isPressed ? 0.99 : (isHovered ? 1.01 : 1.0)) : 1.0)

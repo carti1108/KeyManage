@@ -69,15 +69,15 @@ public struct KMBurnBadge: View {
             }
 
             Text("\(max(0, remainingSeconds))s")
-                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .font(DesignToken.Typography.captionMono.weight(.semibold))
                 .foregroundColor(remainingSeconds <= 5 ? DesignToken.View.destructive : DesignToken.View.foreground)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
+        .padding(.horizontal, DesignToken.Spacing.space2)
+        .padding(.vertical, DesignToken.Spacing.space1)
         .background(DesignToken.View.card)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: DesignToken.Radius.lg))
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: DesignToken.Radius.lg)
                 .stroke(DesignToken.View.border, lineWidth: 1)
         )
         .accessibilityElement(children: .ignore)

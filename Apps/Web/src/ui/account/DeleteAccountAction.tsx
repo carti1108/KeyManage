@@ -87,12 +87,12 @@ export function DeleteAccountAction({ offline, onDelete }: DeleteAccountActionPr
   }
 
   return (
-    <section className="flex flex-col gap-1.5 w-full" aria-label="계정 삭제">
+    <section className="flex flex-col gap-2 w-full" aria-label="계정 삭제">
       <Button
         ref={openButton}
         variant="outline"
         size="sm"
-        className="w-full justify-start gap-2 h-7 px-2 text-xs font-normal whitespace-nowrap text-destructive border-destructive/40 hover:bg-destructive/10"
+        className="w-full justify-start gap-2 h-7 px-2 text-caption font-normal whitespace-nowrap text-destructive border-destructive/40 hover:bg-destructive/10"
         icon={<Trash2 aria-hidden className="size-3.5 shrink-0" />}
         disabled={pending}
         onClick={start}
@@ -135,10 +135,10 @@ function DeleteAccountDialog({ inputs, passwordRef, onInputsChange, pending, onS
   return (
     <ModalDialog labelledBy={titleId} describedBy={bodyId} onKeyDown={onKeyDown}>
       <form className="flex flex-col gap-3" onSubmit={onSubmit} noValidate>
-        <p id={titleId} className="text-sm font-semibold text-destructive">
+        <p id={titleId} className="text-label font-semibold text-destructive">
           {DELETE_ACCOUNT_DIALOG.title}
         </p>
-        <p id={bodyId} className="text-sm text-muted-foreground">
+        <p id={bodyId} className="text-label text-muted-foreground">
           {DELETE_ACCOUNT_DIALOG.body}
         </p>
         <PasswordField
@@ -172,7 +172,7 @@ function DeleteAccountDialog({ inputs, passwordRef, onInputsChange, pending, onS
           </Button>
         </div>
         {pending && (
-          <p role="status" className="text-sm text-muted-foreground">
+          <p role="status" className="text-label text-muted-foreground">
             {DELETE_ACCOUNT_DIALOG.progress}
           </p>
         )}

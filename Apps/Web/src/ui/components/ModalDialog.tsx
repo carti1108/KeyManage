@@ -34,7 +34,7 @@ export function ModalDialog({ labelledBy, describedBy, onKeyDown, children }: Mo
   }
 
   return createPortal(
-    <div ref={overlay} className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div ref={overlay} className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4">
       <div
         role="dialog"
         aria-modal="true"

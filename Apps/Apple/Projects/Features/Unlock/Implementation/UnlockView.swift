@@ -28,14 +28,14 @@ struct UnlockView: View {
 	#endif
 
 	var body: some View {
-		VStack(spacing: 24) {
+		VStack(spacing: DesignToken.Spacing.space6) {
 			Text(VaultLockUIStrings.lockedTitle)
-				.font(.title2.bold())
+				.font(DesignToken.Typography.title.weight(.bold))
 				.foregroundColor(DesignToken.View.foreground)
 				.accessibilityAddTraits(.isHeader)
 
 			KMCard(padding: .lg) {
-				VStack(alignment: .leading, spacing: 16) {
+				VStack(alignment: .leading, spacing: DesignToken.Spacing.space4) {
 					KMPasswordField(
 						text: Binding(
 							get: { viewModel.state.password },
@@ -47,7 +47,7 @@ struct UnlockView: View {
 
 					if let errorMessage = viewModel.state.errorMessage, !errorMessage.isEmpty {
 						Text(errorMessage)
-							.font(.footnote)
+							.font(DesignToken.Typography.caption)
 							.foregroundColor(DesignToken.View.destructive)
 							.accessibilityLabel("오류 안내: \(errorMessage)")
 					}
@@ -75,7 +75,7 @@ struct UnlockView: View {
 			}
 			.frame(maxWidth: 400)
 		}
-		.padding(32)
+		.padding(DesignToken.Spacing.space6)
 		.frame(maxWidth: .infinity, maxHeight: .infinity)
 		.background(DesignToken.View.background)
 	}

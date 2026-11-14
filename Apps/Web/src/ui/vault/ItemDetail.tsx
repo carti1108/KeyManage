@@ -22,9 +22,9 @@ const noop = () => {}
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-0.5">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="break-words text-sm">{children}</dd>
+    <div className="flex flex-col gap-1">
+      <dt className="text-caption text-muted-foreground">{label}</dt>
+      <dd className="break-words text-label">{children}</dd>
     </div>
   )
 }
@@ -73,7 +73,7 @@ export function ItemDetail({ item, readOnly, onBack, onEdit, onDelete, onCopy }:
       )}
       {save.error && <Alert title={save.error.title}>{save.error.body}</Alert>}
       <Card className="flex flex-col gap-4">
-        <h2 ref={heading} tabIndex={-1} className="text-lg font-semibold outline-none">
+        <h2 ref={heading} tabIndex={-1} className="text-heading font-semibold outline-none">
           {item.serviceName}
         </h2>
         {item.username && (

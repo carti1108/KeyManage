@@ -28,31 +28,32 @@
 | 컴포넌트 소유 | 무거운 외부 UI 라이브러리에 기대지 않는다. 컴포넌트를 각 프로젝트에 두고 직접 소유한다. 단, OS가 주는 시스템 컨트롤은 감싸서 쓴다. |
 | 흑백과 두 가지 신호색 | 바탕·표면·글자·주요 액션은 블랙과 화이트(무채색)로만 쓴다. 유채색은 안전(Emerald)과 위험(Red) 두 가지뿐이며, 이 의미와 색상 계열은 어느 플랫폼에서도 바꾸지 않는다. |
 | 이름은 공통, 값은 플랫폼 | 웹의 CSS 변수, Apple의 `Color`, Android의 `ColorScheme`은 같은 토큰 이름을 쓴다. 값은 2장의 브랜드 기준값을 기본으로 하되, 플랫폼 재질 위에서 대비를 맞추기 위해 조정할 수 있다. |
-| 리터럴 금지 | Feature·화면 코드에는 색상값과 간격·모서리 숫자를 직접 쓰지 않고 토큰을 쓴다. |
+| 리터럴 금지 | Feature·화면 코드에는 색상값, 간격·모서리 숫자, 기본 글자 크기를 직접 쓰지 않고 토큰을 쓴다. Apple은 `Scripts/check-apple-lint.sh` 규칙 6·7·8이 `Features/**`를, 웹은 `Apps/Web/scripts/designLiterals.ts`(`npm run check`)가 척도 밖 간격, 기본 팔레트 색, 기본 글자 크기, 간격·모서리·색 임의 값을 막는다. |
 
 ---
 
 ## 2. 색상 토큰
 
-모든 플랫폼은 아래 shadcn/ui 표준 이름을 쓴다. 팔레트는 무채색(Neutral) 단계와 Emerald·Red 신호색으로만 이뤄진다. 값은 **브랜드 기준값**이다. 웹과 데스크톱은 이 값을 그대로 쓰고, 다른 플랫폼은 1.2의 규칙 안에서 조정할 수 있다. 기본 모드는 다크다.
+모든 플랫폼은 아래 shadcn/ui 표준 이름을 쓴다. 팔레트는 무채색(Neutral) 단계와 Emerald·Red 신호색으로만 이뤄진다. 라이트·다크 **브랜드 기준값**은 [`tokens.json`](../Tools/design-tokens/tokens.json) 한 곳에만 적고, 플랫폼 코드는 여기서 생성한다([ADR-0026](adr/ADR-0026-design-token-generation.md)). 웹과 데스크톱은 이 값을 그대로 쓰고, 다른 플랫폼은 1.2의 규칙 안에서 조정할 수 있다. 기본 모드는 다크다.
 
-| 토큰 | 라이트 | 다크(기본) | 의미 | 플랫폼 조정 |
-| :--- | :--- | :--- | :--- | :--- |
-| `--background` | `#FFFFFF` (White) | `#000000` (Black) | 전체 화면 기본 배경 | 허용(시스템 배경 사용 가능) |
-| `--foreground` | `#0A0A0A` (Neutral 950) | `#FAFAFA` (Neutral 50) | 기본 본문 텍스트 | 허용(시스템 레이블 색 사용 가능) |
-| `--card` | `#FFFFFF` (White) | `#141414` (Neutral 900) | 볼트 카드, 다이얼로그 표면 | 허용(시스템 재질 사용 가능) |
-| `--card-foreground` | `#0A0A0A` (Neutral 950) | `#FAFAFA` (Neutral 50) | 카드 안 텍스트 | 허용 |
-| `--primary` | `#0A0A0A` (Neutral 950) | `#FAFAFA` (Neutral 50) | 주요 액션, 활성 탭, 강도 '보통' | **무채색(블랙·화이트) 고정** |
-| `--primary-foreground` | `#FFFFFF` | `#0A0A0A` | 주요 버튼 텍스트 | 허용 |
-| `--accent` (Secure) | `#059669` (Emerald 600) | `#10B981` (Emerald 500) | 안전, 생성·저장 강조 | **Emerald 계열 고정** |
-| `--accent-foreground` | `#FFFFFF` | `#0A0A0A` | 악센트 버튼 텍스트 | 허용 |
-| `--muted` | `#F5F5F5` (Neutral 100) | `#262626` (Neutral 800) | 비활성 영역, 칩 배경 | 허용 |
-| `--muted-foreground` | `#737373` (Neutral 500) | `#A3A3A3` (Neutral 400) | 타임스탬프, 보조 캡션 | 허용 |
-| `--destructive` (Danger) | `#DC2626` (Red 600) | `#EF4444` (Red 500) | 위험, 취약 암호, 삭제 액션 | **Red 계열 고정** |
-| `--destructive-foreground` | `#FFFFFF` | `#FFFFFF` | 경고 버튼 텍스트 | 허용 |
-| `--border` | `#E5E5E5` (Neutral 200) | `rgba(255, 255, 255, 0.12)` | 카드와 입력창 테두리 | 허용(시스템 구분선 사용 가능) |
-| `--input` | `#E5E5E5` (Neutral 200) | `#262626` (Neutral 800) | 입력 필드 외곽선 | 허용 |
-| `--ring` | `#0A0A0A` (Neutral 950) | `#FAFAFA` (Neutral 50) | 포커스 링 | 허용(시스템 포커스 표시 사용 가능) |
+| 토큰 | 의미 | 플랫폼 조정 |
+| :--- | :--- | :--- |
+| `--background` | 전체 화면 기본 배경 | 허용(시스템 배경 사용 가능) |
+| `--foreground` | 기본 본문 텍스트 | 허용(시스템 레이블 색 사용 가능) |
+| `--card` | 볼트 카드, 다이얼로그 표면 | 허용(시스템 재질 사용 가능) |
+| `--card-foreground` | 카드 안 텍스트 | 허용 |
+| `--primary` | 주요 액션, 활성 탭, 강도 '보통' | **무채색(블랙·화이트) 고정** |
+| `--primary-foreground` | 주요 버튼 텍스트 | 허용 |
+| `--accent` (Secure) | 안전, 생성·저장 강조 | **Emerald 계열 고정** |
+| `--accent-foreground` | 악센트 버튼 텍스트 | 허용 |
+| `--muted` | 비활성 영역, 칩 배경 | 허용 |
+| `--muted-foreground` | 타임스탬프, 보조 캡션 | 허용 |
+| `--destructive` (Danger) | 위험, 취약 암호, 삭제 액션 | **Red 계열 고정** |
+| `--destructive-foreground` | 경고 버튼 텍스트 | 허용 |
+| `--border` | 카드와 입력창 테두리 | 허용(시스템 구분선 사용 가능) |
+| `--input` | 입력 필드 외곽선 | 허용 |
+| `--ring` | 포커스 링 | 허용(시스템 포커스 표시 사용 가능) |
+| `--overlay` | 모달 뒤 화면을 가리는 반투명 막 | 허용(시스템 시트의 기본 막 사용 가능) |
 
 어느 플랫폼이든 텍스트와 배경의 대비는 WCAG AA(본문 4.5:1, 큰 글자 3:1) 이상이어야 한다.
 
@@ -60,19 +61,19 @@
 
 ## 3. 간격·모서리 토큰
 
-간격과 모서리도 이름은 공통으로 쓴다. 값은 4pt 그리드를 기준으로 한다. 모서리는 플랫폼이 시스템 모양(예: Apple의 연속 곡률, Material 3의 shape scale)을 쓸 때 조정할 수 있다.
+간격과 모서리도 이름은 공통으로 쓴다. 값은 4pt 그리드를 기준으로 하며 [`tokens.json`](../Tools/design-tokens/tokens.json)에 적는다. 모서리는 플랫폼이 시스템 모양(예: Apple의 연속 곡률, Material 3의 shape scale)을 쓸 때 조정할 수 있다.
 
-| 토큰 | 기준값 | 용도 |
-| :--- | :--- | :--- |
-| `space-1` | 4pt | 아이콘과 레이블 사이 |
-| `space-2` | 8pt | 같은 그룹 안 요소 사이 |
-| `space-3` | 12pt | 입력 필드 안쪽 여백, 카드 `sm` 패딩 |
-| `space-4` | 16pt | 카드 `md` 패딩, 섹션 안 요소 사이 |
-| `space-5` | 20pt | 카드 `lg` 패딩 |
-| `space-6` | 24pt | 섹션 사이 |
-| `radius-sm` | 6pt | 칩, 배지 |
-| `radius-md` | 8pt | 버튼, 입력 필드, 알림 |
-| `radius-lg` | 12pt | 카드, 다이얼로그 |
+| 토큰 | 용도 |
+| :--- | :--- |
+| `space-1` | 아이콘과 레이블 사이 |
+| `space-2` | 같은 그룹 안 요소 사이 |
+| `space-3` | 입력 필드 안쪽 여백, 카드 `sm` 패딩 |
+| `space-4` | 카드 `md` 패딩, 섹션 안 요소 사이 |
+| `space-5` | 카드 `lg` 패딩 |
+| `space-6` | 섹션 사이 |
+| `radius-sm` | 칩, 배지 |
+| `radius-md` | 버튼, 입력 필드, 알림 |
+| `radius-lg` | 카드, 다이얼로그 |
 
 ---
 
@@ -85,6 +86,21 @@
 | 글자 크기 | 시스템의 동적 글자 크기(Dynamic Type, 브라우저 확대, Android 글꼴 배율)를 따른다. 고정 픽셀 크기로 막지 않는다. |
 
 플랫폼별 글꼴 이름은 각 플랫폼의 `docs/platform-bindings.md`에 적는다.
+
+### 4.1. 글자 역할 토큰
+
+글자 크기는 역할 이름과 굵기만 공유하고, 실제 크기는 웹은 rem, Apple은 Dynamic Type 스타일로 매핑한다([ADR-0027](adr/ADR-0027-typography-role-tokens.md)). 값은 [`tokens.json`](../Tools/design-tokens/tokens.json)의 `typography` 그룹에 있다.
+
+| 역할 | 용도 | 웹 클래스 | Apple |
+| :--- | :--- | :--- | :--- |
+| `display` | 화면 대표 제목 | `text-display` | `DesignToken.Typography.display` |
+| `title` | 화면·시트 제목 | `text-title` | `.title` |
+| `heading` | 섹션 제목, 카드 제목 | `text-heading` | `.heading` |
+| `body` | 본문, 주요 버튼 | `text-body` | `.body` |
+| `label` | 기본 UI 글자, 입력·목록 | `text-label` | `.label` |
+| `caption` | 보조 설명, 오류·안내 문구 | `text-caption` | `.caption` |
+
+강조는 굵기만 바꾼다(웹 `font-semibold`, Apple `.weight(_:)`). 고정폭은 웹 `font-mono`, Apple `<역할>Mono`를 쓴다.
 
 ---
 
@@ -103,7 +119,7 @@
 
 ## 6. 컴포넌트 계약
 
-각 컴포넌트의 이름, 역할, 속성, 상태, 접근성 규칙은 모든 플랫폼에 공통이다. 모양은 5장을 따른다. 괄호 안은 규격상 이름이고, 각 플랫폼의 실제 파일·타입 이름은 다를 수 있다.
+각 컴포넌트의 이름, 역할, 속성, 상태, 접근성 규칙은 모든 플랫폼에 공통이다. 모양은 5장을 따른다. 괄호 안은 Apple 규격상 이름이다. 플랫폼 구현 이름이 규격과 다르면 6.1절 표의 칸에 `구현 (`실제이름`)`처럼 적는다. `node Tools/design-tokens/check-components.mjs`가 이 표와 웹 `Apps/Web/src/ui/components/`, Apple `DesignSystem/Sources`의 구현을 양방향으로 대조한다(CI `design-tokens` 작업, pre-commit).
 
 ### 6.1. 구현 현황
 
@@ -111,12 +127,13 @@
 | :--- | :--- | :--- |
 | `Button` (`KMButton`) | 구현 | 구현 |
 | `Card` (`KMCard`) | 구현 | 구현 |
-| `PasswordInputField` (`KMPasswordField`) | 구현 | 구현 |
+| `PasswordInputField` (`KMPasswordField`) | 구현 (`PasswordField`) | 구현 |
 | `EntropyGauge` (`KMGaugeBar`) | 구현 | 구현 |
 | `BurnTimerBadge` (`KMBurnBadge`) | 구현 | 구현 |
 | `Alert` (`KMAlert`) | 구현 | 미구현 |
 | `ConfirmPrompt` (`KMConfirmPrompt`) | 구현 | 미구현(시스템 확인 대화상자 사용) |
 | `ModalDialog` (`KMModal`) | 구현 | 미구현(시스템 시트 사용) |
+| `TextField` (`KMTextField`) | 구현 | 미구현(시스템 `TextField` 사용) |
 
 ### 6.2. `Button` (`KMButton`)
 
@@ -236,6 +253,18 @@
 
 - 열려 있는 동안 초점은 대화상자 안에 머문다.
 - Apple은 시스템 시트(`sheet`)를, Android는 M3 다이얼로그나 바텀 시트를 쓴다.
+
+### 6.10. `TextField` (`KMTextField`)
+
+이름표가 붙은 한 줄 입력 필드다. 비밀번호가 아닌 값(이메일, 항목 이름 등)에 쓴다.
+
+| 속성 | 타입 | 기본값 | 뜻 |
+| :--- | :--- | :--- | :--- |
+| `label` | String | | 입력 필드 위에 보이는 이름표 |
+| `text` | String | | 입력값 바인딩 |
+
+- 접근성: 이름표를 입력 필드와 연결한다(웹 `label`의 `htmlFor`, Apple 시스템 `TextField`의 제목).
+- Apple은 시스템 `TextField`를 쓴다.
 
 ---
 

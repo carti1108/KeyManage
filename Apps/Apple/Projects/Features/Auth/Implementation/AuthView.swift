@@ -15,46 +15,46 @@ public struct AuthView: View {
 				.ignoresSafeArea()
 
 			ScrollView {
-				VStack(spacing: 24) {
+				VStack(spacing: DesignToken.Spacing.space6) {
 					Spacer(minLength: 40)
 
 					// Header
-					VStack(spacing: 8) {
+					VStack(spacing: DesignToken.Spacing.space2) {
 						Image(systemName: "lock.shield.fill")
 							.font(.system(size: 48))
 							.foregroundColor(DesignToken.View.primary)
 
 						Text("KeyManage")
-							.font(.largeTitle.bold())
+							.font(DesignToken.Typography.display)
 							.foregroundColor(DesignToken.View.foreground)
 
 						Text(viewModel.state.mode == .register ? AuthStrings.registerTitle : AuthStrings.loginTitle)
-							.font(.subheadline)
+							.font(DesignToken.Typography.label)
 							.foregroundColor(DesignToken.View.mutedForeground)
 					}
 
 					// Card Container
-					VStack(alignment: .leading, spacing: 18) {
+					VStack(alignment: .leading, spacing: DesignToken.Spacing.space5) {
 						// Error banner
 						if let error = viewModel.state.errorMessage {
-							HStack(spacing: 10) {
+							HStack(spacing: DesignToken.Spacing.space3) {
 								Image(systemName: "exclamationmark.triangle.fill")
-									.foregroundColor(.red)
+									.foregroundColor(DesignToken.View.destructive)
 								Text(error)
-									.font(.footnote)
-									.foregroundColor(.red)
+									.font(DesignToken.Typography.caption)
+									.foregroundColor(DesignToken.View.destructive)
 									.fixedSize(horizontal: false, vertical: true)
 							}
-							.padding(12)
+							.padding(DesignToken.Spacing.space3)
 							.frame(maxWidth: .infinity, alignment: .leading)
-							.background(Color.red.opacity(0.1))
-							.cornerRadius(8)
+							.background(DesignToken.View.destructive.opacity(0.1))
+							.cornerRadius(DesignToken.Radius.md)
 						}
 
 						// Email Input
-						VStack(alignment: .leading, spacing: 6) {
+						VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
 							Text("이메일")
-								.font(.subheadline.bold())
+								.font(DesignToken.Typography.label.weight(.bold))
 								.foregroundColor(DesignToken.View.foreground)
 
 							TextField(AuthStrings.emailPlaceholder, text: $viewModel.email)
@@ -65,19 +65,19 @@ public struct AuthView: View {
 								.textContentType(.username)
 								#endif
 								.disableAutocorrection(true)
-								.padding(12)
+								.padding(DesignToken.Spacing.space3)
 								.background(DesignToken.View.card)
-								.cornerRadius(8)
+								.cornerRadius(DesignToken.Radius.md)
 								.overlay(
-									RoundedRectangle(cornerRadius: 8)
+									RoundedRectangle(cornerRadius: DesignToken.Radius.md)
 										.stroke(DesignToken.View.border, lineWidth: 1)
 								)
 						}
 
 						// Password Input
-						VStack(alignment: .leading, spacing: 6) {
+						VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
 							Text("마스터 비밀번호")
-								.font(.subheadline.bold())
+								.font(DesignToken.Typography.label.weight(.bold))
 								.foregroundColor(DesignToken.View.foreground)
 
 							SecureField(AuthStrings.passwordPlaceholder, text: $viewModel.password)
@@ -85,11 +85,11 @@ public struct AuthView: View {
 								#if os(iOS)
 								.textContentType(viewModel.state.mode == .register ? .newPassword : .password)
 								#endif
-								.padding(12)
+								.padding(DesignToken.Spacing.space3)
 								.background(DesignToken.View.card)
-								.cornerRadius(8)
+								.cornerRadius(DesignToken.Radius.md)
 								.overlay(
-									RoundedRectangle(cornerRadius: 8)
+									RoundedRectangle(cornerRadius: DesignToken.Radius.md)
 										.stroke(DesignToken.View.border, lineWidth: 1)
 								)
 
@@ -99,7 +99,7 @@ public struct AuthView: View {
 							}
 							if viewModel.state.showsWeakPasswordWarning {
 								Text(AuthStrings.weakMasterPasswordWarning)
-									.font(.footnote)
+									.font(DesignToken.Typography.caption)
 									.foregroundColor(DesignToken.View.mutedForeground)
 									.fixedSize(horizontal: false, vertical: true)
 							}
@@ -107,9 +107,9 @@ public struct AuthView: View {
 
 						// Confirmation Input (Register Mode Only)
 						if viewModel.state.mode == .register {
-							VStack(alignment: .leading, spacing: 6) {
+							VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
 								Text("비밀번호 확인")
-									.font(.subheadline.bold())
+									.font(DesignToken.Typography.label.weight(.bold))
 									.foregroundColor(DesignToken.View.foreground)
 
 								SecureField(AuthStrings.confirmationPlaceholder, text: $viewModel.confirmation)
@@ -117,16 +117,16 @@ public struct AuthView: View {
 									#if os(iOS)
 									.textContentType(.newPassword)
 									#endif
-									.padding(12)
+									.padding(DesignToken.Spacing.space3)
 									.background(DesignToken.View.card)
-									.cornerRadius(8)
+									.cornerRadius(DesignToken.Radius.md)
 									.overlay(
-										RoundedRectangle(cornerRadius: 8)
+										RoundedRectangle(cornerRadius: DesignToken.Radius.md)
 											.stroke(DesignToken.View.border, lineWidth: 1)
 									)
 
 								Text("마스터 비밀번호는 12자 이상이어야 하며, 분실 시 복구할 수 없습니다.")
-									.font(.caption)
+									.font(DesignToken.Typography.caption)
 									.foregroundColor(DesignToken.View.mutedForeground)
 							}
 						}
@@ -143,14 +143,14 @@ public struct AuthView: View {
 										.tint(DesignToken.View.primaryForeground)
 								} else {
 									Text(viewModel.state.mode == .register ? AuthStrings.registerTitle : AuthStrings.loginTitle)
-										.font(.body.weight(.bold))
+										.font(DesignToken.Typography.body.weight(.bold))
 										.foregroundColor(DesignToken.View.primaryForeground)
 								}
 								Spacer()
 							}
-							.padding(.vertical, 14)
-							.background(viewModel.canSubmit ? DesignToken.View.primary : Color.gray.opacity(0.5))
-							.cornerRadius(8)
+							.padding(.vertical, DesignToken.Spacing.space4)
+							.background(viewModel.canSubmit ? DesignToken.View.primary : DesignToken.View.primary.opacity(0.5))
+							.cornerRadius(DesignToken.Radius.md)
 						}
 						.buttonStyle(.plain)
 						.disabled(!viewModel.canSubmit)
@@ -160,25 +160,25 @@ public struct AuthView: View {
 							viewModel.send(.switchMode)
 						} label: {
 							Text(viewModel.state.mode == .register ? AuthStrings.switchToLoginPrompt : AuthStrings.switchToRegisterPrompt)
-								.font(.subheadline)
+								.font(DesignToken.Typography.label)
 								.foregroundColor(DesignToken.View.primary)
 								.frame(maxWidth: .infinity, alignment: .center)
 						}
 						.buttonStyle(.plain)
-						.padding(.top, 4)
+						.padding(.top, DesignToken.Spacing.space1)
 					}
-					.padding(24)
+					.padding(DesignToken.Spacing.space6)
 					.background(DesignToken.View.card)
-					.cornerRadius(12)
+					.cornerRadius(DesignToken.Radius.lg)
 					.overlay(
-						RoundedRectangle(cornerRadius: 12)
+						RoundedRectangle(cornerRadius: DesignToken.Radius.lg)
 							.stroke(DesignToken.View.border, lineWidth: 1)
 					)
 					.frame(maxWidth: 420)
 
 					Spacer(minLength: 40)
 				}
-				.padding(.horizontal, 20)
+				.padding(.horizontal, DesignToken.Spacing.space5)
 			}
 		}
 	}

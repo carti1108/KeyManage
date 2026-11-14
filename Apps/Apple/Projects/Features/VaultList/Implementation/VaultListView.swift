@@ -12,17 +12,17 @@ struct VaultListView: View {
 	var body: some View {
 		VStack(spacing: 0) {
 			if viewModel.state.hasPendingSync || viewModel.state.isOffline {
-				HStack(spacing: 8) {
+				HStack(spacing: DesignToken.Spacing.space2) {
 					Image(systemName: "wifi.slash")
-						.foregroundColor(.orange)
+						.foregroundColor(DesignToken.View.mutedForeground)
 					Text(VaultSyncStrings.offlineWarningMessage)
-						.font(.caption)
+						.font(DesignToken.Typography.caption)
 						.foregroundColor(DesignToken.View.foreground)
 					Spacer()
 				}
-				.padding(.horizontal, 16)
-				.padding(.vertical, 8)
-				.background(Color.orange.opacity(0.12))
+				.padding(.horizontal, DesignToken.Spacing.space4)
+				.padding(.vertical, DesignToken.Spacing.space2)
+				.background(DesignToken.View.muted)
 			}
 
 			itemsList
@@ -104,13 +104,13 @@ struct VaultListView: View {
 				emptyStateView
 			} else {
 				ScrollView {
-					LazyVStack(spacing: 12) {
+					LazyVStack(spacing: DesignToken.Spacing.space3) {
 						ForEach(viewModel.state.items, id: \.id) { item in
 							itemCard(item)
 						}
 					}
 					.padding(.horizontal)
-					.padding(.vertical, 8)
+					.padding(.vertical, DesignToken.Spacing.space2)
 				}
 				.refreshable {
 					await viewModel.triggerSync()
@@ -143,20 +143,20 @@ struct VaultListView: View {
 	}
 
 	private var legacyEmptyStateView: some View {
-		VStack(spacing: 12) {
+		VStack(spacing: DesignToken.Spacing.space3) {
 			Spacer()
 			Image(systemName: "tray")
 				.font(.system(size: 44))
 				.foregroundColor(DesignToken.View.mutedForeground)
 			Text(viewModel.state.searchQuery.isEmpty ? "저장된 볼트 아이템이 없습니다" : "검색 결과가 없습니다")
-				.font(.headline)
+				.font(DesignToken.Typography.heading)
 				.foregroundColor(DesignToken.View.mutedForeground)
 			if !viewModel.state.isReadOnly && viewModel.state.searchQuery.isEmpty {
 				Button("첫 항목 추가하기") {
 					viewModel.request(action: .startCreatingItem)
 				}
 				.buttonStyle(.borderedProminent)
-				.padding(.top, 4)
+				.padding(.top, DesignToken.Spacing.space1)
 			}
 			Spacer()
 		}
@@ -167,17 +167,17 @@ struct VaultListView: View {
 
 	private func itemCard(_ item: VaultItem) -> some View {
 		KMCard(padding: .md) {
-			VStack(alignment: .leading, spacing: 10) {
+			VStack(alignment: .leading, spacing: DesignToken.Spacing.space3) {
 				HStack {
 					Text(item.serviceName)
-						.font(.headline.bold())
+						.font(DesignToken.Typography.heading.weight(.bold))
 						.foregroundColor(DesignToken.View.foreground)
 
 					Spacer()
 
 					if let url = item.url, !url.isEmpty {
 						Text(url)
-							.font(.caption)
+							.font(DesignToken.Typography.caption)
 							.foregroundColor(DesignToken.View.mutedForeground)
 							.lineLimit(1)
 					}
@@ -192,7 +192,7 @@ struct VaultListView: View {
 
 						Button(action: { viewModel.request(action: .confirmDeleteItem(item)) }) {
 							Image(systemName: "trash")
-								.foregroundColor(.red)
+								.foregroundColor(DesignToken.View.destructive)
 						}
 						.buttonStyle(.plain)
 						.help("삭제")
@@ -204,7 +204,7 @@ struct VaultListView: View {
 				// Username row
 				HStack {
 					Label(item.username.isEmpty ? "(아이디 없음)" : item.username, systemImage: "person.fill")
-						.font(.subheadline)
+						.font(DesignToken.Typography.label)
 						.foregroundColor(item.username.isEmpty ? DesignToken.View.mutedForeground : DesignToken.View.foreground)
 
 					Spacer()
@@ -221,19 +221,19 @@ struct VaultListView: View {
 
 				// Password row
 				HStack {
-					HStack(spacing: 6) {
+					HStack(spacing: DesignToken.Spacing.space2) {
 						Image(systemName: "key.fill")
 							.foregroundColor(DesignToken.View.mutedForeground)
 
 						if viewModel.state.isPasswordRevealed(id: item.id) {
 							Text(item.password.isEmpty ? "(비밀번호 없음)" : item.password)
-								.font(.system(.subheadline, design: .monospaced))
+								.font(DesignToken.Typography.labelMono)
 								.foregroundColor(item.password.isEmpty ? DesignToken.View.mutedForeground : DesignToken.View.foreground)
 								.lineLimit(1)
 								.truncationMode(.middle)
 						} else {
 							Text(item.password.isEmpty ? "(비밀번호 없음)" : String(repeating: "•", count: min(item.password.count, 12)))
-								.font(.subheadline)
+								.font(DesignToken.Typography.label)
 								.foregroundColor(DesignToken.View.mutedForeground)
 						}
 
@@ -260,7 +260,7 @@ struct VaultListView: View {
 
 				if let notes = item.notes, !notes.isEmpty {
 					Text(notes)
-						.font(.caption)
+						.font(DesignToken.Typography.caption)
 						.foregroundColor(DesignToken.View.mutedForeground)
 						.lineLimit(2)
 				}
@@ -273,11 +273,11 @@ struct VaultListView: View {
 	private var itemFormModalView: some View {
 		modalNavigationContainer {
 			ScrollView {
-				VStack(spacing: 20) {
+				VStack(spacing: DesignToken.Spacing.space5) {
 					if let error = viewModel.state.formErrorMessage {
 						Text(error)
-							.font(.footnote)
-							.foregroundColor(.red)
+							.font(DesignToken.Typography.caption)
+							.foregroundColor(DesignToken.View.destructive)
 							.frame(maxWidth: .infinity, alignment: .leading)
 					}
 
@@ -292,14 +292,14 @@ struct VaultListView: View {
 								Text("이 항목 삭제")
 							}
 							.frame(maxWidth: .infinity)
-							.padding(.vertical, 10)
+							.padding(.vertical, DesignToken.Spacing.space3)
 						}
 						.buttonStyle(.bordered)
-						.tint(.red)
-						.padding(.top, 8)
+						.tint(DesignToken.View.destructive)
+						.padding(.top, DesignToken.Spacing.space2)
 					}
 				}
-				.padding(20)
+				.padding(DesignToken.Spacing.space5)
 			}
 			.navigationTitle(viewModel.state.editingItem == nil ? "새 볼트 항목" : "항목 수정")
 			#if os(iOS)
@@ -315,7 +315,7 @@ struct VaultListView: View {
 					Button("저장") {
 						viewModel.request(action: .requestSaveItem)
 					}
-					.font(.body.weight(.bold))
+					.font(DesignToken.Typography.body.weight(.bold))
 				}
 			}
 		}
@@ -357,7 +357,7 @@ struct VaultListView: View {
 	}
 
 	private var itemFormFieldsView: some View {
-		VStack(spacing: 12) {
+		VStack(spacing: DesignToken.Spacing.space3) {
 			formInputField(
 				title: "서비스 이름 *",
 				text: Binding(
@@ -376,10 +376,10 @@ struct VaultListView: View {
 				placeholder: "사용자 아이디 또는 이메일"
 			)
 
-			VStack(alignment: .leading, spacing: 4) {
+			VStack(alignment: .leading, spacing: DesignToken.Spacing.space1) {
 				HStack {
 					Text("비밀번호")
-						.font(.caption.bold())
+						.font(DesignToken.Typography.caption.weight(.bold))
 						.foregroundColor(DesignToken.View.foreground)
 
 					Spacer()
@@ -407,13 +407,13 @@ struct VaultListView: View {
 				}
 				if viewModel.state.showsFormWeakPasswordWarning {
 					Text(EntropyScorer.warningMessage)
-						.font(.footnote)
+						.font(DesignToken.Typography.caption)
 						.foregroundColor(DesignToken.View.mutedForeground)
 						.fixedSize(horizontal: false, vertical: true)
 				}
 				if viewModel.state.showsFormSequentialDigitsNotice {
 					Text(SequentialDigitsChecker.noticeMessage)
-						.font(.footnote)
+						.font(DesignToken.Typography.caption)
 						.foregroundColor(DesignToken.View.mutedForeground)
 						.fixedSize(horizontal: false, vertical: true)
 				}
@@ -444,18 +444,18 @@ struct VaultListView: View {
 		text: Binding<String>,
 		placeholder: String
 	) -> some View {
-		VStack(alignment: .leading, spacing: 4) {
+		VStack(alignment: .leading, spacing: DesignToken.Spacing.space1) {
 			Text(title)
-				.font(.caption.bold())
+				.font(DesignToken.Typography.caption.weight(.bold))
 				.foregroundColor(DesignToken.View.foreground)
 
 			TextField(placeholder, text: text)
 				.textFieldStyle(.plain)
-				.padding(8)
+				.padding(DesignToken.Spacing.space2)
 				.background(DesignToken.View.card)
-				.cornerRadius(6)
+				.cornerRadius(DesignToken.Radius.sm)
 				.overlay(
-					RoundedRectangle(cornerRadius: 6)
+					RoundedRectangle(cornerRadius: DesignToken.Radius.sm)
 						.stroke(DesignToken.View.border, lineWidth: 1)
 				)
 		}
@@ -464,18 +464,18 @@ struct VaultListView: View {
 	// MARK: - Toast View
 
 	private func toastView(_ message: String) -> some View {
-		HStack(spacing: 8) {
+		HStack(spacing: DesignToken.Spacing.space2) {
 			Image(systemName: "checkmark.circle.fill")
-				.foregroundColor(.green)
+				.foregroundColor(DesignToken.View.accent)
 			Text(message)
-				.font(.footnote.bold())
-				.foregroundColor(.white)
+				.font(DesignToken.Typography.caption.weight(.bold))
+				.foregroundColor(DesignToken.View.primaryForeground)
 		}
-		.padding(.horizontal, 16)
-		.padding(.vertical, 10)
-		.background(Color.black.opacity(0.85))
-		.cornerRadius(20)
-		.padding(.bottom, 16)
+		.padding(.horizontal, DesignToken.Spacing.space4)
+		.padding(.vertical, DesignToken.Spacing.space3)
+		.background(DesignToken.View.primary)
+		.clipShape(Capsule())
+		.padding(.bottom, DesignToken.Spacing.space4)
 		.shadow(radius: 4)
 	}
 }
