@@ -201,6 +201,15 @@ jobs:
       - name: JDK 교차 검증 (AES-GCM 포함)
         run: java Tools/crypto-vectors/CrossCheck.java
 
+  # 디자인 토큰: tokens.json과 생성된 웹·Apple 파일이 같은지 검사한다 (ADR-0026)
+  design-tokens:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 생성 파일 검사
+        run: node Tools/design-tokens/generate.mjs --check
+
   # Apple 클라이언트(iOS·macOS): 정적 린트·정책 합격 기준·Tuist 생성·Swift 6 빌드·단위 테스트 (ADR-0014, ADR-0015)
   apple:
     runs-on: macos-15

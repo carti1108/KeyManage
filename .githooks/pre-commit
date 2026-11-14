@@ -38,6 +38,12 @@ if printf '%s\n' "${STAGED_FILES}" | grep -Eq '\.md$'; then
   bash "${ROOT_DIR}/Scripts/check-docs.sh" "${ROOT_DIR}"
 fi
 
+# 1-1. 디자인 토큰 원본·생성기·생성 파일 변경 시 생성 결과 일치 검사 (ADR-0026)
+if printf '%s\n' "${STAGED_FILES}" | grep -Eq '^(Tools/design-tokens/|Apps/Web/src/styles/tokens\.css$|Apps/Apple/Projects/Core/DesignSystem/Sources/Generated/)'; then
+  echo ">> [pre-commit] 디자인 토큰 변경 감지 → Tools/design-tokens/generate.mjs --check 실행..."
+  node "${ROOT_DIR}/Tools/design-tokens/generate.mjs" --check
+fi
+
 # 2. 테스트 파일 수정 포함 시 TDD 어설션 무결성 검사 (Silent Test Modification 차단)
 if printf '%s\n' "${STAGED_FILES}" | grep -Eq '(Tests\.swift|\.test\.tsx?|\.spec\.tsx?|Tests?\.kt|Tests?\.java)$'; then
   if [ "${KM_ALLOW_TEST_EDIT:-0}" = "1" ]; then
