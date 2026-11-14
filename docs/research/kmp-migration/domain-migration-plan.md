@@ -596,3 +596,19 @@ macOS 앱(`KeyManageMac`)도 iOS와 같은 공유 RIB 트리를 띄운다. 옛 S
 - `check-policy-acceptance.sh` Apple 감사를 함수 이름이 아니라 값·어설션으로 본다: 자동 잠금 5종 목록과 `autoLockChoice-3600`, "즉시" 백그라운드 잠금 어설션, 가림 화면 켬·끔 어설션, 잠금 시 클립보드에 빈 값 쓰기, 30초 재전송, 대기 중 로그아웃 본문, 생체 14일 경계(14일+1시간 재요구, 14일 정각 허용), COM-001 제목·본문·복사 실패 문구 어설션, macOS 쓰기 실패 전파.
 - 남은 정책 차이(정해야 함): SEC-003 "잠기면 키가 메모리에서 지워짐"을 Kotlin 세션은 참조를 버리는 것으로만 한다(`lockThisTab`이 `unlocked`를 비움). 키 바이트를 잠금 때 0으로 지우면 잠금과 겹친 저장 요청이 지운 키로 봉인할 수 있어, 진행 중 동기화를 끝낸 뒤 지우는 설계가 필요하다. 그래서 이번 감사에 "잠금 시 키 지움" 규칙은 넣지 않았다.
 - 확인: `:domain:jvmTest`(418)·`:feature:jvmTest`(345)·`:apple-app:allTests`(84)·XCFramework·웹 JS 빌드 통과, 웹 `npm run check` 499건 통과, `verify-apple.sh` 우회 없이 통과(문서·린트·정책·API·TDD 무결성·Tuist·두 앱 빌드·DesignSystem 테스트). iOS UI 테스트: `SharedSessionFlowUITests` 통과, `SharedFeatureFlowUITests`는 첫 실행에서 가입 이메일 칸 포커스 대기(10초) 시간 초과로 실패하고 같은 테스트만 다시 돌려 통과했다(macOS 전환 기록의 같은 증상).
+
+#### 완료 상태 (2026-11-14)
+
+끝난 것: 0~4단계. iOS·macOS 앱이 공유 Kotlin RIB 트리를 띄우고, 옛 Swift RIB·도메인을 지웠다. 결정은 [ADR-APL-002](../../../Apps/Apple/docs/adr/ADR-APL-002-apple-apps-host-shared-kotlin-ribs.md)(ADR-0014·0015 대체)에 남겼다. `verify-tdd-integrity.sh`는 테스트 파일을 테스트가 아닌 이름으로 바꾸기와 테스트 비활성화 표시 추가도 위반으로 본다.
+
+남은 것:
+
+| 항목 | 상태 |
+| :--- | :--- |
+| 실제 기기 Face ID·Touch ID 키 저장·해제 | 확인하지 않음 |
+| macOS UI 테스트 | 이 Mac의 UI 자동화 승인 필요 |
+| macOS 직접 조작: 저장 패널을 연 채 "즉시" 잠금, 단일 창, 임시 백업 파일 정리 | 확인하지 않음 |
+| 잠글 때 키 바이트 0으로 지우기 | 동기화 뒤 지우기 설계 필요, 사용자 결정 대기 |
+| `SharedFeatureFlowUITests`의 `authEmailField` 포커스 대기 | 가끔 실패 |
+| 정책 감사 LOW: VLT-002 30초 규칙은 호출만 봄, COM-001 본문 규칙에 `assertEquals` 없음, 14일 규칙은 결과 어설션 없음, `check-policy-acceptance.sh` 74번 줄은 이름 기준 | 보강 필요 |
+| 다시 시도 중 백그라운드로 갈 때 가림 화면 | LOW, 확인 필요 |

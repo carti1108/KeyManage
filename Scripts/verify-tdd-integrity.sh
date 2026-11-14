@@ -26,6 +26,9 @@
 #       위반  git mv Mods/A Mods/A2 뒤 LockTests.swift를 지움 → 정의 파일이 R(이동)이라 모듈 삭제가 아님
 #       위반  Mods/A/Project.swift를 Mods/A/x/Project.swift로 옮기고 테스트를 지움 → 정의 파일이 R이고 폴더에 파일이 남음
 #       위반  남은 모듈(Core/DesignSystem)에서 테스트 파일 하나만 지움
+#       위반  LockTests.swift → LockTests.swift.disabled 이름 바꾸기(R100 포함) → 테스트 파일이 테스트가 아닌 이름이 됨
+#       위반  테스트 파일에 비활성화 표시를 더함: `.disabled(`, `@Test(.disabled`, `@Ignore`, `@Disabled`, `XCTSkip`,
+#             `it.skip`, `describe.skip`, `xit(`, `test.skip`, `@kotlin.test.Ignore` (새 테스트 파일 포함)
 
 set -euo pipefail
 
@@ -63,6 +66,7 @@ import sys
 label, base, target, *globs = sys.argv[1:]
 MANIFESTS = ("Project.swift", "Package.swift", "build.gradle.kts", "build.gradle", "package.json")
 ASSERTION = re.compile(r"(#expect|#require|XCTAssert|expect\(|assertEquals|assertTrue|assertFalse|assertThrows|assertThat)")
+DISABLE = re.compile(r"(\.disabled\(|@Test\(\.disabled|@Ignore\b|@Disabled\b|XCTSkip|\bit\.skip|describe\.skip|\bxit\(|test\.skip|@kotlin\.test\.Ignore)")
 range_args = ["--cached", base] if target == "index" else [base, target]
 
 
@@ -94,19 +98,26 @@ def changed_lines(paths, sign):
 
 fields = git("diff", "-M", "--name-status", "-z", *range_args).split("\0")
 deleted, renamed_from, pairs, modified = set(), set(), [], []
+renamed_out, touched_tests = [], []
 i = 0
 while i < len(fields) and fields[i]:
     status = fields[i]
     if status[0] in "RC":
         old, new = fields[i + 1], fields[i + 2]
         i += 3
+        if is_test(new):
+            touched_tests.append(new)
         if status[0] == "R":
             renamed_from.add(old)
+            if is_test(old) and not is_test(new):
+                renamed_out.append((old, new))
             if status != "R100" and (is_test(old) or is_test(new)):
                 pairs.append((old, new))
         continue
     path = fields[i + 1]
     i += 2
+    if status != "D" and is_test(path):
+        touched_tests.append(path)
     if status == "D":
         deleted.add(path)
     elif status != "A" and is_test(path):
@@ -125,6 +136,16 @@ for old, new in pairs:
             added[key] -= 1
         else:
             violations.append(f"{old} → {new} 이동 중 어설션 삭제·변조:\n      {line}")
+
+# 테스트 파일을 테스트가 아닌 이름으로 바꾸면(예: LockTests.swift → LockTests.swift.disabled) 실행 대상에서 빠진다
+for old, new in renamed_out:
+    violations.append(f"{old} → {new} 테스트 파일을 테스트가 아닌 이름으로 바꿈 — 테스트가 실행되지 않습니다.")
+
+# 테스트 파일에 더한 비활성화 표시(.disabled, @Ignore, XCTSkip, it.skip 등)
+if touched_tests:
+    for line in changed_lines(touched_tests, "+"):
+        if DISABLE.search(line):
+            violations.append(f"테스트 비활성화 추가:\n      {line}")
 
 for path in modified:
     for line in changed_lines([path], "-"):

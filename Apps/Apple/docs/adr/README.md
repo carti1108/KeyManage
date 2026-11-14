@@ -13,8 +13,9 @@ Apple 클라이언트에만 해당하는 기술·구조 결정을 모은다. 시
 
 | 번호 | 제목 | 상태 | 날짜 |
 |---|---|---|---|
-| [ADR-0014](ADR-0014-apple-multiplatform-microribs.md) | microRIBs 기반 Apple 멀티플랫폼(iOS·macOS) 아키텍처 및 형제 계층 구조 채택 | 채택 | 2026-10-30 |
-| [ADR-0015](ADR-0015-tuist-micro-features-modularization.md) | Tuist 기반 Micro-Features 5계층 모듈화 아키텍처 채택 | 채택 | 2026-10-30 |
+| [ADR-0014](ADR-0014-apple-multiplatform-microribs.md) | microRIBs 기반 Apple 멀티플랫폼(iOS·macOS) 아키텍처 및 형제 계층 구조 채택 | 대체됨 (→ ADR-APL-002) | 2026-10-30 |
+| [ADR-0015](ADR-0015-tuist-micro-features-modularization.md) | Tuist 기반 Micro-Features 5계층 모듈화 아키텍처 채택 | 대체됨 (→ ADR-APL-002) | 2026-10-30 |
 | [ADR-0016](ADR-0016-apple-collaboration-experiment-delegation-and-role-separation.md) | Apple 클라이언트 협업 방식 비교 실험 (일괄 위임 + 역할 분리) | 채택 | 2026-10-30 |
 | [ADR-0017](ADR-0017-single-agent-vs-subagent-experiment.md) | 단일 에이전트 vs 서브에이전트 비교 실험 (Antigravity·Gemini 고정) | 채택 | 2026-10-30 |
 | [ADR-APL-001](ADR-APL-001-apple-device-storage-and-keychain.md) | Apple 클라이언트 기기 볼트 저장소 및 Keychain 연동 | 채택 | 2026-11-01 |
+| [ADR-APL-002](ADR-APL-002-apple-apps-host-shared-kotlin-ribs.md) | Apple 앱은 공유 Kotlin RIB 트리를 띄우고 Swift는 화면과 디자인 시스템만 둔다 | 채택 | 2026-11-14 |

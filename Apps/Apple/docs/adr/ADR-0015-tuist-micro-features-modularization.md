@@ -1,5 +1,5 @@
 ### ADR-0015 Tuist 기반 Micro-Features 5계층 모듈화 아키텍처 채택
-- 상태: 채택
+- 상태: 대체됨 (→ ADR-APL-002)
 - 날짜: 2026-10-30
 - 배경: Apple 멀티플랫폼(iOS & macOS) 클라이언트의 확장성, 모듈 간 결합도 완화, 클린 아키텍처 준수 및 빌드 속도 최적화를 위해 체계적인 모듈화 도구와 구조가 필요하다. 단일 프로젝트 또는 느슨한 멀티타깃 구조는 Feature 간의 불필요한 결합을 유발하고, 구현체(Implementation) 간의 직접 참조로 인해 의존성 역전 원칙(DIP)이 훼손되기 쉽다.
 - 결정: (1) 프로젝트 생성 및 의존성 관리 도구로 Tuist를 채택한다. (2) carti-marketplace의 `tuist-modularization` 표준에 따라 모든 비즈니스 Feature 모듈을 5개 단위 타깃(`Interface`, `Implementation`, `Testing`, `Tests`, `Example`)으로 분할한다. (3) 의존성 역전 원칙에 따라 Feature 간 직접 참조를 일체 금지하고 오직 `Interface`만 참조하도록 제한한다. (4) microRIBs 아키텍처와 결합 시 `Interface`에는 `Buildable`, `Routing`, `Listener`, `Dependency`, 공유 모델만 배치하고, 구체적인 `Builder`, `Router`, `Interactor`, `ViewControllable`, `Component`는 `Implementation` 내부에 캡슐화한다. (5) 공통 기반 모듈은 `Core/Domain`, `Core/Data`, `Core/DesignSystem`, `Core/Infrastructure`, `Core/Testing`으로 분리하여 전역 재사용성을 확보한다.
