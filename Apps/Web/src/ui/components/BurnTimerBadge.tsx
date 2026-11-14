@@ -38,7 +38,7 @@ export function BurnTimerBadge({
       role="timer"
       aria-label={`클립보드 자동 삭제까지 ${remaining}초`}
       className={cn(
-        'relative inline-flex items-center overflow-hidden rounded-full bg-muted px-3 py-1 font-mono text-xs text-muted-foreground',
+        'relative inline-flex items-center overflow-hidden rounded-full bg-muted px-3 py-1 font-mono text-caption text-muted-foreground',
         className,
       )}
     >

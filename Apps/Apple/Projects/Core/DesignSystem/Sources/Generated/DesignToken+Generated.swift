@@ -1,5 +1,5 @@
 // 생성 파일입니다. 직접 고치지 말고 Tools/design-tokens/tokens.json을 고친 뒤 node Tools/design-tokens/generate.mjs를 실행하세요 (ADR-0026).
-import CoreGraphics
+import SwiftUI
 
 extension DesignToken {
     public enum Colors {
@@ -35,4 +35,19 @@ extension DesignToken {
         public static let md: CGFloat = 8
         public static let lg: CGFloat = 12
     }
+}
+
+extension DesignToken.Typography {
+    public static var display: Font { .system(.largeTitle, design: .default).weight(.bold) }
+    public static var displayMono: Font { .system(.largeTitle, design: .monospaced).weight(.bold) }
+    public static var title: Font { .system(.title2, design: .default).weight(.semibold) }
+    public static var titleMono: Font { .system(.title2, design: .monospaced).weight(.semibold) }
+    public static var heading: Font { .system(.headline, design: .default).weight(.semibold) }
+    public static var headingMono: Font { .system(.headline, design: .monospaced).weight(.semibold) }
+    public static var body: Font { .system(.body, design: .default).weight(.regular) }
+    public static var bodyMono: Font { .system(.body, design: .monospaced).weight(.regular) }
+    public static var label: Font { .system(.subheadline, design: .default).weight(.regular) }
+    public static var labelMono: Font { .system(.subheadline, design: .monospaced).weight(.regular) }
+    public static var caption: Font { .system(.footnote, design: .default).weight(.regular) }
+    public static var captionMono: Font { .system(.footnote, design: .monospaced).weight(.regular) }
 }

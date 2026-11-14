@@ -37,3 +37,4 @@
 | [ADR-0024](ADR-0024-account-deletion.md) | 계정 삭제는 비밀번호와 확인 문구로 확인한 뒤 서버에서 즉시 지우고, 계정 삭제를 확정 시점으로 한다 | 채택 | 2026-11-02 |
 | [ADR-0025](ADR-0025-design-system-shared-contract-platform-expression.md) | 디자인 시스템을 공통 계약층과 플랫폼 표현층으로 나눈다 | 채택 | 2026-11-11 |
 | [ADR-0026](ADR-0026-design-token-generation.md) | 디자인 토큰은 JSON 원본 하나에서 플랫폼 코드를 생성한다 | 채택 | 2026-11-14 |
+| [ADR-0027](ADR-0027-typography-role-tokens.md) | 타이포그래피는 역할 토큰으로 공유하고 크기는 플랫폼 단위로 매핑한다 | 채택 | 2026-11-14 |

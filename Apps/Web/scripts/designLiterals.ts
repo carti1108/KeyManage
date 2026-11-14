@@ -2,6 +2,7 @@
 // 화면 코드의 Tailwind 클래스가 tokens.json의 척도와 시멘틱 색만 쓰는지 본다.
 // - 간격: 0과 space 1~6 단계만 허용 (p-8, gap-1.5 금지)
 // - 색: Tailwind 기본 팔레트(bg-red-500, text-white 등) 금지, 시멘틱 토큰(bg-destructive 등)만 허용
+// - 글자 크기: Tailwind 기본 크기(text-sm 등) 금지, 역할 토큰(text-label 등)만 허용
 // - 임의 값: 간격·모서리·색 접두사에 [..] 금지 (p-[13px], bg-[#fff])
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
@@ -15,7 +16,9 @@ const PALETTE =
 
 const spacingClass = new RegExp(`(?<![\\w-])-?${SPACING_PREFIX}-(\\d+(?:\\.\\d+)?)(?![\\w.-])`, 'g')
 const paletteClass = new RegExp(`(?<![\\w-])${COLOR_PREFIX}-(?:${PALETTE}-\\d{2,3}|black|white)(?:/\\d+)?(?![\\w-])`, 'g')
-const arbitraryClass = new RegExp(`(?<![\\w-])-?(?:${SPACING_PREFIX}|rounded(?:-[a-z]+)?|${COLOR_PREFIX})-\\[[^\\]]+\\]`, 'g')
+// 글자 크기는 타이포그래피 역할(text-display·title·heading·body·label·caption)만 쓴다 (ADR-0027)
+const fontSizeClass = /(?<![\w-])text-(?:xs|sm|base|lg|[2-9]?xl)(?:\/[\w.]+)?(?![\w-])/g
+const arbitraryClass =new RegExp(`(?<![\\w-])-?(?:${SPACING_PREFIX}|rounded(?:-[a-z]+)?|${COLOR_PREFIX})-\\[[^\\]]+\\]`, 'g')
 
 export type Violation = { line: number; token: string; reason: string }
 
@@ -30,6 +33,9 @@ export function findDesignLiterals(source: string): Violation[] {
     }
     for (const match of text.matchAll(paletteClass)) {
       violations.push({ line, token: match[0], reason: '기본 팔레트 대신 시멘틱 색 토큰을 씁니다' })
+    }
+    for (const match of text.matchAll(fontSizeClass)) {
+      violations.push({ line, token: match[0], reason: '기본 글자 크기 대신 타이포그래피 역할을 씁니다' })
     }
     for (const match of text.matchAll(arbitraryClass)) {
       violations.push({ line, token: match[0], reason: '임의 값 대신 토큰을 씁니다' })

@@ -22,7 +22,7 @@ export function Alert({ variant = 'error', title, children, actions, live = true
   return (
     <div
       role={live ? (variant === 'error' ? 'alert' : 'status') : undefined}
-      className={cn('flex flex-col gap-1 rounded-md border px-3 py-2 text-sm', VARIANT_CLASSES[variant], className)}
+      className={cn('flex flex-col gap-1 rounded-md border px-3 py-2 text-label', VARIANT_CLASSES[variant], className)}
     >
       {title && <p className="font-semibold">{title}</p>}
       <p>{children}</p>

@@ -32,6 +32,14 @@ describe('findDesignLiterals', () => {
     ])
   })
 
+  it('기본 글자 크기를 적발하고 역할 토큰은 통과시킨다', () => {
+    expect(tokens(`"text-sm md:text-2xl text-xs/6 text-label text-caption text-display font-semibold"`)).toEqual([
+      'text-sm',
+      'text-2xl',
+      'text-xs/6',
+    ])
+  })
+
   it('위반 줄 번호를 1부터 센다', () => {
     expect(findDesignLiterals('ok\r\n"p-8"')[0].line).toBe(2)
   })

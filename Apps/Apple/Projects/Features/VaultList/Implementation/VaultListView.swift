@@ -16,7 +16,7 @@ struct VaultListView: View {
 					Image(systemName: "wifi.slash")
 						.foregroundColor(DesignToken.View.mutedForeground)
 					Text(VaultSyncStrings.offlineWarningMessage)
-						.font(.caption)
+						.font(DesignToken.Typography.caption)
 						.foregroundColor(DesignToken.View.foreground)
 					Spacer()
 				}
@@ -149,7 +149,7 @@ struct VaultListView: View {
 				.font(.system(size: 44))
 				.foregroundColor(DesignToken.View.mutedForeground)
 			Text(viewModel.state.searchQuery.isEmpty ? "저장된 볼트 아이템이 없습니다" : "검색 결과가 없습니다")
-				.font(.headline)
+				.font(DesignToken.Typography.heading)
 				.foregroundColor(DesignToken.View.mutedForeground)
 			if !viewModel.state.isReadOnly && viewModel.state.searchQuery.isEmpty {
 				Button("첫 항목 추가하기") {
@@ -170,14 +170,14 @@ struct VaultListView: View {
 			VStack(alignment: .leading, spacing: DesignToken.Spacing.space3) {
 				HStack {
 					Text(item.serviceName)
-						.font(.headline.bold())
+						.font(DesignToken.Typography.heading.weight(.bold))
 						.foregroundColor(DesignToken.View.foreground)
 
 					Spacer()
 
 					if let url = item.url, !url.isEmpty {
 						Text(url)
-							.font(.caption)
+							.font(DesignToken.Typography.caption)
 							.foregroundColor(DesignToken.View.mutedForeground)
 							.lineLimit(1)
 					}
@@ -204,7 +204,7 @@ struct VaultListView: View {
 				// Username row
 				HStack {
 					Label(item.username.isEmpty ? "(아이디 없음)" : item.username, systemImage: "person.fill")
-						.font(.subheadline)
+						.font(DesignToken.Typography.label)
 						.foregroundColor(item.username.isEmpty ? DesignToken.View.mutedForeground : DesignToken.View.foreground)
 
 					Spacer()
@@ -227,13 +227,13 @@ struct VaultListView: View {
 
 						if viewModel.state.isPasswordRevealed(id: item.id) {
 							Text(item.password.isEmpty ? "(비밀번호 없음)" : item.password)
-								.font(.system(.subheadline, design: .monospaced))
+								.font(DesignToken.Typography.labelMono)
 								.foregroundColor(item.password.isEmpty ? DesignToken.View.mutedForeground : DesignToken.View.foreground)
 								.lineLimit(1)
 								.truncationMode(.middle)
 						} else {
 							Text(item.password.isEmpty ? "(비밀번호 없음)" : String(repeating: "•", count: min(item.password.count, 12)))
-								.font(.subheadline)
+								.font(DesignToken.Typography.label)
 								.foregroundColor(DesignToken.View.mutedForeground)
 						}
 
@@ -260,7 +260,7 @@ struct VaultListView: View {
 
 				if let notes = item.notes, !notes.isEmpty {
 					Text(notes)
-						.font(.caption)
+						.font(DesignToken.Typography.caption)
 						.foregroundColor(DesignToken.View.mutedForeground)
 						.lineLimit(2)
 				}
@@ -276,7 +276,7 @@ struct VaultListView: View {
 				VStack(spacing: DesignToken.Spacing.space5) {
 					if let error = viewModel.state.formErrorMessage {
 						Text(error)
-							.font(.footnote)
+							.font(DesignToken.Typography.caption)
 							.foregroundColor(DesignToken.View.destructive)
 							.frame(maxWidth: .infinity, alignment: .leading)
 					}
@@ -315,7 +315,7 @@ struct VaultListView: View {
 					Button("저장") {
 						viewModel.request(action: .requestSaveItem)
 					}
-					.font(.body.weight(.bold))
+					.font(DesignToken.Typography.body.weight(.bold))
 				}
 			}
 		}
@@ -379,7 +379,7 @@ struct VaultListView: View {
 			VStack(alignment: .leading, spacing: DesignToken.Spacing.space1) {
 				HStack {
 					Text("비밀번호")
-						.font(.caption.bold())
+						.font(DesignToken.Typography.caption.weight(.bold))
 						.foregroundColor(DesignToken.View.foreground)
 
 					Spacer()
@@ -407,13 +407,13 @@ struct VaultListView: View {
 				}
 				if viewModel.state.showsFormWeakPasswordWarning {
 					Text(EntropyScorer.warningMessage)
-						.font(.footnote)
+						.font(DesignToken.Typography.caption)
 						.foregroundColor(DesignToken.View.mutedForeground)
 						.fixedSize(horizontal: false, vertical: true)
 				}
 				if viewModel.state.showsFormSequentialDigitsNotice {
 					Text(SequentialDigitsChecker.noticeMessage)
-						.font(.footnote)
+						.font(DesignToken.Typography.caption)
 						.foregroundColor(DesignToken.View.mutedForeground)
 						.fixedSize(horizontal: false, vertical: true)
 				}
@@ -446,7 +446,7 @@ struct VaultListView: View {
 	) -> some View {
 		VStack(alignment: .leading, spacing: DesignToken.Spacing.space1) {
 			Text(title)
-				.font(.caption.bold())
+				.font(DesignToken.Typography.caption.weight(.bold))
 				.foregroundColor(DesignToken.View.foreground)
 
 			TextField(placeholder, text: text)
@@ -468,7 +468,7 @@ struct VaultListView: View {
 			Image(systemName: "checkmark.circle.fill")
 				.foregroundColor(DesignToken.View.accent)
 			Text(message)
-				.font(.footnote.bold())
+				.font(DesignToken.Typography.caption.weight(.bold))
 				.foregroundColor(DesignToken.View.primaryForeground)
 		}
 		.padding(.horizontal, DesignToken.Spacing.space4)

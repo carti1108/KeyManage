@@ -54,6 +54,31 @@ function readDimensions(groupName, group) {
   });
 }
 
+const APPLE_TEXT_STYLES = new Set([
+  'largeTitle', 'title', 'title2', 'title3', 'headline', 'subheadline', 'body', 'callout', 'footnote', 'caption', 'caption2',
+]);
+const FONT_WEIGHTS = { 100: 'ultraLight', 200: 'thin', 300: 'light', 400: 'regular', 500: 'medium', 600: 'semibold', 700: 'bold', 800: 'heavy', 900: 'black' };
+
+function readRem(name, field, dimension) {
+  const { value, unit } = dimension ?? {};
+  if (unit !== 'rem' || !Number.isFinite(value) || value <= 0) fail(`typography.${name}.${field}: unit rem, 0보다 큰 숫자여야 합니다`);
+  return value;
+}
+
+function readTypography(group) {
+  return Object.entries(group).map(([name, token]) => {
+    assertName('typography', name);
+    if (token.$type !== 'typography') fail(`typography.${name}: $type은 typography여야 합니다`);
+    const { fontSize, lineHeight, fontWeight } = token.$value ?? {};
+    if (!(fontWeight in FONT_WEIGHTS)) fail(`typography.${name}.fontWeight: 100~900의 100 단위여야 합니다`);
+    const textStyle = token.$extensions?.['com.keymanage.apple']?.textStyle;
+    if (!APPLE_TEXT_STYLES.has(textStyle)) {
+      fail(`typography.${name}: $extensions["com.keymanage.apple"].textStyle이 Dynamic Type 스타일이 아닙니다 (받은 값: ${textStyle})`);
+    }
+    return { name, fontSize: readRem(name, 'fontSize', fontSize), lineHeight: readRem(name, 'lineHeight', lineHeight), fontWeight, textStyle };
+  });
+}
+
 function loadTokens() {
   let raw;
   try {
@@ -61,20 +86,21 @@ function loadTokens() {
   } catch (error) {
     fail(`tokens.json을 읽을 수 없습니다: ${error.message}`);
   }
-  for (const group of ['color', 'space', 'radius']) {
+  for (const group of ['color', 'space', 'radius', 'typography']) {
     if (typeof raw[group] !== 'object' || raw[group] === null) fail(`${group} 그룹이 없습니다`);
   }
   return {
     colors: readColors(raw.color),
     space: readDimensions('space', raw.space),
     radius: readDimensions('radius', raw.radius),
+    typography: readTypography(raw.typography),
   };
 }
 
 const cssColor = (value) => (HEX.test(value) ? value.toLowerCase() : value);
 const camel = (name) => name.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase());
 
-function renderCss({ colors, space, radius }) {
+function renderCss({ colors, space, radius, typography }) {
   const vars = (mode) => colors.map((c) => `  --${c.name}: ${cssColor(c[mode])};`).join('\n');
   return `/* ${NOTICE} */
 
@@ -92,15 +118,25 @@ ${vars('dark')}
 @theme inline {
 ${colors.map((c) => `  --color-${c.name}: var(--${c.name});`).join('\n')}
 ${radius.map((r) => `  --${r.name}: ${r.value}px;`).join('\n')}
+${typography
+  .map((t) =>
+    [
+      `  --text-${t.name}: ${t.fontSize}rem;`,
+      `  --text-${t.name}--line-height: ${t.lineHeight}rem;`,
+      `  --text-${t.name}--font-weight: ${t.fontWeight};`,
+    ].join('\n'),
+  )
+  .join('\n')}
 }
 `;
 }
 
-function renderSwift({ colors, space, radius }) {
+function renderSwift({ colors, space, radius, typography }) {
+  const font = (t, design) => `.system(.${t.textStyle}, design: .${design}).weight(.${FONT_WEIGHTS[t.fontWeight]})`;
   const swiftColor = (value) => (HEX.test(value) ? value.toUpperCase() : value);
   const dims = (list) => list.map((d) => `        public static let ${camel(d.name)}: CGFloat = ${d.value}`).join('\n');
   return `// ${NOTICE}
-import CoreGraphics
+import SwiftUI
 
 extension DesignToken {
     public enum Colors {
@@ -116,6 +152,17 @@ ${dims(space)}
     public enum Radius {
 ${dims(radius.map((r) => ({ ...r, name: r.key })))}
     }
+}
+
+extension DesignToken.Typography {
+${typography
+  .map((t) =>
+    [
+      `    public static var ${camel(t.name)}: Font { ${font(t, 'default')} }`,
+      `    public static var ${camel(t.name)}Mono: Font { ${font(t, 'monospaced')} }`,
+    ].join('\n'),
+  )
+  .join('\n')}
 }
 `;
 }

@@ -147,7 +147,6 @@ public enum DesignToken {
 
     public enum Typography {
         public static let fontName: String = "SF Pro"
-        public static var body: Font { .system(.body, design: .default) }
         public static var passwordMonospaced: Font { .system(.body, design: .monospaced) }
         public static let isPasswordMonospaced: Bool = true
 

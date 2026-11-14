@@ -25,11 +25,11 @@ public struct AuthView: View {
 							.foregroundColor(DesignToken.View.primary)
 
 						Text("KeyManage")
-							.font(.largeTitle.bold())
+							.font(DesignToken.Typography.display)
 							.foregroundColor(DesignToken.View.foreground)
 
 						Text(viewModel.state.mode == .register ? AuthStrings.registerTitle : AuthStrings.loginTitle)
-							.font(.subheadline)
+							.font(DesignToken.Typography.label)
 							.foregroundColor(DesignToken.View.mutedForeground)
 					}
 
@@ -41,7 +41,7 @@ public struct AuthView: View {
 								Image(systemName: "exclamationmark.triangle.fill")
 									.foregroundColor(DesignToken.View.destructive)
 								Text(error)
-									.font(.footnote)
+									.font(DesignToken.Typography.caption)
 									.foregroundColor(DesignToken.View.destructive)
 									.fixedSize(horizontal: false, vertical: true)
 							}
@@ -54,7 +54,7 @@ public struct AuthView: View {
 						// Email Input
 						VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
 							Text("이메일")
-								.font(.subheadline.bold())
+								.font(DesignToken.Typography.label.weight(.bold))
 								.foregroundColor(DesignToken.View.foreground)
 
 							TextField(AuthStrings.emailPlaceholder, text: $viewModel.email)
@@ -77,7 +77,7 @@ public struct AuthView: View {
 						// Password Input
 						VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
 							Text("마스터 비밀번호")
-								.font(.subheadline.bold())
+								.font(DesignToken.Typography.label.weight(.bold))
 								.foregroundColor(DesignToken.View.foreground)
 
 							SecureField(AuthStrings.passwordPlaceholder, text: $viewModel.password)
@@ -99,7 +99,7 @@ public struct AuthView: View {
 							}
 							if viewModel.state.showsWeakPasswordWarning {
 								Text(AuthStrings.weakMasterPasswordWarning)
-									.font(.footnote)
+									.font(DesignToken.Typography.caption)
 									.foregroundColor(DesignToken.View.mutedForeground)
 									.fixedSize(horizontal: false, vertical: true)
 							}
@@ -109,7 +109,7 @@ public struct AuthView: View {
 						if viewModel.state.mode == .register {
 							VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
 								Text("비밀번호 확인")
-									.font(.subheadline.bold())
+									.font(DesignToken.Typography.label.weight(.bold))
 									.foregroundColor(DesignToken.View.foreground)
 
 								SecureField(AuthStrings.confirmationPlaceholder, text: $viewModel.confirmation)
@@ -126,7 +126,7 @@ public struct AuthView: View {
 									)
 
 								Text("마스터 비밀번호는 12자 이상이어야 하며, 분실 시 복구할 수 없습니다.")
-									.font(.caption)
+									.font(DesignToken.Typography.caption)
 									.foregroundColor(DesignToken.View.mutedForeground)
 							}
 						}
@@ -143,7 +143,7 @@ public struct AuthView: View {
 										.tint(DesignToken.View.primaryForeground)
 								} else {
 									Text(viewModel.state.mode == .register ? AuthStrings.registerTitle : AuthStrings.loginTitle)
-										.font(.body.weight(.bold))
+										.font(DesignToken.Typography.body.weight(.bold))
 										.foregroundColor(DesignToken.View.primaryForeground)
 								}
 								Spacer()
@@ -160,7 +160,7 @@ public struct AuthView: View {
 							viewModel.send(.switchMode)
 						} label: {
 							Text(viewModel.state.mode == .register ? AuthStrings.switchToLoginPrompt : AuthStrings.switchToRegisterPrompt)
-								.font(.subheadline)
+								.font(DesignToken.Typography.label)
 								.foregroundColor(DesignToken.View.primary)
 								.frame(maxWidth: .infinity, alignment: .center)
 						}

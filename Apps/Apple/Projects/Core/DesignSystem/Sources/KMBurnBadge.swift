@@ -69,7 +69,7 @@ public struct KMBurnBadge: View {
             }
 
             Text("\(max(0, remainingSeconds))s")
-                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .font(DesignToken.Typography.captionMono.weight(.semibold))
                 .foregroundColor(remainingSeconds <= 5 ? DesignToken.View.destructive : DesignToken.View.foreground)
         }
         .padding(.horizontal, DesignToken.Spacing.space2)
