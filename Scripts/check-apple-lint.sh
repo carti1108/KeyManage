@@ -6,13 +6,15 @@
 #
 # 검사 항목:
 #   [범용 규칙 — Scripts/check-swift-architecture.sh 위임]
-#   1. Clean Architecture 도메인 격리: Domain/**/Sources 내 UI/플랫폼 프레임워크 import 금지
 #   2. 스텁 및 미완성 코드 잔존 금지: 프로덕션 Sources 내 case notImplemented, fatalError( (init(coder:) 제외), TODO:, FIXME: 금지
 #   3. 비재진입 락(NSLock/NSRecursiveLock) 보유 중 외부 콜백 동기 호출 데드락 패턴 차단
 #
 #   [KeyManage 도메인 전용 규칙 — 본 스크립트 수행]
-#   4. 잠금/세션 모듈 보안 불변식: Lock/ 또는 Session/ 존재 시 memset_s 제로화 및 LocalizedError 표준 문구 구현 필수
-#   5. 생체 인증 키 복호화 우회 차단: unlockWithBiometrics 시그니처에 복호화 키(*Key: Data) 비옵셔널 강제
+#   4. Swift는 뷰·진입점·DesignSystem만 둔다 (domain-migration-plan 12.3 4단계). 도메인·RIB은 공유 Kotlin(KeyManageShared)에 있다.
+#      - Apps/Apple/Projects 아래 모듈은 App, Core/DesignSystem만 허용
+#      - 옛 Swift RIB 프레임워크(MicroRIBs)·옛 Swift 모듈(KeyManageDomain, KeyManageData, KeyManageUIAdapter, *FeatureInterface/Implementation) import 금지
+#   (옛 규칙 4 "Swift 잠금 모듈 memset_s·LocalizedError", 5 "unlockWithBiometrics 키 인자"는 Swift 도메인을 지워 뺐다.
+#    키 지움·생체 해제 키 규칙은 Kotlin :domain·:feature 테스트(VaultSessionUnlockKeyWipeTest, UnlockBiometricInteractorTest)가 확인한다)
 
 set -euo pipefail
 
@@ -42,9 +44,8 @@ if [ -z "$PYTHON" ]; then
   exit 2
 fi
 
-# 4~5. KeyManage 도메인 보안 불변식 정적 린트 실행
+# 4. Swift 계층 경계 정적 린트 실행
 PYTHONIOENCODING=utf-8 "$PYTHON" - "$ROOT_DIR" <<'PY'
-import glob
 import os
 import re
 import sys
@@ -55,68 +56,53 @@ for stream in (sys.stdout, sys.stderr):
 
 root = sys.argv[1]
 projects_dir = os.path.join(root, "Apps", "Apple", "Projects")
-domain_sources_dir = os.path.join(projects_dir, "Core", "Domain", "Sources")
+ALLOWED_MODULES = {"App", "Core/DesignSystem"}
+SKIP_DIRS = {".build", "build", "Derived", "DerivedData", "checkouts"}
+FORBIDDEN_IMPORT = re.compile(
+    r"^\s*(@testable\s+)?import\s+(MicroRIBs|KeyManageDomain|KeyManageData|KeyManageUIAdapter|[A-Za-z]+Feature(Interface|Implementation|Testing))\b"
+)
 
 violations = []
 
 def rel(path):
     return os.path.relpath(path, root).replace(os.sep, "/")
 
-def strip_comments(text):
-    out = []
-    for line in text.splitlines():
-        stripped = re.sub(r"//.*$", "", line)
-        out.append(stripped)
-    return "\n".join(out)
+modules = set()
+for group in sorted(os.listdir(projects_dir)):
+    group_dir = os.path.join(projects_dir, group)
+    if not os.path.isdir(group_dir):
+        continue
+    if os.path.isfile(os.path.join(group_dir, "Project.swift")):
+        modules.add(group)
+        continue
+    for child in sorted(os.listdir(group_dir)):
+        if os.path.isfile(os.path.join(group_dir, child, "Project.swift")):
+            modules.add(f"{group}/{child}")
 
-# 4 & 5. 잠금/세션 모듈(Lock 또는 Session)이 존재할 때의 KeyManage 보안 불변식 검사
-lock_dir_candidates = [
-    os.path.join(domain_sources_dir, "Lock"),
-    os.path.join(domain_sources_dir, "Session"),
-]
-existing_lock_dirs = [d for d in lock_dir_candidates if os.path.isdir(d)]
+for module in sorted(modules - ALLOWED_MODULES):
+    violations.append(
+        f"[규칙4: Swift 계층 경계] Apps/Apple/Projects/{module} — Swift 모듈은 App, Core/DesignSystem만 둡니다. 도메인·RIB은 공유 Kotlin에 둡니다."
+    )
 
-for lock_dir in existing_lock_dirs:
-    lock_files = sorted(glob.glob(os.path.join(lock_dir, "*.swift")))
-    combined = ""
-    for path in lock_files:
+for current_root, dirs, files in os.walk(projects_dir):
+    dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS)
+    for fname in sorted(files):
+        if not fname.endswith(".swift"):
+            continue
+        path = os.path.join(current_root, fname)
         with open(path, encoding="utf-8") as f:
-            combined += "\n" + strip_comments(f.read())
-
-    if "memset_s(" not in combined:
-        violations.append(
-            f"[규칙4: 메모리 보안 위반] {rel(lock_dir)} — 잠금 모듈에 C11 memset_s() 기반 민감 키 제로화 구현이 없습니다."
-        )
-    if "LocalizedError" not in combined or "errorDescription" not in combined:
-        violations.append(
-            f"[규칙4: 정책 문구 계약 위반] {rel(lock_dir)} — 잠금 에러 타입이 LocalizedError(errorDescription)를 구현하지 않아 SEC-003 표준 사용자 문구가 누락되었습니다."
-        )
-
-    for path in lock_files:
-        with open(path, encoding="utf-8") as f:
-            lines = f.read().splitlines()
-        for idx, line in enumerate(lines, start=1):
-            code = re.sub(r"//.*$", "", line)
-            if "func unlockWithBiometrics" in code:
-                sig_chunk = " ".join(
-                    re.sub(r"//.*$", "", lines[j]).strip()
-                    for j in range(idx - 1, min(idx + 5, len(lines)))
-                )
-                sig_only = sig_chunk.split("{")[0]
-                has_non_optional_key = bool(
-                    re.search(r"[A-Za-z0-9_]*key\s*:\s*Data\b(?!\s*\?)", sig_only, re.IGNORECASE)
-                )
-                has_default_nil = "= nil" in sig_only
-                if not has_non_optional_key or has_default_nil:
+            for idx, line in enumerate(f.read().splitlines(), start=1):
+                m = FORBIDDEN_IMPORT.match(line)
+                if m:
                     violations.append(
-                        f"[규칙5: 생체 복호화 우회 금지] {rel(path)}:{idx} — unlockWithBiometrics는 반드시 비옵셔널 복호화 키(*Key: Data)를 인자로 받아 볼트 복호화를 검증해야 합니다."
+                        f"[규칙4: Swift 계층 경계] {rel(path)}:{idx} — 옛 Swift 모듈 '{m.group(2)}'을 import할 수 없습니다."
                     )
 
 if violations:
-    print("KeyManage 도메인 보안 불변식 린트 위반 발견:")
+    print("KeyManage Swift 계층 경계 린트 위반 발견:")
     for v in violations:
         print(f"  ✖ {v}")
     sys.exit(1)
 
-print("✔ KeyManage 도메인 보안 불변식 린트 통과 (위반 0건)")
+print("✔ KeyManage Swift 계층 경계 린트 통과 (위반 0건)")
 PY

@@ -1,7 +1,7 @@
 # Apple 플랫폼 바인딩
 
 - 대상 명세: [vault-spec.md](../../../docs/vault-spec.md), [design-system.md](../../../docs/design-system.md)
-- 대상 코드: `Apps/Apple/Projects/`
+- 대상 코드: `Apps/Apple/Projects/`(화면·디자인 시스템), `Apps/Shared`(암호·도메인, Kotlin)
 
 > **요약** iOS·macOS 클라이언트가 공통 암호 규격과 디자인 시스템을 어떤 프레임워크로 구현하는지 적는다.
 
@@ -9,8 +9,7 @@
 
 | 규격 | 구현 |
 | :--- | :--- |
-| PBKDF2 | `CommonCrypto` (`CCKeyDerivationPBKDF`) |
-| AES-256-GCM | `CryptoKit.AES.GCM` |
+| PBKDF2·HKDF·AES-256-GCM | 공유 Kotlin `:crypto`(cryptography-kotlin `provider-optimal`, Apple 대상은 CommonCrypto·CryptoKit 제공자) |
 
 ## 색상 토큰
 

@@ -1,5 +1,7 @@
 package com.keymanage.feature.generator
 
+import com.keymanage.feature.messages.ClipboardCopyNotice
+import com.keymanage.feature.messages.ClipboardMessages
 import com.carti.ribs.PresentableInteractor
 import com.carti.ribs.checkMainThread
 import com.keymanage.domain.generator.DEFAULT_GENERATOR_OPTIONS
@@ -32,6 +34,7 @@ class PasswordGeneratorInteractor(
     private var lengthChecked = false
     private var announcement = ""
     private var copyError: String? = null
+    private var copyNotice: ClipboardCopyNotice? = null
 
     override fun didBecomeActive() {
         presenter.listener = this
@@ -92,10 +95,13 @@ class PasswordGeneratorInteractor(
         if (!allowCopy || currentProblem() != null) return
         val text = password
         copyError = null
+        copyNotice = null
         render()
         coroutineScope.launch {
             try {
                 clipboard.copy(text)
+                copyNotice = ClipboardMessages.COPIED
+                render()
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -125,6 +131,7 @@ class PasswordGeneratorInteractor(
                 problemMessage = shownProblem,
                 announcement = announcement,
                 copyError = copyError,
+                copyNotice = copyNotice,
                 showsUse = listener != null,
                 showsClose = listener != null,
                 showsCopy = allowCopy,

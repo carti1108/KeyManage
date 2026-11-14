@@ -1,5 +1,7 @@
 package com.keymanage.feature.vaultlist
 
+import com.keymanage.feature.messages.ClipboardCopyNotice
+
 import com.keymanage.domain.generator.hasSequentialDigits
 import com.keymanage.domain.generator.isWeak
 import com.keymanage.domain.generator.scorePassword
@@ -58,6 +60,8 @@ data class VaultListViewState(
     val isSaving: Boolean = false,
     val saveError: ErrorMessage? = null,
     val copyError: String? = null,
+    /** 복사 직후 COM-001 안내. 다음 복사 시도나 실패 때 지운다 */
+    val copyNotice: ClipboardCopyNotice? = null,
 ) {
     /** 항목 추가·수정·삭제를 보일지 */
     val canEdit: Boolean get() = !readOnly

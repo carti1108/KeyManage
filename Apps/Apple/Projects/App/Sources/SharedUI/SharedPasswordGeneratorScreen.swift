@@ -112,6 +112,9 @@ private struct SharedPasswordGeneratorContent: View {
 				if let error = state.copyError {
 					SharedBanner(kind: .error, text: error)
 				}
+				if let notice = state.copyNotice {
+					SharedCopyNoticeBanner(notice: notice)
+				}
 			}
 			.padding(16)
 		}

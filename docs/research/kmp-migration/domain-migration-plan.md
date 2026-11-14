@@ -556,3 +556,43 @@ macOS 앱(`KeyManageMac`)도 iOS와 같은 공유 RIB 트리를 띄운다. 옛 S
 
 - 확인: `:domain:jvmTest`·`:feature:jvmTest`·`:ios-app:allTests`(iosSimulatorArm64·macosArm64)·XCFramework 생성 통과, 웹 `jsBrowserProductionLibraryDistribution` 뒤 `npm run check` 통과(499건), Tuist 생성, `KeyManageMac`·`KeyManageIOS` 빌드 통과. iOS `SharedSessionFlowUITests` 통과. `verify-apple.sh`는 1·2단계(문서·Apple 린트)와 3단계의 정책·API 계약 감사를 통과했고, TDD 무결성 검사는 `iosTest` → `appleTest` 파일 이동(git `R100`, 내용 그대로)과 `IosPlatformTest`의 달력 테스트를 `ApplePlatformTest`로 옮긴 것을 어설션 삭제로 보고 멈췄다(검사가 이름 바꾸기를 따라가지 않는다). 4~6단계(XCFramework·Tuist·`KeyManageMac` 빌드·옛 Swift 모듈 단위 테스트 9개)는 같은 명령을 따로 돌려 통과했다.
 - 확인하지 못한 것: `KeyManageMacUITests`는 이 Mac에서 UI 자동화 모드를 켜지 못해("Timed out while enabling automation mode", 시스템 보안 설정 승인 필요) 돌지 않았다. macOS 앱 실행(프로세스가 뜨고 죽지 않음)만 확인했다. iOS `SharedFeatureFlowUITests`는 이번 1회 실행에서 첫 이메일 칸 입력 포커스 대기(10초)가 시간 초과로 실패했다. 같은 칸·같은 방식을 쓰는 `SharedSessionFlowUITests`는 같은 실행에서 통과해 다시 돌려 확인해야 한다. macOS 생체 해제: `BiometricKeychainStore`의 접근 제어 항목은 macOS에서 데이터 보호 키체인과 팀 서명·키체인 접근 그룹 권한이 필요할 수 있어, 서명하지 않은 개발 빌드에서는 켜기가 실패할 수 있다(실패하면 버튼이 안 보일 뿐 비밀번호 해제는 된다). Touch ID 실기 확인 필요.
+
+#### 4단계: 옛 Swift 코드 삭제 (2026-11-14)
+
+두 앱이 공유 Kotlin RIB 트리만 쓰게 되어 옛 Swift RIB·도메인을 지웠다. 남은 Swift는 SwiftUI 화면(`Sources/SharedUI`), 진입점·문서 선택기(`Sources/iOS`, `Sources/macOS`), `Core/DesignSystem`뿐이다.
+
+| 지운 것 | 소스 | 테스트 |
+| :--- | :--- | :--- |
+| `Features/*` 7개(Interface·Implementation·Testing·Tests) | 7,097줄 | 3,171줄 |
+| `Core/Domain` | 5,168줄 | 7,895줄 |
+| `Core/Data`, `Core/UIAdapter` | 72줄 | 42줄(빈 테스트) |
+| `App/Sources/Shared`(`AppDependency`, `SystemPasteboard`) | 97줄 | |
+| Tuist `MicroRIBs` 패키지 의존, `Package.resolved`, `Project+Feature.swift`(`swift6Settings`는 `Settings+Swift6.swift`로 옮김), `Workspace.swift`의 `Projects/Features/**` | | |
+
+- 지우기 전 대조: Swift 테스트 파일마다 같은 행동을 확인하는 Kotlin 테스트를 찾았다. Kotlin에 없던 것 중 행동이 Kotlin에 이미 있는 두 가지를 `commonTest`로 옮겼다. 계정 삭제 확인 문구의 다른 말·빈 값·두 칸 공백·줄바꿈(`SettingsInteractorTest`), 날짜와 시각을 공백으로 나눈 시각 거절(`VaultDataTest.rejectsSpaceSeparatedDateAndTime`).
+- 옮기지 않은 것(공유 Kotlin에 그 동작이 없어 테스트가 아니라 기능 차이다): 복사 직후 COM-001 안내("클립보드 보안 소각")와 비우기 실패 문구를 Apple 화면이 띄우지 않는다. 로그인 중 볼트 복호화 실패·KDF 값 이상은 "알 수 없는 오류" 문구로 보인다. 계정 삭제 429·401 문구가 Swift(`AccountDeletionStrings`)와 다르다. 비밀번호 강도 3단계(취약·보통·안전, 80점)와 로그인 입력 비었을 때 제출 막기는 Kotlin 상태에 없다. "볼트가 잠겨 있습니다"·"항목을 찾을 수 없습니다" 오류 문구는 Kotlin에서 일반 오류 문구다. 가림 화면 상태는 SwiftUI 뷰에만 있다. 정책과 대조해 고칠지는 따로 정한다.
+- 모듈 이름: `ios-app` → `apple-app`, 패키지 `com.keymanage.ios` → `com.keymanage.apple`, `IosKeyManageApp` → `AppleKeyManageApp`, `IosAppEnvironment` → `AppleAppEnvironment`. 태스크는 `:apple-app:assembleKeyManageSharedDebugXCFramework`, XCFramework 경로는 `Apps/Shared/apple-app/build/XCFrameworks/debug`. iOS 전용 파일(`IosPlatform.kt`, `PasteboardClipboardWriter`)은 이름을 두었다. 키체인 서비스 이름 `com.keymanage.ios.biometric-unlock`은 저장 데이터 식별자라 바꾸지 않았다.
+- macOS 리뷰 반영:
+  - 클립보드: `NSPasteboardClipboardWriter`가 `setString`이 거절하면 `ClipboardWriteException`을 던져 복사 실패 안내가 뜬다(옛 `SystemPasteboard`의 `copyFailed`와 같다). 테스트 `MacPlatformTest.failedSetStringThrowsSoTheCopyFailedNoticeShows`.
+  - 창: `WindowGroup` 대신 `Window` 장면 하나. RIB 트리가 하나라 두 창이 같은 뷰를 나눠 그리지 않는다.
+  - 백그라운드: macOS는 장면 비활성 대신 `NSApplication.didResignActive`·`didBecomeActive`로 SEC-003 백그라운드를 판정한다. 저장·열기 패널이나 경고창이 키 창을 가져가도 앱은 활성이라 "즉시" 설정에서도 내보내기 중에 잠기지 않는다. 가림 화면도 macOS는 이 상태를 따른다. SEC-003 적용 범위 표에 macOS 줄을 더했다(되돌리기 쉬운 범위 결정이라 추천값으로 정함).
+  - 백업 임시 파일: 앱 시작 때 임시 폴더의 `keymanage-backup-YYYYMMDD.json`을 지운다(`removeStagedBackups`, 테스트 `staleStagedBackupsAreRemovedAndOtherFilesAreKept`). iOS는 문서 폴더(파일 앱에 보이는 사용자 파일)라 하지 않는다.
+- 스크립트:
+  - `check-swift-architecture.sh`: 지운 계층의 규칙 1(Domain의 UI import 금지)을 뺐다.
+  - `check-apple-lint.sh`: 옛 규칙 4·5(Swift 잠금 모듈 `memset_s`, `unlockWithBiometrics` 키 인자)를 빼고, 새 규칙 4를 더했다. `Projects` 아래 모듈은 `App`·`Core/DesignSystem`만 허용하고 `MicroRIBs`·옛 Swift 모듈 import를 막는다.
+  - `check-policy-acceptance.sh`: Apple 감사가 지운 `Core/Domain/Tests`를 읽어 조용히 건너뛰던 것을, `apple-app`·`feature` unlock Kotlin 테스트의 SEC-003·COM-001·VLT-002 규칙 감사로 바꿨다. 공통 규칙은 기존 Web 감사가 `Apps/Shared` 테스트로 본다. `.githooks/pre-commit`은 `Apps/Shared/*/src/*Test/` 변경에도 이 감사를 돌린다.
+  - `verify-apple.sh`: 옛 모듈 단위 테스트 9개와 MicroRIBs 패치를 빼고, 두 앱 빌드(iOS 시뮬레이터는 arm64)와 DesignSystem 테스트를 둔다.
+  - `verify-tdd-integrity.sh`: `git diff -M`으로 이름 바꾸기를 따라간다. 내용 그대로 이동(R100)은 수정이 아니고, 지운 어설션이 같은 diff의 테스트 파일에 글자 그대로 다시 나타나면 옮긴 것으로 본다(한 줄씩 짝지음). 테스트 파일 통째 삭제는 그 파일의 모듈(가장 가까운 상위 빌드 정의 파일)도 지웠을 때만 허용한다.
+  - CI `apple` 작업: Tuist 의존성 캐시를 빼고, `:domain:jvmTest :feature:jvmTest :apple-app:allTests`를 돌린다.
+- 확인: `:domain:jvmTest`(417)·`:feature:jvmTest`(340)·`:apple-app:allTests`(80, iosSimulatorArm64·macosArm64)·XCFramework 생성 통과, 웹 `jsBrowserProductionLibraryDistribution` 뒤 `npm run check` 통과(499건), `tuist install`·`tuist generate`, `KeyManageMac`·`KeyManageIOS` 빌드, iOS `SharedSessionFlowUITests`·`SharedFeatureFlowUITests` 통과(시뮬레이터 AF48707C, 로컬 백엔드), `check-docs.sh` 통과, `verify-apple.sh` 우회 없이 통과.
+- 확인하지 못한 것: macOS UI 테스트(시스템 승인 필요), macOS에서 저장 패널을 연 채 "즉시" 설정으로 내보내기, 다른 앱 전환 시 잠금, 두 번째 창이 열리지 않는 것을 직접 조작해 본 확인. ADR-0014·0015(옛 Swift microRIBs 구조)를 대체하는 ADR은 아직 쓰지 않았다.
+
+4단계 최종 리뷰 반영:
+
+- `verify-tdd-integrity.sh`를 다시 썼다. 이동은 `git diff -M`의 이름 바꾸기 짝(옛 경로 → 새 경로) 안에서만 인정하고, 지운 어설션이 그 짝의 새 파일에 글자 그대로 있어야 한다(다른 테스트 파일에 같은 줄을 더해도 이동이 아니다). 테스트 파일 통째 삭제는 모듈 정의 파일이 이름 바꾸기가 아닌 삭제(D)이고 대상 트리에 그 모듈 폴더의 파일이 하나도 남지 않을 때만 허용한다. 워킹 트리 검사는 임시 인덱스(`GIT_INDEX_FILE` 사본)에 추적하지 않은 새 파일까지 올려 짝짓는다. 판정 예시(허용 2, 위반 4)를 스크립트 머리말에 적었고, 스크래치 저장소에서 리뷰가 낸 재현(다른 파일에 같은 줄 더하기, 모듈 폴더 이동 뒤 테스트 삭제, 정의 파일을 하위 폴더로 옮긴 뒤 테스트 삭제)과 정상 경우를 돌려 기대대로 나왔다. 이 저장소에서는 `ios-app` → `apple-app` 테스트 10개가 이름 바꾸기 짝으로, 옛 Swift 테스트 23개가 모듈과 함께 지운 것으로 판정된다. 옮긴 `MacPlatformTest`는 내용을 그대로 두고, 이번에 더한 macOS 테스트는 `MacClipboardAndBackupTest`로 나눴다.
+- COM-001 복사 직후 안내: `:feature`의 `ClipboardMessages`·`ClipboardCopyNotice`를 두고, 생성기·볼트 목록 상태에 `copyNotice`(복사 성공 때 표준 제목·본문, 다음 복사 시도나 실패 때 지움)를 더했다. iOS·macOS는 `SharedCopyNoticeBanner`로 그린다. 웹은 기존 앱 전체 안내(`ClipboardNotice.tsx`)를 그대로 쓰고 새 필드는 그리지 않는다. 테스트: 생성기·볼트 목록 Interactor의 `copySuccessShowsTheCom001NoticeAndFailureShowsTheStandardText`, `VaultNoticesTest`(문구 그대로).
+- 오류 문구: 로그인 중 서버 볼트가 이 비밀번호의 키로 열리지 않으면 `VaultDecryptException`이 나고 로그아웃 상태로 남는 것을 도메인 테스트(`VaultSessionLoginDecryptTest`)로 재현했다. `describeErrorMessage`가 `VaultDecryptException` → "마스터 비밀번호가 올바르지 않습니다."(SEC-003), `InvalidKdfParamsException` → SEC-002 로그인 실패, `UnsupportedPayloadException` → VLT-001 볼트 형식 오류로 바꾼다(테스트 먼저 실패 확인). 계정 삭제 401·429는 SEC-005에 문구가 없어 SEC-002 문구("로그인이 만료되었습니다…", "로그인 시도가 너무 많습니다…")를 그대로 쓴다. "볼트가 잠겨 있습니다"·"항목을 찾을 수 없습니다"는 정책에 문구가 없어 COM-002 공통 문구를 유지한다.
+- 가림 화면(SEC-003 3번)을 Kotlin 상태로 옮겼다. `AppLifecycleWiring`이 백그라운드·iOS 비활성(`didResignActive`)이면 덮고 앞으로 오거나 활성이 되면(잠겨 있어도) 걷으며, `AppleKeyManageApp.isPrivacyCoverActive`·`onPrivacyCoverChanged`로 알린다. Swift는 이 값만 그린다. iOS 비활성은 가리기만 하고 잠그지 않는다. 테스트 `privacyCoverCoversInBackgroundAndWhileInactiveAndLiftsWhenActiveEvenIfLocked`, `forwardsInactiveEventsAndPrivacyCoverOnlyWhileRunning`.
+- `check-policy-acceptance.sh` Apple 감사를 함수 이름이 아니라 값·어설션으로 본다: 자동 잠금 5종 목록과 `autoLockChoice-3600`, "즉시" 백그라운드 잠금 어설션, 가림 화면 켬·끔 어설션, 잠금 시 클립보드에 빈 값 쓰기, 30초 재전송, 대기 중 로그아웃 본문, 생체 14일 경계(14일+1시간 재요구, 14일 정각 허용), COM-001 제목·본문·복사 실패 문구 어설션, macOS 쓰기 실패 전파.
+- 남은 정책 차이(정해야 함): SEC-003 "잠기면 키가 메모리에서 지워짐"을 Kotlin 세션은 참조를 버리는 것으로만 한다(`lockThisTab`이 `unlocked`를 비움). 키 바이트를 잠금 때 0으로 지우면 잠금과 겹친 저장 요청이 지운 키로 봉인할 수 있어, 진행 중 동기화를 끝낸 뒤 지우는 설계가 필요하다. 그래서 이번 감사에 "잠금 시 키 지움" 규칙은 넣지 않았다.
+- 확인: `:domain:jvmTest`(418)·`:feature:jvmTest`(345)·`:apple-app:allTests`(84)·XCFramework·웹 JS 빌드 통과, 웹 `npm run check` 499건 통과, `verify-apple.sh` 우회 없이 통과(문서·린트·정책·API·TDD 무결성·Tuist·두 앱 빌드·DesignSystem 테스트). iOS UI 테스트: `SharedSessionFlowUITests` 통과, `SharedFeatureFlowUITests`는 첫 실행에서 가입 이메일 칸 포커스 대기(10초) 시간 초과로 실패하고 같은 테스트만 다시 돌려 통과했다(macOS 전환 기록의 같은 증상).

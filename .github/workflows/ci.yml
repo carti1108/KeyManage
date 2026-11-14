@@ -226,15 +226,7 @@ jobs:
       - name: Tuist 전역 버전 활성화
         run: mise use -g tuist@4.191.5
 
-      - name: Tuist 외부 의존성 캐시
-        uses: actions/cache@v4
-        with:
-          path: |
-            Apps/Apple/Tuist/.build
-            ~/.cache/tuist
-          key: tuist-${{ runner.os }}-${{ hashFiles('Apps/Apple/Tuist/Package.resolved', 'Apps/Apple/Tuist/Package.swift') }}
-
-      # verify-apple.sh가 공유 Kotlin XCFramework(Apps/Shared/ios-app)를 먼저 만든다. JDK 21과 carti-RIBs-KMP가 필요하다
+      # verify-apple.sh가 공유 Kotlin XCFramework(Apps/Shared/apple-app)를 먼저 만든다. JDK 21과 carti-RIBs-KMP가 필요하다
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -246,6 +238,13 @@ jobs:
           ref: main
           path: carti-RIBs-KMP
           token: ${{ secrets.CARTI_RIBS_TOKEN }}
+
+      # 옛 Swift 도메인·RIB 테스트를 지웠으므로 Apple 앱의 행동은 이 Kotlin 테스트가 확인한다 (domain-migration-plan 12.3 4단계)
+      - name: 공유 Kotlin 테스트 (:domain, :feature, :apple-app iOS 시뮬레이터·macOS)
+        working-directory: Apps/Shared
+        env:
+          CARTI_RIBS_DIR: ${{ github.workspace }}/carti-RIBs-KMP
+        run: ./gradlew :domain:jvmTest :feature:jvmTest :apple-app:allTests -x kotlinStoreYarnLock --console=plain
 
       - name: Apple 6중 기계적 통합 검증
         env:

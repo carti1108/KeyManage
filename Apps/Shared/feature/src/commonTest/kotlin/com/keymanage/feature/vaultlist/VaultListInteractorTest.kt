@@ -193,6 +193,22 @@ class VaultListInteractorTest {
     }
 
     @Test
+    fun copySuccessShowsTheCom001NoticeAndFailureShowsTheStandardText() {
+        open()
+
+        act(VaultListViewAction.CopyPassword("ap"))
+
+        assertEquals("클립보드 보안 소각", assertNotNull(state.copyNotice).title)
+        assertEquals("보안을 위해 복사된 내용이 30초 후 클립보드에서 자동 삭제됩니다.", assertNotNull(state.copyNotice).body)
+
+        clipboard.failure = IllegalStateException("거절")
+        act(VaultListViewAction.CopyUsername("ap"))
+
+        assertNull(state.copyNotice)
+        assertEquals("클립보드에 복사하지 못했습니다.", state.copyError)
+    }
+
+    @Test
     fun showsThePolicyMessageWhenCopyFailsAndClearsItOnTheNextCopy() {
         open()
         clipboard.failure = IllegalStateException("문서에 포커스가 없음")

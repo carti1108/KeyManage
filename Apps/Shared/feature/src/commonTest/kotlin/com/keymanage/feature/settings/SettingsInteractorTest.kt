@@ -769,6 +769,21 @@ class SettingsInteractorTest {
     }
 
     @Test
+    fun 확인_문구가_다른_말이거나_비었거나_공백_줄바꿈이_섞이면_삭제_버튼이_꺼진다() {
+        // 옛 Swift AccountDeletionTests.deleteAccount_withInvalidConfirmationPhrase_throwsConfirmationMismatch에서 옮겼다
+        attach()
+        send(SettingsViewAction.StartDeleteAccount)
+        send(SettingsViewAction.EditDeletionPassword(LONG_PASSWORD))
+
+        listOf("delete", "계정", "삭제", "", "계정  삭제", "계정 삭제\n").forEach { phrase ->
+            send(SettingsViewAction.EditDeletionPhrase(phrase))
+            assertFalse(state.canSubmitDeletion, phrase)
+            send(SettingsViewAction.SubmitDeleteAccount)
+        }
+        assertTrue(session.deleteCalls.isEmpty())
+    }
+
+    @Test
     fun 확인_문구는_앞뒤_공백이_하나라도_붙으면_다르고_정확히_같을_때만_삭제_버튼이_켜진다() {
         attach()
         send(SettingsViewAction.StartDeleteAccount)

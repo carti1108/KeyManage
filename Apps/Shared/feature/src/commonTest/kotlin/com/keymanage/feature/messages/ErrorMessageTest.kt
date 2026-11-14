@@ -6,7 +6,10 @@ import com.keymanage.domain.auth.NewMasterPasswordProblem
 import com.keymanage.domain.backup.BackupDecryptException
 import com.keymanage.domain.backup.NewerBackupVersionException
 import com.keymanage.domain.backup.NotABackupFileException
+import com.keymanage.domain.crypto.InvalidKdfParamsException
 import com.keymanage.domain.crypto.InvalidPasswordException
+import com.keymanage.domain.crypto.UnsupportedPayloadException
+import com.keymanage.domain.crypto.VaultDecryptException
 import com.keymanage.domain.device.DeviceStorageException
 import com.keymanage.domain.server.NetworkError
 import com.keymanage.domain.server.ServerError
@@ -35,6 +38,23 @@ import kotlin.test.assertTrue
 class ErrorMessageTest {
     private val sessionExpired = "로그인이 만료되었습니다. 다시 로그인해 주세요."
     private val unknown = "알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
+
+    @Test
+    fun undecryptableVaultAndInvalidServerKdfUsePolicyTextInsteadOfUnknown() {
+        // 옛 Swift AuthTests.login_vaultDecryptionFailure·login_kdfIterationsBounds·login_invalidSalt에서 옮겼다
+        assertEquals(
+            ErrorMessage(body = "마스터 비밀번호가 올바르지 않습니다."),
+            describeErrorMessage(VaultDecryptException()),
+        )
+        assertEquals(
+            ErrorMessage(title = "로그인 실패", body = "이메일 또는 마스터 비밀번호가 올바르지 않습니다."),
+            describeErrorMessage(InvalidKdfParamsException("iterations 1")),
+        )
+        assertEquals(
+            ErrorMessage(title = "볼트를 열 수 없음", body = "볼트 데이터 형식이 올바르지 않습니다."),
+            describeErrorMessage(UnsupportedPayloadException("version 9")),
+        )
+    }
 
     @Test
     fun errorsBecomePolicyMessages() {

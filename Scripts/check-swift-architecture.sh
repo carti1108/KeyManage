@@ -5,7 +5,8 @@
 # 컴파일 전 0초 만에 기계적으로 차단한다. (ios-architect 플러그인 번들 스크립트)
 #
 # 검사 항목:
-#   1. Clean Architecture 도메인 격리: Domain/**/Sources 내 UI/플랫폼 프레임워크(UIKit, AppKit, SwiftUI, LocalAuthentication, WebKit) import 금지
+#   (옛 규칙 1 "Domain/**/Sources의 UI 프레임워크 import 금지"는 Swift 도메인 계층을 지워 뺐다.
+#    KeyManage 도메인은 Kotlin :domain에 있고, Swift 쪽에 도메인을 다시 두지 않는 규칙은 check-apple-lint.sh 4번이 맡는다)
 #   2. 스텁 및 미완성 코드 잔존 금지: 프로덕션 Sources 내 case notImplemented, fatalError( (단, init(coder:) 제외), TODO:, FIXME: 금지
 #   3. 비재진입 락(NSLock/NSRecursiveLock) 보유 중 명시적 .unlock() 없이 외부 콜백 동기 호출 데드락 패턴 차단
 #
@@ -68,11 +69,6 @@ for current_root, dirs, files in os.walk(root):
         if fname.endswith(".swift"):
             all_swift_files.append(os.path.join(current_root, fname))
 
-domain_source_files = [
-    p for p in all_swift_files
-    if re.search(r"(^|/)Domain/(.+/)?Sources/", rel(p))
-]
-
 production_source_files = [
     p for p in all_swift_files
     if "/Sources/" in f"/{rel(p)}"
@@ -87,19 +83,6 @@ if not production_source_files:
     sys.exit(2)
 
 violations = []
-
-# 1. Domain/Sources 프레임워크 격리 검사
-forbidden_domain_imports = ("UIKit", "AppKit", "SwiftUI", "LocalAuthentication", "WebKit")
-for path in domain_source_files:
-    with open(path, encoding="utf-8") as f:
-        lines = f.read().splitlines()
-    for idx, line in enumerate(lines, start=1):
-        code = re.sub(r"//.*$", "", line).strip()
-        m = re.match(r"^import\s+([A-Za-z0-9_]+)", code)
-        if m and m.group(1) in forbidden_domain_imports:
-            violations.append(
-                f"[규칙1: 도메인 격리 위반] {rel(path)}:{idx} — Domain 계층에서 '{m.group(1)}'을 import할 수 없습니다."
-            )
 
 # 2. 프로덕션 Sources 내 미구현 스텁·미완성 잔재 금지
 for path in production_source_files:

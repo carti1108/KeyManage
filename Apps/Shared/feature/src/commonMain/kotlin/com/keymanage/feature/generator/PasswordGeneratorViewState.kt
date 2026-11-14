@@ -1,5 +1,7 @@
 package com.keymanage.feature.generator
 
+import com.keymanage.feature.messages.ClipboardCopyNotice
+
 import com.keymanage.domain.generator.DEFAULT_GENERATOR_OPTIONS
 import com.keymanage.domain.generator.hasSequentialDigits
 
@@ -28,6 +30,8 @@ data class PasswordGeneratorViewState(
     /** 새로 만들 때마다 갱신. 보조 기술이 읽는다. 처음 열 때는 비어 있다 */
     val announcement: String = "",
     val copyError: String? = null,
+    /** 복사 직후 COM-001 안내. 다음 복사 시도나 실패 때 지운다 */
+    val copyNotice: ClipboardCopyNotice? = null,
     /** 사용·닫기·복사 버튼을 둘지. 항목 폼 안에서는 사용·닫기, 생성기 탭에서는 복사 */
     val showsUse: Boolean = false,
     val showsClose: Boolean = false,

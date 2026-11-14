@@ -58,7 +58,7 @@ if printf '%s\n' "${STAGED_FILES}" | grep -Eq '^Apps/Apple/.*\.swift$'; then
 fi
 
 # 4. 정책 문서 또는 클라이언트 테스트 변경 포함 시 멀티 플랫폼 정책 합격 기준 감사 실행
-if printf '%s\n' "${STAGED_FILES}" | grep -Eq '^(docs/policies/|docs/vault-spec\.md|Apps/Apple/Projects/Core/Domain/Tests/|Apps/Web/src/.*\.test\.tsx?$)'; then
+if printf '%s\n' "${STAGED_FILES}" | grep -Eq '^(docs/policies/|docs/vault-spec\.md|Apps/Shared/[^/]*/src/[^/]*Test/|Apps/Web/src/.*\.test\.tsx?$)'; then
   echo ">> [pre-commit] 정책/클라이언트 테스트 변경 감지 → Scripts/check-policy-acceptance.sh 실행..."
   bash "${ROOT_DIR}/Scripts/check-policy-acceptance.sh" "${ROOT_DIR}"
 fi

@@ -36,7 +36,7 @@ bash "${ROOT_DIR}/Scripts/verify-tdd-integrity.sh"
 
 # 4. Tuist 외부 의존성 설치 및 프로젝트 생성
 echo ">> [4/6] 공유 Kotlin XCFramework 생성, Tuist 의존성 확인 및 프로젝트 생성..."
-# KeyManageIOS가 참조하는 KeyManageShared.xcframework를 tuist generate 전에 만든다 (domain-migration-plan 12.2)
+# KeyManageIOS·KeyManageMac이 참조하는 KeyManageShared.xcframework를 tuist generate 전에 만든다 (domain-migration-plan 12.2)
 # Gradle·Java가 실패하면 예전 XCFramework로 빌드되지 않도록 여기서 멈춘다
 if [ -z "${JAVA_HOME:-}" ]; then
   if JAVA_HOME="$(/usr/libexec/java_home -v 21 2>/dev/null)"; then
@@ -46,77 +46,32 @@ if [ -z "${JAVA_HOME:-}" ]; then
     exit 2
   fi
 fi
-if ! (cd "${ROOT_DIR}/Apps/Shared" && ./gradlew :ios-app:assembleKeyManageSharedDebugXCFramework); then
+if ! (cd "${ROOT_DIR}/Apps/Shared" && ./gradlew :apple-app:assembleKeyManageSharedDebugXCFramework); then
   echo "오류: KeyManageShared XCFramework 생성에 실패했습니다." >&2
   exit 1
 fi
 cd "${APPLE_DIR}"
-if [ ! -d "Tuist/.build/checkouts" ]; then
-  "${TUIST_BIN}" install
-fi
-# Xcode 16.4(Swift 6.1 프로덕션 컴파일러)에서 거부되는 미사용 실험 플래그(IsolatedDeinit) 제거
-if [ -f "Tuist/.build/checkouts/MicroRIBs/Package.swift" ]; then
-  chmod u+w "Tuist/.build/checkouts/MicroRIBs/Package.swift"
-  python3 -c '
-p = "Tuist/.build/checkouts/MicroRIBs/Package.swift"
-with open(p, encoding="utf-8") as f: c = f.read()
-c = c.replace(".enableExperimentalFeature(\"IsolatedDeinit\")", "")
-with open(p, "w", encoding="utf-8") as f: f.write(c)
-'
-fi
+"${TUIST_BIN}" install
 "${TUIST_BIN}" generate --no-open
 
-# 5. macOS 빌드 검증 (Swift 6 Strict Concurrency 포함)
-echo ">> [5/6] KeyManageMac 빌드 검증..."
+# 5. 두 앱 빌드 검증 (Swift 6 Strict Concurrency 포함)
+echo ">> [5/6] KeyManageMac·KeyManageIOS 빌드 검증..."
 xcodebuild -workspace KeyManageApple.xcworkspace \
   -scheme KeyManageMac \
   -destination 'platform=macOS' \
   build CODE_SIGNING_ALLOWED=NO -quiet
 
-# 6. 단위 테스트 전수 검증
-echo ">> [6/6] Apple 타깃 단위 테스트 실행..."
+# KeyManageShared에는 iosSimulatorArm64 조각만 있어 시뮬레이터 빌드는 arm64로만 한다
 xcodebuild -workspace KeyManageApple.xcworkspace \
-  -scheme KeyManageDomain \
-  -destination 'platform=macOS' \
-  test CODE_SIGNING_ALLOWED=NO -quiet
+  -scheme KeyManageIOS \
+  -destination 'generic/platform=iOS Simulator' \
+  build CODE_SIGNING_ALLOWED=NO ARCHS=arm64 -quiet
 
-xcodebuild -workspace KeyManageApple.xcworkspace \
-  -scheme KeyManageData \
-  -destination 'platform=macOS' \
-  test CODE_SIGNING_ALLOWED=NO -quiet
-
-xcodebuild -workspace KeyManageApple.xcworkspace \
-  -scheme UnlockFeature \
-  -destination 'platform=macOS' \
-  test CODE_SIGNING_ALLOWED=NO -quiet
-
+# 6. Swift 단위 테스트. 남은 Swift 모듈은 DesignSystem뿐이다.
+# 도메인·RIB 행동은 Apps/Shared의 :domain·:feature·:apple-app Kotlin 테스트가 확인한다 (domain-migration-plan 12.3 4단계)
+echo ">> [6/6] KeyManageDesignSystem 단위 테스트 실행..."
 xcodebuild -workspace KeyManageApple.xcworkspace \
   -scheme KeyManageDesignSystem \
-  -destination 'platform=macOS' \
-  test CODE_SIGNING_ALLOWED=NO -quiet
-
-xcodebuild -workspace KeyManageApple.xcworkspace \
-  -scheme KeyManageUIAdapter \
-  -destination 'platform=macOS' \
-  test CODE_SIGNING_ALLOWED=NO -quiet
-
-xcodebuild -workspace KeyManageApple.xcworkspace \
-  -scheme MainFeature \
-  -destination 'platform=macOS' \
-  test CODE_SIGNING_ALLOWED=NO -quiet
-
-xcodebuild -workspace KeyManageApple.xcworkspace \
-  -scheme VaultListFeature \
-  -destination 'platform=macOS' \
-  test CODE_SIGNING_ALLOWED=NO -quiet
-
-xcodebuild -workspace KeyManageApple.xcworkspace \
-  -scheme SettingsFeature \
-  -destination 'platform=macOS' \
-  test CODE_SIGNING_ALLOWED=NO -quiet
-
-xcodebuild -workspace KeyManageApple.xcworkspace \
-  -scheme PasswordGeneratorFeature \
   -destination 'platform=macOS' \
   test CODE_SIGNING_ALLOWED=NO -quiet
 

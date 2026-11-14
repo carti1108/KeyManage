@@ -1,69 +1,67 @@
 # 🍎 KeyManage Apple 클라이언트 (iOS & macOS)
 
-iOS 및 macOS 멀티플랫폼을 지원하는 네이티브 영지식(Zero-Knowledge) 패스워드 매니저 클라이언트입니다.
+iOS·macOS 영지식(Zero-Knowledge) 패스워드 매니저 클라이언트입니다.
 
-Tuist 4 마이크로 피처(Micro-Features) 모듈화 아키텍처([ADR-0015](docs/adr/ADR-0015-tuist-micro-features-modularization.md))와 Uber microRIBs + SwiftUI 단방향 `State`/`Action`(`request(action:)` / `update(state:)`) 패턴([ADR-0014](docs/adr/ADR-0014-apple-multiplatform-microribs.md))을 적용하여 화면 계층 간 강한 격리와 높은 테스트 가능성을 확보했습니다.
+두 앱은 웹과 같은 공유 Kotlin RIB 트리(`Apps/Shared`)를 씁니다. 도메인·세션·화면 상태·RIB 라우팅은 Kotlin이 정하고, Swift에는 SwiftUI 화면·앱 진입점·디자인 시스템만 남깁니다([domain-migration-plan 12장](../../docs/research/kmp-migration/domain-migration-plan.md#12-ios-전환-swift-rib을-공유-rib으로-설계-2026-11-13)). 옛 Swift microRIBs 구조([ADR-0014](docs/adr/ADR-0014-apple-multiplatform-microribs.md), [ADR-0015](docs/adr/ADR-0015-tuist-micro-features-modularization.md))는 12.3 4단계에서 지웠습니다.
 
 ---
 
 ## 🛠️ 기술 스택
 
-| 분류 | 기술 규격 및 사양 |
+| 분류 | 내용 |
 | :--- | :--- |
-| **Language** | Swift 6 (Strict Concurrency) |
-| **Architecture** | Uber microRIBs (Router, Interactor, Builder) + `ViewState`/`ViewAction` 단방향 바인딩 |
-| **UI Framework** | SwiftUI (`UIHostingController` / `NSHostingController` 어댑터) |
-| **Modularization** | Tuist 4 (`Interface`, `Implementation`, `Testing`, `Tests` 타깃 분리) |
-| **Security & Crypto** | CommonCrypto (`PBKDF2-HMAC-SHA256`), CryptoKit (`HKDF-SHA256`, `AES-256-GCM`), LocalAuthentication (Face ID / Touch ID), Keychain |
-| **Testing** | Swift Testing (`@Suite`, `@Test`, `#expect`) |
+| **공유 로직** | Kotlin Multiplatform 정적 XCFramework `KeyManageShared`(`Apps/Shared/apple-app`가 `:domain`·`:feature`·`ribs-core`를 내보냄) |
+| **화면** | SwiftUI. 공유 RIB 뷰 계약(`XxxViewContract`)을 구현하고 `RIBsKMPSwiftUI`(carti-RIBs-KMP)의 `RIBSlotView`로 붙임 |
+| **Language** | Swift 6 (Strict Concurrency). Kotlin 객체는 `@MainActor`에서만 다룸 |
+| **Modularization** | Tuist 4. 앱 프로젝트(`App`)와 `Core/DesignSystem` |
+| **Security & Crypto** | cryptography-kotlin(Apple 제공자), Keychain·LocalAuthentication(Face ID / Touch ID)은 `secure-store` `appleMain` |
+| **Testing** | Kotlin 테스트(`:domain`·`:feature`·`:apple-app`), Swift Testing(DesignSystem), XCUITest(가입 → 잠금 → 해제, RIB별 흐름) |
 
 ---
 
 ## 🧩 모듈 구조
 
-각 Feature 모듈은 `Interface`, `Implementation`, `Testing`, `Tests` 4개 타깃으로 분리되어 상위/형제 RIB가 구체 구현체에 직접 의존하지 않도록 강제합니다.
-
 ```text
 Apps/Apple/
 ├── Projects/
-│   ├── App/                        # 애플리케이션 진입점 (KeyManageiOS, KeyManageMac, AppRootAdapter)
-│   ├── Features/                   # 화면 단위 기능 모듈 (microRIBs 4-Target 구조)
-│   │   ├── Root/                   # 세션·잠금 상태 감시 및 Auth / Unlock / Main 루트 라우팅
-│   │   ├── Auth/                   # 원격 계정 회원가입 및 마스터 키 유도 로그인 (SEC-002)
-│   │   ├── Unlock/                 # 마스터 비밀번호·생체 인증 잠금 해제 및 원격 KDF 변경 감지 (SEC-003, SEC-004)
-│   │   ├── Main/                   # iOS TabView / macOS NavigationSplitView 메인 대시보드 셸
-│   │   ├── VaultList/              # 볼트 항목 CRUD, 검색, 클립보드 복사, 원격 볼트 동기화 및 오프라인 배너 (VLT-001, VLT-002)
-│   │   ├── PasswordGenerator/      # CSPRNG 비밀번호 생성기 및 엔트로피 진단기 (GEN-001, COM-001)
-│   │   └── Settings/               # 자동 잠금 설정, 암호화 백업 내보내기/복원, 비밀번호 변경, 계정 삭제 (SEC-003~005, VLT-004)
-│   └── Core/                       # 플랫폼 공통 비즈니스 코어 및 인프라
-│       ├── Domain/                 # 영지식 암호 엔진, 볼트 3-way 병합, 잠금·동기화 매니저, 클립보드 30초 자동 소각
-│       ├── Data/                   # Keychain·파일 기반 암호화 기기 볼트 저장소 어댑터 (VLT-003)
-│       ├── DesignSystem/           # shadcn/ui 기반 시멘틱 디자인 토큰 및 5대 핵심 UI 컴포넌트
-│       └── UIAdapter/              # microRIBs 플랫폼 호스팅 어댑터
-├── Tuist/                          # Tuist 프로젝트 설정 및 로컬 패키지 매니페스트
+│   ├── App/
+│   │   ├── Sources/iOS/            # iOS 진입점(KeyManageIOSApp), 문서 선택기
+│   │   ├── Sources/macOS/          # macOS 진입점(KeyManageMacApp, 창 하나), 저장·열기 패널
+│   │   ├── Sources/SharedUI/       # 두 앱이 함께 쓰는 SwiftUI 화면 7개·뷰 팩토리·SharedAppLauncher
+│   │   └── UITests/                # iOS·macOS XCUITest (로컬 백엔드 localhost:8080)
+│   └── Core/
+│       └── DesignSystem/           # 디자인 토큰과 공용 UI 컴포넌트 (+ Tests)
+├── Tuist/                          # 프로젝트 설정 헬퍼(swift6Settings, makeCore)
 └── docs/                           # Apple 플랫폼 전용 ADR 및 바인딩 명세
+
+Apps/Shared/apple-app/              # Apple 진입점 Kotlin(AppleKeyManageApp, 수명주기 배선, 플랫폼 구현)
 ```
 
 ---
 
 ## 🧪 빌드 및 검증
 
-macOS 환경에서 Tuist 워크스페이스를 생성한 뒤 통합 검증 스크립트(`Scripts/verify-apple.sh`) 또는 `xcodebuild`를 실행합니다.
-
 ```bash
-# 1. 정적 아키텍처·보안 불변식·단위 테스트 통합 검증
+# 1. 정적 린트·정책 감사·XCFramework·Tuist 생성·두 앱 빌드·DesignSystem 테스트
 bash Scripts/verify-apple.sh
 
-# 2. 워크스페이스 생성 및 macOS 타깃 단독 빌드
-cd Apps/Apple
-tuist generate --no-open
-xcodebuild -workspace KeyManage.xcworkspace -scheme KeyManageMac -destination 'platform=macOS' build
+# 2. 공유 Kotlin 테스트 (Apple 앱의 도메인·화면 상태·수명주기 행동)
+cd Apps/Shared
+./gradlew :domain:jvmTest :feature:jvmTest :apple-app:allTests -x kotlinStoreYarnLock
+
+# 3. 수동 생성·빌드
+./gradlew :apple-app:assembleKeyManageSharedDebugXCFramework
+cd ../Apple
+tuist install && tuist generate --no-open
+xcodebuild -workspace KeyManageApple.xcworkspace -scheme KeyManageMac -destination 'platform=macOS' build
 ```
+
+`RIBsKMPSwiftUI`는 저장소 옆 형제 폴더 `carti-RIBs-KMP`에서 읽습니다. 다른 곳에 받았으면 `TUIST_CARTI_RIBS_DIR`(Tuist)와 `CARTI_RIBS_DIR`(Gradle)에 절대 경로를 줍니다.
 
 ---
 
 ## 🔧 트러블 슈팅
 
-- **Swift 6 비동기 컨텍스트 내 `NSLock` 컴파일 오류 및 데드락 방지**: `async` 메서드 내부에서 `NSLock.lock()`/`unlock()`을 직접 호출하면 Swift 6 Strict Concurrency 컴파일 오류가 발생하므로, 공유 상태 변경을 동기 헬퍼 메서드(`prepareSync`, `applySyncSuccess` 등)로 분리해 락 점유 구간을 동기 블록 내부로만 제한했습니다.
-- **비동기 동기화 중 자동 잠금 시 평문 메모리 부활 차단**: 네트워크 요청 진행 중 유휴 타임아웃이나 수동 잠금이 발생한 경우, 응답 도착 시 `isLocked == true`이면 복호화된 평문 볼트를 메모리에 적재하지 않고 암호문과 리비전만 갱신하도록 방어했습니다.
-- **iOS/macOS 멀티플랫폼 네비게이션 뷰포트 왜곡 해결**: iOS에서는 `TabView` 내부 각 탭에 `NavigationStack`을 배치하고, macOS에서는 `NavigationSplitView`/사이드바 레이아웃을 분리하여 플랫폼별 네비게이션 바 중복 및 여백 왜곡을 해결했습니다.
+- **Kotlin 콜백과 Swift 동시성**: Kotlin/Native 객체는 Sendable이 아니므로 공유 코드 호출과 콜백은 `@MainActor` 뷰·`SharedAppLauncher`에서만 받습니다.
+- **macOS 백그라운드 판정**: 장면 비활성은 저장·열기 패널이나 경고창이 키 창을 가져갈 때도 생기므로, macOS는 `NSApplication` 활성 알림으로 SEC-003 백그라운드를 판정합니다.
+- **iOS/macOS 네비게이션 배치**: iOS는 `TabView` 안 탭마다 `NavigationStack`, macOS는 `NavigationSplitView` 사이드바를 씁니다(`#if os(macOS)`).

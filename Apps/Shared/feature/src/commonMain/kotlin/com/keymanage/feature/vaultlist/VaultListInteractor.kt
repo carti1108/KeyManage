@@ -1,5 +1,7 @@
 package com.keymanage.feature.vaultlist
 
+import com.keymanage.feature.messages.ClipboardCopyNotice
+import com.keymanage.feature.messages.ClipboardMessages
 import com.carti.ribs.PresentableInteractor
 import com.carti.ribs.checkMainThread
 import com.keymanage.domain.session.SessionState
@@ -50,6 +52,7 @@ class VaultListInteractor(
     private var isSaving = false
     private var saveError: ErrorMessage? = null
     private var copyError: String? = null
+    private var copyNotice: ClipboardCopyNotice? = null
     private var unsubscribers: List<() -> Unit> = emptyList()
 
     override fun didBecomeActive() {
@@ -84,6 +87,7 @@ class VaultListInteractor(
         isConfirmingDelete = false
         saveError = null
         copyError = null
+        copyNotice = null
         render()
     }
 
@@ -278,9 +282,12 @@ class VaultListInteractor(
     private fun copy(itemId: String, pick: (VaultItem) -> String?) {
         val text = activeItem(itemId)?.let(pick)?.takeIf { it.isNotEmpty() } ?: return
         copyError = null
+        copyNotice = null
         coroutineScope.launch {
             try {
                 clipboard.copy(text)
+                copyNotice = ClipboardMessages.COPIED
+                render()
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -308,6 +315,7 @@ class VaultListInteractor(
                 isSaving = isSaving,
                 saveError = saveError,
                 copyError = copyError,
+                copyNotice = copyNotice,
             ),
         )
     }

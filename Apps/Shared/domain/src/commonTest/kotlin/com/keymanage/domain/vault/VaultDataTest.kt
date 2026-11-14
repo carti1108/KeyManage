@@ -107,6 +107,14 @@ class VaultDataParseTest {
     }
 
     @Test
+    fun rejectsSpaceSeparatedDateAndTime() {
+        // 옛 Swift VaultModuleTests.testStrictIso8601UtcTimeFormatValidation에서 옮겼다
+        val json = vaultJson(fullItem("a", updatedAt = "2026-10-27 11:20:00Z"))
+
+        assertFailsWith<InvalidVaultDataException> { parseVaultData(json) }
+    }
+
+    @Test
     fun treatsNullOptionalFieldsFromOtherPlatformsAsMissing() {
         val json = vaultJson(fullItem("a", TS, "url" to null, "notes" to null, "deletedAt" to null))
 

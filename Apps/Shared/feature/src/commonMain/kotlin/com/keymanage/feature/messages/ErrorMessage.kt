@@ -6,7 +6,10 @@ import com.keymanage.domain.auth.NewMasterPasswordProblem
 import com.keymanage.domain.backup.BackupDecryptException
 import com.keymanage.domain.backup.NewerBackupVersionException
 import com.keymanage.domain.backup.NotABackupFileException
+import com.keymanage.domain.crypto.InvalidKdfParamsException
 import com.keymanage.domain.crypto.InvalidPasswordException
+import com.keymanage.domain.crypto.UnsupportedPayloadException
+import com.keymanage.domain.crypto.VaultDecryptException
 import com.keymanage.domain.device.DeviceStorageException
 import com.keymanage.domain.server.NetworkError
 import com.keymanage.domain.server.ServerError
@@ -55,6 +58,12 @@ fun describeErrorMessage(error: Throwable): ErrorMessage = when (error) {
     is VaultSetupException -> ErrorMessage(body = "계정은 만들었지만 볼트를 준비하지 못했습니다. 다시 로그인해 주세요.")
     is InvalidEmailException -> ErrorMessage(body = "올바른 이메일 주소를 입력해 주세요.")
     is InvalidPasswordException -> ErrorMessage(body = "마스터 비밀번호에 쓸 수 없는 문자가 있습니다.")
+    // 이 비밀번호의 키로 볼트가 열리지 않음(로그인 중 서버 볼트 포함). 내용을 덮어쓰지 않는다 (SEC-003)
+    is VaultDecryptException -> ErrorMessage(body = "마스터 비밀번호가 올바르지 않습니다.")
+    // 서버가 준 KDF 값이 허용 범위 밖이거나 규격이 아니면 로그인하지 않는다 (SEC-002 로그인 실패)
+    is InvalidKdfParamsException -> describeServerError(ServerError(401, ServerErrorCode.AUTH_FAILED))
+    // 이 앱이 모르는 암호문 형식 (VLT-001 볼트 형식 오류)
+    is UnsupportedPayloadException -> ErrorMessage(title = "볼트를 열 수 없음", body = "볼트 데이터 형식이 올바르지 않습니다.")
     // 복호화는 됐지만 내용 규격이 틀림. 덮어쓰지 않는다 (VLT-001)
     is InvalidVaultDataException -> ErrorMessage(title = "볼트를 열 수 없음", body = "볼트 데이터 형식이 올바르지 않습니다.")
     is VaultSyncConflictException ->

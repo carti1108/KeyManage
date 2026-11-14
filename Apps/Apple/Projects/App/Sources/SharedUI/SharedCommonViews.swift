@@ -66,6 +66,22 @@ extension SharedBanner where Content == Text {
 	}
 }
 
+/// 복사 직후 COM-001 안내(제목·본문). 공유 Kotlin 상태 `copyNotice`를 그린다
+struct SharedCopyNoticeBanner: View {
+	let notice: ClipboardCopyNotice
+
+	var body: some View {
+		SharedBanner(kind: .info) {
+			VStack(alignment: .leading, spacing: 4) {
+				Text(notice.title).bold()
+				Text(notice.body)
+			}
+		}
+		.accessibilityElement(children: .combine)
+		.accessibilityIdentifier("copyNotice")
+	}
+}
+
 /// 입력 칸 위 제목. 옛 Swift 폼과 같은 모양이다
 struct SharedFieldLabel: View {
 	let title: String

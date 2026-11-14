@@ -26,8 +26,8 @@ let project = Project(
 			sources: ["Sources/macOS/**", "Sources/SharedUI/**"],
 			dependencies: [
 				.project(target: "KeyManageDesignSystem", path: "../Core/DesignSystem"),
-				// 실행 전에 Apps/Shared에서 `./gradlew :ios-app:assembleKeyManageSharedDebugXCFramework`로 만든다(macos-arm64 조각 포함)
-				.xcframework(path: "../../../Shared/ios-app/build/XCFrameworks/debug/KeyManageShared.xcframework"),
+				// 실행 전에 Apps/Shared에서 `./gradlew :apple-app:assembleKeyManageSharedDebugXCFramework`로 만든다(macos-arm64 조각 포함)
+				.xcframework(path: "../../../Shared/apple-app/build/XCFrameworks/debug/KeyManageShared.xcframework"),
 				.package(product: "RIBsKMPSwiftUI")
 			]
 		),
@@ -45,29 +45,11 @@ let project = Project(
 				// 생체 해제 (SEC-003). 공유 코드 KeychainBiometricUnlock이 LAContext로 묻는다
 				"NSFaceIDUsageDescription": "볼트 잠금을 생체 인증으로 해제합니다."
 			]),
-			sources: ["Sources/iOS/**", "Sources/SharedUI/**", "Sources/Shared/**"],
+			sources: ["Sources/iOS/**", "Sources/SharedUI/**"],
 			dependencies: [
-				.project(target: "KeyManageDomain", path: "../Core/Domain"),
-				.project(target: "KeyManageData", path: "../Core/Data"),
 				.project(target: "KeyManageDesignSystem", path: "../Core/DesignSystem"),
-				.project(target: "KeyManageUIAdapter", path: "../Core/UIAdapter"),
-				.project(target: "UnlockFeatureInterface", path: "../Features/Unlock"),
-				.project(target: "UnlockFeatureImplementation", path: "../Features/Unlock"),
-				.project(target: "MainFeatureInterface", path: "../Features/Main"),
-				.project(target: "MainFeatureImplementation", path: "../Features/Main"),
-				.project(target: "VaultListFeatureInterface", path: "../Features/VaultList"),
-				.project(target: "VaultListFeatureImplementation", path: "../Features/VaultList"),
-				.project(target: "SettingsFeatureInterface", path: "../Features/Settings"),
-				.project(target: "SettingsFeatureImplementation", path: "../Features/Settings"),
-				.project(target: "PasswordGeneratorFeatureInterface", path: "../Features/PasswordGenerator"),
-				.project(target: "PasswordGeneratorFeatureImplementation", path: "../Features/PasswordGenerator"),
-				.project(target: "RootFeatureInterface", path: "../Features/Root"),
-				.project(target: "RootFeatureImplementation", path: "../Features/Root"),
-				.project(target: "AuthFeatureInterface", path: "../Features/Auth"),
-				.project(target: "AuthFeatureImplementation", path: "../Features/Auth"),
-				.external(name: "MicroRIBs"),
-				// 실행 전에 Apps/Shared에서 `./gradlew :ios-app:assembleKeyManageSharedDebugXCFramework`로 만든다
-				.xcframework(path: "../../../Shared/ios-app/build/XCFrameworks/debug/KeyManageShared.xcframework"),
+				// 실행 전에 Apps/Shared에서 `./gradlew :apple-app:assembleKeyManageSharedDebugXCFramework`로 만든다
+				.xcframework(path: "../../../Shared/apple-app/build/XCFrameworks/debug/KeyManageShared.xcframework"),
 				.package(product: "RIBsKMPSwiftUI")
 			]
 		),

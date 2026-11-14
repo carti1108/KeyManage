@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 멀티 플랫폼 클라이언트 정책 합격 기준 및 경계값 어설션 감사 (Multi-Platform Policy Acceptance Gate)
 #
-# 백엔드(:domain)의 PIT 뮤테이션 테스트에 대응하여, Apple·Web(및 추후 Android) 클라이언트 단위 테스트가
+# 백엔드(:domain)의 PIT 뮤테이션 테스트에 대응하여, Apple·Web(및 추후 Android) 클라이언트 단위 테스트(Apple·Web 공통 로직은 Apps/Shared Kotlin)가
 # 단순 통과 개수만 채우지 않고 docs/policies/ 및 docs/vault-spec.md의
 # 필수 경계값·예외·표준 문구를 실제로 어설션(#expect / XCTAssert / expect)하고 있는지 기계적으로 교차 검증한다.
 #
@@ -50,128 +50,38 @@ def check_invariants(platform, module_name, combined_text, rules):
 
 
 # ============================================================================
-# 1. Apple 플랫폼 감사 (Apps/Apple/Projects/Core/Domain/Tests)
+# 1. Apple 플랫폼 감사 (Apps/Shared/apple-app, Apps/Shared/feature 테스트)
 # ============================================================================
-apple_tests_dir = os.path.join(root, "Apps", "Apple", "Projects", "Core", "Domain", "Tests")
-apple_sources_dir = os.path.join(root, "Apps", "Apple", "Projects", "Core", "Domain", "Sources")
-
-if os.path.isdir(apple_tests_dir):
+# iOS·macOS 앱은 공유 Kotlin RIB 트리(KeyManageShared)를 쓴다. 옛 Swift 도메인 테스트(Core/Domain/Tests)는
+# domain-migration-plan 12.3 4단계에서 지웠다. 암호·볼트·생성기·백업·비밀번호 변경·계정 삭제 규칙은 웹과 같은
+# Kotlin 코드라 아래 2번(Web) 감사가 Apps/Shared 테스트로 함께 본다. 여기서는 Apple 진입점이 맡는 규칙만 본다
+apple_app_tests_dir = os.path.join(root, "Apps", "Shared", "apple-app", "src")
+if os.path.isdir(os.path.join(root, "Apps", "Apple")):
     audited_platforms.append("Apple")
-    apple_test_files = sorted(glob.glob(os.path.join(apple_tests_dir, "*.swift")))
+    apple_test_files = sorted(
+        glob.glob(os.path.join(apple_app_tests_dir, "*Test", "**", "*.kt"), recursive=True)
+        + glob.glob(os.path.join(root, "Apps", "Shared", "feature", "src", "*Test", "**", "*.kt"), recursive=True)
+        + glob.glob(os.path.join(root, "Apps", "Shared", "domain", "src", "*Test", "**", "lock", "*.kt"), recursive=True)
+    )
     apple_tests = "\n".join(open(p, encoding="utf-8").read() for p in apple_test_files)
 
-    apple_crypto_rules = [
-        ("교차 플랫폼 테스트 벡터(crypto-test-vectors.json) 지문 검증", r"7xdxRO7JQgy8EJPSqLNEqSvFBtDU7JwCjdGfgyTYweY="),
-        ("PBKDF2 600,000회 반복 경계값 검증", r"600_?000"),
-        ("HKDF authKey / encryptionKey 도메인 분리 검증", r"HKDFKeySeparator\.separate"),
-        ("AES-GCM AAD 헤더 변조 복호화 거부 검증", r"(XCTAssertThrowsError|#expect\(throws:)"),
+    # 함수 이름이 아니라 값·어설션을 본다
+    apple_autolock_rules = [
+        ("SEC-003 자동 잠금 5종(즉시·1·5·15·60분) 선택지 검증", r"assertEquals\(listOf\(Duration\.ZERO, 1\.minutes, 5\.minutes, 15\.minutes, 60\.minutes\), AUTO_LOCK_OPTIONS\)"),
+        ("SEC-003 자동 잠금 선택지 3600초 상한 경계값(autoLockChoice-3600) 검증", r'"autoLockChoice-0", "autoLockChoice-60", "autoLockChoice-300", "autoLockChoice-900", "autoLockChoice-3600"'),
+        ("SEC-003 '즉시' 설정의 백그라운드 진입 잠금 어설션 검증", r"immediate\.wiring\.didEnterBackground\(\)\s*assertEquals\(false, immediate\.session\.unlocked\)"),
+        ("SEC-003 백그라운드 진입 시 가림 화면 켬 어설션 검증", r"didEnterBackground\(\)\s*assertTrue\([^)]*isPrivacyCoverActive\)"),
+        ("SEC-003 앞으로 올 때(잠겨 있어도) 가림 화면 끔 어설션 검증", r"willEnterForeground\(\)\s*assertFalse\([^)]*isPrivacyCoverActive\)"),
+        ("SEC-003 / COM-001 잠금 시 클립보드 즉시 비움(빈 값 쓰기) 검증", r"fun lockBurnsClipboardRightAway[\s\S]*?assertEquals\([^)]*\"\"[^)]*\)"),
+        ("VLT-002 재전송 주기 30초 경계값 검증", r"advance\(30\.seconds\)"),
+        ("VLT-002 대기 중 로그아웃 확인 본문 검증", r'assertEquals\("로그아웃하면 서버에 올리지 못한 변경 사항이 사라집니다\.", PendingLogoutConfirm\.BODY\)'),
+        ("SEC-003 생체 해제 14일 경계값(14일+1시간은 재요구, 14일 정각은 허용) 검증", r"now - 14\.days - 1\.hours\)[\s\S]*now - 14\.days\)"),
+        ("COM-001 복사 직후 표준 제목 검증", r'assertEquals\("클립보드 보안 소각"'),
+        ("COM-001 복사 직후 표준 본문 검증", r'"보안을 위해 복사된 내용이 30초 후 클립보드에서 자동 삭제됩니다\."'),
+        ("COM-001 복사 실패 표준 문구 어설션 검증", r'assertEquals\("클립보드에 복사하지 못했습니다\.", state\.copyError\)'),
+        ("COM-001 macOS 클립보드 쓰기 실패 전파 검증", r"assertFailsWith<ClipboardWriteException>"),
     ]
-    check_invariants("Apple", "1단계: 암호 모듈(vault-spec)", apple_tests, apple_crypto_rules)
-
-    apple_vault_rules = [
-        ("상위 버전 읽기 전용(isReadOnly) 강제 검증", r"\bisReadOnly\b"),
-        ("5MB(5,242,880바이트) 페이로드 상한 검증", r"(5_?242_?880|5\s*\*\s*1024\s*\*\s*1024)"),
-        ("톰스톤(deletedAt) 삭제 및 필드 소거 검증", r"\bdeletedAt\b"),
-        ("서버 revision 역행(Rollback) 거부 검증", r"revisionRollback|Rollback"),
-        ("409 Conflict 최대 3회 재시도 한도 검증", r"(conflictLimitExceeded|409)"),
-    ]
-    check_invariants("Apple", "2단계: 볼트 동기화(VLT-001)", apple_tests, apple_vault_rules)
-
-    has_lock_module = (
-        os.path.isdir(os.path.join(apple_sources_dir, "Lock"))
-        or os.path.isdir(os.path.join(apple_sources_dir, "Session"))
-    )
-    if has_lock_module:
-        apple_autolock_rules = [
-            ("자동 잠금 5종 타임아웃(0, 60, 300, 900, 3600) 경계값 검증", r"3600"),
-            ("백그라운드 가림 화면(isPrivacyCoverActive) 상태 전이 검증", r"isPrivacyCoverActive"),
-            ("잠금 시 민감 키 소거(masterKey == nil, encryptionKey == nil) 검증", r"(encryptionKey\s*==\s*nil|XCTAssertNil\([^\)]*encryptionKey)"),
-            ("생체 인증 14일 재인증 주기 검증", r"(14\s*\*|1_?209_?600|14)"),
-            ("SEC-003 표준 비밀번호 오류 문구('마스터 비밀번호가 올바르지 않습니다.') 검증", r"마스터 비밀번호가 올바르지 않습니다\."),
-            ("SEC-003 빈 볼트 준비 실패 문구('계정은 만들었지만 볼트를 준비하지 못했습니다.') 검증", r"계정은 만들었지만 볼트를 준비하지 못했습니다\."),
-        ]
-        check_invariants("Apple", "3단계: 자동 잠금(SEC-003)", apple_tests, apple_autolock_rules)
-
-    if os.path.isdir(os.path.join(apple_sources_dir, "Generator")):
-        apple_generator_rules = [
-            ("길이 상한(64자) 및 하한(8자) 경계값 검증", r"(minimumLength|maximumLength|64)"),
-            ("거부 샘플링 1,000회 반복 검증", r"1_?000"),
-            ("플랫폼 공통 샘플('123456' -> 19점) 검증", r"123456"),
-            ("플랫폼 공통 샘플('abc~~~~~' -> 40점) 검증", r"abc~~~~~"),
-            ("표준 에러 문구('비밀번호 길이는 최소 8자 이상 64자 이하이어야 합니다.') 검증", r"비밀번호 길이는 최소 8자 이상 64자 이하이어야 합니다\."),
-            ("표준 에러 문구('최소 1개 이상의 문자 종류를 선택해야 합니다.') 검증", r"최소 1개 이상의 문자 종류를 선택해야 합니다\."),
-            ("표준 취약 경고 문구('현재 비밀번호는 보안에 취약합니다. 80점 이상의 강력한 비밀번호로 재생성하세요.') 검증", r"현재 비밀번호는 보안에 취약합니다\. 80점 이상의 강력한 비밀번호로 재생성하세요\."),
-            ("표준 연속 숫자 안내 문구('123처럼 이어지는 숫자가 들어 있어 추측하기 쉽습니다.') 검증", r"123처럼 이어지는 숫자가 들어 있어 추측하기 쉽습니다\."),
-        ]
-        check_invariants("Apple", "4단계: 비밀번호 생성기(GEN-001)", apple_tests, apple_generator_rules)
-
-    if os.path.isdir(os.path.join(apple_sources_dir, "Sync")):
-        apple_pending_sync_rules = [
-            ("VLT-002 재전송 주기(30초) 상수 검증", r"(30|resyncIntervalSeconds)"),
-            ("VLT-002 오프라인 경고 표준 문구('오프라인 상태입니다. 변경 사항이 서버에 동기화되지 않습니다.') 검증", r"오프라인 상태입니다\. 변경 사항이 서버에 동기화되지 않습니다\."),
-            ("VLT-002 대기 중 로그아웃 확인 제목('동기화되지 않은 변경 사항') 검증", r"동기화되지 않은 변경 사항"),
-            ("VLT-002 대기 중 로그아웃 확인 본문('로그아웃하면 서버에 올리지 못한 변경 사항이 사라집니다.') 검증", r"로그아웃하면 서버에 올리지 못한 변경 사항이 사라집니다\."),
-        ]
-        check_invariants("Apple", "5단계: 오프라인 동기화 대기(VLT-002)", apple_tests, apple_pending_sync_rules)
-
-    if os.path.isdir(os.path.join(apple_sources_dir, "Persistence")):
-        apple_device_store_rules = [
-            ("VLT-003 단일 계정 기기 기록 및 복원 검증", r"DeviceVaultRecord"),
-            ("VLT-003 다른 계정 인증 시 이전 기록 삭제 검증", r"handleAuthenticationSuccess"),
-            ("VLT-003 KDF 파라미터 변경 감지 및 대기 폐기 검증", r"evaluateKdfChange"),
-        ]
-        check_invariants("Apple", "6단계: 기기 볼트 보존(VLT-003)", apple_tests, apple_device_store_rules)
-
-    if os.path.isdir(os.path.join(apple_sources_dir, "Clipboard")):
-        apple_clipboard_rules = [
-            ("COM-001 클립보드 유효 시간(30초) 경계값 검증", r"(defaultAutoBurnInterval|30\.0)"),
-            ("COM-001 복사 직후 표준 제목('클립보드 보안 소각') 검증", r"클립보드 보안 소각"),
-            ("COM-001 복사 직후 표준 본문('보안을 위해 복사된 내용이 30초 후 클립보드에서 자동 삭제됩니다.') 검증", r"보안을 위해 복사된 내용이 30초 후 클립보드에서 자동 삭제됩니다\."),
-            ("COM-001 복사 실패 표준 문구('클립보드에 복사하지 못했습니다.') 검증", r"클립보드에 복사하지 못했습니다\."),
-            ("COM-001 비우기 실패 표준 문구('클립보드를 비우지 못했습니다.') 검증", r"클립보드를 비우지 못했습니다\."),
-            ("COM-001 / SEC-003 앱 잠금 시 즉시 비움(handleLock) 검증", r"handleLock"),
-        ]
-        check_invariants("Apple", "7단계: 클립보드 자동 비우기(COM-001)", apple_tests, apple_clipboard_rules)
-
-    if os.path.isdir(os.path.join(apple_sources_dir, "Backup")):
-        apple_backup_rules = [
-            ("VLT-004 파일 이름(keymanage-backup-YYYYMMDD.json) 검증", r"keymanage-backup-"),
-            ("VLT-004 백업 형식 버전(formatVersion) 검증", r"formatVersion"),
-            ("VLT-004 파일 크기 한도(maxBackupFileBytes) 경계값 검증", r"(maxBackupFileBytes|MAX_BACKUP_FILE_BYTES)"),
-            ("VLT-004 복원 규칙(restoreItems: 백업 시점으로 되돌리고 새 항목은 남김) 검증", r"restoreItems"),
-            ("VLT-004 내보내기 전 안내 문구 검증", r"이 파일은 내보낸 시점의 마스터 비밀번호로만 열 수 있습니다\."),
-            ("VLT-004 복원 전 안내 문구 검증", r"백업에 있던 항목은 백업 시점 내용으로 돌아갑니다\."),
-            ("VLT-004 비밀번호 오류·손상 문구('백업을 열 수 없습니다.') 검증", r"백업을 열 수 없습니다\."),
-            ("VLT-004 형식 오류 문구('KeyManage 백업 파일이 아닙니다.') 검증", r"KeyManage 백업 파일이 아닙니다\."),
-            ("VLT-004 새 버전 백업 문구 검증", r"더 새 버전의 앱에서 만든 백업입니다\."),
-            ("VLT-004 복원 완료 문구('백업에서 항목 N개를 복원했습니다.') 검증", r"백업에서 항목 .*복원했습니다"),
-        ]
-        check_invariants("Apple", "8단계: 암호화 백업 내보내기와 복원(VLT-004)", apple_tests, apple_backup_rules)
-
-    if os.path.isdir(os.path.join(apple_sources_dir, "Auth")):
-        apple_password_change_rules = [
-            ("SEC-004 변경 흐름(changeMasterPassword) 검증", r"changeMasterPassword"),
-            ("SEC-004 새 salt 16바이트 경계값 검증", r"16"),
-            ("SEC-004 새 비밀번호 SEC-002 길이 미달 거절(tooShort) 검증", r"\btooShort\b"),
-            ("SEC-004 현재와 같음 거절(samePassword) 검증", r"\bsamePassword\b"),
-            ("SEC-004 오프라인 거절(offline) 검증", r"\boffline\b"),
-            ("SEC-004 변경 전 안내 본문 검증", r"비밀번호를 바꾸면 다른 기기는 모두 로그아웃되고, 새 비밀번호로 다시 로그인해야 합니다\. 다른 기기에서 아직 올리지 못한 변경 사항은 사라집니다\. 예전에 내보낸 백업은 예전 비밀번호로 엽니다\."),
-            ("SEC-004 현재와 같음 문구('새 비밀번호가 지금 비밀번호와 같습니다.') 검증", r"새 비밀번호가 지금 비밀번호와 같습니다\."),
-            ("SEC-004 오프라인 문구('인터넷에 연결된 상태에서만 비밀번호를 바꿀 수 있습니다.') 검증", r"인터넷에 연결된 상태에서만 비밀번호를 바꿀 수 있습니다\."),
-            ("SEC-004 완료 문구('마스터 비밀번호를 바꿨습니다.') 검증", r"마스터 비밀번호를 바꿨습니다\."),
-        ]
-        check_invariants("Apple", "9단계: 마스터 비밀번호 변경(SEC-004)", apple_tests, apple_password_change_rules)
-
-        apple_signup_strength_rules = [
-            ("SEC-002 가입 강도 게이지 59/60 경계값 검증", r"passwordStrengthScore == 59[\s\S]*passwordStrengthScore == 60"),
-            ("SEC-002 가입 비밀번호 취약 문구 검증", r"마스터 비밀번호가 보안에 취약합니다\. 더 길게 만들거나 여러 종류의 문자를 섞어 주세요\."),
-        ]
-        # 가입 화면 상태는 AuthFeature에 있으므로 그 테스트를 함께 읽는다
-        apple_auth_tests_dir = os.path.join(root, "Apps", "Apple", "Projects", "Features", "Auth", "Tests")
-        apple_auth_tests = "\n".join(
-            open(p, encoding="utf-8").read() for p in sorted(glob.glob(os.path.join(apple_auth_tests_dir, "*.swift")))
-        )
-        check_invariants("Apple", "10단계: 가입 강도 게이지(SEC-002)", apple_auth_tests, apple_signup_strength_rules)
+    check_invariants("Apple", "자동 잠금·가림 화면·클립보드(SEC-003, COM-001, VLT-002)", apple_tests, apple_autolock_rules)
 
 
 # ============================================================================

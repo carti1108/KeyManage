@@ -1,27 +1,9 @@
 // swift-tools-version: 6.0
 import PackageDescription
 
-#if TUIST
-import ProjectDescription
-
-let packageSettings = PackageSettings(
-	productTypes: [
-		"MicroRIBs": .framework
-	],
-	targetSettings: [
-		"AsyncAlgorithms": ["MACOSX_DEPLOYMENT_TARGET": "14.0", "IPHONEOS_DEPLOYMENT_TARGET": "15.0"],
-		"InternalCollectionsUtilities": ["MACOSX_DEPLOYMENT_TARGET": "14.0", "IPHONEOS_DEPLOYMENT_TARGET": "15.0"],
-		"OrderedCollections": ["MACOSX_DEPLOYMENT_TARGET": "14.0", "IPHONEOS_DEPLOYMENT_TARGET": "15.0"],
-		"DequeModule": ["MACOSX_DEPLOYMENT_TARGET": "14.0", "IPHONEOS_DEPLOYMENT_TARGET": "15.0"],
-		"SpanPreview": ["MACOSX_DEPLOYMENT_TARGET": "14.0", "IPHONEOS_DEPLOYMENT_TARGET": "15.0"],
-		"MicroRIBs": ["MACOSX_DEPLOYMENT_TARGET": "14.0", "IPHONEOS_DEPLOYMENT_TARGET": "15.0"]
-	]
-)
-#endif
-
+// 외부 Swift 패키지 의존은 없다. 공유 RIB 어댑터 RIBsKMPSwiftUI는 Projects/App/Project.swift가 로컬 패키지로 넣는다
+// (MicroRIBs는 domain-migration-plan 12.5 4단계에서 옛 Swift RIB과 함께 뺐다)
 let package = Package(
 	name: "KeyManagePackageDependencies",
-	dependencies: [
-		.package(url: "https://github.com/carti1108/MicroRIBs.git", branch: "main")
-	]
+	dependencies: []
 )

@@ -259,6 +259,24 @@ class PasswordGeneratorInteractorTest {
     }
 
     @Test
+    fun copySuccessShowsTheCom001NoticeAndFailureShowsTheStandardText() {
+        open(withListener = false, allowCopy = true)
+
+        send(PasswordGeneratorViewAction.Copy)
+        scope.runCurrent()
+
+        assertEquals("클립보드 보안 소각", assertNotNull(state.copyNotice).title)
+        assertEquals("보안을 위해 복사된 내용이 30초 후 클립보드에서 자동 삭제됩니다.", assertNotNull(state.copyNotice).body)
+
+        clipboard.failure = IllegalStateException("거절")
+        send(PasswordGeneratorViewAction.Copy)
+        scope.runCurrent()
+
+        assertNull(state.copyNotice)
+        assertEquals("클립보드에 복사하지 못했습니다.", state.copyError)
+    }
+
+    @Test
     fun copyIsIgnoredWhenNotAllowedOrOptionsAreInvalid() {
         open(withListener = true, allowCopy = false)
         send(PasswordGeneratorViewAction.Copy)

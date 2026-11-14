@@ -8,10 +8,12 @@
 
 | 항목 | 내용 |
 | :--- | :--- |
-| 기반 라이브러리 | `microRIBs` (Swift 6 Strict Concurrency, `@MainActor`, `AsyncStream`) |
-| 설계 원칙 | Clean Architecture + microRIBs + SwiftUI |
-| iOS·macOS 공유 | `Domain`, `Data`, `Interactor`, `Viewless RIBs`는 iOS와 macOS가 같은 코드를 쓴다. |
-| 플랫폼별 분리 | 화면 전환이 다른 `Viewable Router`, `Builder`, 최상위 컨테이너 `View`는 플랫폼별로 나눈다. |
+| 공유 로직 | Kotlin Multiplatform XCFramework `KeyManageShared`(`Apps/Shared/apple-app`). 도메인·세션·RIB 라우팅·화면 상태는 웹과 같은 Kotlin 코드다 |
+| 설계 원칙 | 공유 Kotlin RIB + SwiftUI 뷰 계약(`RIBsKMPSwiftUI`) |
+| iOS·macOS 공유 | SwiftUI 화면(`Sources/SharedUI`)과 Kotlin `appleMain`을 함께 쓴다 |
+| 플랫폼별 분리 | 진입점·문서 선택기(`Sources/iOS`, `Sources/macOS`), 클립보드(Kotlin `iosMain`·`macosMain`), 배치 차이(`#if os(macOS)`) |
+
+옛 Swift microRIBs 구조(ADR-0014, ADR-0015)는 [domain-migration-plan 12.3](../../../docs/research/kmp-migration/domain-migration-plan.md) 4단계에서 지웠다.
 
 공통 정책([`docs/policies/`](../../../docs/policies/README.md))은 Apple 구현 PR에서 고치지 않는다. 정책에 빈틈이 보이면 정책 이슈로 올린다.
 

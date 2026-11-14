@@ -73,7 +73,7 @@ flowchart TD
 KeyManage/
 ├── Apps/
 │   ├── Apple/                 # Apple 네이티브 앱 (iOS, macOS) ➔ [Apple README](Apps/Apple/README.md)
-│   │   ├── Projects/          # Tuist 4 마이크로 피처 모듈 (Core, Features, App)
+│   │   ├── Projects/          # Tuist 4 앱(SwiftUI 화면·진입점)과 Core/DesignSystem
 │   │   └── docs/              # Apple 플랫폼 전용 ADR 및 명세
 │   └── Web/                   # React 19 + Tauri v2 웹/데스크톱 앱 ➔ [Web README](Apps/Web/README.md)
 │       ├── src/               # Clean Architecture 계층화 소스코드
@@ -108,7 +108,7 @@ KeyManage/
 | **Backend** | Kotlin 2.1, Spring Boot 3.4, Gradle | 4개 모듈 분리 헥사고날 아키텍처, PIT 뮤테이션 테스트 | [Backend README](Back/README.md) |
 | **Web Client** | React 19, TypeScript 5.8, Vite 6 | Clean Architecture, Tailwind CSS v4, WebCrypto API, Vitest | [Web README](Apps/Web/README.md) |
 | **Desktop Shell**| Tauri v2, Rust | 경량 네이티브 웹뷰 래퍼, 엄격한 CSP 출처 격리 | [Desktop README](Apps/Web/README.md#-데스크톱-앱-tauri-v2) |
-| **Apple Client** | Swift 6, Tuist 4, Uber microRIBs | Strict Concurrency, State-Action 단방향 RIBs, CryptoKit, Swift Testing | [Apple README](Apps/Apple/README.md) |
+| **Apple Client** | Swift 6, SwiftUI, Tuist 4, 공유 Kotlin RIB(XCFramework) | Strict Concurrency, 공유 RIB 뷰 계약, Kotlin 테스트, XCUITest | [Apple README](Apps/Apple/README.md) |
 | **Infra & Demo** | Docker Compose, Caddy 2, mkcert | 로컬 리버스 프록시, 자동 상호 HTTPS 환경 구성 | [ADR-0021](docs/adr/ADR-0021-local-docker-compose-demo.md) |
 | **Verification** | Python 3, Bash, GitHub Actions | 6중 정적 검증 게이트, 최신성 및 PR Rebase 강제 훅 | [ADR-0009](docs/adr/ADR-0009-verification-delegation-pipeline.md) |
 

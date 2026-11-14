@@ -75,6 +75,11 @@ private struct SharedVaultListContent: View {
 					.padding(.top, 8)
 					.accessibilityIdentifier("vaultCopyError")
 			}
+			if let notice = state.copyNotice {
+				SharedCopyNoticeBanner(notice: notice)
+					.padding(.horizontal)
+					.padding(.top, 8)
+			}
 			itemsList
 		}
 		.searchable(
