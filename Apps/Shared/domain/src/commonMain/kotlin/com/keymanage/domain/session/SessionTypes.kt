@@ -20,6 +20,9 @@ import kotlinx.coroutines.CoroutineScope
 /** 마스터 비밀번호가 틀려 저장해 둔 볼트를 열 수 없음 */
 class WrongMasterPasswordException : Exception("마스터 비밀번호가 올바르지 않음")
 
+/** 생체 해제용 키로 볼트를 열 수 없음(비밀번호가 바뀌었거나 키가 손상됨). 저장한 키를 지우고 비밀번호를 받는다 (ADR-0027) */
+class StaleUnlockKeyException : Exception("저장한 잠금 해제 키가 맞지 않음")
+
 /** 지금 상태에서는 할 수 없는 동작이거나, 기다리는 사이 잠금·로그아웃으로 취소된 작업 */
 class SessionStateException(message: String) : Exception(message)
 

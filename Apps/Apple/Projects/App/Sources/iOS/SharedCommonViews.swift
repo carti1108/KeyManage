@@ -1,18 +1,81 @@
+import KeyManageDesignSystem
 import KeyManageShared
 import SwiftUI
 
-/// 공유 코드의 오류 문구. 제목이 있으면 함께 보인다
+/// 공유 코드의 오류 문구. 제목이 있으면 함께 보인다. 옛 Swift 화면의 오류 배너 모양이다
 struct SharedErrorText: View {
 	let message: ErrorMessage
 
 	var body: some View {
-		VStack(alignment: .leading, spacing: 4) {
-			if let title = message.title {
-				Text(title).bold()
+		SharedBanner(kind: .error) {
+			VStack(alignment: .leading, spacing: 4) {
+				if let title = message.title {
+					Text(title).bold()
+				}
+				Text(message.body)
 			}
-			Text(message.body)
 		}
-		.foregroundStyle(.red)
+	}
+}
+
+/// 상태 안내 띠. 문구는 공유 코드가 정한다
+struct SharedBanner<Content: View>: View {
+	enum Kind {
+		case info, warning, error, offline
+
+		var icon: String {
+			switch self {
+			case .info: "info.circle.fill"
+			case .warning, .error: DesignToken.Icon.warning
+			case .offline: DesignToken.Icon.offlineBanner
+			}
+		}
+
+		var tint: Color {
+			switch self {
+			case .info: DesignToken.View.accent
+			case .warning, .offline: .orange
+			case .error: DesignToken.View.destructive
+			}
+		}
+	}
+
+	let kind: Kind
+	@ViewBuilder let content: () -> Content
+
+	var body: some View {
+		HStack(alignment: .top, spacing: 10) {
+			Image(systemName: kind.icon).foregroundStyle(kind.tint).accessibilityHidden(true)
+			content()
+				.font(.footnote)
+				.foregroundStyle(kind == .error ? kind.tint : DesignToken.View.foreground)
+				.fixedSize(horizontal: false, vertical: true)
+			Spacer(minLength: 0)
+		}
+		.padding(12)
+		.frame(maxWidth: .infinity, alignment: .leading)
+		.background(kind.tint.opacity(0.1))
+		.clipShape(RoundedRectangle(cornerRadius: 8))
+		.accessibilityElement(children: .combine)
+	}
+}
+
+extension SharedBanner where Content == Text {
+	init(kind: Kind, text: String) {
+		self.init(kind: kind) { Text(text) }
+	}
+}
+
+/// 입력 칸 위 제목. 옛 Swift 폼과 같은 모양이다
+struct SharedFieldLabel: View {
+	let title: String
+
+	init(_ title: String) {
+		self.title = title
+	}
+
+	var body: some View {
+		Text(title).font(.subheadline.bold()).foregroundStyle(DesignToken.View.foreground)
 	}
 }
 
@@ -23,7 +86,7 @@ struct SharedRollbackPrompt: View {
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 8) {
-			Text(RollbackWarning.shared.TITLE).bold()
+			Text(RollbackWarning.shared.TITLE).bold().foregroundStyle(DesignToken.View.destructive)
 			Text(RollbackWarning.shared.BODY)
 			HStack {
 				Button(RollbackWarning.shared.ACCEPT, action: accept).accessibilityIdentifier("rollbackAcceptButton")
@@ -59,6 +122,7 @@ struct SharedTextInput: View {
 	let title: String
 	let value: String
 	var isSecure = false
+	var isMonospaced = false
 	let onEdit: (String) -> Void
 	@State private var text = ""
 	@State private var sent: Set<String> = []
@@ -71,7 +135,11 @@ struct SharedTextInput: View {
 				TextField(title, text: edits)
 			}
 		}
-		.textFieldStyle(.roundedBorder)
+		.font(isMonospaced ? DesignToken.Typography.passwordMonospaced : DesignToken.Typography.body)
+		.padding(10)
+		.background(DesignToken.View.card)
+		.clipShape(RoundedRectangle(cornerRadius: 6))
+		.overlay(RoundedRectangle(cornerRadius: 6).stroke(DesignToken.View.border, lineWidth: 1))
 		.onAppear { text = value }
 		.onChange(of: value) { _, shared in
 			// 이 칸이 보낸 값이 돌아온 것이면 그사이 더 친 글자를 지키고, 공유 코드가 바꾼 값이면 따른다

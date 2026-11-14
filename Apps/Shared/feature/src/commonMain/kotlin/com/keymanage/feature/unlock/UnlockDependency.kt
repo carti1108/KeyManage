@@ -2,10 +2,17 @@ package com.keymanage.feature.unlock
 
 import com.carti.ribs.Dependency
 import com.keymanage.feature.SessionPort
+import kotlin.time.Clock
 
 interface UnlockDependency : Dependency {
     val unlockViewFactory: UnlockViewFactory
     val session: SessionPort
+
+    /** 생체 해제. 없으면(웹) 화면이 기능을 숨긴다 */
+    val biometricUnlock: BiometricUnlock? get() = null
+    /** 생체 해제용 키를 내보내고 그 키로 여는 세션 기능 (ADR-0027). [biometricUnlock]과 함께 있어야 기능을 보인다 */
+    val unlockKeySession: UnlockKeySession? get() = null
+    val clock: Clock get() = Clock.System
 }
 
 /** 자식 → 부모 */

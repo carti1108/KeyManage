@@ -10,6 +10,8 @@ import com.keymanage.domain.session.SessionState
 import com.keymanage.domain.session.SyncChangeListener
 import com.keymanage.domain.session.VaultSession
 import com.keymanage.domain.vault.VaultData
+import com.keymanage.feature.unlock.KeyedUnlock
+import com.keymanage.feature.unlock.UnlockKeySession
 import kotlin.time.Clock
 import kotlin.time.Instant
 
@@ -41,12 +43,18 @@ interface SessionPort {
     fun onSyncChange(listener: SyncChangeListener): () -> Unit
 }
 
-class SessionPortAdapter(private val session: VaultSession) : SessionPort {
+class SessionPortAdapter(private val session: VaultSession) : SessionPort, UnlockKeySession {
     override fun state() = session.state()
     override suspend fun register(email: String, password: String) = session.register(email, password)
     override suspend fun login(email: String, password: String, acceptRollback: Boolean) = session.login(email, password, acceptRollback)
     override fun lock(scope: LockScope) = session.lock(scope)
     override suspend fun unlock(password: String, acceptRollback: Boolean) = session.unlock(password, acceptRollback).offline
+    override suspend fun unlockExportingKey(password: String, acceptRollback: Boolean): KeyedUnlock {
+        val result = session.unlock(password, acceptRollback, exportUnlockKey = true)
+        val key = result.unlockKey ?: throw IllegalStateException("세션이 잠금 해제 키를 내보내지 않음")
+        return KeyedUnlock(result.offline, key)
+    }
+    override suspend fun unlockWithKey(unlockKey: ByteArray, acceptRollback: Boolean) = session.unlockWithKey(unlockKey, acceptRollback).offline
     override suspend fun reconnect(password: String, acceptRollback: Boolean) = session.reconnect(password, acceptRollback)
     override suspend fun save(data: VaultData) = session.save(data)
     override suspend fun exportBackup(now: Instant, calendar: LocalCalendar) = session.exportBackup(now, calendar)

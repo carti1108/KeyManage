@@ -27,6 +27,15 @@ class EncryptionKey internal constructor(internal val bytes: ByteArray) {
     override fun toString(): String = "EncryptionKey(***)"
 }
 
+/** AES-256 암호화 키 길이 */
+const val ENCRYPTION_KEY_BYTES: Int = 32
+
+/**
+ * 생체 해제용으로 키 사본을 꺼낸다 (ADR-0027). 이 기기 전용·생체 보호 저장소에 넘기는 용도로만 쓰고, 받은 쪽이 넘긴 뒤 지운다.
+ * 서버로 보내지 않는다(영지식 경계)
+ */
+internal fun exportKey(key: EncryptionKey): ByteArray = key.bytes.copyOf()
+
 class DerivedKeys(
     val encryptionKey: EncryptionKey,
     /** 서버 로그인에 보내는 32바이트 인증 해시. 이것으로 암호화 키를 계산할 수 없다. 보낸 뒤 지운다 */

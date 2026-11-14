@@ -29,7 +29,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import platform.Foundation.NSLog
+import platform.Foundation.NSUserDefaults
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock
 
@@ -118,13 +120,27 @@ class IosKeyManageApp internal constructor(
 
     companion object {
         /**
+         * UI 테스트가 같은 상태에서 시작하도록 이 기기의 볼트 기록과 자동 잠금 설정을 지운다.
+         * 앱은 디버그 빌드에서 실행 인자 `-resetForUITests`가 있을 때만 [create] 전에 부른다
+         */
+        @Throws(Exception::class)
+        fun resetForUITests() {
+            runBlocking { FileDeviceStore.inApplicationSupport().clear() }
+            NSUserDefaults.standardUserDefaults.removeObjectForKey(AUTO_LOCK_DEFAULTS_KEY)
+        }
+
+        /**
          * 실제 앱 조립.
          * @param serverOrigin 서버 출처(scheme://host[:port]). localhost가 아니면 HTTPS만 받는다
          * @throws InvalidBaseUrlException
          */
         @Throws(InvalidBaseUrlException::class, AppSetupException::class)
-        fun create(serverOrigin: String, viewFactory: KeyManageViewFactory): IosKeyManageApp = try {
-            assemble(serverOrigin, viewFactory)
+        fun create(
+            serverOrigin: String,
+            viewFactory: KeyManageViewFactory,
+            backupDocuments: BackupDocumentPresenter,
+        ): IosKeyManageApp = try {
+            assemble(serverOrigin, viewFactory, backupDocuments)
         } catch (error: InvalidBaseUrlException) {
             throw error
         } catch (error: Exception) {
@@ -132,7 +148,11 @@ class IosKeyManageApp internal constructor(
             throw AppSetupException(error)
         }
 
-        private fun assemble(serverOrigin: String, viewFactory: KeyManageViewFactory): IosKeyManageApp {
+        private fun assemble(
+            serverOrigin: String,
+            viewFactory: KeyManageViewFactory,
+            backupDocuments: BackupDocumentPresenter,
+        ): IosKeyManageApp {
             val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main + loggingHandler)
             val session = buildSession(serverOrigin, scope)
             val clock = Clock.System
@@ -151,14 +171,17 @@ class IosKeyManageApp internal constructor(
             )
             val environment = IosAppEnvironment(serverOrigin, network, wiring.autoLockSetting, clock)
             return IosKeyManageApp(scope, session::restore, { host, notice ->
+                val port = SessionPortAdapter(session)
                 val app = KeyManageApp(
                     viewFactory = viewFactory,
-                    session = SessionPortAdapter(session),
+                    session = port,
                     clipboard = burner::copy,
-                    backupFiles = DocumentsBackupFiles(),
+                    backupFiles = DocumentsBackupFiles(backupDocuments),
                     environment = environment,
                     randomBytes = SecureRandomBytes,
                     initialNotice = notice,
+                    biometricUnlock = KeychainBiometricUnlock(),
+                    unlockKeySession = port,
                 )
                 app.start(host)
                 RunningTree(app::stop)

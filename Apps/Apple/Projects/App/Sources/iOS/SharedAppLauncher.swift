@@ -13,6 +13,7 @@ final class SharedAppLauncher: NSObject, @preconcurrency ViewHost {
 	private(set) var startupError: String?
 	@ObservationIgnored private var app: IosKeyManageApp?
 	@ObservationIgnored private var wasInBackground = false
+	@ObservationIgnored private let backupDocuments = SharedBackupDocuments()
 
 	/// UI 테스트·다른 서버는 실행 인자 `-serverOrigin <출처>`로 바꾼다. 없으면 로컬 개발 서버
 	private static var serverOrigin: String {
@@ -24,10 +25,22 @@ final class SharedAppLauncher: NSObject, @preconcurrency ViewHost {
 		// 공유 코드의 생명주기 호출이 메인 스레드인지 검사한다 (carti ADR-0007)
 		RibThreadingConfig.shared.mainThreadChecker = FoundationMainThreadChecker()
 		let created: IosKeyManageApp
+		#if DEBUG
+		// UI 테스트는 이전 실행이 남긴 기기 기록·자동 잠금 설정 없이 시작한다
+		if ProcessInfo.processInfo.arguments.contains("-resetForUITests") {
+			do {
+				try IosKeyManageApp.companion.resetForUITests()
+			} catch {
+				startupError = "테스트 상태를 초기화하지 못했습니다."
+				return
+			}
+		}
+		#endif
 		do {
 			created = try IosKeyManageApp.companion.create(
 				serverOrigin: Self.serverOrigin,
-				viewFactory: SharedViewFactory { [weak self] in self?.userActivity() }
+				viewFactory: SharedViewFactory { [weak self] in self?.userActivity() },
+				backupDocuments: backupDocuments
 			)
 		} catch {
 			startupError = "앱을 준비하지 못했습니다. 다시 시도해 주세요."

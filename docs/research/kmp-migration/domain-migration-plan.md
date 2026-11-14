@@ -507,3 +507,28 @@ iOS 앱의 `@main`이 공유 RIB 트리를 띄운다. 옛 Swift RIB 경로는 ma
 - 확인: `:ios-app:iosSimulatorArm64Test` 33건 통과(새 `AppLifecycleWiringTest` 11건, `IosKeyManageAppTest` 8건), `:feature:jvmTest`·`:web-session:compileKotlinJs` 통과, `KeyManageIOS` 시뮬레이터 빌드(Swift 6 strict concurrency) 통과, `KeyManageIOSUITests`가 로컬 백엔드로 가입 → 잠금 → 해제 통과, `Scripts/verify-apple.sh` 통과(macOS 앱은 옛 Swift 경로 그대로 빌드).
 - 확인하지 못한 것: 실제 백그라운드 전환·자동 잠금 시간 경과·클립보드 소각·네트워크 끊김을 시뮬레이터에서 직접 일으킨 확인(로직은 Kotlin 테스트로만 확인), 키체인·Face ID(5단계), 백업 파일 고르기(3단계).
 - 리뷰 반영: `start(host, onFailure)`가 첫 화면을 붙이지 못하면 붙인 트리를 거두고 문구를 넘기며 다시 시작할 수 있게 했다(Swift는 "다시 시도" 버튼을 보인다). `create`의 조립 실패는 `AppSetupException`(`@Throws`)으로 바꿔 Swift가 잡는다. `NSLog`에 Kotlin 문자열을 `%@` 인자로 넘기면 시뮬레이터 테스트에서 프로세스가 죽어 문자열 하나로 넘긴다. `verify-apple.sh` 4번은 JDK 21을 찾지 못하거나 XCFramework 생성이 실패하면 멈춘다. 2단계 설정 화면에는 백업 복원 버튼이 없다.
+
+#### 3단계: 화면 (2026-11-14)
+
+iOS 공유 RIB 화면 7개를 옛 Swift 화면 배치로 채웠다. 옛 Swift RIB·도메인은 macOS 앱이 계속 쓰므로 4단계까지 둔다.
+
+| RIB | iOS 뷰(`Sources/iOS`) | 내용 |
+| :--- | :--- | :--- |
+| Auth | `SharedAuthScreen` | 카드 배치, 안내·오류 띠, 가입 강도 게이지(`KMGaugeBar`)·취약 안내, 되돌림 수락 |
+| Unlock | `SharedUnlockScreen` | 카드 배치, 생체 해제 버튼, "다음부터 생체 인증으로 잠금 해제" 선택, 되돌림 수락, 대기 변경 로그아웃 확인 |
+| Main | `SharedMainScreen` | 탭 바(볼트·생성기·설정)와 탭마다 내비게이션 막대(계정, 로그아웃, 잠그기). 오프라인·읽기 전용·기기 저장 실패·동기화 오류 띠, 재연결 입력과 되돌림 수락, 로그아웃 확인 알림 |
+| VaultList | `SharedVaultListScreen` | 검색(`searchable`), 항목 카드(아이디·비밀번호 복사, 비밀번호 보기), 상세는 내비게이션으로 밀고 추가·수정은 시트, 폼 안 생성기 슬롯, 강도·취약·이어지는 숫자 안내, 삭제 확인 |
+| PasswordGenerator | `SharedPasswordGeneratorScreen` | 결과·강도·옵션 카드, 길이 입력 칸과 슬라이더, 문자 종류 토글, 이어지는 숫자 안내, 복사(탭)·사용·닫기(폼), 보조 기술 알림 |
+| Settings | `SharedSettingsScreen` | 계정 정보·동기화 상태, 자동 잠금 메뉴, 지금 잠그기, 백업 내보내기(확인 알림)·복원(문서 선택기 → 비밀번호 시트), 비밀번호 변경·계정 삭제 시트, 안내·오류 띠 |
+| 공통 | `SharedCommonViews`, `SharedBackupDocuments` | 상태 띠(`SharedBanner`), 입력 칸 디자인 토큰. 백업 문서 선택기(`UIDocumentPickerViewController` 열기·내보내기) |
+
+- 생체 해제(12.3 끝): `:feature`에 포트 `BiometricUnlock`(`isAvailable`·`isEnrolled`·`passwordUnlockedAt`·`remember`·`recall`·`forget`)와 `UnlockMessages`를 더했다. 포트가 없으면(웹) 버튼과 선택 칸을 숨긴다. Interactor 규칙: 비밀번호로 열 때 선택했거나 이미 켰으면 비밀번호와 기준 시각을 저장한다. 생체 해제는 기준 시각에서 14일이 지나면 막고 비밀번호를 받는다(SEC-003 경계값, Swift `VaultLockManager`와 같이 14일 정각은 허용). 생체 해제로 연 경우 기준 시각을 새로 하지 않는다. 생체 정보가 바뀌었거나(Invalidated) 저장한 비밀번호가 틀리면 끄고 안내한다. 로그아웃하면 끈다. 테스트 `UnlockBiometricInteractorTest` 17건을 먼저 썼다. 기존 테스트는 고치지 않았다(의존성에 기본값 `null`·`Clock.System`).
+- 생체 해제 키 처리 변경([ADR-0027](../../adr/ADR-0027-biometric-unlock-stores-derived-key.md), 사용자 결정): 처음 구현은 마스터 비밀번호를 키체인에 뒀으나, 옛 Swift(`VaultLockManager.unlockWithBiometrics(recoveredEncryptionKey:)`)처럼 암호화 키를 두게 바꿨다. 도메인 `VaultSession.unlock(…, exportUnlockKey = true)`가 비밀번호로 연 직후 키 사본을 `UnlockResult.unlockKey`로 내보내고, `unlockWithKey(key)`가 그 키로 연다(열지 못하면 `StaleUnlockKeyException`). 세션 토큰이 없으면 인증 해시가 없어 세션 없이 연다. 기본값이 `false`라 웹은 그대로다. `:feature`는 `UnlockKeySession`(구현 `SessionPortAdapter`)으로 키를 받아 `BiometricUnlock.remember(email, unlockKey, at)`에 넘기고 바로 0으로 지운다. `BiometricRecall.Key`로 꺼낸 키도 쓴 뒤 지운다(되돌림 확인 중에는 그때까지 두고 취소하면 지운다). `BiometricInvalidatingSession`이 비밀번호 변경·계정 삭제·로그아웃(또는 그 작업 중 로그인 전 상태로 바뀜) 뒤 키를 지운다. 14일 재요구 규칙은 그대로다. 테스트: 도메인 `VaultSessionUnlockKeyTest` 10건, `UnlockBiometricInteractorTest` 21건(키 저장·지움·되돌림 포함, 비밀번호 대신 키를 보도록 기대값을 바꿈), `BiometricInvalidatingSessionTest` 6건.
+- iOS 구현 `KeychainBiometricUnlock`: 키(32바이트)를 `BiometricKeychainStore`(이 기기 전용, `BiometryCurrentSet`)에 두고, 켰는지와 기준 시각은 UserDefaults에 둔다.
+- 생체 해제 켜기: SEC-003은 "가입 직후 켤지 묻는다"이지만 옛 Swift 앱에는 켜는 화면이 없었다. 이번에는 잠금 화면에서 비밀번호로 열 때 고르게 했다. 가입 직후 묻기는 하지 않았다.
+- 검색·이어지는 숫자 안내는 이미 공유 RIB에 있어(`VaultListViewAction.Search`, `GeneratedPassword.hasSequentialDigits`) 뷰만 그렸다.
+- 백업: `DocumentsBackupFiles`가 Swift `BackupDocumentPresenter`를 받는다. 내보내기는 문서 폴더에 쓴 뒤 내보내기 선택기를 띄우고(파일 앱에서도 보이도록 `UIFileSharingEnabled`), 복원은 문서 선택기로 고른 파일을 임시 폴더에 복사해 읽는다.
+- 자동 잠금 선택지: Kotlin `Duration`은 Swift에 내부 표현(Int64)으로 넘어가 글자로 바꿀 수 없어 `ios-app`의 `autoLockChoices`가 글자·선택 여부·보낼 동작을 만든다(웹 `AutoLockSelect`와 같은 글자). 테스트 `AutoLockChoicesTest`.
+- 확인: `:domain:jvmTest`·`:feature:jvmTest`·`:ios-app:iosSimulatorArm64Test`·`:ios-app:assembleKeyManageSharedDebugXCFramework` 통과, 웹 `jsBrowserProductionLibraryDistribution` 뒤 `npm run check` 통과(499건), Tuist 생성·`KeyManageIOS`(UI 테스트 빌드)·`KeyManageMac`(`verify-apple.sh`) 빌드 통과, `check-docs.sh`·`verify-apple.sh` 통과.
+- XCUITest: 처음 `SharedFeatureFlowUITests` 실패는 제품 결함이 아니라 테스트 결함이었다(사용자가 시뮬레이터에서 복사해도 잠기지 않고 검색·생성기·자동 잠금·백업이 동작함을 직접 확인). 내비게이션 막대 첫 버튼(툴바의 잠금·로그아웃일 수 있음) 누르기, "취소" 같은 글자로 찾기를 없애고 접근성 식별자로 찾게 고쳤다(자동 잠금 선택지 `autoLockChoice-<초>`, 백업 확인 `exportConfirmButton`, 뒤로 가기는 시스템 `BackButton`). 검색은 검색 키로 키보드를 내린다. 탭 막대 항목만 SwiftUI가 식별자를 넘기지 않아 탭 이름으로 찾는다. 디버그 빌드에서 실행 인자 `-resetForUITests`면 `IosKeyManageApp.resetForUITests()`가 기기 기록·자동 잠금 설정을 지우고 시작한다. 두 UI 테스트 모두 통과(시뮬레이터 AF48707C, 로컬 백엔드).
+- 확인 필요: 가입 직후 생체 해제 묻기를 넣을지. 실제 Face ID 기기에서 키 저장·해제(시뮬레이터 UI 테스트는 생체 경로를 지나지 않음).

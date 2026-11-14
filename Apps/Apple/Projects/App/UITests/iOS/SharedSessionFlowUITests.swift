@@ -1,7 +1,7 @@
 import XCTest
 
 /// 공유 Kotlin RIB 트리로 띄운 iOS 앱이 로컬 백엔드(localhost:8080)에 가입 → 잠금 → 해제하는지 확인한다 (domain-migration-plan 12.3의 2단계).
-/// 백엔드를 먼저 띄워 둔다. 계정은 실행마다 새로 만든다
+/// 백엔드를 먼저 띄워 둔다. 계정은 실행마다 새로 만들고, `-resetForUITests`로 이전 실행의 기기 기록을 지우고 시작한다
 final class SharedSessionFlowUITests: XCTestCase {
 	/// 키 유도(PBKDF2)와 서버 왕복이 디버그 빌드 시뮬레이터에서 오래 걸릴 수 있다
 	private let networkTimeout: TimeInterval = 90
@@ -10,11 +10,12 @@ final class SharedSessionFlowUITests: XCTestCase {
 	func testSignUpThenLockThenUnlock() {
 		continueAfterFailure = false
 		let app = XCUIApplication()
+		app.launchArguments += ["-resetForUITests"]
 		app.launch()
 		let email = "stage2-\(UUID().uuidString.prefix(8).lowercased())@example.test"
 		let password = "Stage2-" + UUID().uuidString
 
-		// 이전 실행이 남긴 기기 기록이 있으면 잠금 화면으로 시작한다. 로그아웃해 로그인 화면에서 시작한다
+		// 실행 인자로 기기 기록을 지우지만, 초기화가 막힌 경우를 대비해 남은 잠금 화면이면 로그아웃해 로그인 화면에서 시작한다
 		let switchMode = app.buttons["authSwitchModeButton"]
 		let leftoverLogout = app.buttons["unlockLogoutButton"]
 		XCTAssertTrue(switchMode.waitForExistence(timeout: screenTimeout) || leftoverLogout.exists)
@@ -35,13 +36,17 @@ final class SharedSessionFlowUITests: XCTestCase {
 		XCTAssertEqual(mainEmail.label, email)
 
 		// 잠금
-		app.buttons["mainLockButton"].tap()
+		let lock = app.buttons["mainLockButton"]
+		XCTAssertTrue(lock.waitForExistence(timeout: screenTimeout))
+		lock.tap()
 		XCTAssertTrue(app.staticTexts["unlockTitle"].waitForExistence(timeout: screenTimeout))
 		XCTAssertEqual(app.staticTexts["unlockEmail"].label, email)
 
 		// 틀린 비밀번호는 열리지 않는다
 		type(password + "x", into: app.secureTextFields["unlockPasswordField"])
-		app.buttons["unlockButton"].tap()
+		let unlock = app.buttons["unlockButton"]
+		XCTAssertTrue(unlock.waitForExistence(timeout: screenTimeout))
+		unlock.tap()
 		XCTAssertTrue(app.descendants(matching: .any)["unlockError"].waitForExistence(timeout: networkTimeout))
 		XCTAssertFalse(mainEmail.exists)
 
@@ -49,7 +54,8 @@ final class SharedSessionFlowUITests: XCTestCase {
 		let passwordField = app.secureTextFields["unlockPasswordField"]
 		clear(passwordField)
 		type(password, into: passwordField)
-		app.buttons["unlockButton"].tap()
+		XCTAssertTrue(unlock.waitForExistence(timeout: screenTimeout))
+		unlock.tap()
 		XCTAssertTrue(mainEmail.waitForExistence(timeout: networkTimeout), "올바른 비밀번호로 볼트가 열려야 한다")
 	}
 

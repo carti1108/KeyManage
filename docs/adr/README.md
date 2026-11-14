@@ -37,3 +37,4 @@
 | [ADR-0024](ADR-0024-account-deletion.md) | 계정 삭제는 비밀번호와 확인 문구로 확인한 뒤 서버에서 즉시 지우고, 계정 삭제를 확정 시점으로 한다 | 채택 | 2026-11-02 |
 | [ADR-0025](ADR-0025-design-system-shared-contract-platform-expression.md) | 디자인 시스템을 공통 계약층과 플랫폼 표현층으로 나눈다 | 채택 | 2026-11-11 |
 | [ADR-0026](ADR-0026-ktor-client-for-shared-kotlin.md) | 공유 Kotlin 모듈의 HTTP 클라이언트로 Ktor Client를 쓴다 | 채택 | 2026-11-12 |
+| [ADR-0027](ADR-0027-biometric-unlock-stores-derived-key.md) | 생체 해제는 마스터 비밀번호가 아니라 유도한 암호화 키를 저장한다 | 채택 | 2026-11-14 |

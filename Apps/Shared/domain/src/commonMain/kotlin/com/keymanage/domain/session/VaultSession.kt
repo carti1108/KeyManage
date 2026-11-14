@@ -8,6 +8,11 @@ import com.keymanage.domain.backup.RestoreTarget
 import com.keymanage.domain.backup.VaultBackup
 import com.keymanage.domain.backup.createBackupFile
 import com.keymanage.domain.backup.restoreBackupInto
+import com.keymanage.domain.crypto.ENCRYPTION_KEY_BYTES
+import com.keymanage.domain.crypto.EncryptionKey
+import com.keymanage.domain.crypto.VaultDecryptException
+import com.keymanage.domain.crypto.exportKey
+import com.keymanage.domain.crypto.openVault
 import com.keymanage.domain.device.DeviceStorageException
 import com.keymanage.domain.device.rememberedKdf
 import com.keymanage.domain.server.NetworkError
@@ -17,6 +22,7 @@ import com.keymanage.domain.vault.SyncedVault
 import com.keymanage.domain.vault.VaultData
 import com.keymanage.domain.vault.isReadOnly
 import com.keymanage.domain.vault.isTransientSyncError
+import com.keymanage.domain.vault.parseVaultData
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Instant
 
@@ -74,26 +80,27 @@ class VaultSession(private val deps: VaultSessionDeps) : RestoreTarget {
         if (lockThisTab(ctx) && scope == LockScope.ALL_TABS) deps.tabs.channel.post(TabMessage.LOCKED)
     }
 
-    /** 잠금 해제 결과. offline: 서버와 맞추지 못했는지 */
-    data class UnlockResult(val offline: Boolean)
+    /**
+     * 잠금 해제 결과. offline: 서버와 맞추지 못했는지.
+     * unlockKey: [unlock]에 exportUnlockKey를 넘겼을 때만 담는 암호화 키 사본(32바이트). 생체 보호 저장소에 넘긴 뒤 부른 쪽이 지운다 (ADR-0027)
+     */
+    data class UnlockResult(val offline: Boolean, val unlockKey: ByteArray? = null) {
+        // 키 바이트는 비교·출력에 쓰지 않는다
+        override fun equals(other: Any?): Boolean = other is UnlockResult && other.offline == offline && (other.unlockKey == null) == (unlockKey == null)
+        override fun hashCode(): Int = offline.hashCode() * 31 + (unlockKey != null).hashCode()
+        override fun toString(): String = "UnlockResult(offline=$offline, unlockKey=${if (unlockKey == null) "null" else "***"})"
+    }
 
     /**
      * 저장해 둔 암호화 볼트를 복호화해 비밀번호를 확인하므로 오프라인에서도 동작한다.
      * 확인 뒤 바로 서버와 맞추며(대기 내용이 있으면 병합해 올림), 서버와 맞추지 못하면 저장해 둔 볼트로 연다
+     * @param exportUnlockKey 열린 뒤 암호화 키 사본을 결과에 담는다. 생체 해제를 켜거나 갱신할 때만 쓴다 (SEC-003, ADR-0027)
      * @throws WrongMasterPasswordException, MasterPasswordChangedException(로그아웃됨), SessionExpiredException(로그아웃됨),
      *   RevisionRollbackException(잠긴 상태 유지), SessionStateException
      */
-    suspend fun unlock(password: String, acceptRollback: Boolean = false): UnlockResult {
-        if (ctx.account == null) throw SessionStateException("로그인 전에는 잠금을 해제할 수 없음")
-        if (ctx.unlocked != null) return UnlockResult(offline = false)
+    suspend fun unlock(password: String, acceptRollback: Boolean = false, exportUnlockKey: Boolean = false): UnlockResult {
+        val locked = prepareUnlock() ?: return UnlockResult(offline = false)
         val startedAt = ctx.epoch
-        // 동결 등으로 다른 탭의 알림을 놓쳤을 수 있으니 기기 기록을 다시 읽는다. 기록의 볼트는 연 뒤 쓸 때 병합한다 (ADR-WEB-001)
-        // 다른 탭이 비밀번호를 바꿔 로그아웃 상태로 바꿨으면 취소가 아니라 비밀번호 바뀜으로 알린다 (SEC-003 규칙 11)
-        if (refreshLockedFromDevice(ctx, replaceMemory = false) == LockedRefresh.PASSWORD_CHANGED) throw MasterPasswordChangedException()
-        ensureCurrent(ctx, startedAt)
-        val locked = ctx.account ?: throw SessionStateException("다른 탭에서 로그아웃됨")
-        if (ctx.unlocked != null) return UnlockResult(offline = false)
-
         val (keys, data) = verifyOrDetectChange(ctx, password, locked).let { it.keys to it.data }
         // 토큰이 있으면 인증 해시가 필요 없어 바로 지운다. 없으면(기기 기록으로 다시 열었으면) 바로 로그인하고 지운다 (SEC-003, ADR-0019)
         var accessToken = locked.accessToken
@@ -112,14 +119,60 @@ class VaultSession(private val deps: VaultSessionDeps) : RestoreTarget {
         ensureCurrentOrRevoke(ctx, startedAt, if (locked.accessToken == null) accessToken else null)
         // 받은 토큰은 되돌림 확인으로 잠긴 채 끝나도 남겨, 다시 풀 때 또 로그인하지 않게 한다
         if (locked.accessToken == null && accessToken != null) ctx.account = locked.copy(accessToken = accessToken)
+        val offline = openUnlocked(locked, keys.encryptionKey, data, accessToken, startedAt, acceptRollback)
+        return UnlockResult(offline, if (exportUnlockKey) exportKey(keys.encryptionKey) else null)
+    }
 
-        val sync = syncFor(ctx, accessToken ?: NO_TOKEN, keys.encryptionKey)
+    /**
+     * [unlock]이 내보낸 암호화 키로 비밀번호 없이 연다(생체 해제, SEC-003). 키는 복사해 쓰므로 부른 쪽이 바로 지워도 된다.
+     * 인증 해시가 없으므로 세션 토큰이 없으면(기기 기록으로 다시 열었으면) 로그인하지 않고 세션 없이 연다. 동기화는 비밀번호로 재연결할 때 한다 (ADR-0019, ADR-0027)
+     * @throws StaleUnlockKeyException 키로 볼트를 열 수 없음(비밀번호 변경 등). 부른 쪽은 저장한 키를 지운다.
+     *   MasterPasswordChangedException(다른 탭이 바꿈), SessionExpiredException(로그아웃됨), RevisionRollbackException(잠긴 상태 유지), SessionStateException
+     */
+    suspend fun unlockWithKey(unlockKey: ByteArray, acceptRollback: Boolean = false): UnlockResult {
+        val locked = prepareUnlock() ?: return UnlockResult(offline = false)
+        val startedAt = ctx.epoch
+        if (unlockKey.size != ENCRYPTION_KEY_BYTES) throw StaleUnlockKeyException()
+        val key = EncryptionKey(unlockKey.copyOf())
+        val data = try {
+            parseVaultData(openVault(key, locked.payload))
+        } catch (error: VaultDecryptException) {
+            key.bytes.fill(0)
+            throw StaleUnlockKeyException()
+        }
+        ensureCurrent(ctx, startedAt)
+        return UnlockResult(openUnlocked(locked, key, data, locked.accessToken, startedAt, acceptRollback))
+    }
+
+    /** 잠금 해제 앞 공통 확인. 이미 열려 있으면 null */
+    private suspend fun prepareUnlock(): Account? {
+        if (ctx.account == null) throw SessionStateException("로그인 전에는 잠금을 해제할 수 없음")
+        if (ctx.unlocked != null) return null
+        val startedAt = ctx.epoch
+        // 동결 등으로 다른 탭의 알림을 놓쳤을 수 있으니 기기 기록을 다시 읽는다. 기록의 볼트는 연 뒤 쓸 때 병합한다 (ADR-WEB-001)
+        // 다른 탭이 비밀번호를 바꿔 로그아웃 상태로 바꿨으면 취소가 아니라 비밀번호 바뀜으로 알린다 (SEC-003 규칙 11)
+        if (refreshLockedFromDevice(ctx, replaceMemory = false) == LockedRefresh.PASSWORD_CHANGED) throw MasterPasswordChangedException()
+        ensureCurrent(ctx, startedAt)
+        val locked = ctx.account ?: throw SessionStateException("다른 탭에서 로그아웃됨")
+        return if (ctx.unlocked != null) null else locked
+    }
+
+    /** 확인한 키와 볼트로 서버와 맞춘 뒤 연다. @return 서버와 맞추지 못했는지 */
+    private suspend fun openUnlocked(
+        locked: Account,
+        key: EncryptionKey,
+        data: VaultData,
+        accessToken: String?,
+        startedAt: Int,
+        acceptRollback: Boolean,
+    ): Boolean {
+        val sync = syncFor(ctx, accessToken ?: NO_TOKEN, key)
         val cached = SyncedVault(locked.revision, data, isReadOnly(data), locked.payload)
         ctx.retryBlocked = false
         val fresh = if (accessToken == null) null else syncAfterUnlock(ctx, sync, cached, locked.pendingSync, acceptRollback)
         ensureCurrent(ctx, startedAt)
         open(ctx, locked.email, accessToken, locked.kdf, sync, fresh ?: cached, fresh == null && locked.pendingSync)
-        return UnlockResult(offline = fresh == null)
+        return fresh == null
     }
 
     /**

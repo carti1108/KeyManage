@@ -10,6 +10,8 @@ import com.keymanage.feature.auth.AuthViewFactory
 import com.keymanage.feature.generator.PasswordGeneratorViewFactory
 import com.keymanage.feature.main.MainViewFactory
 import com.keymanage.feature.settings.SettingsViewFactory
+import com.keymanage.feature.unlock.BiometricUnlock
+import com.keymanage.feature.unlock.UnlockKeySession
 import com.keymanage.feature.unlock.UnlockViewFactory
 import com.keymanage.feature.vaultlist.VaultListViewFactory
 
@@ -20,6 +22,10 @@ interface RootDependency : Dependency {
     val clipboard: ClipboardPort
     val backupFiles: BackupFilesPort
     val randomBytes: RandomBytes
+
+    /** 생체 해제. iOS만 넣는다 */
+    val biometricUnlock: BiometricUnlock? get() = null
+    val unlockKeySession: UnlockKeySession? get() = null
 
     // 자식 RIB과 그 자식이 쓸 뷰 팩토리
     val authViewFactory: AuthViewFactory

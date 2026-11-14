@@ -47,7 +47,12 @@ let project = Project(
 			bundleId: "com.keymanage.ios",
 			deploymentTargets: .iOS("17.0"),
 			infoPlist: .extendingDefault(with: [
-				"UILaunchScreen": [:]
+				"UILaunchScreen": [:],
+				// 내보낸 백업 파일(앱 문서 폴더)을 파일 앱에서 볼 수 있게 한다 (VLT-004)
+				"UIFileSharingEnabled": true,
+				"LSSupportsOpeningDocumentsInPlace": true,
+				// 생체 해제 (SEC-003). 공유 코드 KeychainBiometricUnlock이 LAContext로 묻는다
+				"NSFaceIDUsageDescription": "볼트 잠금을 생체 인증으로 해제합니다."
 			]),
 			sources: ["Sources/iOS/**", "Sources/Shared/**"],
 			dependencies: [

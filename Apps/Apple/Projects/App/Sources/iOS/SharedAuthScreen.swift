@@ -1,3 +1,4 @@
+import KeyManageDesignSystem
 import KeyManageShared
 import RIBsKMPSwiftUI
 import SwiftUI
@@ -39,53 +40,103 @@ private struct SharedAuthView: View {
 
 	var body: some View {
 		ScrollView {
-			VStack(alignment: .leading, spacing: 16) {
-				Text(state.isRegistering ? "가입" : "로그인").font(.largeTitle.bold())
-				if let notice = state.notice {
-					Text(notice).accessibilityIdentifier("authNotice")
-				}
-				if state.isRegistering {
-					Text(MasterPasswordSetup.shared.BODY).font(.footnote).foregroundStyle(.secondary)
-				}
-				SharedTextInput(title: "이메일", value: state.email) { screen.send(AuthViewActionUpdateEmail(email: $0)) }
-					.textContentType(.username)
-					.keyboardType(.emailAddress)
-					.textInputAutocapitalization(.never)
-					.autocorrectionDisabled()
-					.accessibilityIdentifier("authEmailField")
-				SharedTextInput(title: "마스터 비밀번호", value: state.password, isSecure: true) { screen.send(AuthViewActionUpdatePassword(password: $0)) }
-					.accessibilityIdentifier("authPasswordField")
-				if state.isRegistering {
-					SharedTextInput(title: "마스터 비밀번호 확인", value: state.confirmation, isSecure: true) {
-						screen.send(AuthViewActionUpdateConfirmation(confirmation: $0))
+			VStack(spacing: 16) {
+				header
+				KMCard(padding: .md) {
+					VStack(alignment: .leading, spacing: 12) {
+						if let notice = state.notice {
+							SharedBanner(kind: .info, text: notice).accessibilityIdentifier("authNotice")
+						}
+						if let error = state.error {
+							SharedErrorText(message: error).accessibilityIdentifier("authError")
+						}
+						if state.isConfirmingRollback {
+							SharedRollbackPrompt(
+								accept: { screen.send(AuthViewActionAcceptRollback.shared) },
+								cancel: { screen.send(AuthViewActionCancelRollback.shared) }
+							)
+						}
+						fields
+						KMButton(
+							state.isRegistering ? "가입" : "로그인",
+							variant: .primary,
+							size: .lg,
+							isLoading: state.isLoading,
+							isDisabled: state.isLoading
+						) { screen.send(AuthViewActionSubmit.shared) }
+							.accessibilityIdentifier("authSubmitButton")
+						if state.isLoading {
+							ProgressView().frame(maxWidth: .infinity).accessibilityIdentifier("authLoading")
+						}
 					}
-						.accessibilityIdentifier("authConfirmationField")
-					if state.showsWeakPasswordWarning {
-						Text(AuthNoticesKt.WEAK_MASTER_PASSWORD_WARNING).font(.footnote).foregroundStyle(.secondary)
-					}
 				}
-				if let error = state.error {
-					SharedErrorText(message: error).accessibilityIdentifier("authError")
+				.frame(maxWidth: 440)
+				Button(state.isRegistering ? "이미 계정이 있나요? 로그인" : "계정이 없나요? 가입") {
+					screen.send(AuthViewActionSwitchMode.shared)
 				}
-				if state.isConfirmingRollback {
-					SharedRollbackPrompt(
-						accept: { screen.send(AuthViewActionAcceptRollback.shared) },
-						cancel: { screen.send(AuthViewActionCancelRollback.shared) }
-					)
-				}
-				if state.isLoading {
-					ProgressView().accessibilityIdentifier("authLoading")
-				}
-				Button(state.isRegistering ? "가입" : "로그인") { screen.send(AuthViewActionSubmit.shared) }
-					.buttonStyle(.borderedProminent)
-					.disabled(state.isLoading)
-					.accessibilityIdentifier("authSubmitButton")
-				Button(state.isRegistering ? "로그인으로 전환" : "가입으로 전환") { screen.send(AuthViewActionSwitchMode.shared) }
-					.disabled(state.isLoading)
-					.accessibilityIdentifier("authSwitchModeButton")
+				.font(.subheadline)
+				.disabled(state.isLoading)
+				.accessibilityIdentifier("authSwitchModeButton")
 			}
-			.padding(24)
+			.padding(16)
+			.frame(maxWidth: .infinity)
+		}
+		.scrollDismissesKeyboard(.interactively)
+		.background(DesignToken.View.background)
+	}
+
+	private var header: some View {
+		HStack(spacing: 8) {
+			Image(systemName: "lock.shield.fill")
+				.font(.title)
+				.foregroundStyle(DesignToken.View.primary)
+				.accessibilityHidden(true)
+			Text("KeyManage").font(.title2.bold()).foregroundStyle(DesignToken.View.foreground)
+			Text(state.isRegistering ? "가입" : "로그인")
+				.font(.subheadline)
+				.foregroundStyle(DesignToken.View.mutedForeground)
+				.accessibilityAddTraits(.isHeader)
 		}
 	}
 
+	@ViewBuilder private var fields: some View {
+		VStack(alignment: .leading, spacing: 6) {
+			SharedFieldLabel("이메일")
+			SharedTextInput(title: "이메일", value: state.email) { screen.send(AuthViewActionUpdateEmail(email: $0)) }
+				.textContentType(.username)
+				.keyboardType(.emailAddress)
+				.textInputAutocapitalization(.never)
+				.autocorrectionDisabled()
+				.accessibilityIdentifier("authEmailField")
+		}
+		VStack(alignment: .leading, spacing: 6) {
+			SharedFieldLabel("마스터 비밀번호")
+			SharedTextInput(title: "마스터 비밀번호", value: state.password, isSecure: true) {
+				screen.send(AuthViewActionUpdatePassword(password: $0))
+			}
+			.accessibilityIdentifier("authPasswordField")
+			if state.showsStrengthGauge {
+				KMGaugeBar(score: Int(state.passwordStrengthScore)).accessibilityIdentifier("authStrengthGauge")
+			}
+			if state.showsWeakPasswordWarning {
+				Text(AuthNoticesKt.WEAK_MASTER_PASSWORD_WARNING)
+					.font(.footnote)
+					.foregroundStyle(DesignToken.View.mutedForeground)
+					.accessibilityIdentifier("authWeakWarning")
+			}
+		}
+		if state.isRegistering {
+			VStack(alignment: .leading, spacing: 6) {
+				SharedFieldLabel("마스터 비밀번호 확인")
+				SharedTextInput(title: "마스터 비밀번호 확인", value: state.confirmation, isSecure: true) {
+					screen.send(AuthViewActionUpdateConfirmation(confirmation: $0))
+				}
+				.accessibilityIdentifier("authConfirmationField")
+			}
+			Text(MasterPasswordSetup.shared.BODY)
+				.font(.footnote)
+				.foregroundStyle(DesignToken.View.mutedForeground)
+				.fixedSize(horizontal: false, vertical: true)
+		}
+	}
 }

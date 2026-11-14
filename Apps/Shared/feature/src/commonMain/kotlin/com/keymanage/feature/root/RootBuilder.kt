@@ -2,6 +2,7 @@ package com.keymanage.feature.root
 
 import com.carti.ribs.Builder
 import com.carti.ribs.Component
+import kotlin.time.Clock
 import com.keymanage.domain.platform.RandomBytes
 import com.keymanage.feature.AppEnvironment
 import com.keymanage.feature.BackupFilesPort
@@ -15,6 +16,8 @@ import com.keymanage.feature.main.MainBuilder
 import com.keymanage.feature.main.MainDependency
 import com.keymanage.feature.main.MainViewFactory
 import com.keymanage.feature.settings.SettingsViewFactory
+import com.keymanage.feature.unlock.BiometricUnlock
+import com.keymanage.feature.unlock.UnlockKeySession
 import com.keymanage.feature.unlock.UnlockBuilder
 import com.keymanage.feature.unlock.UnlockDependency
 import com.keymanage.feature.unlock.UnlockViewFactory
@@ -33,6 +36,9 @@ class RootComponent(dependency: RootDependency) :
     override val clipboard: ClipboardPort get() = dependency.clipboard
     override val backupFiles: BackupFilesPort get() = dependency.backupFiles
     override val randomBytes: RandomBytes get() = dependency.randomBytes
+    override val biometricUnlock: BiometricUnlock? get() = dependency.biometricUnlock
+    override val unlockKeySession: UnlockKeySession? get() = dependency.unlockKeySession
+    override val clock: Clock get() = dependency.environment.clock
 }
 
 class RootBuilder(dependency: RootDependency) : Builder<RootDependency>(dependency) {

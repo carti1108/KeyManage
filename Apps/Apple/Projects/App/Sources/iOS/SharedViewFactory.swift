@@ -14,7 +14,7 @@ final class SharedViewFactory: NSObject, @preconcurrency KeyManageViewFactory {
 	func makeAuthView() -> any AuthViewContract { SharedAuthScreen(activity: activity) }
 	func makeUnlockView() -> any UnlockViewContract { SharedUnlockScreen(activity: activity) }
 	func makeMainView() -> any MainViewContract { SharedMainScreen(activity: activity) }
-	func makeVaultListView() -> any VaultListViewContract { SharedVaultListScreen() }
+	func makeVaultListView() -> any VaultListViewContract { SharedVaultListScreen(activity: activity) }
 	func makePasswordGeneratorView() -> any PasswordGeneratorViewContract { SharedPasswordGeneratorScreen(activity: activity) }
 	func makeSettingsView() -> any SettingsViewContract { SharedSettingsScreen(activity: activity) }
 }
