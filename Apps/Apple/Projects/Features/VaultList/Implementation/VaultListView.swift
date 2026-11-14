@@ -14,7 +14,7 @@ struct VaultListView: View {
 			if viewModel.state.hasPendingSync || viewModel.state.isOffline {
 				HStack(spacing: DesignToken.Spacing.space2) {
 					Image(systemName: "wifi.slash")
-						.foregroundColor(.orange)
+						.foregroundColor(DesignToken.View.mutedForeground)
 					Text(VaultSyncStrings.offlineWarningMessage)
 						.font(.caption)
 						.foregroundColor(DesignToken.View.foreground)
@@ -22,7 +22,7 @@ struct VaultListView: View {
 				}
 				.padding(.horizontal, DesignToken.Spacing.space4)
 				.padding(.vertical, DesignToken.Spacing.space2)
-				.background(Color.orange.opacity(0.12))
+				.background(DesignToken.View.muted)
 			}
 
 			itemsList
@@ -192,7 +192,7 @@ struct VaultListView: View {
 
 						Button(action: { viewModel.request(action: .confirmDeleteItem(item)) }) {
 							Image(systemName: "trash")
-								.foregroundColor(.red)
+								.foregroundColor(DesignToken.View.destructive)
 						}
 						.buttonStyle(.plain)
 						.help("삭제")
@@ -277,7 +277,7 @@ struct VaultListView: View {
 					if let error = viewModel.state.formErrorMessage {
 						Text(error)
 							.font(.footnote)
-							.foregroundColor(.red)
+							.foregroundColor(DesignToken.View.destructive)
 							.frame(maxWidth: .infinity, alignment: .leading)
 					}
 
@@ -295,7 +295,7 @@ struct VaultListView: View {
 							.padding(.vertical, DesignToken.Spacing.space3)
 						}
 						.buttonStyle(.bordered)
-						.tint(.red)
+						.tint(DesignToken.View.destructive)
 						.padding(.top, DesignToken.Spacing.space2)
 					}
 				}
@@ -466,14 +466,14 @@ struct VaultListView: View {
 	private func toastView(_ message: String) -> some View {
 		HStack(spacing: DesignToken.Spacing.space2) {
 			Image(systemName: "checkmark.circle.fill")
-				.foregroundColor(.green)
+				.foregroundColor(DesignToken.View.accent)
 			Text(message)
 				.font(.footnote.bold())
-				.foregroundColor(.white)
+				.foregroundColor(DesignToken.View.primaryForeground)
 		}
 		.padding(.horizontal, DesignToken.Spacing.space4)
 		.padding(.vertical, DesignToken.Spacing.space3)
-		.background(Color.black.opacity(0.85))
+		.background(DesignToken.View.primary)
 		.clipShape(Capsule())
 		.padding(.bottom, DesignToken.Spacing.space4)
 		.shadow(radius: 4)

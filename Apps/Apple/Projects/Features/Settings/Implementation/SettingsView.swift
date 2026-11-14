@@ -214,7 +214,7 @@ struct SettingsView: View {
 				Text("주의 사항")
 					.font(.caption)
 					.bold()
-					.foregroundColor(.orange)
+					.foregroundColor(DesignToken.View.foreground)
 
 				Text(MasterPasswordChangeStrings.noticeBody)
 					.font(.footnote)
@@ -375,10 +375,10 @@ struct SettingsView: View {
 	private func toastOverlay(_ message: String) -> some View {
 		Text(message)
 			.font(.footnote)
-			.foregroundColor(.white)
+			.foregroundColor(DesignToken.View.primaryForeground)
 			.padding(.horizontal, DesignToken.Spacing.space4)
 			.padding(.vertical, DesignToken.Spacing.space3)
-			.background(Color.black.opacity(0.85))
+			.background(DesignToken.View.primary)
 			.cornerRadius(DesignToken.Radius.md)
 			.padding(.bottom, DesignToken.Spacing.space6)
 			.transition(.opacity)
@@ -395,10 +395,10 @@ struct SettingsView: View {
 						VStack(alignment: .leading, spacing: DesignToken.Spacing.space3) {
 							HStack(spacing: DesignToken.Spacing.space2) {
 								Image(systemName: "exclamationmark.triangle.fill")
-									.foregroundColor(.red)
+									.foregroundColor(DesignToken.View.destructive)
 								Text("되돌릴 수 없습니다")
 									.font(.headline)
-									.foregroundColor(.red)
+									.foregroundColor(DesignToken.View.destructive)
 							}
 
 							Text(AccountDeletionStrings.preNoticeBody)
@@ -412,7 +412,7 @@ struct SettingsView: View {
 					if let error = viewModel.state.deleteAccountErrorMessage {
 						Text(error)
 							.font(.footnote)
-							.foregroundColor(.red)
+							.foregroundColor(DesignToken.View.destructive)
 					}
 
 					// 마스터 비밀번호 입력
@@ -478,7 +478,7 @@ struct SettingsView: View {
 								.font(.body.weight(.bold))
 						}
 					}
-					.tint(.red)
+					.tint(DesignToken.View.destructive)
 					.disabled(!viewModel.canExecuteDeleteAccount || viewModel.state.isDeletingAccount)
 				}
 			}
