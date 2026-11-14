@@ -39,15 +39,15 @@ public struct AuthView: View {
 						if let error = viewModel.state.errorMessage {
 							HStack(spacing: DesignToken.Spacing.space3) {
 								Image(systemName: "exclamationmark.triangle.fill")
-									.foregroundColor(.red)
+									.foregroundColor(DesignToken.View.destructive)
 								Text(error)
 									.font(.footnote)
-									.foregroundColor(.red)
+									.foregroundColor(DesignToken.View.destructive)
 									.fixedSize(horizontal: false, vertical: true)
 							}
 							.padding(DesignToken.Spacing.space3)
 							.frame(maxWidth: .infinity, alignment: .leading)
-							.background(Color.red.opacity(0.1))
+							.background(DesignToken.View.destructive.opacity(0.1))
 							.cornerRadius(DesignToken.Radius.md)
 						}
 
@@ -149,7 +149,7 @@ public struct AuthView: View {
 								Spacer()
 							}
 							.padding(.vertical, DesignToken.Spacing.space4)
-							.background(viewModel.canSubmit ? DesignToken.View.primary : Color.gray.opacity(0.5))
+							.background(viewModel.canSubmit ? DesignToken.View.primary : DesignToken.View.primary.opacity(0.5))
 							.cornerRadius(DesignToken.Radius.md)
 						}
 						.buttonStyle(.plain)

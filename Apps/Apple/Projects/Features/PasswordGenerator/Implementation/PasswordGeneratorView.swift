@@ -221,19 +221,19 @@ struct PasswordGeneratorView: View {
 		case .danger:
 			return DesignToken.View.destructive
 		case .warning:
-			return Color.orange
+			return DesignToken.View.primary
 		case .secure:
-			return Color.green
+			return DesignToken.View.accent
 		}
 	}
 
 	private func toastOverlay(_ message: String) -> some View {
 		Text(message)
 			.font(.footnote)
-			.foregroundColor(.white)
+			.foregroundColor(DesignToken.View.primaryForeground)
 			.padding(.horizontal, DesignToken.Spacing.space4)
 			.padding(.vertical, DesignToken.Spacing.space3)
-			.background(Color.black.opacity(0.85))
+			.background(DesignToken.View.primary)
 			.cornerRadius(DesignToken.Radius.md)
 			.padding(.bottom, DesignToken.Spacing.space6)
 			.transition(.opacity)
