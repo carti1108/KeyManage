@@ -347,6 +347,7 @@ fun TestScope.setup(
     tabs: Tabs = SingleTab(),
     tabMemory: TabMemory? = null,
     scope: CoroutineScope = backgroundScope,
+    syncFor: (String, com.keymanage.domain.crypto.EncryptionKey, RevisionMemory) -> VaultSync = vaultSyncFor(vaultApi),
 ): SessionSetup {
     if (authApi.vaultApi == null) authApi.vaultApi = vaultApi
     val revisionMemory = RevisionMemory()
@@ -355,7 +356,7 @@ fun TestScope.setup(
     val session = VaultSession(
         VaultSessionDeps(
             auth = AuthService(authApi),
-            vaultSyncFor = vaultSyncFor(vaultApi),
+            vaultSyncFor = syncFor,
             revisionMemory = revisionMemory,
             deviceStore = deviceStore,
             tabs = tabs,

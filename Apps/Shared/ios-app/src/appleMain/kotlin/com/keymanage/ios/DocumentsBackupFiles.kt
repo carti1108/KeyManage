@@ -11,19 +11,22 @@ import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.value
 import kotlinx.coroutines.suspendCancellableCoroutine
-import platform.Foundation.NSDocumentDirectory
 import platform.Foundation.NSError
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSFileSize
 import platform.Foundation.NSNumber
-import platform.Foundation.NSSearchPathForDirectoriesInDomains
 import platform.Foundation.NSString
 import platform.Foundation.NSUTF8StringEncoding
-import platform.Foundation.NSUserDomainMask
 import platform.Foundation.create
 import platform.Foundation.stringWithContentsOfFile
 import platform.Foundation.writeToFile
 import kotlin.coroutines.resume
+
+/**
+ * 내보내기 전에 백업 파일을 두는 폴더. iOS는 파일 앱에서 보이는 앱 문서 폴더(UIFileSharingEnabled),
+ * macOS는 사용자 문서 폴더에 몰래 남기지 않도록 임시 폴더다. 저장 패널이 고른 곳으로 복사한다
+ */
+expect fun backupStagingDirectory(): String
 
 /** 백업 파일을 쓰지 못함 */
 class BackupFileWriteException(reason: String?) : Exception("백업 파일을 쓰지 못함: $reason")
@@ -38,15 +41,15 @@ interface BackupDocumentPresenter {
     /** 파일을 고르게 한다. 고른 파일을 앱이 읽을 수 있는 곳에 복사한 경로를 넘기고, 취소면 null을 넘긴다 */
     fun pickBackupDocument(onPicked: (String?) -> Unit)
 
-    /** 앱 문서 폴더에 저장한 백업 파일을 사용자가 고른 곳으로 내보내게 한다 */
+    /** 임시 저장 폴더에 저장한 백업 파일을 사용자가 고른 곳으로 내보내게 한다 */
     fun exportBackupDocument(path: String)
 }
 
-// 백업 파일(VLT-004)을 앱 문서 폴더에 저장한 뒤 내보내기 선택기를 띄우고, 복원할 파일은 문서 선택기로 고른다
+// 백업 파일(VLT-004)을 임시 저장 폴더(backupStagingDirectory)에 저장한 뒤 내보내기 선택기를 띄우고, 복원할 파일은 문서 선택기로 고른다
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 class DocumentsBackupFiles(
     private val presenter: BackupDocumentPresenter?,
-    private val directory: String = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, true).first() as String,
+    private val directory: String = backupStagingDirectory(),
 ) : BackupFilesPort {
     override suspend fun save(file: BackupFile) {
         val path = "$directory/${file.name}"

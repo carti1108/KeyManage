@@ -160,3 +160,42 @@ struct SharedTextInput: View {
 		)
 	}
 }
+
+// iOS 전용 입력·내비게이션 수식어를 macOS에서는 건너뛴다. 화면 코드는 플랫폼 분기 없이 이것만 쓴다
+extension View {
+	/// 내비게이션 제목을 작게(인라인) 둔다. macOS는 창 제목이라 해당 없음
+	func sharedInlineNavigationTitle() -> some View {
+		#if os(iOS)
+		navigationBarTitleDisplayMode(.inline)
+		#else
+		self
+		#endif
+	}
+
+	/// 이메일 입력 칸. iOS는 이메일 키보드·자동 대문자 끔
+	func sharedEmailInput() -> some View {
+		#if os(iOS)
+		keyboardType(.emailAddress).textInputAutocapitalization(.never)
+		#else
+		self
+		#endif
+	}
+
+	/// 자동 대문자를 끈다(iOS). macOS 입력 칸은 자동 대문자가 없다
+	func sharedNoAutocapitalization() -> some View {
+		#if os(iOS)
+		textInputAutocapitalization(.never)
+		#else
+		self
+		#endif
+	}
+
+	/// 숫자 키보드(iOS)
+	func sharedNumberInput() -> some View {
+		#if os(iOS)
+		keyboardType(.numberPad)
+		#else
+		self
+		#endif
+	}
+}

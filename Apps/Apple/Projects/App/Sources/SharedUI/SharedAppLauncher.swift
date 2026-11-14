@@ -13,7 +13,12 @@ final class SharedAppLauncher: NSObject, @preconcurrency ViewHost {
 	private(set) var startupError: String?
 	@ObservationIgnored private var app: IosKeyManageApp?
 	@ObservationIgnored private var wasInBackground = false
-	@ObservationIgnored private let backupDocuments = SharedBackupDocuments()
+	@ObservationIgnored private let backupDocuments: any BackupDocumentPresenter
+
+	/// - Parameter backupDocuments: 백업 파일 선택기. iOS는 문서 선택기, macOS는 저장·열기 패널
+	init(backupDocuments: any BackupDocumentPresenter) {
+		self.backupDocuments = backupDocuments
+	}
 
 	/// UI 테스트·다른 서버는 실행 인자 `-serverOrigin <출처>`로 바꾼다. 없으면 로컬 개발 서버
 	private static var serverOrigin: String {
@@ -61,9 +66,11 @@ final class SharedAppLauncher: NSObject, @preconcurrency ViewHost {
 		start()
 	}
 
+	/// iOS는 백그라운드만, macOS는 비활성(다른 앱으로 전환)도 SEC-003의 백그라운드로 넘긴다.
+	/// iOS의 비활성은 제어 센터처럼 잠깐이라 넘기지 않는다
 	func sceneChanged(to phase: ScenePhase) {
 		switch phase {
-		case .background:
+		case .background where !wasInBackground, .inactive where Self.inactiveIsBackground && !wasInBackground:
 			wasInBackground = true
 			app?.didEnterBackground()
 		case .active:
@@ -74,6 +81,12 @@ final class SharedAppLauncher: NSObject, @preconcurrency ViewHost {
 			break
 		}
 	}
+
+	#if os(macOS)
+	private static let inactiveIsBackground = true
+	#else
+	private static let inactiveIsBackground = false
+	#endif
 
 	func userActivity() {
 		app?.userActivity()
@@ -93,4 +106,34 @@ final class FoundationMainThreadChecker: NSObject, MainThreadChecker {
 	func isMainThread() -> Bool {
 		Thread.isMainThread
 	}
+}
+
+/// 앱 창의 루트. 시작 실패 안내 또는 공유 RIB 루트 슬롯을 그리고, 활성이 아니면 볼트 내용을 가린다 (SEC-003 3번)
+struct SharedAppRootView: View {
+	let launcher: SharedAppLauncher
+	@Environment(\.scenePhase) private var scenePhase
+
+	var body: some View {
+		ZStack {
+			if let message = launcher.startupError {
+				VStack(spacing: 16) {
+					Text(message).accessibilityIdentifier("startupError")
+					Button("다시 시도") { launcher.retry() }.accessibilityIdentifier("startupRetryButton")
+				}
+				.padding(24)
+			} else {
+				RIBSlotView(slot: launcher.windowSlot)
+			}
+			// 앱 전환 화면에 볼트 내용이 비치지 않게 가린다
+			if scenePhase != .active {
+				Self.privacyCover.ignoresSafeArea().accessibilityHidden(true)
+			}
+		}
+	}
+
+	#if os(macOS)
+	private static let privacyCover = Color(nsColor: .windowBackgroundColor)
+	#else
+	private static let privacyCover = Color(uiColor: .systemBackground)
+	#endif
 }

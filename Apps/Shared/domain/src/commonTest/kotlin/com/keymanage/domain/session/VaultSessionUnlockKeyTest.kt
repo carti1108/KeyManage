@@ -126,3 +126,59 @@ class VaultSessionUnlockKeyTest {
         assertTrue(ctx.unlocks() > before)
     }
 }
+
+// 열지 못하고 끝난 잠금 해제는 세션이 만든 암호화 키 사본을 지운다 (ADR-0027)
+class VaultSessionUnlockKeyWipeTest {
+    private suspend fun kotlinx.coroutines.test.TestScope.lockedWithKeySpy(): Pair<SessionSetup, MutableList<com.keymanage.domain.crypto.EncryptionKey>> {
+        val keys = mutableListOf<com.keymanage.domain.crypto.EncryptionKey>()
+        val vaultApi = FakeVaultApi()
+        val base = vaultSyncFor(vaultApi)
+        val ctx = setup(vaultApi = vaultApi, syncFor = { token, key, memory -> keys += key; base(token, key, memory) })
+        ctx.session.login("user@example.com", PASSWORD)
+        ctx.session.save(com.keymanage.domain.vault.addItem(ctx.unlockedState().vault.data, fields, NOW, "a"))
+        ctx.session.lock()
+        keys.clear()
+        // 서버를 백업(revision 1)에서 되돌린 상황. 되돌림 확인 전에는 열지 않는다
+        val restored = com.keymanage.domain.vault.RemoteVault(1, ctx.vaultApi.payload!!)
+        ctx.vaultApi.getHook = { restored }
+        return ctx to keys
+    }
+
+    @Test
+    fun failedKeyUnlockWipesSessionKeyCopy() = sessionTest {
+        val (ctx, keys) = lockedWithKeySpy()
+        ctx.vaultApi.getHook = null
+        val key = assertNotNull(ctx.session.unlock(PASSWORD, exportUnlockKey = true).unlockKey)
+        ctx.session.lock()
+        keys.clear()
+        ctx.vaultApi.getHook = { com.keymanage.domain.vault.RemoteVault(1, ctx.vaultApi.payload!!) }
+
+        assertFailsWith<com.keymanage.domain.vault.RevisionRollbackException> { ctx.session.unlockWithKey(key) }
+
+        assertTrue(keys.isNotEmpty())
+        assertTrue(keys.all { k -> k.bytes.all { it == 0.toByte() } })
+        // 부른 쪽 키는 되돌림 확인에 다시 쓰므로 그대로 둔다
+        assertTrue(key.any { it != 0.toByte() })
+    }
+
+    @Test
+    fun failedPasswordUnlockWipesDerivedKey() = sessionTest {
+        val (ctx, keys) = lockedWithKeySpy()
+
+        assertFailsWith<com.keymanage.domain.vault.RevisionRollbackException> { ctx.session.unlock(PASSWORD) }
+
+        assertTrue(keys.isNotEmpty())
+        assertTrue(keys.all { k -> k.bytes.all { it == 0.toByte() } })
+    }
+
+    @Test
+    fun successfulUnlockKeepsKeyForSession() = sessionTest {
+        val (ctx, keys) = lockedWithKeySpy()
+        ctx.vaultApi.getHook = null
+
+        ctx.session.unlock(PASSWORD)
+
+        assertTrue(keys.last().bytes.any { it != 0.toByte() })
+        ctx.session.save(ctx.unlockedState().vault.data)
+    }
+}

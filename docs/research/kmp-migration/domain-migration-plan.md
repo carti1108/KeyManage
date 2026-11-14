@@ -532,3 +532,27 @@ iOS 공유 RIB 화면 7개를 옛 Swift 화면 배치로 채웠다. 옛 Swift RI
 - 확인: `:domain:jvmTest`·`:feature:jvmTest`·`:ios-app:iosSimulatorArm64Test`·`:ios-app:assembleKeyManageSharedDebugXCFramework` 통과, 웹 `jsBrowserProductionLibraryDistribution` 뒤 `npm run check` 통과(499건), Tuist 생성·`KeyManageIOS`(UI 테스트 빌드)·`KeyManageMac`(`verify-apple.sh`) 빌드 통과, `check-docs.sh`·`verify-apple.sh` 통과.
 - XCUITest: 처음 `SharedFeatureFlowUITests` 실패는 제품 결함이 아니라 테스트 결함이었다(사용자가 시뮬레이터에서 복사해도 잠기지 않고 검색·생성기·자동 잠금·백업이 동작함을 직접 확인). 내비게이션 막대 첫 버튼(툴바의 잠금·로그아웃일 수 있음) 누르기, "취소" 같은 글자로 찾기를 없애고 접근성 식별자로 찾게 고쳤다(자동 잠금 선택지 `autoLockChoice-<초>`, 백업 확인 `exportConfirmButton`, 뒤로 가기는 시스템 `BackButton`). 검색은 검색 키로 키보드를 내린다. 탭 막대 항목만 SwiftUI가 식별자를 넘기지 않아 탭 이름으로 찾는다. 디버그 빌드에서 실행 인자 `-resetForUITests`면 `IosKeyManageApp.resetForUITests()`가 기기 기록·자동 잠금 설정을 지우고 시작한다. 두 UI 테스트 모두 통과(시뮬레이터 AF48707C, 로컬 백엔드).
 - 확인 필요: 가입 직후 생체 해제 묻기를 넣을지. 실제 Face ID 기기에서 키 저장·해제(시뮬레이터 UI 테스트는 생체 경로를 지나지 않음).
+
+#### macOS 전환 (2026-11-14)
+
+macOS 앱(`KeyManageMac`)도 iOS와 같은 공유 RIB 트리를 띄운다. 옛 Swift RIB·도메인 코드는 iOS 타깃이 아직 소스에 넣고 있어 다음 단계에서 지운다.
+
+| 위치 | 내용 |
+| :--- | :--- |
+| `ios-app` 모듈 | 대상에 macosArm64를 더해 `KeyManageShared.xcframework`에 `macos-arm64` 조각이 생긴다. 태스크 이름(`assembleKeyManageSharedDebugXCFramework`)이 그대로라 `verify-apple.sh`·CI는 고치지 않았다. 두 플랫폼이 같은 코드(진입점, 수명주기 배선, 네트워크 `NWPathMonitor`, 기기 저장소, 자동 잠금 설정, 생체 해제 `KeychainBiometricUnlock`, 백업 파일)는 `appleMain`, UIKit은 `iosMain`(`PasteboardClipboardWriter`), AppKit은 `macosMain`(`NSPasteboardClipboardWriter`)에 둔다. 플랫폼 차이는 `expect` 두 개(`systemClipboardWriter`, `backupStagingDirectory`)뿐이다 |
+| 모듈 이름 | `ios-app`·`IosKeyManageApp`·패키지 `com.keymanage.ios`는 그대로 둔다. `apple-app`으로 바꾸면 Tuist 경로·스크립트·CI·Swift 참조를 함께 고쳐야 해, 옛 Swift 코드를 지우는 단계에서 한 번에 바꾼다 |
+| 백업 임시 폴더 | iOS는 앱 문서 폴더(파일 앱에서 보임), macOS는 사용자 문서 폴더에 몰래 남기지 않도록 임시 폴더에 쓴 뒤 저장 패널(`NSSavePanel`)로 고른 곳에 복사하고 임시 파일을 지운다. 복원은 열기 패널(`NSOpenPanel`) |
+| Swift `Sources/SharedUI` | iOS `Sources/iOS`에 있던 `SharedAppLauncher`와 화면 7개·공통 뷰·뷰 팩토리를 옮겨 두 타깃이 함께 컴파일한다. 배치 차이는 `#if os(macOS)`: 볼트 틀은 탭 바 대신 `NavigationSplitView` 사이드바(옛 Swift macOS 배치), 도구 막대 위치, 검색 칸 위치. iOS 전용 입력 수식어(키보드 종류·자동 대문자·인라인 제목)는 `SharedCommonViews`의 `shared*` 수식어로 감싸 macOS에서 건너뛴다. 추가·수정·비밀번호 변경 등은 iOS와 같이 시트로 뜬다 |
+| 수명주기 | macOS는 장면이 비활성(다른 앱으로 전환)이 되면 iOS 백그라운드와 같이 `didEnterBackground`로 넘긴다(SEC-003: "즉시"면 잠금, 돌아오면 경과 시간 판정). iOS의 비활성은 잠깐이라 넘기지 않는다. 활성이 아니면 가림 화면을 씌운다 |
+| Tuist | `KeyManageMac`은 `Sources/macOS`·`Sources/SharedUI`, `KeyManageDesignSystem`, XCFramework, `RIBsKMPSwiftUI`만 쓴다(옛 Swift 모듈·MicroRIBs 의존 제거). 최소 버전 14.0(`RIBsKMPSwiftUI`). Touch ID 문구 `NSFaceIDUsageDescription`. UI 테스트 타깃 `KeyManageMacUITests`(`MacSessionFlowUITests`, iOS `SharedSessionFlowUITests`와 같은 가입 → 잠금 → 틀린 비밀번호 → 해제) |
+
+3단계 리뷰 반영:
+
+- 잠금 해제 화면 내용을 옛 `UnlockView`처럼 세로 가운데에 둔다(스크롤 영역 최소 높이를 화면 높이로).
+- `UnlockInteractor.unlockWithBiometrics`: 생체 인증 중 RIB이 내려가(취소) 꺼낸 키를 쓰지 못하면 바로 0으로 지운다. 테스트 `keyRecalledAfterDetachIsWiped`.
+- `VaultSession.unlock`·`unlockWithKey`: 되돌림 확인·취소·오류로 열지 못하고 끝나면 세션이 만든 암호화 키 사본을 지운다. 연 뒤에는 동기화가 쓰므로 두고, 부른 쪽 키(되돌림 확인에 다시 씀)는 건드리지 않는다. 테스트 `VaultSessionUnlockKeyWipeTest` 3건(테스트 준비 `setup`에 동기화 생성 함수를 바꿔 끼울 인자를 더했다).
+- 세션 만료(401) 등으로 장식(`BiometricInvalidatingSession`)을 거치지 않고 로그인 전 상태가 돼도 생체 해제 키를 지운다. `watchSignOut()`이 세션 알림(원격 변경·잠금·해제·동기화)마다 상태를 보고, 마지막으로 본 계정이 로그인 전 상태로 바뀌면 `forget`한다. `KeyManageApp`이 `start`에서 구독하고 `stop`에서 끊는다. [ADR-0027](../../adr/ADR-0027-biometric-unlock-stores-derived-key.md)의 "로그아웃·계정 삭제·비밀번호 변경 때 지운다"를 세션이 로그인 전 상태가 되는 모든 경우로 넓힌 것이다(ADR 본문은 고치지 않는다). 앱 시작 복원 중에 만료되면 계정 이메일을 알 수 없어 지우지 못하고, 그 키는 다음 같은 계정 로그인 뒤 비밀번호 해제 때 덮어쓰인다. 테스트 `BiometricInvalidatingSessionTest` 4건, `KeyManageAppTest` 1건.
+- `IosKeyManageApp.resetForUITests`가 생체 해제 표시(`keymanage.biometric.*`)와 그 계정들의 키체인 항목도 지운다(`KeychainBiometricUnlock.forgetAll`). 테스트 `ApplePlatformTest`.
+
+- 확인: `:domain:jvmTest`·`:feature:jvmTest`·`:ios-app:allTests`(iosSimulatorArm64·macosArm64)·XCFramework 생성 통과, 웹 `jsBrowserProductionLibraryDistribution` 뒤 `npm run check` 통과(499건), Tuist 생성, `KeyManageMac`·`KeyManageIOS` 빌드 통과. iOS `SharedSessionFlowUITests` 통과. `verify-apple.sh`는 1·2단계(문서·Apple 린트)와 3단계의 정책·API 계약 감사를 통과했고, TDD 무결성 검사는 `iosTest` → `appleTest` 파일 이동(git `R100`, 내용 그대로)과 `IosPlatformTest`의 달력 테스트를 `ApplePlatformTest`로 옮긴 것을 어설션 삭제로 보고 멈췄다(검사가 이름 바꾸기를 따라가지 않는다). 4~6단계(XCFramework·Tuist·`KeyManageMac` 빌드·옛 Swift 모듈 단위 테스트 9개)는 같은 명령을 따로 돌려 통과했다.
+- 확인하지 못한 것: `KeyManageMacUITests`는 이 Mac에서 UI 자동화 모드를 켜지 못해("Timed out while enabling automation mode", 시스템 보안 설정 승인 필요) 돌지 않았다. macOS 앱 실행(프로세스가 뜨고 죽지 않음)만 확인했다. iOS `SharedFeatureFlowUITests`는 이번 1회 실행에서 첫 이메일 칸 입력 포커스 대기(10초)가 시간 초과로 실패했다. 같은 칸·같은 방식을 쓰는 `SharedSessionFlowUITests`는 같은 실행에서 통과해 다시 돌려 확인해야 한다. macOS 생체 해제: `BiometricKeychainStore`의 접근 제어 항목은 macOS에서 데이터 보호 키체인과 팀 서명·키체인 접근 그룹 권한이 필요할 수 있어, 서명하지 않은 개발 빌드에서는 켜기가 실패할 수 있다(실패하면 버튼이 안 보일 뿐 비밀번호 해제는 된다). Touch ID 실기 확인 필요.

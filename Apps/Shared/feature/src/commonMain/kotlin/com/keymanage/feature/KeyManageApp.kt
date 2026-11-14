@@ -30,7 +30,7 @@ interface KeyManageViewFactory :
  * 플랫폼 진입점. 뷰 팩토리와 바깥 기능을 받아 루트 RIB을 만들고, [start]/[stop]으로 트리를 시작하고 끝낸다.
  * 생명주기 호출은 메인 스레드에서 한다. 끝낸 뒤 다시 [start]할 수 있다
  *
- * @param biometricUnlock 생체 해제. 넣지 않으면(웹) 잠금 화면이 기능을 숨긴다. 넣으면 비밀번호 변경·계정 삭제·로그아웃 때 저장한 키를 지운다
+ * @param biometricUnlock 생체 해제. 넣지 않으면(웹) 잠금 화면이 기능을 숨긴다. 넣으면 비밀번호 변경·계정 삭제·로그아웃, 그리고 트리가 떠 있는 동안 세션이 로그인 전 상태가 될 때 저장한 키를 지운다
  * @param unlockKeySession 생체 해제용 키를 내보내고 그 키로 여는 세션 기능 (ADR-0027). [biometricUnlock]과 함께 넣는다
  * @param initialNotice 시작할 때 이미 정해진 로그인 화면 안내. 세션을 복구하다 만료됐을 때처럼 첫 로그인 화면에 보일 문구를 넘긴다
  */
@@ -45,6 +45,9 @@ class KeyManageApp(
     biometricUnlock: BiometricUnlock? = null,
     unlockKeySession: UnlockKeySession? = null,
 ) {
+    private val invalidating = biometricUnlock?.let { BiometricInvalidatingSession(session, it) }
+    private var stopWatchingSignOut: (() -> Unit)? = null
+
     private val router = RootBuilder(
         object : RootDependency {
             override val rootViewFactory: RootViewFactory = viewFactory
@@ -54,7 +57,7 @@ class KeyManageApp(
             override val vaultListViewFactory: VaultListViewFactory = viewFactory
             override val passwordGeneratorViewFactory: PasswordGeneratorViewFactory = viewFactory
             override val settingsViewFactory: SettingsViewFactory = viewFactory
-            override val session: SessionPort = biometricUnlock?.let { BiometricInvalidatingSession(session, it) } ?: session
+            override val session: SessionPort = invalidating ?: session
             override val environment: AppEnvironment = environment
             override val clipboard: ClipboardPort = clipboard
             override val backupFiles: BackupFilesPort = backupFiles
@@ -67,10 +70,13 @@ class KeyManageApp(
     /** 루트 화면을 [host]에 보이고 세션 상태에 맞는 첫 화면을 붙인다 */
     fun start(host: ViewHost<RootViewControllable>) {
         router.launch(host)
+        if (stopWatchingSignOut == null) stopWatchingSignOut = invalidating?.watchSignOut()
     }
 
     /** 트리 전체를 내리고 루트 화면을 거둔다. 시작 전이거나 이미 끝났으면 아무 일도 하지 않는다 */
     fun stop() {
+        stopWatchingSignOut?.invoke()
+        stopWatchingSignOut = null
         router.shutdown()
     }
 }

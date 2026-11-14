@@ -34,7 +34,7 @@ class KeyManageAppTest {
         RibCoroutinesConfig.reset()
     }
 
-    private fun makeApp(initialNotice: String? = null) = KeyManageApp(
+    private fun makeApp(initialNotice: String? = null, biometric: com.keymanage.feature.unlock.BiometricUnlock? = null) = KeyManageApp(
         viewFactory = factory,
         session = session,
         clipboard = FakeClipboard(),
@@ -42,7 +42,23 @@ class KeyManageAppTest {
         environment = environment,
         randomBytes = FakeRandomBytes(),
         initialNotice = initialNotice,
+        biometricUnlock = biometric,
     )
+
+    @Test
+    fun 트리가_떠_있는_동안_세션이_만료되면_생체_해제_키를_지운다() {
+        session.startLocked()
+        val biometric = ForgetOnlyBiometric()
+        val app = makeApp(biometric = biometric)
+        app.start(host)
+
+        session.current = com.keymanage.domain.session.SessionState.SignedOut
+        session.syncListeners.toList().forEach { it(com.keymanage.domain.session.SessionExpiredException()) }
+
+        assertEquals(listOf(session.email), biometric.forgotten)
+        app.stop()
+        assertEquals(0, session.listenerCount)
+    }
 
     @Test
     fun start하면_루트_화면을_호스트에_보이고_로그인_화면을_붙인다() {
@@ -161,4 +177,16 @@ class KeyManageAppTest {
         app.stop()
     }
 
+}
+
+private class ForgetOnlyBiometric : com.keymanage.feature.unlock.BiometricUnlock {
+    val forgotten = mutableListOf<String>()
+    override fun isAvailable() = false
+    override fun isEnrolled(email: String) = false
+    override fun passwordUnlockedAt(email: String): kotlin.time.Instant? = null
+    override suspend fun remember(email: String, unlockKey: ByteArray, passwordUnlockedAt: kotlin.time.Instant) = Unit
+    override suspend fun recall(email: String) = com.keymanage.feature.unlock.BiometricRecall.Cancelled
+    override fun forget(email: String) {
+        forgotten += email
+    }
 }

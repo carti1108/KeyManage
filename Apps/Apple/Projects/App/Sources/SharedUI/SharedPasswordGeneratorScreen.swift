@@ -169,7 +169,7 @@ private struct SharedPasswordGeneratorContent: View {
 				SharedTextInput(title: "길이", value: state.lengthText) {
 					screen.send(PasswordGeneratorViewActionChangeLength(text: $0))
 				}
-				.keyboardType(.numberPad)
+				.sharedNumberInput()
 				.frame(width: 72)
 				.onSubmit { screen.send(PasswordGeneratorViewActionFinishEditingLength.shared) }
 				.accessibilityIdentifier("generatorLengthField")

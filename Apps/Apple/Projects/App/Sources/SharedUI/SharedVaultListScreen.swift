@@ -57,6 +57,12 @@ private struct SharedVaultListContent: View {
 		state.selected != nil && (state.screen == .detail || state.screen == .edit)
 	}
 
+	#if os(iOS)
+	private static let searchPlacement = SearchFieldPlacement.navigationBarDrawer(displayMode: .always)
+	#else
+	private static let searchPlacement = SearchFieldPlacement.toolbar
+	#endif
+
 	private var isShowingForm: Bool {
 		state.screen == .add || state.screen == .edit
 	}
@@ -73,7 +79,7 @@ private struct SharedVaultListContent: View {
 		}
 		.searchable(
 			text: Binding(get: { state.query }, set: { if $0 != state.query { screen.send(VaultListViewActionSearch(query: $0)) } }),
-			placement: .navigationBarDrawer(displayMode: .always),
+			placement: Self.searchPlacement,
 			prompt: "서비스명, 아이디 검색..."
 		)
 		.toolbar {
@@ -316,7 +322,7 @@ private struct SharedVaultItemFormSheet: View {
 				.padding(20)
 			}
 			.navigationTitle(state.screen == .edit ? "항목 수정" : "새 볼트 항목")
-			.navigationBarTitleDisplayMode(.inline)
+			.sharedInlineNavigationTitle()
 			.toolbar {
 				ToolbarItem(placement: .cancellationAction) {
 					Button("취소") { screen.send(VaultListViewActionCancelForm.shared) }
@@ -380,7 +386,7 @@ private struct SharedVaultItemFormSheet: View {
 			SharedTextInput(title: placeholder, value: value) {
 				screen.send(VaultListViewActionEditForm(field: field, value: $0))
 			}
-			.textInputAutocapitalization(.never)
+			.sharedNoAutocapitalization()
 			.autocorrectionDisabled()
 			.accessibilityIdentifier(id)
 		}

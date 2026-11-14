@@ -7,6 +7,7 @@ import com.keymanage.securestore.BiometricAuthenticationException
 import com.keymanage.securestore.BiometricAvailability
 import com.keymanage.securestore.BiometricKeychainStore
 import com.keymanage.securestore.BiometricResult
+import com.keymanage.securestore.BiometricSecureStore
 import com.keymanage.securestore.LocalBiometricAuthenticator
 import com.keymanage.securestore.SecureStoreException
 import platform.Foundation.NSUserDefaults
@@ -21,7 +22,7 @@ const val BIOMETRIC_KEYCHAIN_SERVICE = "com.keymanage.ios.biometric-unlock"
 // 생체 정보가 바뀌면 키체인이 항목을 내주지 않으므로 Invalidated로 알린다 (SEC-003 8번)
 class KeychainBiometricUnlock(
     private val authenticator: LocalBiometricAuthenticator = LocalBiometricAuthenticator(),
-    private val store: BiometricKeychainStore = BiometricKeychainStore(BIOMETRIC_KEYCHAIN_SERVICE, authenticator),
+    private val store: BiometricSecureStore = BiometricKeychainStore(BIOMETRIC_KEYCHAIN_SERVICE, authenticator),
     private val defaults: NSUserDefaults = NSUserDefaults.standardUserDefaults,
 ) : BiometricUnlock {
     override fun isAvailable(): Boolean = authenticator.availability() == BiometricAvailability.AVAILABLE
@@ -57,5 +58,14 @@ class KeychainBiometricUnlock(
         }
     }
 
-    private fun unlockedAtKey(email: String) = "keymanage.biometric.passwordUnlockedAt.$email"
+    /** 이 기기에서 생체 해제를 켠 모든 계정의 표시와 키체인 항목을 지운다. UI 테스트 초기화가 쓴다 */
+    fun forgetAll() {
+        defaults.dictionaryRepresentation().keys
+            .mapNotNull { (it as? String)?.removePrefix(UNLOCKED_AT_PREFIX)?.takeIf { email -> email != it } }
+            .forEach(::forget)
+    }
+
+    private fun unlockedAtKey(email: String) = "$UNLOCKED_AT_PREFIX$email"
 }
+
+private const val UNLOCKED_AT_PREFIX = "keymanage.biometric.passwordUnlockedAt."

@@ -44,7 +44,7 @@ final class SharedMainScreen: NSObject, @preconcurrency MainViewContract, SwiftU
 	}
 }
 
-/// 옛 Swift MainView의 iOS 배치: 탭 바(볼트·생성기·설정)와 탭마다 내비게이션 막대(잠그기). 고른 탭의 RIB 화면 하나만 슬롯에 보인다
+/// 볼트 틀. iOS는 탭 바, macOS는 사이드바로 탭을 고르고 탭마다 잠금·로그아웃 도구 막대를 둔다
 private struct SharedMainView: View {
 	let screen: SharedMainScreen
 
@@ -53,16 +53,61 @@ private struct SharedMainView: View {
 	private static let tabs: [MainTab] = [.vault, .generator, .settings]
 
 	var body: some View {
-		TabView(selection: Binding(
+		navigation
+			.alert(
+				PendingLogoutConfirm.shared.TITLE,
+				isPresented: Binding(
+					get: { state.isConfirmingLogout },
+					set: { if !$0, state.isConfirmingLogout { screen.send(MainViewActionCancelLogout.shared) } }
+				)
+			) {
+				Button(PendingLogoutConfirm.shared.CANCEL, role: .cancel) { screen.send(MainViewActionCancelLogout.shared) }
+					.accessibilityIdentifier("logoutCancelButton")
+				Button(PendingLogoutConfirm.shared.CONFIRM, role: .destructive) { screen.send(MainViewActionConfirmLogout.shared) }
+					.accessibilityIdentifier("logoutConfirmButton")
+			} message: {
+				Text(PendingLogoutConfirm.shared.BODY)
+			}
+	}
+
+	private var selection: Binding<MainTab> {
+		Binding(
 			get: { state.selectedTab },
-			// TabView가 같은 탭을 다시 정할 때 보내면 자식 화면을 내렸다 다시 붙이는 일이 되풀이된다
+			// 같은 탭을 다시 정할 때 보내면 자식 화면을 내렸다 다시 붙이는 일이 되풀이된다
 			set: { if $0 != state.selectedTab { screen.send(MainViewActionSelectTab(tab: $0)) } }
-		)) {
+		)
+	}
+
+	#if os(macOS)
+	/// macOS 배치(옛 Swift MainView의 NavigationSplitView): 왼쪽 사이드바에서 탭을 고르고, 오른쪽에 고른 RIB 화면을 보인다
+	private var navigation: some View {
+		NavigationSplitView {
+			List(Self.tabs, id: \.self, selection: Binding<MainTab?>(
+				get: { state.selectedTab },
+				set: { if let tab = $0 { selection.wrappedValue = tab } }
+			)) { tab in
+				Label(title(of: tab), systemImage: icon(of: tab))
+					.tag(tab)
+					.accessibilityIdentifier("mainTab-\(tab.name.lowercased())")
+			}
+			.navigationSplitViewColumnWidth(min: 180, ideal: 200)
+		} detail: {
+			NavigationStack {
+				tabContent(state.selectedTab)
+					.navigationTitle(title(of: state.selectedTab))
+					.toolbar { toolbar }
+			}
+		}
+	}
+	#else
+	/// iOS 배치: 탭 바(볼트·생성기·설정)와 탭마다 내비게이션 막대(잠그기). 고른 탭의 RIB 화면 하나만 슬롯에 보인다
+	private var navigation: some View {
+		TabView(selection: selection) {
 			ForEach(Self.tabs, id: \.self) { tab in
 				NavigationStack {
 					tabContent(tab)
 						.navigationTitle(title(of: tab))
-						.navigationBarTitleDisplayMode(.inline)
+						.sharedInlineNavigationTitle()
 						.toolbar { toolbar }
 				}
 				.tabItem { Label(title(of: tab), systemImage: icon(of: tab)) }
@@ -70,31 +115,26 @@ private struct SharedMainView: View {
 				.accessibilityIdentifier("mainTab-\(tab.name.lowercased())")
 			}
 		}
-		.alert(
-			PendingLogoutConfirm.shared.TITLE,
-			isPresented: Binding(
-				get: { state.isConfirmingLogout },
-				set: { if !$0, state.isConfirmingLogout { screen.send(MainViewActionCancelLogout.shared) } }
-			)
-		) {
-			Button(PendingLogoutConfirm.shared.CANCEL, role: .cancel) { screen.send(MainViewActionCancelLogout.shared) }
-				.accessibilityIdentifier("logoutCancelButton")
-			Button(PendingLogoutConfirm.shared.CONFIRM, role: .destructive) { screen.send(MainViewActionConfirmLogout.shared) }
-				.accessibilityIdentifier("logoutConfirmButton")
-		} message: {
-			Text(PendingLogoutConfirm.shared.BODY)
-		}
 	}
+	#endif
+
+	#if os(macOS)
+	private static let leadingPlacement = ToolbarItemPlacement.navigation
+	private static let trailingPlacement = ToolbarItemPlacement.primaryAction
+	#else
+	private static let leadingPlacement = ToolbarItemPlacement.topBarLeading
+	private static let trailingPlacement = ToolbarItemPlacement.topBarTrailing
+	#endif
 
 	@ToolbarContentBuilder private var toolbar: some ToolbarContent {
-		ToolbarItem(placement: .topBarLeading) {
+		ToolbarItem(placement: Self.leadingPlacement) {
 			Text(state.email)
 				.font(.caption)
 				.foregroundStyle(DesignToken.View.mutedForeground)
 				.lineLimit(1)
 				.accessibilityIdentifier("mainEmail")
 		}
-		ToolbarItemGroup(placement: .topBarTrailing) {
+		ToolbarItemGroup(placement: Self.trailingPlacement) {
 			Button { screen.send(MainViewActionRequestLogout.shared) } label: {
 				Image(systemName: "rectangle.portrait.and.arrow.right")
 			}

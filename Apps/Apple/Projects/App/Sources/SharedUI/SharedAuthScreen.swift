@@ -104,8 +104,7 @@ private struct SharedAuthView: View {
 			SharedFieldLabel("이메일")
 			SharedTextInput(title: "이메일", value: state.email) { screen.send(AuthViewActionUpdateEmail(email: $0)) }
 				.textContentType(.username)
-				.keyboardType(.emailAddress)
-				.textInputAutocapitalization(.never)
+				.sharedEmailInput()
 				.autocorrectionDisabled()
 				.accessibilityIdentifier("authEmailField")
 		}

@@ -10,34 +10,25 @@ let project = Project(
 	],
 	settings: .swift6Settings,
 	targets: [
+		// macOS 앱도 iOS와 같은 공유 Kotlin RIB 트리를 쓴다 (domain-migration-plan 12.5 macOS 전환).
+		// 화면 SwiftUI는 Sources/SharedUI를 iOS와 함께 컴파일하고, 배치 차이(사이드바·시트)는 #if os(macOS)로 나눈다
 		.target(
 			name: "KeyManageMac",
 			destinations: [.mac],
 			product: .app,
 			bundleId: "com.keymanage.macos",
+			// RIBsKMPSwiftUI의 최소 버전
 			deploymentTargets: .macOS("14.0"),
-			infoPlist: .default,
-			sources: ["Sources/macOS/**", "Sources/Shared/**"],
+			infoPlist: .extendingDefault(with: [
+				// 생체 해제 (SEC-003). 공유 코드 KeychainBiometricUnlock이 LAContext(Touch ID)로 묻는다
+				"NSFaceIDUsageDescription": "볼트 잠금을 생체 인증으로 해제합니다."
+			]),
+			sources: ["Sources/macOS/**", "Sources/SharedUI/**"],
 			dependencies: [
-				.project(target: "KeyManageDomain", path: "../Core/Domain"),
-				.project(target: "KeyManageData", path: "../Core/Data"),
 				.project(target: "KeyManageDesignSystem", path: "../Core/DesignSystem"),
-				.project(target: "KeyManageUIAdapter", path: "../Core/UIAdapter"),
-				.project(target: "UnlockFeatureInterface", path: "../Features/Unlock"),
-				.project(target: "UnlockFeatureImplementation", path: "../Features/Unlock"),
-				.project(target: "MainFeatureInterface", path: "../Features/Main"),
-				.project(target: "MainFeatureImplementation", path: "../Features/Main"),
-				.project(target: "VaultListFeatureInterface", path: "../Features/VaultList"),
-				.project(target: "VaultListFeatureImplementation", path: "../Features/VaultList"),
-				.project(target: "SettingsFeatureInterface", path: "../Features/Settings"),
-				.project(target: "SettingsFeatureImplementation", path: "../Features/Settings"),
-				.project(target: "PasswordGeneratorFeatureInterface", path: "../Features/PasswordGenerator"),
-				.project(target: "PasswordGeneratorFeatureImplementation", path: "../Features/PasswordGenerator"),
-				.project(target: "RootFeatureInterface", path: "../Features/Root"),
-				.project(target: "RootFeatureImplementation", path: "../Features/Root"),
-				.project(target: "AuthFeatureInterface", path: "../Features/Auth"),
-				.project(target: "AuthFeatureImplementation", path: "../Features/Auth"),
-				.external(name: "MicroRIBs")
+				// 실행 전에 Apps/Shared에서 `./gradlew :ios-app:assembleKeyManageSharedDebugXCFramework`로 만든다(macos-arm64 조각 포함)
+				.xcframework(path: "../../../Shared/ios-app/build/XCFrameworks/debug/KeyManageShared.xcframework"),
+				.package(product: "RIBsKMPSwiftUI")
 			]
 		),
 		.target(
@@ -54,7 +45,7 @@ let project = Project(
 				// 생체 해제 (SEC-003). 공유 코드 KeychainBiometricUnlock이 LAContext로 묻는다
 				"NSFaceIDUsageDescription": "볼트 잠금을 생체 인증으로 해제합니다."
 			]),
-			sources: ["Sources/iOS/**", "Sources/Shared/**"],
+			sources: ["Sources/iOS/**", "Sources/SharedUI/**", "Sources/Shared/**"],
 			dependencies: [
 				.project(target: "KeyManageDomain", path: "../Core/Domain"),
 				.project(target: "KeyManageData", path: "../Core/Data"),
@@ -90,6 +81,17 @@ let project = Project(
 			infoPlist: .default,
 			sources: ["UITests/iOS/**"],
 			dependencies: [.target(name: "KeyManageIOS")]
+		),
+		// macOS 앱도 같은 흐름을 로컬 백엔드(localhost:8080)에 붙여 확인한다 (domain-migration-plan 12.5 macOS 전환)
+		.target(
+			name: "KeyManageMacUITests",
+			destinations: [.mac],
+			product: .uiTests,
+			bundleId: "com.keymanage.macos.uitests",
+			deploymentTargets: .macOS("14.0"),
+			infoPlist: .default,
+			sources: ["UITests/macOS/**"],
+			dependencies: [.target(name: "KeyManageMac")]
 		)
 	]
 )

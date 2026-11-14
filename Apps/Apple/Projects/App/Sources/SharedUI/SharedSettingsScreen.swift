@@ -113,7 +113,7 @@ private struct SharedSettingsContent: View {
 					SharedTextInput(title: AccountNoticesKt.ACCOUNT_DELETION_PHRASE, value: state.deletionPhrase) {
 						screen.send(SettingsViewActionEditDeletionPhrase(value: $0.precomposedStringWithCanonicalMapping))
 					}
-					.textInputAutocapitalization(.never)
+					.sharedNoAutocapitalization()
 					.autocorrectionDisabled()
 					.accessibilityIdentifier("deletionPhraseField")
 				}
@@ -303,7 +303,7 @@ private struct SharedSettingsDialog<Fields: View>: View {
 				.padding(20)
 			}
 			.navigationTitle(title)
-			.navigationBarTitleDisplayMode(.inline)
+			.sharedInlineNavigationTitle()
 			.toolbar {
 				ToolbarItem(placement: .cancellationAction) {
 					Button(cancelTitle) { screen.send(SettingsViewActionCancelModal.shared) }

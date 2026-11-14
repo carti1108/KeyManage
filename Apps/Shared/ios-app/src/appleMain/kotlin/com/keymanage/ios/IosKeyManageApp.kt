@@ -35,8 +35,8 @@ import platform.Foundation.NSUserDefaults
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock
 
-// iOS 진입점 (domain-migration-plan 12.3의 2단계, carti ADR-0006). 세션과 플랫폼 포트로 공유 RIB 트리를 만들고,
-// Swift 앱 수명주기(백그라운드·앞으로 옴·조작)를 세션 배선에 넘긴다. 웹 WebKeyManageApp과 같은 자리다.
+// iOS·macOS 진입점 (domain-migration-plan 12.3의 2단계·12.5 macOS 전환, carti ADR-0006). 이름은 iOS에서 시작한 그대로 둔다. 세션과 플랫폼 포트로 공유 RIB 트리를 만들고,
+// Swift 앱 수명주기(백그라운드·앞으로 옴·조작. macOS는 비활성도 백그라운드로 넘긴다)를 세션 배선에 넘긴다. 웹 WebKeyManageApp과 같은 자리다.
 // 모든 호출은 메인 스레드에서 한다
 
 /** 로컬 개발 서버. Swift 앱(URLSessionAuthNetworkClient)이 쓰던 주소의 출처다 */
@@ -120,13 +120,14 @@ class IosKeyManageApp internal constructor(
 
     companion object {
         /**
-         * UI 테스트가 같은 상태에서 시작하도록 이 기기의 볼트 기록과 자동 잠금 설정을 지운다.
+         * UI 테스트가 같은 상태에서 시작하도록 이 기기의 볼트 기록, 자동 잠금 설정, 생체 해제 키체인 항목과 표시를 지운다.
          * 앱은 디버그 빌드에서 실행 인자 `-resetForUITests`가 있을 때만 [create] 전에 부른다
          */
         @Throws(Exception::class)
         fun resetForUITests() {
             runBlocking { FileDeviceStore.inApplicationSupport().clear() }
             NSUserDefaults.standardUserDefaults.removeObjectForKey(AUTO_LOCK_DEFAULTS_KEY)
+            KeychainBiometricUnlock().forgetAll()
         }
 
         /**
@@ -157,7 +158,7 @@ class IosKeyManageApp internal constructor(
             val session = buildSession(serverOrigin, scope)
             val clock = Clock.System
             val scheduler = CoroutineScheduler(scope)
-            val burner = ClipboardBurner(PasteboardClipboardWriter(), clock, scheduler, scope)
+            val burner = ClipboardBurner(systemClipboardWriter(), clock, scheduler, scope)
             val network = NetworkStatus()
             val wiring = AppLifecycleWiring(
                 session = VaultLifecycleSession(session),

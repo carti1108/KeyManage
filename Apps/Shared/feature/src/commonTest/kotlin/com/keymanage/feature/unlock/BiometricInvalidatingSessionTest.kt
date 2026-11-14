@@ -66,6 +66,50 @@ class BiometricInvalidatingSessionTest {
     }
 
     @Test
+    fun sessionExpiryWhileLockedForgetsKey() {
+        session.watchSignOut()
+        inner.current = SessionState.SignedOut
+
+        inner.syncListeners.toList().forEach { it(SessionExpiredException()) }
+
+        assertEquals(listOf("user@test.com"), biometric.forgotten)
+    }
+
+    @Test
+    fun signOutSeenThroughRemoteChangeForgetsLastAccountOnce() {
+        session.watchSignOut()
+        inner.current = SessionState.Locked("user@test.com", false)
+        inner.unlockListeners.toList().forEach { it() }
+        inner.current = SessionState.SignedOut
+
+        inner.remoteListeners.toList().forEach { it() }
+        inner.lockListeners.toList().forEach { it() }
+
+        assertEquals(listOf("user@test.com"), biometric.forgotten)
+    }
+
+    @Test
+    fun lockWithoutSignOutKeepsKey() {
+        session.watchSignOut()
+
+        inner.lockListeners.toList().forEach { it() }
+
+        assertTrue(biometric.forgotten.isEmpty())
+    }
+
+    @Test
+    fun stoppedWatchIgnoresSignOut() {
+        val stop = session.watchSignOut()
+        stop()
+        inner.current = SessionState.SignedOut
+
+        inner.syncListeners.toList().forEach { it(SessionExpiredException()) }
+
+        assertTrue(biometric.forgotten.isEmpty())
+        assertTrue(inner.remoteListeners.isEmpty() && inner.lockListeners.isEmpty() && inner.unlockListeners.isEmpty() && inner.syncListeners.isEmpty())
+    }
+
+    @Test
     fun signedOutSessionHasNoKeyToForget() = runTest {
         inner.current = SessionState.SignedOut
 
@@ -121,10 +165,20 @@ private class InvalidationFakeSession : SessionPort {
     override suspend fun exportBackup(now: Instant, calendar: LocalCalendar): BackupFile = unused()
     override suspend fun restoreBackup(backup: VaultBackup, password: String, now: Instant): Int = unused()
     override suspend fun pendingOnDevice(): Boolean = unused()
-    override fun onRemoteChange(listener: () -> Unit): () -> Unit = unused()
-    override fun onLock(listener: () -> Unit): () -> Unit = unused()
-    override fun onUnlock(listener: () -> Unit): () -> Unit = unused()
-    override fun onSyncChange(listener: SyncChangeListener): () -> Unit = unused()
+    val remoteListeners = mutableListOf<() -> Unit>()
+    val lockListeners = mutableListOf<() -> Unit>()
+    val unlockListeners = mutableListOf<() -> Unit>()
+    val syncListeners = mutableListOf<SyncChangeListener>()
+
+    override fun onRemoteChange(listener: () -> Unit): () -> Unit = subscribe(remoteListeners, listener)
+    override fun onLock(listener: () -> Unit): () -> Unit = subscribe(lockListeners, listener)
+    override fun onUnlock(listener: () -> Unit): () -> Unit = subscribe(unlockListeners, listener)
+    override fun onSyncChange(listener: SyncChangeListener): () -> Unit = subscribe(syncListeners, listener)
+
+    private fun <T> subscribe(list: MutableList<T>, listener: T): () -> Unit {
+        list += listener
+        return { list -= listener }
+    }
 
     private fun unused(): Nothing = throw UnsupportedOperationException("무효화 장식이 부르지 않는 세션 기능")
 }

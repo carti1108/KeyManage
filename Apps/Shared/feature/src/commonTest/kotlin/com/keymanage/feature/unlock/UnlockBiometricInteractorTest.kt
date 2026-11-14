@@ -288,6 +288,23 @@ class UnlockBiometricInteractorTest {
     }
 
     @Test
+    fun keyRecalledAfterDetachIsWiped() {
+        biometric.enroll("user@test.com", STORED_KEY, now)
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        biometric.recallGate = gate
+        biometricTest { mount ->
+            send(UnlockViewAction.UnlockWithBiometrics)
+            mount.unmount()
+
+            gate.complete(Unit)
+            runCurrent()
+
+            assertTrue(session.keyUnlocks.isEmpty())
+            assertTrue(biometric.lastRecalled!!.all { it == 0.toByte() })
+        }
+    }
+
+    @Test
     fun cancellingBiometricRollbackWipesKey() {
         biometric.enroll("user@test.com", STORED_KEY, now)
         biometricTest {
@@ -340,6 +357,9 @@ private class FakeBiometricUnlock : BiometricUnlock {
     var rememberFailure: Exception? = null
     var recalls = 0
     var lastRecalled: ByteArray? = null
+
+    /** 설정하면 recall이 이 값이 끝날 때까지 기다린다. 취소돼도 키를 돌려주는 플랫폼 프롬프트를 흉내 낸다 */
+    var recallGate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
     val remembered = mutableListOf<Remembered>()
     val forgotten = mutableListOf<String>()
     private val stored = mutableMapOf<String, Pair<ByteArray, Instant>>()
@@ -360,6 +380,7 @@ private class FakeBiometricUnlock : BiometricUnlock {
 
     override suspend fun recall(email: String): BiometricRecall {
         recalls += 1
+        recallGate?.let { gate -> kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { gate.await() } }
         recall?.let { return it }
         val copy = stored[email]?.first?.copyOf() ?: return BiometricRecall.Invalidated
         lastRecalled = copy

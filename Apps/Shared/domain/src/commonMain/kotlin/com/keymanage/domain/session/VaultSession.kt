@@ -116,10 +116,12 @@ class VaultSession(private val deps: VaultSessionDeps) : RestoreTarget {
             if (failure != null && !isTransientSyncError(failure) && ctx.epoch == startedAt) notifySync(ctx, failure)
         }
         keys.authHash.fill(0)
-        ensureCurrentOrRevoke(ctx, startedAt, if (locked.accessToken == null) accessToken else null)
-        // 받은 토큰은 되돌림 확인으로 잠긴 채 끝나도 남겨, 다시 풀 때 또 로그인하지 않게 한다
-        if (locked.accessToken == null && accessToken != null) ctx.account = locked.copy(accessToken = accessToken)
-        val offline = openUnlocked(locked, keys.encryptionKey, data, accessToken, startedAt, acceptRollback)
+        val offline = wipingOnFailure(keys.encryptionKey) {
+            ensureCurrentOrRevoke(ctx, startedAt, if (locked.accessToken == null) accessToken else null)
+            // 받은 토큰은 되돌림 확인으로 잠긴 채 끝나도 남겨, 다시 풀 때 또 로그인하지 않게 한다
+            if (locked.accessToken == null && accessToken != null) ctx.account = locked.copy(accessToken = accessToken)
+            openUnlocked(locked, keys.encryptionKey, data, accessToken, startedAt, acceptRollback)
+        }
         return UnlockResult(offline, if (exportUnlockKey) exportKey(keys.encryptionKey) else null)
     }
 
@@ -140,8 +142,22 @@ class VaultSession(private val deps: VaultSessionDeps) : RestoreTarget {
             key.bytes.fill(0)
             throw StaleUnlockKeyException()
         }
-        ensureCurrent(ctx, startedAt)
-        return UnlockResult(openUnlocked(locked, key, data, locked.accessToken, startedAt, acceptRollback))
+        return UnlockResult(
+            wipingOnFailure(key) {
+                ensureCurrent(ctx, startedAt)
+                openUnlocked(locked, key, data, locked.accessToken, startedAt, acceptRollback)
+            },
+        )
+    }
+
+    /** 열지 못하고 끝나면(되돌림 확인·취소·오류) 세션에 넘기지 못한 [key]를 지운다. 연 뒤에는 세션 동기화가 키를 쓴다 */
+    private inline fun <T> wipingOnFailure(key: EncryptionKey, block: () -> T): T {
+        var opened = false
+        try {
+            return block().also { opened = true }
+        } finally {
+            if (!opened) key.bytes.fill(0)
+        }
     }
 
     /** 잠금 해제 앞 공통 확인. 이미 열려 있으면 null */

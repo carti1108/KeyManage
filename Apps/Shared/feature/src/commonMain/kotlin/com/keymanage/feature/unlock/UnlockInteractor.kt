@@ -16,6 +16,7 @@ import com.keymanage.feature.messages.sendsToSignIn
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
 
@@ -144,6 +145,11 @@ class UnlockInteractor(
             }
             when (recall) {
                 is BiometricRecall.Key -> {
+                    // 인증 중에 이 RIB이 내려갔으면(취소) 꺼낸 키를 쓰지 않고 지운다
+                    if (!this.isActive) {
+                        recall.bytes.fill(0)
+                        return@launch
+                    }
                     update { copy(isLoading = false) }
                     unlockWithKey(recall.bytes, acceptRollback = false)
                 }
