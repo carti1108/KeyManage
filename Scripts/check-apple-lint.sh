@@ -43,7 +43,8 @@ if [ -z "$PYTHON" ]; then
 fi
 
 # 4~5. KeyManage 도메인 보안 불변식 정적 린트 실행
-PYTHONIOENCODING=utf-8 "$PYTHON" - "$ROOT_DIR" <<'PY'
+PY_ROOT_DIR="$(cygpath -m "${ROOT_DIR}" 2>/dev/null || printf "%s" "${ROOT_DIR}")"
+PYTHONIOENCODING=utf-8 "$PYTHON" - "${PY_ROOT_DIR}" <<'PY'
 import glob
 import os
 import re
@@ -111,6 +112,25 @@ for lock_dir in existing_lock_dirs:
                     violations.append(
                         f"[규칙5: 생체 복호화 우회 금지] {rel(path)}:{idx} — unlockWithBiometrics는 반드시 비옵셔널 복호화 키(*Key: Data)를 인자로 받아 볼트 복호화를 검증해야 합니다."
                     )
+
+# 6. 디자인 토큰 리터럴 금지: Feature 화면 코드는 간격·모서리 숫자를 직접 쓰지 않는다 (ADR-0025 결정 7)
+literal_patterns = [
+    re.compile(r"(?<![A-Za-z])spacing:\s*[1-9][0-9.]*"),
+    re.compile(r"\.padding\(\s*(?:\.[A-Za-z]+\s*,\s*)?[0-9][0-9.]*\s*\)"),
+    re.compile(r"(?<![A-Za-z])cornerRadius(?::\s*|\(\s*)[0-9][0-9.]*"),
+]
+features_dir = os.path.join(projects_dir, "Features")
+for path in glob.glob(os.path.join(features_dir, "**", "*.swift"), recursive=True):
+    norm = path.replace(os.sep, "/")
+    if "/Tests/" in norm or "/Testing/" in norm:
+        continue
+    with open(path, encoding="utf-8") as f:
+        lines = strip_comments(f.read()).splitlines()
+    for idx, line in enumerate(lines, start=1):
+        if any(p.search(line) for p in literal_patterns):
+            violations.append(
+                f"[규칙6: 디자인 토큰 리터럴 금지] {rel(path)}:{idx} — 간격·모서리 숫자 대신 DesignToken.Spacing·DesignToken.Radius를 쓰세요."
+            )
 
 if violations:
     print("KeyManage 도메인 보안 불변식 린트 위반 발견:")

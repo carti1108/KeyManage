@@ -95,7 +95,7 @@ public struct KMPasswordField: View {
     }
 
     public var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: DesignToken.Spacing.space2) {
             if engine.isSecured {
                 SecureField(placeholder, text: $text)
                     .textFieldStyle(.plain)
@@ -130,12 +130,12 @@ public struct KMPasswordField: View {
                 .accessibilityLabel("비밀번호 복사")
             }
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, DesignToken.Spacing.space3)
         .frame(height: 40)
         .background(DesignToken.View.card)
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .clipShape(RoundedRectangle(cornerRadius: DesignToken.Radius.sm))
         .overlay(
-            RoundedRectangle(cornerRadius: 6)
+            RoundedRectangle(cornerRadius: DesignToken.Radius.sm)
                 .stroke(DesignToken.View.input, lineWidth: 1)
         )
 #if os(macOS)

@@ -12,7 +12,7 @@ struct VaultListView: View {
 	var body: some View {
 		VStack(spacing: 0) {
 			if viewModel.state.hasPendingSync || viewModel.state.isOffline {
-				HStack(spacing: 8) {
+				HStack(spacing: DesignToken.Spacing.space2) {
 					Image(systemName: "wifi.slash")
 						.foregroundColor(.orange)
 					Text(VaultSyncStrings.offlineWarningMessage)
@@ -20,8 +20,8 @@ struct VaultListView: View {
 						.foregroundColor(DesignToken.View.foreground)
 					Spacer()
 				}
-				.padding(.horizontal, 16)
-				.padding(.vertical, 8)
+				.padding(.horizontal, DesignToken.Spacing.space4)
+				.padding(.vertical, DesignToken.Spacing.space2)
 				.background(Color.orange.opacity(0.12))
 			}
 
@@ -104,13 +104,13 @@ struct VaultListView: View {
 				emptyStateView
 			} else {
 				ScrollView {
-					LazyVStack(spacing: 12) {
+					LazyVStack(spacing: DesignToken.Spacing.space3) {
 						ForEach(viewModel.state.items, id: \.id) { item in
 							itemCard(item)
 						}
 					}
 					.padding(.horizontal)
-					.padding(.vertical, 8)
+					.padding(.vertical, DesignToken.Spacing.space2)
 				}
 				.refreshable {
 					await viewModel.triggerSync()
@@ -143,7 +143,7 @@ struct VaultListView: View {
 	}
 
 	private var legacyEmptyStateView: some View {
-		VStack(spacing: 12) {
+		VStack(spacing: DesignToken.Spacing.space3) {
 			Spacer()
 			Image(systemName: "tray")
 				.font(.system(size: 44))
@@ -156,7 +156,7 @@ struct VaultListView: View {
 					viewModel.request(action: .startCreatingItem)
 				}
 				.buttonStyle(.borderedProminent)
-				.padding(.top, 4)
+				.padding(.top, DesignToken.Spacing.space1)
 			}
 			Spacer()
 		}
@@ -167,7 +167,7 @@ struct VaultListView: View {
 
 	private func itemCard(_ item: VaultItem) -> some View {
 		KMCard(padding: .md) {
-			VStack(alignment: .leading, spacing: 10) {
+			VStack(alignment: .leading, spacing: DesignToken.Spacing.space3) {
 				HStack {
 					Text(item.serviceName)
 						.font(.headline.bold())
@@ -221,7 +221,7 @@ struct VaultListView: View {
 
 				// Password row
 				HStack {
-					HStack(spacing: 6) {
+					HStack(spacing: DesignToken.Spacing.space2) {
 						Image(systemName: "key.fill")
 							.foregroundColor(DesignToken.View.mutedForeground)
 
@@ -273,7 +273,7 @@ struct VaultListView: View {
 	private var itemFormModalView: some View {
 		modalNavigationContainer {
 			ScrollView {
-				VStack(spacing: 20) {
+				VStack(spacing: DesignToken.Spacing.space5) {
 					if let error = viewModel.state.formErrorMessage {
 						Text(error)
 							.font(.footnote)
@@ -292,14 +292,14 @@ struct VaultListView: View {
 								Text("이 항목 삭제")
 							}
 							.frame(maxWidth: .infinity)
-							.padding(.vertical, 10)
+							.padding(.vertical, DesignToken.Spacing.space3)
 						}
 						.buttonStyle(.bordered)
 						.tint(.red)
-						.padding(.top, 8)
+						.padding(.top, DesignToken.Spacing.space2)
 					}
 				}
-				.padding(20)
+				.padding(DesignToken.Spacing.space5)
 			}
 			.navigationTitle(viewModel.state.editingItem == nil ? "새 볼트 항목" : "항목 수정")
 			#if os(iOS)
@@ -357,7 +357,7 @@ struct VaultListView: View {
 	}
 
 	private var itemFormFieldsView: some View {
-		VStack(spacing: 12) {
+		VStack(spacing: DesignToken.Spacing.space3) {
 			formInputField(
 				title: "서비스 이름 *",
 				text: Binding(
@@ -376,7 +376,7 @@ struct VaultListView: View {
 				placeholder: "사용자 아이디 또는 이메일"
 			)
 
-			VStack(alignment: .leading, spacing: 4) {
+			VStack(alignment: .leading, spacing: DesignToken.Spacing.space1) {
 				HStack {
 					Text("비밀번호")
 						.font(.caption.bold())
@@ -444,18 +444,18 @@ struct VaultListView: View {
 		text: Binding<String>,
 		placeholder: String
 	) -> some View {
-		VStack(alignment: .leading, spacing: 4) {
+		VStack(alignment: .leading, spacing: DesignToken.Spacing.space1) {
 			Text(title)
 				.font(.caption.bold())
 				.foregroundColor(DesignToken.View.foreground)
 
 			TextField(placeholder, text: text)
 				.textFieldStyle(.plain)
-				.padding(8)
+				.padding(DesignToken.Spacing.space2)
 				.background(DesignToken.View.card)
-				.cornerRadius(6)
+				.cornerRadius(DesignToken.Radius.sm)
 				.overlay(
-					RoundedRectangle(cornerRadius: 6)
+					RoundedRectangle(cornerRadius: DesignToken.Radius.sm)
 						.stroke(DesignToken.View.border, lineWidth: 1)
 				)
 		}
@@ -464,18 +464,18 @@ struct VaultListView: View {
 	// MARK: - Toast View
 
 	private func toastView(_ message: String) -> some View {
-		HStack(spacing: 8) {
+		HStack(spacing: DesignToken.Spacing.space2) {
 			Image(systemName: "checkmark.circle.fill")
 				.foregroundColor(.green)
 			Text(message)
 				.font(.footnote.bold())
 				.foregroundColor(.white)
 		}
-		.padding(.horizontal, 16)
-		.padding(.vertical, 10)
+		.padding(.horizontal, DesignToken.Spacing.space4)
+		.padding(.vertical, DesignToken.Spacing.space3)
 		.background(Color.black.opacity(0.85))
-		.cornerRadius(20)
-		.padding(.bottom, 16)
+		.clipShape(Capsule())
+		.padding(.bottom, DesignToken.Spacing.space4)
 		.shadow(radius: 4)
 	}
 }
