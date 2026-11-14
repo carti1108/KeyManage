@@ -87,3 +87,4 @@
 | 079 | 2026-11-14 | [Apple 화면 간격·모서리 리터럴을 토큰으로 교체하고 금지 게이트 추가](079-apple-spacing-radius-tokens.md) |
 | 080 | 2026-11-14 | [Apple 화면 색상 리터럴을 의미 토큰으로 교체하고 금지 게이트 추가](080-apple-color-tokens.md) |
 | 081 | 2026-11-14 | [웹 화면 간격·색 리터럴을 토큰으로 맞추고 검사 스크립트 추가](081-web-design-literal-gate.md) |
+| 082 | 2026-11-14 | [타이포그래피 역할 토큰 도입과 웹·Apple 적용](082-typography-role-tokens.md) |

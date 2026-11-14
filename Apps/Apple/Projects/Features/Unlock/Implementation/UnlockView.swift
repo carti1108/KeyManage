@@ -30,7 +30,7 @@ struct UnlockView: View {
 	var body: some View {
 		VStack(spacing: DesignToken.Spacing.space6) {
 			Text(VaultLockUIStrings.lockedTitle)
-				.font(.title2.bold())
+				.font(DesignToken.Typography.title.weight(.bold))
 				.foregroundColor(DesignToken.View.foreground)
 				.accessibilityAddTraits(.isHeader)
 
@@ -47,7 +47,7 @@ struct UnlockView: View {
 
 					if let errorMessage = viewModel.state.errorMessage, !errorMessage.isEmpty {
 						Text(errorMessage)
-							.font(.footnote)
+							.font(DesignToken.Typography.caption)
 							.foregroundColor(DesignToken.View.destructive)
 							.accessibilityLabel("오류 안내: \(errorMessage)")
 					}

@@ -29,7 +29,7 @@ export function ConfirmPrompt({ title, body, confirmLabel, cancelLabel = '취소
       role="alertdialog"
       aria-labelledby={titleId}
       aria-describedby={bodyId}
-      className={cn('flex flex-col gap-1 rounded-md border px-3 py-2 text-sm', TONE_CLASSES[tone].box)}
+      className={cn('flex flex-col gap-1 rounded-md border px-3 py-2 text-label', TONE_CLASSES[tone].box)}
     >
       <p id={titleId} className="font-semibold">
         {title}

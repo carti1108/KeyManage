@@ -32,12 +32,12 @@ struct PasswordGeneratorView: View {
 		KMCard {
 			VStack(alignment: .leading, spacing: DesignToken.Spacing.space4) {
 				Text("생성된 비밀번호")
-					.font(.headline)
+					.font(DesignToken.Typography.heading)
 					.foregroundColor(DesignToken.View.foreground)
 
 				HStack {
 					Text(viewModel.state.generatedPassword.isEmpty ? "비밀번호를 생성 중입니다..." : viewModel.state.generatedPassword)
-						.font(.system(.title3, design: .monospaced))
+						.font(DesignToken.Typography.titleMono)
 						.bold()
 						.foregroundColor(DesignToken.View.primary)
 						.lineLimit(2)
@@ -75,13 +75,13 @@ struct PasswordGeneratorView: View {
 			VStack(alignment: .leading, spacing: DesignToken.Spacing.space4) {
 				HStack {
 					Text("보안 강도")
-						.font(.headline)
+						.font(DesignToken.Typography.heading)
 						.foregroundColor(DesignToken.View.foreground)
 
 					Spacer()
 
 					Text(viewModel.state.securityLevel.title)
-						.font(.caption.bold())
+						.font(DesignToken.Typography.caption.weight(.bold))
 						.padding(.horizontal, DesignToken.Spacing.space2)
 						.padding(.vertical, DesignToken.Spacing.space1)
 						.background(scoreColor(for: viewModel.state.securityLevel).opacity(0.15))
@@ -89,7 +89,7 @@ struct PasswordGeneratorView: View {
 						.cornerRadius(DesignToken.Radius.sm)
 
 					Text("\(viewModel.state.score)점 / 100점")
-						.font(.subheadline.bold())
+						.font(DesignToken.Typography.label.weight(.bold))
 						.foregroundColor(DesignToken.View.mutedForeground)
 				}
 
@@ -110,13 +110,13 @@ struct PasswordGeneratorView: View {
 				// 안내 및 경고 문구
 				if viewModel.state.securityLevel == .danger {
 					Text(EntropyScorer.warningMessage)
-						.font(.footnote)
+						.font(DesignToken.Typography.caption)
 						.foregroundColor(DesignToken.View.destructive)
 				}
 
 				if let notice = viewModel.state.sequentialDigitsNotice {
 					Text(notice)
-						.font(.footnote)
+						.font(DesignToken.Typography.caption)
 						.foregroundColor(DesignToken.View.destructive)
 				}
 			}
@@ -128,18 +128,18 @@ struct PasswordGeneratorView: View {
 		KMCard {
 			VStack(alignment: .leading, spacing: DesignToken.Spacing.space5) {
 				Text("생성 옵션")
-					.font(.headline)
+					.font(DesignToken.Typography.heading)
 					.foregroundColor(DesignToken.View.foreground)
 
 				// 길이 슬라이더
 				VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
 					HStack {
 						Text("비밀번호 길이")
-							.font(.subheadline)
+							.font(DesignToken.Typography.label)
 							.foregroundColor(DesignToken.View.foreground)
 						Spacer()
 						Text("\(Int(viewModel.state.length))자")
-							.font(.subheadline.bold())
+							.font(DesignToken.Typography.label.weight(.bold))
 							.foregroundColor(DesignToken.View.primary)
 					}
 
@@ -163,9 +163,9 @@ struct PasswordGeneratorView: View {
 					)) {
 						VStack(alignment: .leading) {
 							Text("대문자 (A-Z)")
-								.font(.subheadline)
+								.font(DesignToken.Typography.label)
 							Text("ABC...XYZ")
-								.font(.caption)
+								.font(DesignToken.Typography.caption)
 								.foregroundColor(DesignToken.View.mutedForeground)
 						}
 					}
@@ -176,9 +176,9 @@ struct PasswordGeneratorView: View {
 					)) {
 						VStack(alignment: .leading) {
 							Text("소문자 (a-z)")
-								.font(.subheadline)
+								.font(DesignToken.Typography.label)
 							Text("abc...xyz")
-								.font(.caption)
+								.font(DesignToken.Typography.caption)
 								.foregroundColor(DesignToken.View.mutedForeground)
 						}
 					}
@@ -189,9 +189,9 @@ struct PasswordGeneratorView: View {
 					)) {
 						VStack(alignment: .leading) {
 							Text("숫자 (0-9)")
-								.font(.subheadline)
+								.font(DesignToken.Typography.label)
 							Text("0123456789")
-								.font(.caption)
+								.font(DesignToken.Typography.caption)
 								.foregroundColor(DesignToken.View.mutedForeground)
 						}
 					}
@@ -202,9 +202,9 @@ struct PasswordGeneratorView: View {
 					)) {
 						VStack(alignment: .leading) {
 							Text("특수문자")
-								.font(.subheadline)
+								.font(DesignToken.Typography.label)
 							Text("!@#$%^&*()_+-=[]{}|;:,.<>?")
-								.font(.caption)
+								.font(DesignToken.Typography.caption)
 								.foregroundColor(DesignToken.View.mutedForeground)
 						}
 					}
@@ -229,7 +229,7 @@ struct PasswordGeneratorView: View {
 
 	private func toastOverlay(_ message: String) -> some View {
 		Text(message)
-			.font(.footnote)
+			.font(DesignToken.Typography.caption)
 			.foregroundColor(DesignToken.View.primaryForeground)
 			.padding(.horizontal, DesignToken.Spacing.space4)
 			.padding(.vertical, DesignToken.Spacing.space3)

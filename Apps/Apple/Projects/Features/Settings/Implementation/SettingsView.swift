@@ -64,12 +64,12 @@ struct SettingsView: View {
 		KMCard {
 			VStack(alignment: .leading, spacing: DesignToken.Spacing.space4) {
 				Text("보안 설정")
-					.font(.headline)
+					.font(DesignToken.Typography.heading)
 					.foregroundColor(DesignToken.View.foreground)
 
 				VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
 					Text("자동 잠금 시간")
-						.font(.subheadline)
+						.font(DesignToken.Typography.label)
 						.foregroundColor(DesignToken.View.mutedForeground)
 
 					Picker("자동 잠금 시간", selection: Binding(
@@ -91,16 +91,16 @@ struct SettingsView: View {
 		KMCard {
 			VStack(alignment: .leading, spacing: DesignToken.Spacing.space4) {
 				Text("백업 및 복원")
-					.font(.headline)
+					.font(DesignToken.Typography.heading)
 					.foregroundColor(DesignToken.View.foreground)
 
 				VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
 					Text(KeyManageBackupStrings.exportTitle)
-						.font(.subheadline)
+						.font(DesignToken.Typography.label)
 						.foregroundColor(DesignToken.View.foreground)
 
 					Text(KeyManageBackupStrings.exportDescription)
-						.font(.footnote)
+						.font(DesignToken.Typography.caption)
 						.foregroundColor(DesignToken.View.mutedForeground)
 						.fixedSize(horizontal: false, vertical: true)
 
@@ -115,11 +115,11 @@ struct SettingsView: View {
 
 				VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
 					Text(KeyManageBackupStrings.restoreTitle)
-						.font(.subheadline)
+						.font(DesignToken.Typography.label)
 						.foregroundColor(DesignToken.View.foreground)
 
 					Text(KeyManageBackupStrings.restoreDescription)
-						.font(.footnote)
+						.font(DesignToken.Typography.caption)
 						.foregroundColor(DesignToken.View.mutedForeground)
 						.fixedSize(horizontal: false, vertical: true)
 
@@ -138,16 +138,16 @@ struct SettingsView: View {
 		KMCard {
 			VStack(alignment: .leading, spacing: DesignToken.Spacing.space4) {
 				Text("마스터 비밀번호")
-					.font(.headline)
+					.font(DesignToken.Typography.heading)
 					.foregroundColor(DesignToken.View.foreground)
 
 				VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
 					Text(MasterPasswordChangeStrings.noticeTitle)
-						.font(.subheadline)
+						.font(DesignToken.Typography.label)
 						.foregroundColor(DesignToken.View.foreground)
 
 					Text(MasterPasswordChangeStrings.noticeBody)
-						.font(.footnote)
+						.font(DesignToken.Typography.caption)
 						.foregroundColor(DesignToken.View.mutedForeground)
 						.fixedSize(horizontal: false, vertical: true)
 
@@ -166,7 +166,7 @@ struct SettingsView: View {
 		KMCard {
 			VStack(alignment: .leading, spacing: DesignToken.Spacing.space4) {
 				Text("계정")
-					.font(.headline)
+					.font(DesignToken.Typography.heading)
 					.foregroundColor(DesignToken.View.foreground)
 
 				HStack(spacing: DesignToken.Spacing.space3) {
@@ -194,7 +194,7 @@ struct SettingsView: View {
 	private var changePasswordModalView: some View {
 		VStack(spacing: DesignToken.Spacing.space5) {
 			Text(MasterPasswordChangeStrings.noticeTitle)
-				.font(.title2)
+				.font(DesignToken.Typography.title)
 				.bold()
 				.foregroundColor(DesignToken.View.foreground)
 
@@ -212,12 +212,12 @@ struct SettingsView: View {
 		KMCard {
 			VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
 				Text("주의 사항")
-					.font(.caption)
+					.font(DesignToken.Typography.caption)
 					.bold()
 					.foregroundColor(DesignToken.View.foreground)
 
 				Text(MasterPasswordChangeStrings.noticeBody)
-					.font(.footnote)
+					.font(DesignToken.Typography.caption)
 					.foregroundColor(DesignToken.View.mutedForeground)
 					.fixedSize(horizontal: false, vertical: true)
 			}
@@ -277,19 +277,19 @@ struct SettingsView: View {
 	private var restoreModalView: some View {
 		VStack(spacing: DesignToken.Spacing.space5) {
 			Text(KeyManageBackupStrings.restoreTitle)
-				.font(.title2)
+				.font(DesignToken.Typography.title)
 				.bold()
 				.foregroundColor(DesignToken.View.foreground)
 
 			Text(KeyManageBackupStrings.restoreDescription)
-				.font(.footnote)
+				.font(DesignToken.Typography.caption)
 				.foregroundColor(DesignToken.View.mutedForeground)
 				.multilineTextAlignment(.center)
 				.padding(.horizontal)
 
 			if let fileName = selectedFileName {
 				Text("선택된 파일: \(fileName)")
-					.font(.caption)
+					.font(DesignToken.Typography.caption)
 					.foregroundColor(DesignToken.View.accent)
 			} else {
 				KMButton(
@@ -374,7 +374,7 @@ struct SettingsView: View {
 
 	private func toastOverlay(_ message: String) -> some View {
 		Text(message)
-			.font(.footnote)
+			.font(DesignToken.Typography.caption)
 			.foregroundColor(DesignToken.View.primaryForeground)
 			.padding(.horizontal, DesignToken.Spacing.space4)
 			.padding(.vertical, DesignToken.Spacing.space3)
@@ -397,12 +397,12 @@ struct SettingsView: View {
 								Image(systemName: "exclamationmark.triangle.fill")
 									.foregroundColor(DesignToken.View.destructive)
 								Text("되돌릴 수 없습니다")
-									.font(.headline)
+									.font(DesignToken.Typography.heading)
 									.foregroundColor(DesignToken.View.destructive)
 							}
 
 							Text(AccountDeletionStrings.preNoticeBody)
-								.font(.footnote)
+								.font(DesignToken.Typography.caption)
 								.foregroundColor(DesignToken.View.foreground)
 								.fixedSize(horizontal: false, vertical: true)
 						}
@@ -411,14 +411,14 @@ struct SettingsView: View {
 
 					if let error = viewModel.state.deleteAccountErrorMessage {
 						Text(error)
-							.font(.footnote)
+							.font(DesignToken.Typography.caption)
 							.foregroundColor(DesignToken.View.destructive)
 					}
 
 					// 마스터 비밀번호 입력
 					VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
 						Text("마스터 비밀번호")
-							.font(.subheadline.bold())
+							.font(DesignToken.Typography.label.weight(.bold))
 							.foregroundColor(DesignToken.View.foreground)
 
 						KMPasswordField(
@@ -431,7 +431,7 @@ struct SettingsView: View {
 					// 확인 문구 입력 ('계정 삭제')
 					VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
 						Text("확인 문구 입력")
-							.font(.subheadline.bold())
+							.font(DesignToken.Typography.label.weight(.bold))
 							.foregroundColor(DesignToken.View.foreground)
 
 						TextField(AccountDeletionStrings.confirmationPrompt, text: $viewModel.deleteAccountConfirmationInput)
@@ -449,7 +449,7 @@ struct SettingsView: View {
 							)
 
 						Text("진행하려면 '\(AccountDeletionStrings.confirmationPhrase)'를 정확히 입력해 주세요.")
-							.font(.caption)
+							.font(DesignToken.Typography.caption)
 							.foregroundColor(DesignToken.View.mutedForeground)
 					}
 				}
@@ -475,7 +475,7 @@ struct SettingsView: View {
 								.progressViewStyle(.circular)
 						} else {
 							Text(AccountDeletionStrings.deleteButtonTitle)
-								.font(.body.weight(.bold))
+								.font(DesignToken.Typography.body.weight(.bold))
 						}
 					}
 					.tint(DesignToken.View.destructive)

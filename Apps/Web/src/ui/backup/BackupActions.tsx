@@ -125,7 +125,7 @@ export function BackupActions({ readOnly, files, onExport, onRestore, now = () =
           ref={exportButton}
           variant="outline"
           size="sm"
-          className="w-full justify-start gap-2 h-7 px-2 text-xs font-normal whitespace-nowrap"
+          className="w-full justify-start gap-2 h-7 px-2 text-caption font-normal whitespace-nowrap"
           icon={<Download aria-hidden className="size-3.5 shrink-0" />}
           disabled={pending}
           onClick={() => start({ kind: 'confirmExport' })}
@@ -136,7 +136,7 @@ export function BackupActions({ readOnly, files, onExport, onRestore, now = () =
           ref={restoreButton}
           variant="outline"
           size="sm"
-          className="w-full justify-start gap-2 h-7 px-2 text-xs font-normal whitespace-nowrap"
+          className="w-full justify-start gap-2 h-7 px-2 text-caption font-normal whitespace-nowrap"
           icon={<ArchiveRestore aria-hidden className="size-3.5 shrink-0" />}
           disabled={readOnly || pending}
           onClick={() => void pickFile()}
@@ -191,10 +191,10 @@ function RestoreDialog({ password, passwordRef, onPasswordChange, pending, onSub
   return (
     <div role="dialog" aria-labelledby={titleId} aria-describedby={bodyId} className="rounded-md border border-border p-3" onKeyDown={onKeyDown}>
       <form className="flex flex-col gap-3" onSubmit={onSubmit} noValidate>
-        <p id={titleId} className="text-sm font-semibold">
+        <p id={titleId} className="text-label font-semibold">
           {RESTORE_DIALOG.title}
         </p>
-        <p id={bodyId} className="text-sm text-muted-foreground">
+        <p id={bodyId} className="text-label text-muted-foreground">
           {RESTORE_DIALOG.body}
         </p>
         <PasswordField
@@ -216,7 +216,7 @@ function RestoreDialog({ password, passwordRef, onPasswordChange, pending, onSub
           </Button>
         </div>
         {pending && (
-          <p role="status" className="text-sm text-muted-foreground">
+          <p role="status" className="text-label text-muted-foreground">
             {RESTORE_DIALOG.progress}
           </p>
         )}

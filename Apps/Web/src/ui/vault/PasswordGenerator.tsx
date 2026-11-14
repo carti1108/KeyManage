@@ -72,13 +72,13 @@ export function PasswordGenerator({ onUse, onClose, onCopy, generate = generateP
       {/* 옵션이 잘못된 동안에는 옵션과 맞지 않는 이전 결과를 보이지 않는다 */}
       {problem === null && (
         <>
-          <p data-testid="generated-password" className="break-all font-mono text-sm">
+          <p data-testid="generated-password" className="break-all font-mono text-label">
             {password}
           </p>
           <EntropyGauge score={scorePassword(password)} label="생성된 비밀번호 강도" />
         </>
       )}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-label">
         <label htmlFor={lengthId} className="flex items-center gap-2">
           길이
           <input

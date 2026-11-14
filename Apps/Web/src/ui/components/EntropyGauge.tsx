@@ -45,7 +45,7 @@ export function EntropyGauge({ score, showLabel = true, animated = true, label =
         />
       </div>
       {showLabel && (
-        <span aria-hidden className={cn('text-sm font-medium', level.text)}>
+        <span aria-hidden className={cn('text-label font-medium', level.text)}>
           {level.label}
         </span>
       )}

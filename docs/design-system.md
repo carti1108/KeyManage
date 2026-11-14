@@ -28,7 +28,7 @@
 | 컴포넌트 소유 | 무거운 외부 UI 라이브러리에 기대지 않는다. 컴포넌트를 각 프로젝트에 두고 직접 소유한다. 단, OS가 주는 시스템 컨트롤은 감싸서 쓴다. |
 | 흑백과 두 가지 신호색 | 바탕·표면·글자·주요 액션은 블랙과 화이트(무채색)로만 쓴다. 유채색은 안전(Emerald)과 위험(Red) 두 가지뿐이며, 이 의미와 색상 계열은 어느 플랫폼에서도 바꾸지 않는다. |
 | 이름은 공통, 값은 플랫폼 | 웹의 CSS 변수, Apple의 `Color`, Android의 `ColorScheme`은 같은 토큰 이름을 쓴다. 값은 2장의 브랜드 기준값을 기본으로 하되, 플랫폼 재질 위에서 대비를 맞추기 위해 조정할 수 있다. |
-| 리터럴 금지 | Feature·화면 코드에는 색상값과 간격·모서리 숫자를 직접 쓰지 않고 토큰을 쓴다. Apple은 `Scripts/check-apple-lint.sh` 규칙 6·7이 `Features/**`의 간격·모서리 숫자와 색상 리터럴을, 웹은 `Apps/Web/scripts/designLiterals.ts`(`npm run check`)가 척도 밖 간격(0, 1~6 단계 외), 기본 팔레트 색, 간격·모서리·색 임의 값(`p-[13px]`, `bg-[#fff]`)을 막는다. |
+| 리터럴 금지 | Feature·화면 코드에는 색상값, 간격·모서리 숫자, 기본 글자 크기를 직접 쓰지 않고 토큰을 쓴다. Apple은 `Scripts/check-apple-lint.sh` 규칙 6·7·8이 `Features/**`를, 웹은 `Apps/Web/scripts/designLiterals.ts`(`npm run check`)가 척도 밖 간격, 기본 팔레트 색, 기본 글자 크기, 간격·모서리·색 임의 값을 막는다. |
 
 ---
 
@@ -86,6 +86,21 @@
 | 글자 크기 | 시스템의 동적 글자 크기(Dynamic Type, 브라우저 확대, Android 글꼴 배율)를 따른다. 고정 픽셀 크기로 막지 않는다. |
 
 플랫폼별 글꼴 이름은 각 플랫폼의 `docs/platform-bindings.md`에 적는다.
+
+### 4.1. 글자 역할 토큰
+
+글자 크기는 역할 이름과 굵기만 공유하고, 실제 크기는 웹은 rem, Apple은 Dynamic Type 스타일로 매핑한다([ADR-0027](adr/ADR-0027-typography-role-tokens.md)). 값은 [`tokens.json`](../Tools/design-tokens/tokens.json)의 `typography` 그룹에 있다.
+
+| 역할 | 용도 | 웹 클래스 | Apple |
+| :--- | :--- | :--- | :--- |
+| `display` | 화면 대표 제목 | `text-display` | `DesignToken.Typography.display` |
+| `title` | 화면·시트 제목 | `text-title` | `.title` |
+| `heading` | 섹션 제목, 카드 제목 | `text-heading` | `.heading` |
+| `body` | 본문, 주요 버튼 | `text-body` | `.body` |
+| `label` | 기본 UI 글자, 입력·목록 | `text-label` | `.label` |
+| `caption` | 보조 설명, 오류·안내 문구 | `text-caption` | `.caption` |
+
+강조는 굵기만 바꾼다(웹 `font-semibold`, Apple `.weight(_:)`). 고정폭은 웹 `font-mono`, Apple `<역할>Mono`를 쓴다.
 
 ---
 

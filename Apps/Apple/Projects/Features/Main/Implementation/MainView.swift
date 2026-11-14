@@ -144,11 +144,11 @@ struct MainView: View {
 				.foregroundColor(DesignToken.View.primary)
 
 			Text(tab.title)
-				.font(.title2.bold())
+				.font(DesignToken.Typography.title.weight(.bold))
 				.foregroundColor(DesignToken.View.foreground)
 
 			Text("\(tab.title) 화면이 준비 중입니다.")
-				.font(.subheadline)
+				.font(DesignToken.Typography.label)
 				.foregroundColor(DesignToken.View.mutedForeground)
 		}
 		.frame(maxWidth: .infinity, maxHeight: .infinity)

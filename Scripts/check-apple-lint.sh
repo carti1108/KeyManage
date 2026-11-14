@@ -15,6 +15,7 @@
 #   5. 생체 인증 키 복호화 우회 차단: unlockWithBiometrics 시그니처에 복호화 키(*Key: Data) 비옵셔널 강제
 #   6. 디자인 토큰 리터럴 금지 (ADR-0025 결정 7): Features/** 소스의 spacing·padding·cornerRadius에 숫자 대신 DesignToken.Spacing·Radius 사용
 #   7. 색상 리터럴 금지 (ADR-0025 결정 7): Features/** 소스에 시스템 색(Color.red, .orange 등), Color(red:…), "#RRGGBB" 대신 DesignToken.View 사용
+#   8. 글꼴 리터럴 금지 (ADR-0027): Features/** 소스에 .font(.footnote) 같은 Dynamic Type 스타일 직접 사용, .system(size:) 대신 DesignToken.Typography 역할 사용 (SF Symbol 크기는 제외)
 
 set -euo pipefail
 
@@ -129,6 +130,13 @@ color_patterns = [
     re.compile(r"(?<![A-Za-z])Color\(\s*(?:red|white|hue|\.sRGB|\"|#)"),
     re.compile(r"\"#[0-9A-Fa-f]{6,8}\""),
 ]
+# 8. 글꼴 리터럴 금지 (ADR-0027): Dynamic Type 스타일 직접 사용과 고정 크기 대신 DesignToken.Typography 역할을 쓴다.
+#    SF Symbol 아이콘 크기(바로 앞 줄이 Image(systemName:))는 글자가 아니므로 제외한다
+font_patterns = [
+    re.compile(r"\.font\(\s*\.(?:largeTitle|title|title2|title3|headline|subheadline|body|callout|footnote|caption|caption2)\b"),
+    re.compile(r"\.font\(\s*\.system\("),
+    re.compile(r"\bFont\.system\("),
+]
 features_dir = os.path.join(projects_dir, "Features")
 for path in glob.glob(os.path.join(features_dir, "**", "*.swift"), recursive=True):
     norm = path.replace(os.sep, "/")
@@ -144,6 +152,11 @@ for path in glob.glob(os.path.join(features_dir, "**", "*.swift"), recursive=Tru
         if any(p.search(line) for p in color_patterns):
             violations.append(
                 f"[규칙7: 색상 리터럴 금지] {rel(path)}:{idx} — 시스템 색·16진 색 대신 DesignToken.View의 의미 토큰을 쓰세요."
+            )
+        previous = lines[idx - 2] if idx >= 2 else ""
+        if any(p.search(line) for p in font_patterns) and "Image(systemName:" not in previous:
+            violations.append(
+                f"[규칙8: 글꼴 리터럴 금지] {rel(path)}:{idx} — 시스템 글꼴 스타일·고정 크기 대신 DesignToken.Typography 역할을 쓰세요."
             )
 
 if violations:

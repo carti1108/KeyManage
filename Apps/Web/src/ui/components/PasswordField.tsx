@@ -57,7 +57,7 @@ export function PasswordField({
 
   return (
     <div className={cn('flex flex-col gap-2', className)}>
-      <label htmlFor={inputId} className="text-sm font-medium">
+      <label htmlFor={inputId} className="text-label font-medium">
         {label}
       </label>
       <div className="flex h-10 items-center gap-1 rounded-md border border-input bg-transparent pr-1 focus-within:ring-2 focus-within:ring-ring">
@@ -69,7 +69,7 @@ export function PasswordField({
           value={value}
           onChange={(e) => onTextChange(e.target.value)}
           placeholder={placeholder}
-          className="h-full min-w-0 flex-1 bg-transparent px-3 font-mono text-sm outline-none placeholder:font-sans placeholder:text-muted-foreground"
+          className="h-full min-w-0 flex-1 bg-transparent px-3 font-mono text-label outline-none placeholder:font-sans placeholder:text-muted-foreground"
           {...props}
           // 평문(type=text)일 때 제출하면 브라우저 입력 기록에 남으므로 자동완성을 끈다
           autoComplete={revealed ? 'off' : autoComplete}
