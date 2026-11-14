@@ -8,6 +8,7 @@
 | :--- | :--- |
 | `tokens.json` | 토큰 원본. W3C 디자인 토큰 형식(`$type`·`$value`)이고, 색은 `light`·`dark` 값을 함께 적는다. 글자 역할은 웹 rem 값과 Apple Dynamic Type 스타일(`$extensions`)을 함께 적는다([ADR-0027](../../docs/adr/ADR-0027-typography-role-tokens.md)) |
 | `generate.mjs` | Node 표준 라이브러리만 쓰는 생성기. 원본 형식을 검사한 뒤 아래 두 파일을 쓴다 |
+| `check-components.mjs` | 컴포넌트 계약 게이트. [디자인 시스템](../../docs/design-system.md) 6.1절 구현 현황 표와 웹 `components/`, Apple `DesignSystem/Sources`의 구현을 양방향으로 대조한다 |
 
 | 생성 파일 | 내용 |
 | :--- | :--- |
@@ -21,6 +22,7 @@
 ```bash
 node Tools/design-tokens/generate.mjs            # tokens.json을 고친 뒤 생성 파일 갱신
 node Tools/design-tokens/generate.mjs --check    # 생성 파일이 원본과 같은지만 검사
+node Tools/design-tokens/check-components.mjs    # 컴포넌트 계약 표와 구현이 맞는지 검사
 ```
 
 `--check`는 CI의 `design-tokens` 작업과 `.githooks/pre-commit`에서 돕니다. 원본이나 생성 파일을 고친 커밋에서 둘이 어긋나면 실패합니다.

@@ -119,7 +119,7 @@
 
 ## 6. 컴포넌트 계약
 
-각 컴포넌트의 이름, 역할, 속성, 상태, 접근성 규칙은 모든 플랫폼에 공통이다. 모양은 5장을 따른다. 괄호 안은 규격상 이름이고, 각 플랫폼의 실제 파일·타입 이름은 다를 수 있다.
+각 컴포넌트의 이름, 역할, 속성, 상태, 접근성 규칙은 모든 플랫폼에 공통이다. 모양은 5장을 따른다. 괄호 안은 Apple 규격상 이름이다. 플랫폼 구현 이름이 규격과 다르면 6.1절 표의 칸에 `구현 (`실제이름`)`처럼 적는다. `node Tools/design-tokens/check-components.mjs`가 이 표와 웹 `Apps/Web/src/ui/components/`, Apple `DesignSystem/Sources`의 구현을 양방향으로 대조한다(CI `design-tokens` 작업, pre-commit).
 
 ### 6.1. 구현 현황
 
@@ -127,12 +127,13 @@
 | :--- | :--- | :--- |
 | `Button` (`KMButton`) | 구현 | 구현 |
 | `Card` (`KMCard`) | 구현 | 구현 |
-| `PasswordInputField` (`KMPasswordField`) | 구현 | 구현 |
+| `PasswordInputField` (`KMPasswordField`) | 구현 (`PasswordField`) | 구현 |
 | `EntropyGauge` (`KMGaugeBar`) | 구현 | 구현 |
 | `BurnTimerBadge` (`KMBurnBadge`) | 구현 | 구현 |
 | `Alert` (`KMAlert`) | 구현 | 미구현 |
 | `ConfirmPrompt` (`KMConfirmPrompt`) | 구현 | 미구현(시스템 확인 대화상자 사용) |
 | `ModalDialog` (`KMModal`) | 구현 | 미구현(시스템 시트 사용) |
+| `TextField` (`KMTextField`) | 구현 | 미구현(시스템 `TextField` 사용) |
 
 ### 6.2. `Button` (`KMButton`)
 
@@ -252,6 +253,18 @@
 
 - 열려 있는 동안 초점은 대화상자 안에 머문다.
 - Apple은 시스템 시트(`sheet`)를, Android는 M3 다이얼로그나 바텀 시트를 쓴다.
+
+### 6.10. `TextField` (`KMTextField`)
+
+이름표가 붙은 한 줄 입력 필드다. 비밀번호가 아닌 값(이메일, 항목 이름 등)에 쓴다.
+
+| 속성 | 타입 | 기본값 | 뜻 |
+| :--- | :--- | :--- | :--- |
+| `label` | String | | 입력 필드 위에 보이는 이름표 |
+| `text` | String | | 입력값 바인딩 |
+
+- 접근성: 이름표를 입력 필드와 연결한다(웹 `label`의 `htmlFor`, Apple 시스템 `TextField`의 제목).
+- Apple은 시스템 `TextField`를 쓴다.
 
 ---
 
