@@ -44,6 +44,7 @@ internal suspend fun deleteAccount(ctx: SessionContext, password: String) {
         signOutDeleted(ctx)
     } finally {
         keys.authHash.fill(0)
+        keys.encryptionKey.retire()
     }
 }
 

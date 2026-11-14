@@ -102,7 +102,8 @@ fun assertWithinLimit(payload: EncryptedVaultPayload) {
 
 class VaultSync(
     private val api: VaultApi,
-    private val encryptionKey: EncryptionKey,
+    /** 세션이 잠금·로그아웃 때 은퇴시킨다. 아래 메서드는 끝날 때까지 이 키를 빌려 쓴다 (SEC-003) */
+    internal val encryptionKey: EncryptionKey,
     private val clock: Clock,
     private val revisionMemory: RevisionMemory,
 ) {
@@ -110,7 +111,21 @@ class VaultSync(
      * 서버에 보내지 않고 저장 전 검사와 암호화만 한다. 동기화 대기 내용을 기기에 남길 때 쓴다
      * @throws ReadOnlyVaultException, InvalidVaultDataException, VaultTooLargeException
      */
-    suspend fun seal(data: VaultData): EncryptedVaultPayload {
+    suspend fun seal(data: VaultData): EncryptedVaultPayload = encryptionKey.lease { sealChecked(data) }
+
+    /**
+     * 여러 단계(열기 → 다시 봉인)를 한 번 빌린 키로 한다. 그사이 잠겨도 원래 키로 끝낸 뒤 지운다 (SEC-003).
+     * [block] 안에서는 [KeyHeld]의 메서드만 쓴다(다시 빌리지 않는다)
+     */
+    internal suspend fun <T> holdingKey(block: suspend KeyHeld.() -> T): T = encryptionKey.lease { KeyHeld().block() }
+
+    internal inner class KeyHeld {
+        suspend fun open(payload: EncryptedVaultPayload): VaultData = parseVaultData(openVault(encryptionKey, payload))
+
+        suspend fun seal(data: VaultData): EncryptedVaultPayload = sealChecked(data)
+    }
+
+    private suspend fun sealChecked(data: VaultData): EncryptedVaultPayload {
         if (isReadOnly(data)) throw ReadOnlyVaultException()
         val json = encodeVaultData(data)
         // 규격에 맞지 않는 볼트를 올리면 모든 기기가 열지 못하게 되므로 보내기 전에 다시 확인한다
@@ -121,24 +136,27 @@ class VaultSync(
     }
 
     /** 백업 파일에 담을 볼트를 새 IV로 암호화한다. 읽기 전용 볼트도 내보내므로 저장 전 검사를 하지 않는다 (VLT-004) */
-    suspend fun sealBackup(data: VaultData): EncryptedVaultPayload = sealVault(encryptionKey, encodeVaultData(data))
+    suspend fun sealBackup(data: VaultData): EncryptedVaultPayload = encryptionKey.lease { sealVault(encryptionKey, encodeVaultData(data)) }
 
     /** 이 기기에 남은 암호화 볼트(다른 탭이 쓴 기기 기록 등)를 연다. 서버에 요청하지 않는다 */
-    suspend fun open(payload: EncryptedVaultPayload): VaultData = parseVaultData(openVault(encryptionKey, payload))
+    suspend fun open(payload: EncryptedVaultPayload): VaultData = encryptionKey.lease { parseVaultData(openVault(encryptionKey, payload)) }
 
     /** @param acceptRollback 되돌림 경고를 사용자가 확인했을 때만 true */
-    suspend fun load(acceptRollback: Boolean = false): SyncedVault = fetchRemote(acceptRollback)
+    suspend fun load(acceptRollback: Boolean = false): SyncedVault = encryptionKey.lease { fetchRemote(acceptRollback) }
 
     /**
      * [base]는 [data]를 만들 때 바탕으로 삼은 불러오기·저장 결과다. 충돌하면 서버 볼트와 병합해 다시 저장한다
      * @return 실제로 저장된(병합됐을 수 있는) 볼트
      */
-    suspend fun save(base: SyncedVault, data: VaultData): SyncedVault {
+    suspend fun save(base: SyncedVault, data: VaultData): SyncedVault = encryptionKey.lease { saveMerging(base, data) }
+
+    // 업로드와 충돌 병합의 재봉인까지 한 번 빌린 키로 한다. 잠금과 겹쳐도 원래 키로 끝낸다 (SEC-003, VLT-002)
+    private suspend fun saveMerging(base: SyncedVault, data: VaultData): SyncedVault {
         var expectedRevision = base.revision
         var toSave = data
         var attempt = 0
         while (true) {
-            val payload = seal(toSave)
+            val payload = sealChecked(toSave)
             try {
                 val revision = api.save(expectedRevision, payload)
                 // 서버는 저장할 때마다 1씩 올린다. 다른 값이면 되돌림 감지 기준을 흔들 수 있으므로 믿지 않는다

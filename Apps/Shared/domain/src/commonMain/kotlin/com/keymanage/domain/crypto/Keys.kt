@@ -24,8 +24,55 @@ class InvalidPasswordException(message: String) : IllegalArgumentException(messa
  * 바이트는 이 모듈 안에서만 읽고, 문자열로 찍어도 내용이 나오지 않는다
  */
 class EncryptionKey internal constructor(internal val bytes: ByteArray) {
+    /** 지금 이 키를 쓰는 작업 수. 세션처럼 한 스레드에서만 바꾼다 */
+    private var leases = 0
+
+    /** 은퇴하면 새로 빌려 쓸 수 없고, 마지막 작업이 끝나면 바이트를 지운다 */
+    private var retired = false
+
+    /** 바이트를 0으로 지웠는지 */
+    private var wiped = false
+
+    /**
+     * 작업 동안 키를 빌려 쓴다. 잠금(은퇴)과 겹쳐도 [block]이 끝날 때까지 바이트를 지우지 않는다 (SEC-003)
+     * @throws WipedKeyException 이미 은퇴했거나 지운 키
+     */
+    internal suspend fun <T> lease(block: suspend () -> T): T {
+        if (retired) throw WipedKeyException()
+        leases += 1
+        try {
+            return block()
+        } finally {
+            leases -= 1
+            if (retired && leases == 0) wipe()
+        }
+    }
+
+    /** 더는 쓰지 않는다. 빌려 쓰는 작업이 없으면 바로, 있으면 마지막 작업이 끝날 때 바이트를 0으로 지운다. 여러 번 불러도 된다 */
+    internal fun retire() {
+        retired = true
+        if (leases == 0) wipe()
+    }
+
+    private fun wipe() {
+        bytes.fill(0)
+        wiped = true
+    }
+
+    /**
+     * 암·복호화 직전 확인. 지운 키로 볼트를 봉인하지 않는다. 바이트 값(모두 0)으로는 판단하지 않는다(그것도 유효한 AES 키다)
+     * @throws WipedKeyException
+     */
+    internal fun usableBytes(): ByteArray {
+        if (wiped) throw WipedKeyException()
+        return bytes
+    }
+
     override fun toString(): String = "EncryptionKey(***)"
 }
+
+/** 잠금·로그아웃으로 지운 키를 쓰려 함. 지운 키로 봉인한 볼트를 만들지 않도록 멈춘다 (SEC-003) */
+class WipedKeyException : IllegalStateException("지운 암호화 키는 쓸 수 없음")
 
 /** AES-256 암호화 키 길이 */
 const val ENCRYPTION_KEY_BYTES: Int = 32
@@ -34,7 +81,7 @@ const val ENCRYPTION_KEY_BYTES: Int = 32
  * 생체 해제용으로 키 사본을 꺼낸다 (ADR-0027). 이 기기 전용·생체 보호 저장소에 넘기는 용도로만 쓰고, 받은 쪽이 넘긴 뒤 지운다.
  * 서버로 보내지 않는다(영지식 경계)
  */
-internal fun exportKey(key: EncryptionKey): ByteArray = key.bytes.copyOf()
+internal fun exportKey(key: EncryptionKey): ByteArray = key.usableBytes().copyOf()
 
 class DerivedKeys(
     val encryptionKey: EncryptionKey,

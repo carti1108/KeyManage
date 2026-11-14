@@ -69,7 +69,7 @@ suspend fun sealVaultWithFixedIvForTest(key: EncryptionKey, plaintext: String, i
 
 private suspend fun seal(key: EncryptionKey, plaintext: String, iv: ByteArray): EncryptedVaultPayload {
     require(iv.size == IV_BYTES) { "IV는 ${IV_BYTES}바이트여야 함" }
-    val sealed = VaultCipher.encrypt(key.bytes, plaintext.encodeToByteArray(), aadOf(VERSION, CIPHER), iv)
+    val sealed = VaultCipher.encrypt(key.usableBytes(), plaintext.encodeToByteArray(), aadOf(VERSION, CIPHER), iv)
     return EncryptedVaultPayload(VERSION, CIPHER, toBase64(sealed.iv), toBase64(sealed.ciphertext), toBase64(sealed.tag))
 }
 
@@ -86,7 +86,7 @@ suspend fun openVault(key: EncryptionKey, payload: EncryptedVaultPayload): Strin
     val tag = decodeField(payload.tag, "tag")
     if (iv.size != IV_BYTES || tag.size != TAG_BYTES) throw VaultDecryptException("IV 또는 태그 길이가 틀림")
     val plaintext = try {
-        VaultCipher.decrypt(key.bytes, SealedVault(iv, ciphertext, tag), aadOf(payload.version, payload.cipher))
+        VaultCipher.decrypt(key.usableBytes(), SealedVault(iv, ciphertext, tag), aadOf(payload.version, payload.cipher))
     } catch (error: VaultDecryptionException) {
         throw VaultDecryptException(cause = error)
     }

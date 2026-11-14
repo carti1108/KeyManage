@@ -26,6 +26,7 @@ internal suspend fun verifyPassword(password: String, target: Account): Verified
         return VerifiedPassword(keys, parseVaultData(openVault(keys.encryptionKey, target.payload)))
     } catch (error: Throwable) {
         keys.authHash.fill(0)
+        keys.encryptionKey.retire()
         if (error is VaultDecryptException) throw WrongMasterPasswordException()
         throw error
     }

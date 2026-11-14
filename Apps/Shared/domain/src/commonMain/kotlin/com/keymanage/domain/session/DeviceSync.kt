@@ -3,6 +3,7 @@ package com.keymanage.domain.session
 import com.keymanage.domain.auth.MasterPasswordChangedException
 import com.keymanage.domain.auth.UnlockKdf
 import com.keymanage.domain.crypto.VaultDecryptException
+import com.keymanage.domain.crypto.WipedKeyException
 import com.keymanage.domain.device.DeviceRecord
 import com.keymanage.domain.device.DeviceStorageException
 import com.keymanage.domain.device.Reconciliation
@@ -66,6 +67,9 @@ private suspend fun mergeLocked(ctx: SessionContext, theirs: DeviceRecord): Bool
         mergeRecordIntoMemory(mine, theirs, opened.sync)
     } catch (error: CancellationException) {
         throw error
+    } catch (error: WipedKeyException) {
+        // 합치기 전에 잠겨 키가 이미 지워졌다. 기기 저장 실패가 아니다. 잠긴 상태는 기록의 암호문만 쓴다 (SEC-003)
+        return false
     } catch (error: Exception) {
         if (error is VaultDecryptException) passwordChangedElsewhere(ctx, theirs) else ctx.device.markFailed(error)
         return false
@@ -195,6 +199,8 @@ internal suspend fun open(
     // 모든 계정이 볼트를 가지므로 여기서 payload가 없을 수 없다 (SEC-003)
     val payload = vault.payload ?: throw SessionStateException("볼트 없이 잠금을 해제할 수 없음")
     val wasLocked = ctx.unlocked == null
+    // 다른 키로 다시 열면(재연결 등) 옛 키는 더 쓰지 않는다
+    if (ctx.unlocked?.sync?.encryptionKey !== sync.encryptionKey) retireOpenKey(ctx)
     ctx.account = Account(email, accessToken, kdf, payload, vault.revision, pendingSync)
     ctx.unlocked = Unlocked(sync, vault, pendingSync)
     // 로그인·가입·잠금 해제·재연결로 연 계정을 이 탭이 기억한다

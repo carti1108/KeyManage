@@ -124,6 +124,11 @@ if os.path.isdir(web_src_dir):
         ("페이지 숨김(pageHidden) 및 유휴 자동 잠금 검증", r"pageHidden"),
         ("SEC-003 표준 비밀번호 오류 문구('마스터 비밀번호가 올바르지 않습니다.') 검증", r"마스터 비밀번호가 올바르지 않습니다\."),
         ("SEC-003 빈 볼트 준비 실패 문구('계정은 만들었지만 볼트를 준비하지 못했습니다. 다시 로그인해 주세요.') 검증", r"계정은 만들었지만 볼트를 준비하지 못했습니다\."),
+        # 잠기면 키가 메모리에서 지워짐: 공유 Kotlin 세션(웹·iOS·macOS 공통)의 키 바이트 0 어설션을 본다
+        ("SEC-003 키 지움 판정(모든 바이트 0) 정의 검증", r"fun EncryptionKey\.isZeroed\(\): Boolean = bytes\.all \{ it == 0\.toByte\(\) \}"),
+        ("SEC-003 잠그면 키 바이트 0 어설션 검증", r"session\.lock\(\)\s*assertIs<SessionState\.Locked>\(ctx\.session\.state\(\)\)\s*assertTrue\(recorder\.keys\.all \{ it\.isZeroed\(\) \}\)"),
+        ("SEC-003 잠금과 겹친 전송은 원래 키로 끝낸 뒤 지움 어설션 검증", r"assertFalse\(key\.isZeroed\(\)\)\s*release\(\)\s*saving\.await\(\)[\s\S]{0,300}?openVault\(original, uploaded\)[\s\S]{0,200}?assertTrue\(key\.isZeroed\(\)\)"),
+        ("SEC-003 지운 키로 봉인 거부 어설션 검증", r"key\.retire\(\)\s*assertFailsWith<WipedKeyException> \{ sealVault\(key"),
     ]
     check_invariants("Web", "3단계: 자동 잠금 및 인증(SEC-003)", web_tests, web_autolock_rules)
 

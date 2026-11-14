@@ -39,15 +39,23 @@ private fun sameData(a: VaultData, b: VaultData): Boolean = encodeVaultData(a) =
  * 둘 다 새 내용을 가졌으면 새로 암호화하고, 둘 중 하나라도 대기면 대기로 둔다
  * @throws com.keymanage.domain.crypto.VaultDecryptException 등 기록을 열지 못함(다른 탭에서 바뀐 비밀번호로 로그인함)
  */
-internal suspend fun mergeRecordIntoMemory(mine: MemoryVault, theirs: DeviceRecord, sync: VaultSync): MergedVault {
-    val theirData = if (mine.payload == theirs.payload) mine.data else sync.open(theirs.payload)
+internal suspend fun mergeRecordIntoMemory(
+    mine: MemoryVault,
+    theirs: DeviceRecord,
+    sync: VaultSync,
+    /** 테스트가 열기와 다시 봉인 사이에 잠금을 끼워 넣는 자리 */
+    afterOpen: () -> Unit = {},
+): MergedVault = sync.holdingKey {
+    // 열기부터 다시 봉인까지 한 번 빌린 키로 한다. 그사이 잠겨도 원래 키로 봉인한 결과를 남기고, 키는 끝난 뒤 지운다 (SEC-003)
+    val theirData = if (mine.payload == theirs.payload) mine.data else open(theirs.payload)
+    afterOpen()
     val merged = mergeVaults(mine.data, theirData)
     val revision = maxOf(mine.revision, theirs.revision)
     val lastSeenRevision = maxOf(mine.lastSeenRevision, theirs.lastSeenRevision)
     if (sameData(merged, theirData)) {
-        return MergedVault(theirData, theirs.payload, revision, lastSeenRevision, theirs.pendingSync, changed = !sameData(theirData, mine.data))
+        return@holdingKey MergedVault(theirData, theirs.payload, revision, lastSeenRevision, theirs.pendingSync, changed = !sameData(theirData, mine.data))
     }
-    if (sameData(merged, mine.data)) return MergedVault(mine.data, mine.payload, revision, lastSeenRevision, mine.pendingSync, changed = false)
+    if (sameData(merged, mine.data)) return@holdingKey MergedVault(mine.data, mine.payload, revision, lastSeenRevision, mine.pendingSync, changed = false)
     val fields = mergeSyncFields(SyncFields(mine.revision, mine.lastSeenRevision, mine.pendingSync), theirs)
-    return MergedVault(merged, sync.seal(merged), fields.revision, fields.lastSeenRevision, fields.pendingSync, changed = true)
+    MergedVault(merged, seal(merged), fields.revision, fields.lastSeenRevision, fields.pendingSync, changed = true)
 }

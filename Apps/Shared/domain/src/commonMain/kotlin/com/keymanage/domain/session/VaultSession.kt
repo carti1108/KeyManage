@@ -8,6 +8,7 @@ import com.keymanage.domain.backup.RestoreTarget
 import com.keymanage.domain.backup.VaultBackup
 import com.keymanage.domain.backup.createBackupFile
 import com.keymanage.domain.backup.restoreBackupInto
+import com.keymanage.domain.crypto.DerivedKeys
 import com.keymanage.domain.crypto.ENCRYPTION_KEY_BYTES
 import com.keymanage.domain.crypto.EncryptionKey
 import com.keymanage.domain.crypto.VaultDecryptException
@@ -102,21 +103,21 @@ class VaultSession(private val deps: VaultSessionDeps) : RestoreTarget {
         val locked = prepareUnlock() ?: return UnlockResult(offline = false)
         val startedAt = ctx.epoch
         val (keys, data) = verifyOrDetectChange(ctx, password, locked).let { it.keys to it.data }
-        // 토큰이 있으면 인증 해시가 필요 없어 바로 지운다. 없으면(기기 기록으로 다시 열었으면) 바로 로그인하고 지운다 (SEC-003, ADR-0019)
-        var accessToken = locked.accessToken
-        if (accessToken == null) {
-            val resumed = try {
-                resumeSession(ctx, locked, keys.authHash)
-            } finally {
-                keys.authHash.fill(0)
-            }
-            accessToken = resumed.accessToken
-            // 오프라인은 조용히 세션 없이 연다. 서버가 거절했으면(출처 거부 등) 사유를 알린다
-            val failure = resumed.failure
-            if (failure != null && !isTransientSyncError(failure) && ctx.epoch == startedAt) notifySync(ctx, failure)
-        }
-        keys.authHash.fill(0)
         val offline = wipingOnFailure(keys.encryptionKey) {
+            // 토큰이 있으면 인증 해시가 필요 없어 바로 지운다. 없으면(기기 기록으로 다시 열었으면) 바로 로그인하고 지운다 (SEC-003, ADR-0019)
+            var accessToken = locked.accessToken
+            if (accessToken == null) {
+                val resumed = try {
+                    resumeSession(ctx, locked, keys.authHash)
+                } finally {
+                    keys.authHash.fill(0)
+                }
+                accessToken = resumed.accessToken
+                // 오프라인은 조용히 세션 없이 연다. 서버가 거절했으면(출처 거부 등) 사유를 알린다
+                val failure = resumed.failure
+                if (failure != null && !isTransientSyncError(failure) && ctx.epoch == startedAt) notifySync(ctx, failure)
+            }
+            keys.authHash.fill(0)
             ensureCurrentOrRevoke(ctx, startedAt, if (locked.accessToken == null) accessToken else null)
             // 받은 토큰은 되돌림 확인으로 잠긴 채 끝나도 남겨, 다시 풀 때 또 로그인하지 않게 한다
             if (locked.accessToken == null && accessToken != null) ctx.account = locked.copy(accessToken = accessToken)
@@ -139,7 +140,7 @@ class VaultSession(private val deps: VaultSessionDeps) : RestoreTarget {
         val data = try {
             parseVaultData(openVault(key, locked.payload))
         } catch (error: VaultDecryptException) {
-            key.bytes.fill(0)
+            key.retire()
             throw StaleUnlockKeyException()
         }
         return UnlockResult(
@@ -150,13 +151,12 @@ class VaultSession(private val deps: VaultSessionDeps) : RestoreTarget {
         )
     }
 
-    /** 열지 못하고 끝나면(되돌림 확인·취소·오류) 세션에 넘기지 못한 [key]를 지운다. 연 뒤에는 세션 동기화가 키를 쓴다 */
+    /** 열지 못하고 끝나면(되돌림 확인·취소·오류) 세션에 넘기지 못한 [key]를 지운다. 연 뒤에는 세션이 잠금·로그아웃 때 지운다 (SEC-003) */
     private inline fun <T> wipingOnFailure(key: EncryptionKey, block: () -> T): T {
-        var opened = false
         try {
-            return block().also { opened = true }
+            return block()
         } finally {
-            if (!opened) key.bytes.fill(0)
+            retireUnlessOpen(ctx, key)
         }
     }
 
@@ -202,6 +202,11 @@ class VaultSession(private val deps: VaultSessionDeps) : RestoreTarget {
         if (current.accessToken != null) return
         val startedAt = ctx.epoch
         val keys = verifyOrDetectChange(ctx, password, current).keys
+        // 서버와 맞춰 새 키로 열면 옛 키는 open이 지운다. 열지 못하고 끝나면 새 키를 지운다 (SEC-003)
+        wipingOnFailure(keys.encryptionKey) { reconnectWith(current, keys, startedAt, acceptRollback) }
+    }
+
+    private suspend fun reconnectWith(current: Account, keys: DerivedKeys, startedAt: Int, acceptRollback: Boolean) {
         val resumed = try {
             resumeSession(ctx, current, keys.authHash)
         } finally {

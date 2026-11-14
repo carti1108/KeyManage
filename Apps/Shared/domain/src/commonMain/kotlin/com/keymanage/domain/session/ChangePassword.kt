@@ -87,7 +87,9 @@ internal suspend fun changeMasterPassword(ctx: SessionContext, currentPassword: 
         if (pending) pushQuietly(ctx)
     } finally {
         currentKeys.authHash.fill(0)
+        currentKeys.encryptionKey.retire()
         newKeys?.authHash?.fill(0)
+        newKeys?.encryptionKey?.let { retireUnlessOpen(ctx, it) }
     }
 }
 
@@ -158,7 +160,11 @@ private suspend fun adopt(ctx: SessionContext, changed: ChangedPassword, creds: 
     ctx.retryBlocked = false
     ctx.deps.revisionMemory.raise(changed.revision)
     ctx.account = Account(target.email, changed.accessToken, creds.kdf, vault.payload ?: creds.payload, changed.revision, pendingSync)
-    if (ctx.unlocked != null) ctx.unlocked = Unlocked(syncFor(ctx, changed.accessToken, creds.encryptionKey), vault, pendingSync)
+    if (ctx.unlocked != null) {
+        // 옛 키로 하던 작업은 끝난 뒤 옛 키를 지운다 (SEC-003)
+        retireOpenKey(ctx)
+        ctx.unlocked = Unlocked(syncFor(ctx, changed.accessToken, creds.encryptionKey), vault, pendingSync)
+    }
     // 옛 KDF 값의 기록은 이 탭이 덮어쓴다. 다른 탭은 바뀐 KDF 값을 보고 로그인 화면으로 간다 (SEC-003 규칙 11, ADR-WEB-001)
     val written = ctx.deps.tabs.lock.run(TabLockName.DEVICE) {
         val current = try {

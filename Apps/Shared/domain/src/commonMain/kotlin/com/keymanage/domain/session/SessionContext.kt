@@ -140,8 +140,19 @@ internal fun ensureCurrentOrRevoke(ctx: SessionContext, startedAt: Int, newToken
 
 internal suspend fun readDevice(ctx: SessionContext): DeviceRecord? = parseDeviceRecord(ctx.deps.deviceStore.load())
 
+/** 열린 상태의 키를 은퇴시킨다. 진행 중 작업이 없으면 바로, 있으면 끝날 때 바이트를 지운다 (SEC-003) */
+internal fun retireOpenKey(ctx: SessionContext) {
+    ctx.unlocked?.sync?.encryptionKey?.retire()
+}
+
+/** 세션이 가져가지 않은 [key](확인용·열지 못한 키)를 은퇴시킨다. 세션이 연 키는 잠금·로그아웃 때 지운다 */
+internal fun retireUnlessOpen(ctx: SessionContext, key: EncryptionKey) {
+    if (ctx.unlocked?.sync?.encryptionKey !== key) key.retire()
+}
+
 internal fun clear(ctx: SessionContext) {
     val wasUnlocked = ctx.unlocked != null
+    retireOpenKey(ctx)
     ctx.epoch += 1
     ctx.generation += 1
     ctx.account = null
@@ -189,6 +200,7 @@ internal fun expire(ctx: SessionContext): SessionExpiredException {
 internal fun lockThisTab(ctx: SessionContext): Boolean {
     ctx.epoch += 1
     if (ctx.unlocked == null) return false
+    retireOpenKey(ctx)
     ctx.unlocked = null
     notify(ctx.lockListeners)
     return true

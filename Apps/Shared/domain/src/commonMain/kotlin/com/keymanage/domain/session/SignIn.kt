@@ -114,6 +114,15 @@ internal fun beginSignIn(ctx: SessionContext, email: String): Int {
 
 /** 인증 결과로 기기 기록을 정리하고 서버 볼트를 준비해 연다 */
 internal suspend fun signIn(ctx: SessionContext, email: String, startedAt: Int, result: AuthResult, acceptRollback: Boolean) {
+    try {
+        openSignedIn(ctx, email, startedAt, result, acceptRollback)
+    } finally {
+        // 열지 못하고 끝났으면(되돌림 확인·취소·오류) 키를 지운다 (SEC-003)
+        retireUnlessOpen(ctx, result.encryptionKey)
+    }
+}
+
+private suspend fun openSignedIn(ctx: SessionContext, email: String, startedAt: Int, result: AuthResult, acceptRollback: Boolean) {
     ensureCurrent(ctx, startedAt)
     ctx.deps.tabs.lock.run(TabLockName.DEVICE) { prepareDeviceForSignIn(ctx, email, result.kdf, startedAt) }
     ensureCurrent(ctx, startedAt)
