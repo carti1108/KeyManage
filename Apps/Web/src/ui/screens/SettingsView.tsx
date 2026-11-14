@@ -27,7 +27,7 @@ function SettingsSection({ title, icon, children }: { title: string; icon: React
 
 function SettingsRow({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="flex items-center justify-between p-3.5 gap-4">
+    <div className="flex items-center justify-between p-4 gap-4">
       <span className="text-muted-foreground">{label}</span>
       <span className="font-medium text-foreground truncate">{value}</span>
     </div>

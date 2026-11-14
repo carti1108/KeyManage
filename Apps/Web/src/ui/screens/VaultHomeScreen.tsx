@@ -53,7 +53,7 @@ export function VaultHomeScreen({
               aria-selected={activeTab === 'vault'}
               onClick={() => setActiveTab('vault')}
               className={cn(
-                'flex flex-1 lg:flex-initial items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                'flex flex-1 lg:flex-initial items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                 activeTab === 'vault'
                   ? 'bg-accent text-accent-foreground font-semibold'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground',
@@ -68,7 +68,7 @@ export function VaultHomeScreen({
               aria-selected={activeTab === 'generator'}
               onClick={() => setActiveTab('generator')}
               className={cn(
-                'flex flex-1 lg:flex-initial items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                'flex flex-1 lg:flex-initial items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                 activeTab === 'generator'
                   ? 'bg-accent text-accent-foreground font-semibold'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground',
@@ -83,7 +83,7 @@ export function VaultHomeScreen({
               aria-selected={activeTab === 'settings'}
               onClick={() => setActiveTab('settings')}
               className={cn(
-                'flex flex-1 lg:flex-initial items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                'flex flex-1 lg:flex-initial items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                 activeTab === 'settings'
                   ? 'bg-accent text-accent-foreground font-semibold'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground',
@@ -98,7 +98,7 @@ export function VaultHomeScreen({
         {/* 사이드바 하단 (자동 잠금, 백업 및 잠금/로그아웃) */}
         <div className="flex flex-col gap-3 border-t border-border/80 pt-3">
           {sidebarFooter && (
-            <div className="rounded-lg bg-muted/30 p-2.5 flex flex-col gap-2.5 border border-border/50">
+            <div className="rounded-lg bg-muted/30 p-3 flex flex-col gap-3 border border-border/50">
               {sidebarFooter}
             </div>
           )}
@@ -126,7 +126,7 @@ export function VaultHomeScreen({
       </aside>
 
       {/* 2. 메인 콘텐츠 영역 */}
-      <main className="flex-1 flex flex-col min-w-0 p-4 md:p-6 lg:p-8 gap-4 overflow-y-auto">
+      <main className="flex-1 flex flex-col min-w-0 p-4 md:p-6 gap-4 overflow-y-auto">
         {offline && (
           <Alert variant="info">
             <WifiOff aria-hidden className="mr-1 inline size-4" />

@@ -18,6 +18,7 @@ extension DesignToken {
         public static let border = ColorToken(lightHex: "#E5E5E5", darkHex: "rgba(255, 255, 255, 0.12)")
         public static let input = ColorToken(lightHex: "#E5E5E5", darkHex: "#262626")
         public static let ring = ColorToken(lightHex: "#0A0A0A", darkHex: "#FAFAFA")
+        public static let overlay = ColorToken(lightHex: "rgba(0, 0, 0, 0.4)", darkHex: "rgba(0, 0, 0, 0.4)")
     }
 
     public enum Spacing {

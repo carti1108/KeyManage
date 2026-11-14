@@ -56,7 +56,7 @@ export function PasswordField({
     'inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
   return (
-    <div className={cn('flex flex-col gap-1.5', className)}>
+    <div className={cn('flex flex-col gap-2', className)}>
       <label htmlFor={inputId} className="text-sm font-medium">
         {label}
       </label>
