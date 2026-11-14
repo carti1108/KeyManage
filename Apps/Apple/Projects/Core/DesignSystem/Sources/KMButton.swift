@@ -74,7 +74,7 @@ public struct KMButton: View {
                 action()
             }
         }) {
-            HStack(spacing: 8) {
+            HStack(spacing: DesignToken.Spacing.space2) {
                 if isLoading {
                     ProgressView()
                         .controlSize(size == .sm ? .small : .regular)
@@ -91,9 +91,9 @@ public struct KMButton: View {
             .frame(height: size.height)
             .background(backgroundColor)
             .foregroundColor(foregroundColor)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .clipShape(RoundedRectangle(cornerRadius: DesignToken.Radius.sm))
             .overlay(
-                RoundedRectangle(cornerRadius: 6)
+                RoundedRectangle(cornerRadius: DesignToken.Radius.sm)
                     .stroke(borderColor, lineWidth: variant == .outline ? 1 : 0)
             )
             .opacity(isDisabled ? 0.5 : 1.0)

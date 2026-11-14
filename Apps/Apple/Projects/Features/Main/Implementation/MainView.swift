@@ -138,7 +138,7 @@ struct MainView: View {
 
 	@ViewBuilder
 	private func placeholder(for tab: MainTab) -> some View {
-		VStack(spacing: 16) {
+		VStack(spacing: DesignToken.Spacing.space4) {
 			Image(systemName: iconName(for: tab))
 				.font(.system(size: 48))
 				.foregroundColor(DesignToken.View.primary)

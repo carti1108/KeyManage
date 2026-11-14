@@ -84,3 +84,4 @@
 | 076 | 2026-11-12 | [가입·항목 저장 폼 비밀번호 강도 게이지와 다크모드 버튼 수정 (#122)](076-signup-strength-gauge.md) |
 | 077 | 2026-11-12 | [기기 암호를 끌 때 생체 해제 무효화 정책 추가](077-sec-003-passcode-off-biometric.md) |
 | 078 | 2026-11-14 | [디자인 토큰 JSON 원본과 웹·Apple 코드 생성기 도입](078-design-token-generation.md) |
+| 079 | 2026-11-14 | [Apple 화면 간격·모서리 리터럴을 토큰으로 교체하고 금지 게이트 추가](079-apple-spacing-radius-tokens.md) |
