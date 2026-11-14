@@ -10,7 +10,7 @@ export function TextField({ label, id, className, ...props }: TextFieldProps) {
   const fallbackId = useId()
   const inputId = id ?? fallbackId
   return (
-    <div className={cn('flex flex-col gap-1.5', className)}>
+    <div className={cn('flex flex-col gap-2', className)}>
       <label htmlFor={inputId} className="text-sm font-medium">
         {label}
       </label>

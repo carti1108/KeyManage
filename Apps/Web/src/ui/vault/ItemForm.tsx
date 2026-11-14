@@ -103,7 +103,7 @@ export function ItemForm({ item, onSubmit, onCancel }: ItemFormProps) {
           </Button>
         )}
         <TextField label="URL" type="url" value={url} onChange={(e) => setUrl(e.target.value)} {...PRIVATE_TEXT} />
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
           <label htmlFor={notesId} className="text-sm font-medium">
             메모
           </label>

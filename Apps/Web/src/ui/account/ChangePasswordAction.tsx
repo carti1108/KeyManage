@@ -95,8 +95,8 @@ export function ChangePasswordAction({ readOnly, offline, onChange }: ChangePass
   }
 
   return (
-    <section className="flex flex-col gap-1.5 w-full" aria-label="계정">
-      <div className="flex flex-col gap-1.5 w-full">
+    <section className="flex flex-col gap-2 w-full" aria-label="계정">
+      <div className="flex flex-col gap-2 w-full">
         <Button
           ref={openButton}
           variant="outline"

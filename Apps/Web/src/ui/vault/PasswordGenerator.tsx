@@ -97,7 +97,7 @@ export function PasswordGenerator({ onUse, onClose, onCopy, generate = generateP
           />
         </label>
         {CHARSETS.map(([key, label]) => (
-          <label key={key} className="flex items-center gap-1.5">
+          <label key={key} className="flex items-center gap-2">
             <input
               type="checkbox"
               checked={charsets[key]}

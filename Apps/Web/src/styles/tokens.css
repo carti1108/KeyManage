@@ -17,6 +17,7 @@
   --border: #e5e5e5;
   --input: #e5e5e5;
   --ring: #0a0a0a;
+  --overlay: rgba(0, 0, 0, 0.4);
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -42,6 +43,7 @@
   --border: rgba(255, 255, 255, 0.12);
   --input: #262626;
   --ring: #fafafa;
+  --overlay: rgba(0, 0, 0, 0.4);
 }
 
 @theme inline {
@@ -60,6 +62,7 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-overlay: var(--overlay);
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;

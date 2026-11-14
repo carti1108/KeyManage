@@ -119,8 +119,8 @@ export function BackupActions({ readOnly, files, onExport, onRestore, now = () =
   }
 
   return (
-    <section className="flex flex-col gap-1.5 w-full" aria-label="백업">
-      <div className="flex flex-col gap-1.5 w-full">
+    <section className="flex flex-col gap-2 w-full" aria-label="백업">
+      <div className="flex flex-col gap-2 w-full">
         <Button
           ref={exportButton}
           variant="outline"

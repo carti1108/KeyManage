@@ -22,7 +22,7 @@ const noop = () => {}
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-0.5">
+    <div className="flex flex-col gap-1">
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="break-words text-sm">{children}</dd>
     </div>

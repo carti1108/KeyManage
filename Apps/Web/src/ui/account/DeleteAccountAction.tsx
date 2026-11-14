@@ -87,7 +87,7 @@ export function DeleteAccountAction({ offline, onDelete }: DeleteAccountActionPr
   }
 
   return (
-    <section className="flex flex-col gap-1.5 w-full" aria-label="계정 삭제">
+    <section className="flex flex-col gap-2 w-full" aria-label="계정 삭제">
       <Button
         ref={openButton}
         variant="outline"
