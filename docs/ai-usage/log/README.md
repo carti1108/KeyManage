@@ -89,3 +89,5 @@
 | 081 | 2026-11-14 | [웹 화면 간격·색 리터럴을 토큰으로 맞추고 검사 스크립트 추가](081-web-design-literal-gate.md) |
 | 082 | 2026-11-14 | [타이포그래피 역할 토큰 도입과 웹·Apple 적용](082-typography-role-tokens.md) |
 | 083 | 2026-11-14 | [컴포넌트 계약 게이트 추가와 문서 어긋남 정정](083-component-contract-gate.md) |
+| 084 | 2026-11-15 | [Figma DS Builder를 tokens.json과 연결](084-figma-builder-tokens.md) |
+| 085 | 2026-11-15 | [DS Builder에 플랫폼별 화면 흐름(목업과 이동 화살표) 추가](085-figma-mockups-user-flow.md) |
