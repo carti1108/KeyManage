@@ -2,6 +2,8 @@
 // Builds the KeyManage design system, tokens, components, and screens in Figma.
 // Compatible with fresh empty Figma files (auto-creates variable collections).
 
+// 어떤 code.js가 실행됐는지 알림창에서 바로 구분하기 위한 표시
+const BUILD = 'tokens.json 연결판 (ADR-0026)';
 const LOG = [];
 const step = async (name, fn) => {
   try {
@@ -15,83 +17,218 @@ const step = async (name, fn) => {
 };
 
 // ==========================================
-// 1. Tokens & Color Definitions (shadcn/ui)
+// 1. Tokens (Tools/design-tokens/tokens.json에서 주입, ADR-0026)
 // ==========================================
-
-const PRIMITIVE_COLORS = [
-  ['slate/900', '#0F172A'],
-  ['slate/800', '#1E293B'],
-  ['slate/700', '#334155'],
-  ['slate/500', '#64748B'],
-  ['slate/400', '#94A3B8'],
-  ['slate/200', '#E2E8F0'],
-  ['slate/50', '#F8FAFC'],
-  ['sky/400', '#38BDF8'],
-  ['emerald/500', '#10B981'],
-  ['emerald/600', '#059669'],
-  ['red/500', '#EF4444'],
-  ['red/600', '#DC2626'],
-  ['white', '#FFFFFF'],
-  ['black', '#000000'],
-  ['border/subtle', '#FFFFFF14'], // rgba(255,255,255,0.08)
-];
-
-const SEMANTIC_COLORS = [
-  ['color/background', 'slate/900'],
-  ['color/foreground', 'slate/50'],
-  ['color/card', 'slate/800'],
-  ['color/card-foreground', 'slate/50'],
-  ['color/primary', 'sky/400'],
-  ['color/primary-foreground', 'slate/900'],
-  ['color/accent', 'emerald/500'],
-  ['color/accent-foreground', 'slate/900'],
-  ['color/destructive', 'red/500'],
-  ['color/destructive-foreground', 'white'],
-  ['color/muted', 'slate/800'],
-  ['color/muted-foreground', 'slate/400'],
-  ['color/border', 'border/subtle'],
-  ['color/input', 'slate/700'],
-  ['color/ring', 'sky/400'],
-];
-
-const TYPOGRAPHY_STYLES = {
-  'heading/large': { family: 'Inter', style: 'Bold', size: 32, lineHeight: 40 },
-  'heading/title': { family: 'Inter', style: 'Semi Bold', size: 20, lineHeight: 28 },
-  'body/medium': { family: 'Inter', style: 'Medium', size: 16, lineHeight: 24 },
-  'body/regular': { family: 'Inter', style: 'Regular', size: 16, lineHeight: 24 },
-  'password/mono': { family: 'Roboto Mono', style: 'Medium', size: 16, lineHeight: 24 },
-  'caption/small': { family: 'Inter', style: 'Regular', size: 12, lineHeight: 16 },
+// 아래 블록은 node Tools/design-tokens/generate.mjs가 다시 쓴다. 직접 고치지 않는다.
+// @generated:tokens:start
+const TOKENS = {
+  "colors": [
+    {
+      "name": "background",
+      "light": "#FFFFFF",
+      "dark": "#000000"
+    },
+    {
+      "name": "foreground",
+      "light": "#0A0A0A",
+      "dark": "#FAFAFA"
+    },
+    {
+      "name": "card",
+      "light": "#FFFFFF",
+      "dark": "#141414"
+    },
+    {
+      "name": "card-foreground",
+      "light": "#0A0A0A",
+      "dark": "#FAFAFA"
+    },
+    {
+      "name": "primary",
+      "light": "#0A0A0A",
+      "dark": "#FAFAFA"
+    },
+    {
+      "name": "primary-foreground",
+      "light": "#FFFFFF",
+      "dark": "#0A0A0A"
+    },
+    {
+      "name": "accent",
+      "light": "#059669",
+      "dark": "#10B981"
+    },
+    {
+      "name": "accent-foreground",
+      "light": "#FFFFFF",
+      "dark": "#0A0A0A"
+    },
+    {
+      "name": "muted",
+      "light": "#F5F5F5",
+      "dark": "#262626"
+    },
+    {
+      "name": "muted-foreground",
+      "light": "#737373",
+      "dark": "#A3A3A3"
+    },
+    {
+      "name": "destructive",
+      "light": "#DC2626",
+      "dark": "#EF4444"
+    },
+    {
+      "name": "destructive-foreground",
+      "light": "#FFFFFF",
+      "dark": "#FFFFFF"
+    },
+    {
+      "name": "border",
+      "light": "#E5E5E5",
+      "dark": "rgba(255, 255, 255, 0.12)"
+    },
+    {
+      "name": "input",
+      "light": "#E5E5E5",
+      "dark": "#262626"
+    },
+    {
+      "name": "ring",
+      "light": "#0A0A0A",
+      "dark": "#FAFAFA"
+    },
+    {
+      "name": "overlay",
+      "light": "rgba(0, 0, 0, 0.4)",
+      "dark": "rgba(0, 0, 0, 0.4)"
+    }
+  ],
+  "space": [
+    {
+      "key": "1",
+      "value": 4
+    },
+    {
+      "key": "2",
+      "value": 8
+    },
+    {
+      "key": "3",
+      "value": 12
+    },
+    {
+      "key": "4",
+      "value": 16
+    },
+    {
+      "key": "5",
+      "value": 20
+    },
+    {
+      "key": "6",
+      "value": 24
+    }
+  ],
+  "radius": [
+    {
+      "key": "sm",
+      "value": 6
+    },
+    {
+      "key": "md",
+      "value": 8
+    },
+    {
+      "key": "lg",
+      "value": 12
+    }
+  ],
+  "typography": [
+    {
+      "name": "display",
+      "fontSize": 1.5,
+      "lineHeight": 2,
+      "fontWeight": 700,
+      "textStyle": "largeTitle"
+    },
+    {
+      "name": "title",
+      "fontSize": 1.25,
+      "lineHeight": 1.75,
+      "fontWeight": 600,
+      "textStyle": "title2"
+    },
+    {
+      "name": "heading",
+      "fontSize": 1.125,
+      "lineHeight": 1.75,
+      "fontWeight": 600,
+      "textStyle": "headline"
+    },
+    {
+      "name": "body",
+      "fontSize": 1,
+      "lineHeight": 1.5,
+      "fontWeight": 400,
+      "textStyle": "body"
+    },
+    {
+      "name": "label",
+      "fontSize": 0.875,
+      "lineHeight": 1.25,
+      "fontWeight": 400,
+      "textStyle": "subheadline"
+    },
+    {
+      "name": "caption",
+      "fontSize": 0.75,
+      "lineHeight": 1,
+      "fontWeight": 400,
+      "textStyle": "footnote"
+    }
+  ]
 };
+// @generated:tokens:end
+
+// Figma 텍스트 스타일 글꼴: 웹은 시스템 산세리프, Apple은 SF Pro라 Figma에서는 Inter로 그린다(표현층, ADR-0025)
+const SANS = 'Inter';
+const MONO = 'Roboto Mono';
+const WEIGHT_STYLE = { 400: 'Regular', 500: 'Medium', 600: 'Semi Bold', 700: 'Bold' };
 
 let COL = {};
 let ALL_VARS = [];
 let TS = {};
 
-// Helper: Hex to Figma RGBA
-function hexToRgba(hex) {
-  const v = hex.slice(1);
+// Helper: #RRGGBB, #RRGGBBAA, rgba(r, g, b, a) -> Figma RGBA
+function hexToRgba(value) {
+  const rgba = value.match(/^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\s*\)$/);
+  if (rgba) return { r: rgba[1] / 255, g: rgba[2] / 255, b: rgba[3] / 255, a: Number(rgba[4]) };
+  const v = value.slice(1);
   const n = (i) => parseInt(v.slice(i, i + 2), 16) / 255;
   return { r: n(0), g: n(2), b: n(4), a: v.length === 8 ? parseInt(v.slice(6, 8), 16) / 255 : 1 };
 }
 
-function findVar(collection, name) {
-  return ALL_VARS.find((v) => v.variableCollectionId === COL[collection].id && v.name === name);
+function findVar(name) {
+  return ALL_VARS.find((v) => v.variableCollectionId === COL.id && v.name === name);
 }
 
-function ensureVariable(collection, name, type, value, scopes = []) {
-  let v = findVar(collection, name);
+// 모드별 값을 매번 다시 넣어 tokens.json 변경이 기존 파일에도 반영되게 한다
+function ensureVariable(name, type, values, scopes) {
+  let v = findVar(name);
   if (!v) {
-    v = figma.variables.createVariable(name, COL[collection], type);
-    v.setValueForMode(COL[collection].modes[0].modeId, value);
+    v = figma.variables.createVariable(name, COL, type);
     ALL_VARS.push(v);
   }
+  v.setValueForMode(MODES.light, values.light);
+  if (MODES.dark) v.setValueForMode(MODES.dark, values.dark);
   v.scopes = scopes;
   return v;
 }
 
 const V = (name) => {
-  const v = findVar('semantic', name);
-  if (!v) throw new Error(`semantic 변수 없음: ${name}`);
+  const v = findVar(name);
+  if (!v) throw new Error(`KeyManage 변수 없음: ${name}`);
   return v;
 };
 
@@ -99,48 +236,78 @@ const V = (name) => {
 // 2. Setup Variables and Text Styles
 // ==========================================
 
+let MODES = {};
+let DARK_COL = null;
+
+function ensureDarkVariable(name, value) {
+  let v = ALL_VARS.find((x) => x.variableCollectionId === DARK_COL.id && x.name === name);
+  if (!v) {
+    v = figma.variables.createVariable(name, DARK_COL, 'COLOR');
+    ALL_VARS.push(v);
+  }
+  v.setValueForMode(DARK_COL.modes[0].modeId, value);
+  v.scopes = ['ALL_FILLS', 'STROKE_COLOR'];
+}
+
 async function setupVariables() {
   const collections = await figma.variables.getLocalVariableCollectionsAsync();
-  let prim = collections.find((c) => c.name === 'primitive');
-  let sem = collections.find((c) => c.name === 'semantic');
-
-  if (!prim) prim = figma.variables.createVariableCollection('primitive');
-  if (!sem) sem = figma.variables.createVariableCollection('semantic');
-
-  COL = { primitive: prim, semantic: sem };
-  ALL_VARS = await figma.variables.getLocalVariablesAsync();
-
-  // Primitive 컬러 등록
-  for (const [name, hex] of PRIMITIVE_COLORS) {
-    ensureVariable('primitive', name, 'COLOR', hexToRgba(hex));
-  }
-
-  // Semantic 컬러 등록 (Primitive Alias)
-  for (const [name, target] of SEMANTIC_COLORS) {
-    const targetVar = findVar('primitive', target);
-    if (targetVar) {
-      const alias = { type: 'VARIABLE_ALIAS', id: targetVar.id };
-      ensureVariable('semantic', name, 'COLOR', alias);
+  COL = collections.find((c) => c.name === 'KeyManage') || figma.variables.createVariableCollection('KeyManage');
+  COL.renameMode(COL.modes[0].modeId, 'Light');
+  MODES = { light: COL.modes[0].modeId, dark: COL.modes[1] ? COL.modes[1].modeId : null };
+  if (!MODES.dark) {
+    try {
+      MODES.dark = COL.addMode('Dark');
+    } catch (error) {
+      // 무료(Starter) 플랜은 컬렉션당 모드가 하나뿐이다. Dark 값은 같은 이름으로 'KeyManage Dark' 컬렉션에 따로 둔다
+      DARK_COL = collections.find((c) => c.name === 'KeyManage Dark') || figma.variables.createVariableCollection('KeyManage Dark');
     }
   }
+  ALL_VARS = await figma.variables.getLocalVariablesAsync();
+
+  for (const c of TOKENS.colors) {
+    const name = `color/${c.name}`;
+    ensureVariable(name, 'COLOR', { light: hexToRgba(c.light), dark: hexToRgba(c.dark) }, ['ALL_FILLS', 'STROKE_COLOR']);
+    if (DARK_COL) ensureDarkVariable(name, hexToRgba(c.dark));
+  }
+  for (const s of TOKENS.space) ensureVariable(`space/${s.key}`, 'FLOAT', { light: s.value, dark: s.value }, ['GAP', 'WIDTH_HEIGHT']);
+  for (const r of TOKENS.radius) ensureVariable(`radius/${r.key}`, 'FLOAT', { light: r.value, dark: r.value }, ['CORNER_RADIUS']);
 }
 
 async function setupTextStyles() {
-  await figma.loadFontAsync({ family: 'Inter', style: 'Regular' });
-  await figma.loadFontAsync({ family: 'Inter', style: 'Medium' });
-  await figma.loadFontAsync({ family: 'Inter', style: 'Semi Bold' });
-  await figma.loadFontAsync({ family: 'Inter', style: 'Bold' });
-  await figma.loadFontAsync({ family: 'Roboto Mono', style: 'Medium' });
+  // 글꼴마다 굵기 이름 표기가 달라(Inter 'Semi Bold', Roboto Mono 'SemiBold') 후보를 차례로 시도하고,
+  // 실제로 불러온 이름을 쓴다. 해당 굵기가 없으면 더 가는 굵기로 내려간다
+  const loaded = {};
+  async function loadFont(family, weight) {
+    const key = `${family}:${weight}`;
+    if (key in loaded) return loaded[key];
+    const order = Object.keys(WEIGHT_STYLE).map(Number).filter((w) => w <= weight).reverse();
+    for (const w of order) {
+      for (const style of [WEIGHT_STYLE[w], WEIGHT_STYLE[w].replace(' ', '')]) {
+        try {
+          await figma.loadFontAsync({ family, style });
+          if (w !== weight) LOG.push(`${family} ${WEIGHT_STYLE[weight]} 대신 ${style} 사용`);
+          return (loaded[key] = style);
+        } catch (error) {
+          // 다음 후보를 시도한다
+        }
+      }
+    }
+    throw new Error(`${family} 글꼴을 불러올 수 없습니다`);
+  }
 
   const localStyles = await figma.getLocalTextStylesAsync();
-  for (const [name, spec] of Object.entries(TYPOGRAPHY_STYLES)) {
-    let ts = localStyles.find((s) => s.name === name);
-    if (!ts) ts = figma.createTextStyle();
-    ts.name = name;
-    ts.fontName = { family: spec.family, style: spec.style };
-    ts.fontSize = spec.size;
-    ts.lineHeight = { unit: 'PIXELS', value: spec.lineHeight };
-    TS[name] = ts.id;
+  for (const t of TOKENS.typography) {
+    for (const [suffix, family] of [['', SANS], ['-mono', MONO]]) {
+      const name = `typography/${t.name}${suffix}`;
+      let ts = localStyles.find((s) => s.name === name);
+      if (!ts) ts = figma.createTextStyle();
+      ts.name = name;
+      ts.fontName = { family, style: await loadFont(family, t.fontWeight) };
+      ts.fontSize = t.fontSize * 16;
+      ts.lineHeight = { unit: 'PIXELS', value: t.lineHeight * 16 };
+      ts.description = `웹 text-${t.name} · Apple DesignToken.Typography.${t.name}${suffix ? 'Mono' : ''} (${t.textStyle})`;
+      TS[name] = ts.id;
+    }
   }
 }
 
@@ -186,14 +353,17 @@ function createFrame(name, layoutMode = 'VERTICAL', padding = 16, gap = 12, radi
   return f;
 }
 
-function getOrCreatePage(name) {
+// manifest의 documentAccess가 dynamic-page라 페이지 내용을 읽기 전에 loadAsync가 필요하다.
+// 새로 만드는 노드가 이 페이지에 들어가도록 현재 페이지로 바꾼다
+async function getOrCreatePage(name) {
   let page = figma.root.children.find((p) => p.name === name);
   if (!page) {
     page = figma.createPage();
     page.name = name;
   }
-  // Clear existing page children
-  for (const child of page.children) child.remove();
+  await page.loadAsync();
+  for (const child of [...page.children]) child.remove();
+  await figma.setCurrentPageAsync(page);
   return page;
 }
 
@@ -202,19 +372,18 @@ function getOrCreatePage(name) {
 // ==========================================
 
 async function buildTokensPage() {
-  const page = getOrCreatePage('🎨 Tokens');
-  figma.currentPage = page;
+  const page = await getOrCreatePage('🎨 Tokens');
 
   const container = createFrame('Tokens Specimen Container', 'VERTICAL', 40, 40, 0, 'color/background');
   container.x = 0;
   container.y = 0;
 
-  const header = await createText('KeyManage Design Tokens (shadcn/ui)', 'heading/large', 'color/foreground');
+  const header = await createText('KeyManage Design Tokens (tokens.json)', 'typography/display', 'color/foreground');
   container.appendChild(header);
 
   // 1. Colors Section
   const colorSection = createFrame('Color Tokens Section', 'VERTICAL', 24, 16, 16, 'color/card');
-  const colorTitle = await createText('Semantic Color Tokens', 'heading/title', 'color/primary');
+  const colorTitle = await createText('Semantic Color Tokens', 'typography/title', 'color/primary');
   colorSection.appendChild(colorTitle);
 
   const grid = figma.createFrame();
@@ -226,7 +395,8 @@ async function buildTokensPage() {
   grid.fills = [];
   grid.resize(800, 300);
 
-  for (const [name, target] of SEMANTIC_COLORS) {
+  for (const token of TOKENS.colors) {
+    const name = `color/${token.name}`;
     const chip = figma.createFrame();
     chip.name = name;
     chip.layoutMode = 'VERTICAL';
@@ -248,9 +418,8 @@ async function buildTokensPage() {
     swatch.fills = [paint(name)];
     chip.appendChild(swatch);
 
-    const label = await createText(name.replace('color/', ''), 'body/medium', 'color/foreground');
-    const hex = PRIMITIVE_COLORS.find((p) => p[0] === target);
-    const subLabel = await createText(hex ? hex[1] : target, 'caption/small', 'color/muted-foreground');
+    const label = await createText(name.replace('color/', ''), 'typography/body', 'color/foreground');
+    const subLabel = await createText(`${token.light} / ${token.dark}`, 'typography/caption', 'color/muted-foreground');
     chip.appendChild(label);
     chip.appendChild(subLabel);
     grid.appendChild(chip);
@@ -261,10 +430,11 @@ async function buildTokensPage() {
 
   // 2. Typography Section
   const typeSection = createFrame('Typography Section', 'VERTICAL', 24, 20, 16, 'color/card');
-  const typeTitle = await createText('Typography Scale', 'heading/title', 'color/accent');
+  const typeTitle = await createText('Typography Scale', 'typography/title', 'color/accent');
   typeSection.appendChild(typeTitle);
 
-  for (const [name, spec] of Object.entries(TYPOGRAPHY_STYLES)) {
+  for (const spec of TOKENS.typography) {
+    const name = `typography/${spec.name}`;
     const row = figma.createFrame();
     row.layoutMode = 'HORIZONTAL';
     row.itemSpacing = 24;
@@ -272,7 +442,7 @@ async function buildTokensPage() {
     row.primaryAxisAlignItems = 'CENTER';
 
     const sample = await createText(`Aa · ${name}`, name, 'color/foreground');
-    const info = await createText(`${spec.family} ${spec.style} ${spec.size}px`, 'caption/small', 'color/muted-foreground');
+    const info = await createText(`${spec.fontSize * 16}px / ${spec.lineHeight * 16}px · ${spec.fontWeight} · Apple ${spec.textStyle}`, 'typography/caption', 'color/muted-foreground');
     row.appendChild(sample);
     row.appendChild(info);
     typeSection.appendChild(row);
@@ -286,18 +456,18 @@ async function buildTokensPage() {
 // ==========================================
 
 async function buildComponentsPage() {
-  const page = getOrCreatePage('🧩 Components');
+  const page = await getOrCreatePage('🧩 Components');
 
   const container = createFrame('Components Specimen Container', 'VERTICAL', 40, 40, 0, 'color/background');
   container.x = 0;
   container.y = 0;
 
-  const header = await createText('KeyManage Core 5 UI Components', 'heading/large', 'color/foreground');
+  const header = await createText('KeyManage Core 5 UI Components', 'typography/display', 'color/foreground');
   container.appendChild(header);
 
   // 1. Buttons (KMButton)
   const btnSection = createFrame('1. KMButton Variants', 'VERTICAL', 24, 16, 16, 'color/card');
-  btnSection.appendChild(await createText('Buttons (Primary / Outline / Destructive / Ghost)', 'heading/title', 'color/foreground'));
+  btnSection.appendChild(await createText('Buttons (Primary / Outline / Destructive / Ghost)', 'typography/title', 'color/foreground'));
 
   const btnRow = figma.createFrame();
   btnRow.layoutMode = 'HORIZONTAL';
@@ -307,7 +477,7 @@ async function buildComponentsPage() {
   // Primary
   const b1 = createFrame('KMButton [Primary]', 'HORIZONTAL', 16, 8, 8, 'color/primary');
   b1.paddingTop = 10; b1.paddingBottom = 10;
-  b1.appendChild(await createText('비밀번호 생성', 'body/medium', 'color/primary-foreground'));
+  b1.appendChild(await createText('비밀번호 생성', 'typography/body', 'color/primary-foreground'));
   btnRow.appendChild(b1);
 
   // Outline
@@ -315,19 +485,19 @@ async function buildComponentsPage() {
   b2.paddingTop = 10; b2.paddingBottom = 10;
   b2.strokes = [paint('color/border')];
   b2.strokeWeight = 1;
-  b2.appendChild(await createText('클립보드 복사', 'body/medium', 'color/foreground'));
+  b2.appendChild(await createText('클립보드 복사', 'typography/body', 'color/foreground'));
   btnRow.appendChild(b2);
 
   // Destructive
   const b3 = createFrame('KMButton [Destructive]', 'HORIZONTAL', 16, 8, 8, 'color/destructive');
   b3.paddingTop = 10; b3.paddingBottom = 10;
-  b3.appendChild(await createText('볼트 삭제', 'body/medium', 'color/destructive-foreground'));
+  b3.appendChild(await createText('볼트 삭제', 'typography/body', 'color/destructive-foreground'));
   btnRow.appendChild(b3);
 
   // Accent (Secure Action)
   const b4 = createFrame('KMButton [Accent Secure]', 'HORIZONTAL', 16, 8, 8, 'color/accent');
   b4.paddingTop = 10; b4.paddingBottom = 10;
-  b4.appendChild(await createText('볼트 잠금 해제', 'body/medium', 'color/accent-foreground'));
+  b4.appendChild(await createText('볼트 잠금 해제', 'typography/body', 'color/accent-foreground'));
   btnRow.appendChild(b4);
 
   btnSection.appendChild(btnRow);
@@ -335,7 +505,7 @@ async function buildComponentsPage() {
 
   // 2. KMPasswordField
   const passSection = createFrame('2. KMPasswordField', 'VERTICAL', 24, 16, 16, 'color/card');
-  passSection.appendChild(await createText('Password Input Field (Masked & Monospace)', 'heading/title', 'color/foreground'));
+  passSection.appendChild(await createText('Password Input Field (Masked & Monospace)', 'typography/title', 'color/foreground'));
 
   const field = createFrame('KMPasswordField [Container]', 'HORIZONTAL', 16, 12, 10, 'color/input');
   field.strokes = [paint('color/border')];
@@ -344,8 +514,8 @@ async function buildComponentsPage() {
   field.primaryAxisAlignItems = 'SPACE_BETWEEN';
   field.counterAxisAlignItems = 'CENTER';
 
-  const maskedText = await createText('••••••••••••••••', 'password/mono', 'color/foreground');
-  const actionText = await createText('보기 / 복사', 'caption/small', 'color/primary');
+  const maskedText = await createText('••••••••••••••••', 'typography/body-mono', 'color/foreground');
+  const actionText = await createText('보기 / 복사', 'typography/caption', 'color/primary');
   field.appendChild(maskedText);
   field.appendChild(actionText);
 
@@ -354,7 +524,7 @@ async function buildComponentsPage() {
 
   // 3. KMGaugeBar (Entropy Score)
   const gaugeSection = createFrame('3. KMGaugeBar', 'VERTICAL', 24, 16, 16, 'color/card');
-  gaugeSection.appendChild(await createText('Entropy Strength Gauge Bar (3-Tier Status)', 'heading/title', 'color/foreground'));
+  gaugeSection.appendChild(await createText('Entropy Strength Gauge Bar (3-Tier Status)', 'typography/title', 'color/foreground'));
 
   // Gauge 96 (Secure)
   const g1 = createFrame('Gauge 96 [Secure]', 'VERTICAL', 16, 8, 8, 'color/muted');
@@ -368,7 +538,7 @@ async function buildComponentsPage() {
   g1Fill.cornerRadius = 4;
   g1Fill.fills = [paint('color/accent')];
   g1Bar.appendChild(g1Fill);
-  g1.appendChild(await createText('초강력 비밀번호 · 96점', 'caption/small', 'color/accent'));
+  g1.appendChild(await createText('초강력 비밀번호 · 96점', 'typography/caption', 'color/accent'));
   g1.appendChild(g1Bar);
   gaugeSection.appendChild(g1);
 
@@ -384,7 +554,7 @@ async function buildComponentsPage() {
   g2Fill.cornerRadius = 4;
   g2Fill.fills = [paint('color/destructive')];
   g2Bar.appendChild(g2Fill);
-  g2.appendChild(await createText('취약한 비밀번호 · 38점', 'caption/small', 'color/destructive'));
+  g2.appendChild(await createText('취약한 비밀번호 · 38점', 'typography/caption', 'color/destructive'));
   g2.appendChild(g2Bar);
   gaugeSection.appendChild(g2);
 
@@ -392,18 +562,18 @@ async function buildComponentsPage() {
 
   // 4. KMBurnBadge
   const badgeSection = createFrame('4. KMBurnBadge', 'VERTICAL', 24, 16, 16, 'color/card');
-  badgeSection.appendChild(await createText('Auto-Burn Timer Badge (30 Seconds)', 'heading/title', 'color/foreground'));
+  badgeSection.appendChild(await createText('Auto-Burn Timer Badge (30 Seconds)', 'typography/title', 'color/foreground'));
 
   const badge = createFrame('KMBurnBadge [Badge]', 'HORIZONTAL', 12, 6, 14, 'color/destructive');
   badge.paddingTop = 6; badge.paddingBottom = 6;
-  badge.appendChild(await createText('⏱️ 30초 후 클립보드 자동 소각', 'caption/small', 'color/destructive-foreground'));
+  badge.appendChild(await createText('⏱️ 30초 후 클립보드 자동 소각', 'typography/caption', 'color/destructive-foreground'));
   badgeSection.appendChild(badge);
 
   container.appendChild(badgeSection);
 
   // 5. KMCard (Vault Account Item)
   const cardSection = createFrame('5. KMCard (Vault Item)', 'VERTICAL', 24, 16, 16, 'color/card');
-  cardSection.appendChild(await createText('Vault Credential Card', 'heading/title', 'color/foreground'));
+  cardSection.appendChild(await createText('Vault Credential Card', 'typography/title', 'color/foreground'));
 
   const vCard = createFrame('KMCard [Item]', 'VERTICAL', 16, 10, 12, 'color/muted');
   vCard.resize(400, 90);
@@ -415,189 +585,651 @@ async function buildComponentsPage() {
   topRow.fills = [];
   topRow.primaryAxisAlignItems = 'SPACE_BETWEEN';
   topRow.resize(368, 24);
-  topRow.appendChild(await createText('GitHub', 'heading/title', 'color/foreground'));
-  topRow.appendChild(await createText('96점 (안전)', 'caption/small', 'color/accent'));
+  topRow.appendChild(await createText('GitHub', 'typography/title', 'color/foreground'));
+  topRow.appendChild(await createText('96점 (안전)', 'typography/caption', 'color/accent'));
 
   vCard.appendChild(topRow);
-  vCard.appendChild(await createText('octocat@github.com', 'body/regular', 'color/muted-foreground'));
+  vCard.appendChild(await createText('octocat@github.com', 'typography/body', 'color/muted-foreground'));
 
   cardSection.appendChild(vCard);
   container.appendChild(cardSection);
 }
 
 // ==========================================
-// 6. Page 3: App Screens (iPhone 16 Pro)
+// 6. Page 3: 화면 흐름 (플랫폼별 목업 8단계 + 이동 화살표)
 // ==========================================
+// 같은 화면을 세 플랫폼 줄로 그린다. 의미(색·역할)는 토큰 변수를 쓰고, 모양(크기·모서리·내비게이션)은
+// 각 플랫폼 관례를 따른다(design-system.md 5.1절 🟥 항목). Flow Builder(flow/)의 그리기 방식을 옮겨 왔다.
+
+const FLOW_STEPS = [
+  { key: 'login', name: '로그인', path: '/login' },
+  { key: 'signup', name: '계정 만들기', path: '/signup' },
+  { key: 'unlock', name: '잠금 해제', path: '/unlock' },
+  { key: 'vault', name: '볼트', path: '/vault' },
+  { key: 'detail', name: '항목 상세', path: '/vault/github' },
+  { key: 'generator', name: '비밀번호 생성기', path: '/generator' },
+  { key: 'settings', name: '설정', path: '/settings' },
+  { key: 'delete', name: '계정 삭제 확인', path: '/settings/delete' },
+];
+// 행 사이에 이동 화살표가 뜰 자리(labelGap)를 둔다
+const MOCK = { phonePitch: 520, webPitch: 1400, originX: 0, labelY: 0, labelGap: 340, rowY: { i: 560, a: 1960, w: 3420 } };
+const PLATFORM_NAME = { i: 'iPhone', a: 'Android', w: 'Web' };
+// 한글 글리프가 있는 글꼴을 먼저 쓴다. 없으면 Inter로 내려간다
+let UI_FONT = { family: 'Noto Sans KR', regular: 'Regular', medium: 'Medium', bold: 'Bold' };
+let UI_MONO = { family: MONO, style: 'Regular' };
+// 기기 몸체·브라우저 창 색은 화면 밖 하드웨어 색이라 토큰이 아닌 고정값을 쓴다
+const HARDWARE = { body: '#1C1C1E', edge: '#3A3A3C', black: '#000000', chrome: '#E5E7EB', url: '#FFFFFF', dots: ['#FF5F57', '#FEBC2E', '#28C840'] };
+
+async function loadMockFonts() {
+  try {
+    for (const s of ['Regular', 'Medium', 'Bold']) await figma.loadFontAsync({ family: 'Noto Sans KR', style: s });
+  } catch (error) {
+    UI_FONT = { family: SANS, regular: 'Regular', medium: 'Medium', bold: 'Bold' };
+    for (const s of ['Regular', 'Medium', 'Bold']) await figma.loadFontAsync({ family: SANS, style: s });
+    LOG.push('Noto Sans KR이 없어 목업 글꼴을 Inter로 그렸습니다(한글이 깨질 수 있음)');
+  }
+  await figma.loadFontAsync({ family: UI_MONO.family, style: UI_MONO.style });
+}
+
+// ---------- 그리기 도우미 (색은 모두 토큰 변수) ----------
+// 지금 그리는 구역의 테마. 무료 플랜처럼 모드가 하나면 다크 구역은 'KeyManage Dark' 컬렉션 변수에 바인딩한다.
+// 모드를 쓸 수 있으면 라이트와 같은 변수를 쓰고 구역의 프레임에 Dark 모드를 지정한다(applyDarkMode)
+let THEME = 'light';
+let SHIFT = 0;
+const DARK_SHIFT = 4800;
+const rowY = (p) => MOCK.rowY[p] + SHIFT;
+function tok(key, opacity) {
+  const name = `color/${key}`;
+  const darkVar = THEME === 'dark' && DARK_COL ? ALL_VARS.find((v) => v.variableCollectionId === DARK_COL.id && v.name === name) : null;
+  const p = darkVar ? figma.variables.setBoundVariableForPaint({ type: 'SOLID', color: { r: 0, g: 0, b: 0 } }, 'color', darkVar) : paint(name);
+  return opacity == null ? p : Object.assign({}, p, { opacity });
+}
+function fill(node, key, opacity) { node.fills = [tok(key, opacity)]; }
+function stroke(node, key, opacity, weight) { node.strokes = [tok(key, opacity)]; node.strokeWeight = weight || 1; }
+function al(dir, gap) {
+  const f = figma.createFrame();
+  f.layoutMode = dir;
+  f.primaryAxisSizingMode = 'AUTO';
+  f.counterAxisSizingMode = 'AUTO';
+  f.itemSpacing = gap || 0;
+  f.fills = [];
+  f.clipsContent = false;
+  return f;
+}
+const col = (gap) => al('VERTICAL', gap);
+function row(gap) { const f = al('HORIZONTAL', gap); f.counterAxisAlignItems = 'CENTER'; return f; }
+function add(parent, child, fillWidth) {
+  parent.appendChild(child);
+  if (fillWidth) child.layoutSizingHorizontal = 'FILL';
+  return child;
+}
+function pad(f, h, v) { f.paddingLeft = h; f.paddingRight = h; f.paddingTop = v; f.paddingBottom = v; }
+function txt(chars, size, weight, color, width, mono) {
+  const t = figma.createText();
+  t.fontName = mono ? { family: UI_MONO.family, style: UI_MONO.style } : { family: UI_FONT.family, style: UI_FONT[weight || 'regular'] };
+  t.characters = chars;
+  t.fontSize = size;
+  fill(t, color || 'foreground');
+  if (width) { t.resize(width, t.height); t.textAutoResize = 'HEIGHT'; }
+  return t;
+}
+function fixedRow(height, gap) { const r = row(gap); r.resize(10, height); r.counterAxisSizingMode = 'FIXED'; return r; }
+function solid(hex) { return solidPaint(hex); }
+function rect(w, h, r, hex, x, y, name) {
+  const n = figma.createRectangle();
+  n.resize(w, h); n.cornerRadius = r; n.fills = [solid(hex)]; n.x = x; n.y = y; n.name = name;
+  return n;
+}
+function chevron(color, direction) {
+  const v = figma.createVector();
+  v.vectorPaths = [{ windingRule: 'NONZERO', data: direction === 'left' ? 'M 8 0 L 0 8 L 8 16' : 'M 0 0 L 8 8 L 0 16' }];
+  v.fills = [];
+  stroke(v, color, null, 2.5);
+  v.strokeCap = 'ROUND';
+  v.strokeJoin = 'ROUND';
+  return v;
+}
+
+// ---------- 공용 요소 (플랫폼마다 모양만 다르다) ----------
+function input(p, label, value, opts) {
+  const o = opts || {};
+  const wrap = col(6);
+  wrap.appendChild(txt(label, p === 'a' ? 12 : p === 'i' ? 13 : 14, 'medium', p === 'w' ? 'foreground' : 'muted-foreground'));
+  const box = fixedRow(o.height || (p === 'i' ? 48 : p === 'a' ? 56 : 40), 8);
+  box.name = 'Input · ' + label;
+  if (o.height) { box.counterAxisAlignItems = 'MIN'; box.paddingTop = 10; }
+  if (p === 'i') { box.paddingLeft = 14; box.cornerRadius = 14; fill(box, 'muted'); if (o.focus) stroke(box, 'ring', 0.7, 1.5); }
+  else if (p === 'a') {
+    box.paddingLeft = 16; box.topLeftRadius = 4; box.topRightRadius = 4; fill(box, 'muted', 0.6);
+    stroke(box, o.focus ? 'primary' : 'muted-foreground');
+    box.strokeTopWeight = 0; box.strokeLeftWeight = 0; box.strokeRightWeight = 0; box.strokeBottomWeight = o.focus ? 2 : 1;
+  } else { box.paddingLeft = 12; box.cornerRadius = TOKEN_RADIUS.md; fill(box, 'background'); stroke(box, o.focus ? 'ring' : 'input', null, o.focus ? 2 : 1); }
+  const secret = value.startsWith('•');
+  box.appendChild(txt(value, 16, 'regular', o.placeholder ? 'muted-foreground' : 'foreground', null, secret || o.mono));
+  add(wrap, box, true);
+  return wrap;
+}
+function button(p, label, kind) {
+  const k = kind || 'primary';
+  const b = fixedRow(p === 'i' ? 50 : 40, 0);
+  b.name = 'Button · ' + label;
+  b.primaryAxisAlignItems = 'CENTER';
+  b.cornerRadius = p === 'i' ? 25 : p === 'a' ? 20 : TOKEN_RADIUS.md;
+  b.paddingLeft = p === 'a' ? 24 : 16; b.paddingRight = b.paddingLeft;
+  const size = p === 'i' ? 17 : 14;
+  const weight = p === 'i' ? 'bold' : 'medium';
+  if (k === 'primary') { fill(b, 'primary'); b.appendChild(txt(label, size, weight, 'primary-foreground')); }
+  else if (k === 'destructive') { fill(b, 'destructive'); b.appendChild(txt(label, size, weight, 'destructive-foreground')); }
+  else {
+    if (p === 'i') fill(b, 'muted'); else { b.fills = []; stroke(b, p === 'a' ? 'muted-foreground' : 'input'); }
+    b.appendChild(txt(label, size, weight, 'foreground'));
+  }
+  return b;
+}
+function link(p, label, color) {
+  const r = row(0);
+  r.primaryAxisAlignItems = 'CENTER';
+  r.appendChild(txt(label, p === 'i' ? 15 : 14, 'medium', color || 'foreground'));
+  return r;
+}
+function group(p, title, rows) {
+  const g = col(8);
+  if (title) g.appendChild(txt(title, 13, p === 'a' ? 'bold' : 'medium', 'muted-foreground'));
+  const box = col(0);
+  add(g, box, true);
+  if (p === 'i') { box.cornerRadius = 12; fill(box, 'muted'); }
+  if (p === 'w') { box.cornerRadius = TOKEN_RADIUS.lg; fill(box, 'card'); stroke(box, 'border'); }
+  rows.forEach(([label, value, color, chevronRight], idx) => {
+    const line = add(box, row(8), true);
+    line.primaryAxisAlignItems = 'SPACE_BETWEEN';
+    line.paddingLeft = p === 'a' ? 0 : 16; line.paddingRight = line.paddingLeft;
+    line.paddingTop = p === 'a' ? 14 : p === 'i' ? 12 : 11; line.paddingBottom = line.paddingTop;
+    if (idx > 0 && p !== 'a') { stroke(line, 'border'); line.strokeTopWeight = 1; line.strokeBottomWeight = 0; line.strokeLeftWeight = 0; line.strokeRightWeight = 0; }
+    line.appendChild(txt(label, p === 'i' ? 17 : p === 'a' ? 16 : 14, 'regular', color || 'foreground'));
+    const right = row(8);
+    if (value) right.appendChild(txt(value, p === 'i' ? 17 : 14, 'regular', 'muted-foreground'));
+    if (chevronRight && p === 'i') right.appendChild(chevron('muted-foreground', 'right'));
+    line.appendChild(right);
+  });
+  return g;
+}
+function toggle(p, on) {
+  const f = figma.createFrame();
+  f.name = 'Switch';
+  const knob = figma.createEllipse();
+  if (p === 'i') { f.resize(51, 31); f.cornerRadius = 15.5; fill(f, on ? 'accent' : 'muted'); knob.resize(27, 27); knob.x = on ? 22 : 2; knob.y = 2; fill(knob, 'background'); }
+  else if (p === 'a') { f.resize(52, 32); f.cornerRadius = 16; fill(f, on ? 'primary' : 'muted'); knob.resize(24, 24); knob.x = on ? 24 : 4; knob.y = 4; fill(knob, on ? 'primary-foreground' : 'muted-foreground'); }
+  else { f.resize(18, 18); f.cornerRadius = 4; fill(f, on ? 'primary' : 'background'); if (!on) stroke(f, 'input'); knob.resize(8, 8); knob.x = 5; knob.y = 5; fill(knob, 'primary-foreground'); knob.visible = on; }
+  f.appendChild(knob);
+  return f;
+}
+function slider(width, ratio) {
+  const f = figma.createFrame();
+  f.name = 'Slider';
+  f.resize(width, 24);
+  f.fills = [];
+  const track = figma.createRectangle(); track.resize(width, 4); track.y = 10; track.cornerRadius = 2; fill(track, 'muted');
+  const active = figma.createRectangle(); active.resize(Math.round(width * ratio), 4); active.y = 10; active.cornerRadius = 2; fill(active, 'primary');
+  const knob = figma.createEllipse(); knob.resize(24, 24); knob.x = Math.round(width * ratio) - 12; fill(knob, 'primary'); stroke(knob, 'background', null, 3);
+  f.appendChild(track); f.appendChild(active); f.appendChild(knob);
+  return f;
+}
+// EntropyGauge 계약: 취약(destructive) · 보통(primary) · 초강력(accent)
+function gauge(level) {
+  const spec = { weak: ['취약함', 'destructive', 0.35], medium: ['보통', 'primary', 0.65], strong: ['초강력', 'accent', 1] }[level];
+  const g = col(6);
+  g.name = 'EntropyGauge · ' + spec[0];
+  const head = add(g, row(0), true);
+  head.primaryAxisAlignItems = 'SPACE_BETWEEN';
+  head.appendChild(txt('비밀번호 강도', 12, 'medium', 'muted-foreground'));
+  head.appendChild(txt(spec[0], 12, 'bold', spec[1]));
+  const track = figma.createFrame(); track.name = 'Track'; track.resize(300, 6); track.cornerRadius = 3; fill(track, 'muted');
+  track.layoutMode = 'HORIZONTAL'; track.primaryAxisSizingMode = 'FIXED'; track.counterAxisSizingMode = 'FIXED';
+  const bar = figma.createRectangle(); bar.resize(Math.round(300 * spec[2]), 6); bar.cornerRadius = 3; fill(bar, spec[1]);
+  track.appendChild(bar);
+  add(g, track, true);
+  return g;
+}
+function secretField(p) {
+  const box = fixedRow(p === 'i' ? 48 : p === 'a' ? 56 : 40, 8);
+  box.name = 'PasswordInputField';
+  box.primaryAxisAlignItems = 'SPACE_BETWEEN';
+  box.paddingLeft = 14; box.paddingRight = 14;
+  box.cornerRadius = p === 'i' ? 14 : p === 'a' ? 4 : TOKEN_RADIUS.md;
+  fill(box, p === 'w' ? 'background' : 'muted'); if (p === 'w') stroke(box, 'input');
+  box.appendChild(txt('••••••••••••••••', 16, 'regular', 'foreground', null, true));
+  box.appendChild(txt('보기', 13, 'medium', 'muted-foreground'));
+  return box;
+}
+function burnBadge() {
+  const b = row(6); b.name = 'BurnTimerBadge';
+  pad(b, 10, 4); b.cornerRadius = 12; fill(b, 'destructive', 0.12);
+  b.appendChild(txt('클립보드 삭제까지 28초', 12, 'bold', 'destructive', null, true));
+  return b;
+}
+function lockIcon() {
+  const c = col(-10);
+  c.counterAxisAlignItems = 'CENTER';
+  const shackle = figma.createEllipse(); shackle.resize(26, 30); shackle.fills = []; stroke(shackle, 'primary', null, 4);
+  const body = figma.createRectangle(); body.resize(40, 30); body.cornerRadius = 8; fill(body, 'primary');
+  c.appendChild(shackle); c.appendChild(body);
+  return c;
+}
+
+// ---------- 플랫폼 셸 ----------
+function statusBar(parent, p) {
+  const sb = add(parent, row(0), true);
+  sb.name = 'Status bar';
+  sb.paddingLeft = p === 'i' ? 32 : 24; sb.paddingRight = sb.paddingLeft;
+  sb.paddingTop = p === 'i' ? 18 : 12; sb.paddingBottom = 6;
+  sb.primaryAxisAlignItems = 'SPACE_BETWEEN';
+  sb.appendChild(txt('9:41', p === 'i' ? 16 : 14, p === 'i' ? 'bold' : 'medium'));
+  sb.appendChild(txt(p === 'i' ? 'LTE' : '5G', 13, 'bold'));
+}
+const TABS = ['볼트', '생성기', '설정'];
+function tabBar(parent, active) {
+  const wrap = add(parent, row(0), true);
+  wrap.paddingLeft = 20; wrap.paddingRight = 20; wrap.paddingBottom = 28; wrap.paddingTop = 8;
+  const tab = add(wrap, row(0), true);
+  tab.name = 'Tab bar';
+  tab.primaryAxisAlignItems = 'SPACE_BETWEEN';
+  pad(tab, 28, 12);
+  tab.cornerRadius = 32;
+  fill(tab, 'muted', 0.9); stroke(tab, 'border');
+  for (const l of TABS) tab.appendChild(txt(l, 12, l === active ? 'bold' : 'medium', l === active ? 'foreground' : 'muted-foreground'));
+}
+function navBar(parent, active) {
+  const nav = fixedRow(80, 0);
+  add(parent, nav, true);
+  nav.name = 'Navigation bar';
+  nav.primaryAxisAlignItems = 'SPACE_BETWEEN';
+  nav.paddingLeft = 36; nav.paddingRight = 36;
+  fill(nav, 'card'); stroke(nav, 'border'); nav.strokeBottomWeight = 0; nav.strokeLeftWeight = 0; nav.strokeRightWeight = 0;
+  for (const l of TABS) {
+    const on = l === active;
+    const it = col(4); it.counterAxisAlignItems = 'CENTER';
+    const pill = fixedRow(32, 0); pill.resize(64, 32); pill.primaryAxisSizingMode = 'FIXED'; pill.primaryAxisAlignItems = 'CENTER'; pill.cornerRadius = 16;
+    if (on) fill(pill, 'muted');
+    const dot = figma.createEllipse(); dot.resize(14, 14); fill(dot, on ? 'foreground' : 'muted-foreground');
+    pill.appendChild(dot); it.appendChild(pill);
+    it.appendChild(txt(l, 12, on ? 'bold' : 'medium', on ? 'foreground' : 'muted-foreground'));
+    nav.appendChild(it);
+  }
+}
+function wrapDevice(page, screen, p, name) {
+  const bezel = p === 'i' ? 14 : 10;
+  const device = figma.createFrame();
+  device.name = 'DS · Device · ' + name;
+  device.resize(screen.width + bezel * 2, screen.height + bezel * 2);
+  device.x = screen.x - bezel; device.y = screen.y - bezel;
+  device.cornerRadius = screen.cornerRadius + bezel;
+  device.fills = [solid(HARDWARE.body)];
+  device.strokes = [solid(HARDWARE.edge)]; device.strokeWeight = 2;
+  device.clipsContent = false;
+  page.appendChild(device);
+  device.appendChild(screen);
+  screen.x = bezel; screen.y = bezel;
+  const W = device.width;
+  if (p === 'i') {
+    device.appendChild(rect(124, 36, 18, HARDWARE.black, (W - 124) / 2, bezel + 11, 'Dynamic Island'));
+    device.appendChild(rect(134, 5, 3, HARDWARE.body, (W - 134) / 2, bezel + screen.height - 13, 'Home indicator'));
+  } else {
+    const cam = figma.createEllipse(); cam.resize(14, 14); cam.fills = [solid(HARDWARE.black)]; cam.x = (W - 14) / 2; cam.y = bezel + 12; cam.name = 'Punch-hole camera';
+    device.appendChild(cam);
+    device.appendChild(rect(108, 4, 2, HARDWARE.body, (W - 108) / 2, bezel + screen.height - 10, 'Gesture bar'));
+  }
+  return device;
+}
+function wrapBrowser(page, screen, name, path) {
+  const bar = 40;
+  const win = figma.createFrame();
+  win.name = 'DS · Browser · ' + name;
+  win.resize(screen.width, screen.height + bar);
+  win.x = screen.x; win.y = screen.y - bar;
+  win.cornerRadius = 12; win.clipsContent = true;
+  win.fills = [solid(HARDWARE.chrome)];
+  win.strokes = [solid(HARDWARE.edge)]; win.strokeWeight = 1;
+  page.appendChild(win);
+  HARDWARE.dots.forEach((hex, i) => { const d = figma.createEllipse(); d.resize(12, 12); d.fills = [solid(hex)]; d.x = 16 + i * 20; d.y = 14; win.appendChild(d); });
+  const url = rect(520, 26, 13, HARDWARE.url, (screen.width - 520) / 2, 7, 'Address bar');
+  win.appendChild(url);
+  const u = txt('localhost:8443' + path, 12, 'regular', 'muted-foreground');
+  u.x = url.x + 16; u.y = url.y + 5; win.appendChild(u);
+  win.appendChild(screen);
+  screen.x = 0; screen.y = bar; screen.cornerRadius = 0;
+  return win;
+}
+
+// o: { title, back, tab, center, bottom }
+function phone(page, p, s, index, o) {
+  const f = figma.createFrame();
+  f.name = `${PLATFORM_NAME[p]} · ${s.name}`;
+  f.resize(p === 'i' ? 402 : 412, p === 'i' ? 874 : 915);
+  f.x = MOCK.originX + index * MOCK.phonePitch;
+  f.y = rowY(p);
+  fill(f, 'background');
+  f.cornerRadius = p === 'i' ? 56 : 32;
+  f.clipsContent = true;
+  f.layoutMode = 'VERTICAL';
+  f.primaryAxisSizingMode = 'FIXED';
+  f.counterAxisSizingMode = 'FIXED';
+  page.appendChild(f);
+  wrapDevice(page, f, p, f.name);
+  statusBar(f, p);
+  if (p === 'i' && o.back) {
+    const nb = add(f, row(6), true); nb.paddingLeft = 16; nb.paddingTop = 4; nb.paddingBottom = 4;
+    nb.appendChild(chevron('foreground', 'left')); nb.appendChild(txt(o.back, 17, 'regular', 'foreground'));
+  }
+  if (p === 'a' && (o.title || o.back)) {
+    const bar = add(f, row(16), true); bar.name = 'Top app bar'; pad(bar, 16, 12);
+    if (o.back) bar.appendChild(chevron('foreground', 'left'));
+    if (o.title) bar.appendChild(txt(o.title, 22, 'regular'));
+  }
+  const body = add(f, col(16), true);
+  body.name = 'Body';
+  body.paddingLeft = 16; body.paddingRight = 16; body.paddingTop = 8; body.paddingBottom = 16;
+  body.layoutGrow = 1;
+  if (o.center) body.primaryAxisAlignItems = 'CENTER';
+  if (o.bottom) body.primaryAxisAlignItems = 'MAX';
+  if (p === 'i' && o.title) body.appendChild(txt(o.title, 34, 'bold'));
+  if (p === 'i' && o.tab) tabBar(f, o.tab);
+  if (p === 'a' && o.tab) navBar(f, o.tab);
+  return body;
+}
+// o: { active, auth, title, subtitle, width, danger }
+function web(page, s, index, o) {
+  const f = figma.createFrame();
+  f.name = `Web · ${s.name}`;
+  f.resize(1280, 800);
+  f.x = MOCK.originX + index * MOCK.webPitch;
+  f.y = rowY('w');
+  fill(f, 'background');
+  f.cornerRadius = 12;
+  f.clipsContent = true;
+  page.appendChild(f);
+  wrapBrowser(page, f, f.name, s.path);
+  if (o.auth) {
+    f.layoutMode = 'VERTICAL'; f.primaryAxisSizingMode = 'FIXED'; f.counterAxisSizingMode = 'FIXED';
+    f.primaryAxisAlignItems = 'CENTER'; f.counterAxisAlignItems = 'CENTER';
+    const card = col(16); card.name = 'Card'; f.appendChild(card);
+    card.resize(o.width || 400, 10); card.counterAxisSizingMode = 'FIXED'; card.primaryAxisSizingMode = 'AUTO';
+    pad(card, 32, 32); card.cornerRadius = TOKEN_RADIUS.lg; fill(card, 'card'); stroke(card, o.danger ? 'destructive' : 'border');
+    return card;
+  }
+  f.layoutMode = 'HORIZONTAL'; f.primaryAxisSizingMode = 'FIXED'; f.counterAxisSizingMode = 'FIXED';
+  const side = col(4); side.name = 'Sidebar'; f.appendChild(side);
+  side.resize(240, 800); side.primaryAxisSizingMode = 'FIXED'; side.counterAxisSizingMode = 'FIXED';
+  side.paddingLeft = 16; side.paddingRight = 16; side.paddingTop = 24;
+  fill(side, 'card'); stroke(side, 'border'); side.strokeTopWeight = 0; side.strokeLeftWeight = 0; side.strokeBottomWeight = 0;
+  side.appendChild(txt('KeyManage', 18, 'bold'));
+  const gap = figma.createFrame(); gap.resize(10, 16); gap.fills = []; side.appendChild(gap);
+  for (const l of ['볼트', '비밀번호 생성기', '설정']) {
+    const it = add(side, row(0), true); it.paddingLeft = 12; it.paddingTop = 8; it.paddingBottom = 8; it.cornerRadius = TOKEN_RADIUS.md;
+    if (l === o.active) fill(it, 'muted');
+    it.appendChild(txt(l, 14, l === o.active ? 'bold' : 'medium', l === o.active ? 'foreground' : 'muted-foreground'));
+  }
+  const main = col(24); main.name = 'Main'; f.appendChild(main);
+  main.layoutGrow = 1; main.layoutSizingVertical = 'FILL';
+  main.paddingLeft = 32; main.paddingRight = 32; main.paddingTop = 32;
+  if (o.title) {
+    const h = col(4); main.appendChild(h);
+    h.appendChild(txt(o.title, 24, 'bold'));
+    if (o.subtitle) h.appendChild(txt(o.subtitle, 14, 'regular', 'muted-foreground'));
+  }
+  const content = col(16); content.name = 'Content'; main.appendChild(content);
+  content.resize(o.width || 560, 10); content.counterAxisSizingMode = 'FIXED'; content.primaryAxisSizingMode = 'AUTO';
+  return content;
+}
+function screen3(page, key, phoneOpts, webOpts, build) {
+  const index = FLOW_STEPS.findIndex((s) => s.key === key);
+  const s = FLOW_STEPS[index];
+  for (const p of ['i', 'a']) build(p, phone(page, p, s, index, typeof phoneOpts === 'function' ? phoneOpts(p) : phoneOpts));
+  build('w', web(page, s, index, webOpts));
+}
+function brand(p, parent) { parent.appendChild(txt('KeyManage', p === 'w' ? 16 : 15, 'bold', 'foreground')); }
+
+// ---------- 8단계 화면 ----------
+const MOCK_STEPS = {
+  login(page) {
+    screen3(page, 'login', { center: true }, { auth: true }, (p, b) => {
+      brand(p, b);
+      b.appendChild(txt('볼트에 로그인', p === 'i' ? 34 : p === 'a' ? 28 : 24, p === 'a' ? 'regular' : 'bold'));
+      add(b, input(p, '이메일', 'dev@example.com'), true);
+      add(b, input(p, '마스터 비밀번호', '••••••••••••', { focus: true }), true);
+      add(b, button(p, '로그인'), true);
+      add(b, link(p, '새 계정 만들기'), true);
+    });
+  },
+  signup(page) {
+    screen3(page, 'signup', (p) => ({ back: p === 'i' ? '로그인' : true, title: p === 'a' ? '계정 만들기' : null, center: p === 'i' }), { auth: true }, (p, b) => {
+      if (p !== 'a') b.appendChild(txt('계정 만들기', p === 'i' ? 34 : 24, 'bold'));
+      add(b, input(p, '이메일', 'dev@example.com'), true);
+      add(b, input(p, '마스터 비밀번호', '••••••••••••••••'), true);
+      add(b, input(p, '마스터 비밀번호 확인', '••••••••••••••••', { focus: true }), true);
+      add(b, gauge('strong'), true);
+      add(b, txt('12자 이상으로 정하세요. 마스터 비밀번호를 잃어버리면 복구할 수 없습니다.', 13, 'regular', 'muted-foreground', 336), true);
+      add(b, button(p, '가입'), true);
+      add(b, link(p, '이미 계정이 있어요'), true);
+    });
+  },
+  unlock(page) {
+    screen3(page, 'unlock', { center: true }, { auth: true }, (p, b) => {
+      b.counterAxisAlignItems = 'CENTER';
+      b.appendChild(lockIcon());
+      b.appendChild(txt('볼트가 잠겼습니다', p === 'i' ? 28 : p === 'a' ? 24 : 22, p === 'a' ? 'regular' : 'bold'));
+      b.appendChild(txt('dev@example.com', 14, 'regular', 'muted-foreground'));
+      add(b, input(p, '마스터 비밀번호', '••••••••••••', { focus: true }), true);
+      add(b, button(p, '잠금 해제'), true);
+      add(b, link(p, '로그아웃', 'muted-foreground'), true);
+    });
+  },
+  vault(page) {
+    const items = [['GitHub', 'dev@example.com'], ['Google', 'dev@gmail.com'], ['AWS 콘솔', 'admin'], ['Notion', 'dev@example.com'], ['은행', '(아이디 없음)']];
+    screen3(page, 'vault', (p) => ({ title: '볼트', tab: p === 'i' ? '볼트' : '볼트' }),
+      { active: '볼트', title: '볼트', subtitle: '항목 5개 · 모든 값은 이 기기에서만 복호화됩니다.', width: 720 }, (p, b) => {
+      const top = add(b, row(8), true);
+      const search = add(top, input(p, '검색', '서비스 이름이나 아이디', { placeholder: true }), false);
+      search.layoutGrow = 1;
+      if (p === 'w') { top.counterAxisAlignItems = 'MAX'; top.appendChild(button(p, '항목 추가')); }
+      const list = col(p === 'w' ? 0 : 8); add(b, list, true);
+      if (p === 'w') { list.cornerRadius = TOKEN_RADIUS.lg; fill(list, 'card'); stroke(list, 'border'); }
+      items.forEach(([name, user], idx) => {
+        const it = add(list, row(12), true);
+        it.name = 'VaultItem · ' + name;
+        pad(it, 16, p === 'w' ? 12 : 14);
+        if (p !== 'w') { it.cornerRadius = p === 'i' ? 14 : TOKEN_RADIUS.lg; fill(it, p === 'i' ? 'muted' : 'card'); if (p === 'a') stroke(it, 'border'); }
+        else if (idx > 0) { stroke(it, 'border'); it.strokeTopWeight = 1; it.strokeBottomWeight = 0; it.strokeLeftWeight = 0; it.strokeRightWeight = 0; }
+        const avatar = fixedRow(36, 0); avatar.resize(36, 36); avatar.primaryAxisSizingMode = 'FIXED'; avatar.primaryAxisAlignItems = 'CENTER';
+        avatar.cornerRadius = 18; fill(avatar, 'background'); stroke(avatar, 'border');
+        avatar.appendChild(txt(name.slice(0, 1), 14, 'bold'));
+        it.appendChild(avatar);
+        const texts = col(2); it.appendChild(texts); texts.layoutGrow = 1;
+        texts.appendChild(txt(name, p === 'i' ? 17 : 15, 'medium'));
+        texts.appendChild(txt(user, 13, 'regular', 'muted-foreground'));
+        if (p === 'i') it.appendChild(chevron('muted-foreground', 'right'));
+        else it.appendChild(txt('복사', 13, 'medium', 'muted-foreground'));
+      });
+      if (p === 'a') {
+        const fab = fixedRow(56, 0); fab.resize(56, 56); fab.primaryAxisSizingMode = 'FIXED'; fab.primaryAxisAlignItems = 'CENTER';
+        fab.cornerRadius = 16; fill(fab, 'primary'); fab.appendChild(txt('+', 24, 'medium', 'primary-foreground'));
+        const fr = add(b, row(0), true); fr.primaryAxisAlignItems = 'MAX'; fr.appendChild(fab);
+      }
+    });
+  },
+  detail(page) {
+    screen3(page, 'detail', (p) => ({ back: p === 'i' ? '볼트' : true, title: 'GitHub' }),
+      { active: '볼트', title: '항목 수정', subtitle: '서비스 이름과 아이디, 비밀번호를 고칩니다.' }, (p, b) => {
+      if (p === 'w') {
+        add(b, input(p, '서비스 이름', 'GitHub'), true);
+        add(b, input(p, '아이디', 'dev@example.com'), true);
+      } else {
+        add(b, group(p, null, [['서비스 이름', 'GitHub'], ['아이디', 'dev@example.com']]), true);
+      }
+      const pw = col(6); add(b, pw, true);
+      pw.appendChild(txt('비밀번호', p === 'a' ? 12 : 13, 'medium', p === 'w' ? 'foreground' : 'muted-foreground'));
+      add(pw, secretField(p), true);
+      add(b, gauge('strong'), true);
+      if (p === 'w') add(b, input(p, '메모', '2FA 복구 코드는 종이에 보관', { height: 72 }), true);
+      else b.appendChild(burnBadge());
+      const acts = add(b, row(8), true);
+      if (p === 'w') {
+        acts.primaryAxisAlignItems = 'SPACE_BETWEEN';
+        acts.appendChild(button(p, '항목 삭제', 'destructive'));
+        const right = row(8); right.appendChild(button(p, '취소', 'secondary')); right.appendChild(button(p, '저장')); acts.appendChild(right);
+      } else {
+        add(acts, button(p, '아이디 복사', 'secondary')).layoutGrow = 1;
+        add(acts, button(p, '항목 삭제', 'destructive')).layoutGrow = 1;
+      }
+    });
+  },
+  generator(page) {
+    screen3(page, 'generator', (p) => ({ title: p === 'a' ? '생성기' : '비밀번호 생성기', tab: '생성기' }),
+      { active: '비밀번호 생성기', title: '비밀번호 생성기', subtitle: '생성은 이 기기 안에서만 이루어집니다.' }, (p, b) => {
+      const result = col(12); add(b, result, true);
+      pad(result, 16, 16); result.cornerRadius = p === 'i' ? 20 : TOKEN_RADIUS.lg;
+      fill(result, p === 'w' ? 'card' : 'muted'); if (p === 'w') stroke(result, 'border');
+      result.appendChild(txt('k7#Qv2!mR9$wLx4&Tz8p', p === 'w' ? 22 : 20, 'regular', 'foreground', null, true));
+      add(result, gauge('strong'), true);
+      const len = add(b, row(0), true); len.primaryAxisAlignItems = 'SPACE_BETWEEN';
+      len.appendChild(txt('길이', p === 'i' ? 17 : 15, 'medium')); len.appendChild(txt('20', p === 'i' ? 17 : 15, 'bold', 'foreground', null, true));
+      b.appendChild(slider(p === 'w' ? 560 : p === 'i' ? 361 : 380, (20 - 8) / (64 - 8)));
+      const opts = col(0); add(b, opts, true);
+      if (p === 'i') { opts.cornerRadius = 12; fill(opts, 'muted'); }
+      ['대문자', '소문자', '숫자', '특수기호'].forEach((l, idx) => {
+        const r = add(opts, row(12), true);
+        r.primaryAxisAlignItems = p === 'w' ? 'MIN' : 'SPACE_BETWEEN';
+        r.paddingLeft = p === 'i' ? 16 : 0; r.paddingRight = r.paddingLeft; r.paddingTop = p === 'w' ? 6 : 10; r.paddingBottom = r.paddingTop;
+        if (p === 'w') { r.appendChild(toggle(p, true)); r.appendChild(txt(l, 14, 'regular')); }
+        else { r.appendChild(txt(l, p === 'i' ? 17 : 16, 'regular')); r.appendChild(toggle(p, true)); }
+        if (idx > 0 && p === 'i') { stroke(r, 'border'); r.strokeTopWeight = 1; r.strokeBottomWeight = 0; r.strokeLeftWeight = 0; r.strokeRightWeight = 0; }
+      });
+      const acts = add(b, row(8), true);
+      const a1 = add(acts, button(p, '다시 생성', 'secondary')); const a2 = add(acts, button(p, '복사'));
+      if (p !== 'w') { a1.layoutGrow = 1; a2.layoutGrow = 1; }
+    });
+  },
+  settings(page) {
+    screen3(page, 'settings', { title: '설정', tab: '설정' },
+      { active: '설정', title: '설정', subtitle: '계정 및 보안 정책 상태를 확인합니다.', width: 640 }, (p, b) => {
+      b.itemSpacing = p === 'w' ? 20 : 18;
+      add(b, group(p, '계정', [['이메일', 'dev@example.com']]), true);
+      add(b, group(p, '보안', [['자동 잠금', '5분', null, true], ['클립보드 자동 삭제', '30초'], ['암호화 구조', 'AES-256-GCM']]), true);
+      add(b, group(p, '백업', [['백업 내보내기', null, null, true], ['백업에서 복원', null, null, true]]), true);
+      add(b, group(p, '세션 제어', [['마스터 비밀번호 변경', null, null, true], ['로그아웃'], ['계정 삭제', null, 'destructive']]), true);
+    });
+  },
+  delete(page) {
+    screen3(page, 'delete', (p) => ({ bottom: p === 'i', center: p === 'a' }), { auth: true, width: 460, danger: true }, (p, b) => {
+      let box = b;
+      if (p === 'i') {
+        box = col(14); add(b, box, true); pad(box, 20, 20); box.cornerRadius = 26; fill(box, 'card'); stroke(box, 'border');
+        const grab = figma.createRectangle(); grab.resize(36, 5); grab.cornerRadius = 3; fill(grab, 'muted-foreground', 0.6);
+        const gw = add(box, row(0), true); gw.primaryAxisAlignItems = 'CENTER'; gw.appendChild(grab);
+      } else if (p === 'a') {
+        box = col(16); add(b, box, true); pad(box, 24, 24); box.cornerRadius = 28; fill(box, 'card'); stroke(box, 'border');
+      }
+      box.appendChild(txt('계정을 삭제할까요?', p === 'a' ? 22 : 20, p === 'a' ? 'regular' : 'bold'));
+      add(box, txt('계정과 볼트가 서버에서 바로 지워지고 되돌릴 수 없습니다. 필요하면 먼저 백업을 내보내 주세요.', 14, 'regular', 'muted-foreground', 320), true);
+      add(box, input(p, '마스터 비밀번호', '••••••••••••'), true);
+      add(box, input(p, "확인을 위해 '계정 삭제'를 입력해 주세요", '계정 삭제', { focus: true }), true);
+      const acts = add(box, row(8), true);
+      if (p === 'i') { acts.layoutMode = 'VERTICAL'; add(acts, button(p, '계정 삭제', 'destructive'), true); add(acts, button(p, '취소', 'secondary'), true); }
+      else { acts.primaryAxisAlignItems = 'MAX'; acts.appendChild(button(p, '취소', 'secondary')); acts.appendChild(button(p, '계정 삭제', 'destructive')); }
+    });
+  },
+};
+
+function mockLabels(page) {
+  const t = (c, s, color, x, y) => { const n = txt(c, s, 'bold', color); n.name = 'DS · Label · ' + c; n.x = x; n.y = y; page.appendChild(n); };
+  const theme = THEME === 'dark' ? '다크' : '라이트';
+  t(`화면 흐름 · ${theme} · 로그인 → 계정 삭제`, 48, 'foreground', MOCK.originX, MOCK.labelY + SHIFT);
+  t('화살표는 화면 사이 이동이다. 세 플랫폼 모두 같은 흐름이고 이동 수단만 다르다(iPhone 탭 바 · Android 내비게이션 바 · Web 사이드바).', 16, 'muted-foreground', MOCK.originX, MOCK.labelY + SHIFT + 70);
+  for (const p of ['i', 'a', 'w']) {
+    FLOW_STEPS.forEach((s, i) => t(`${i + 1} ${s.name}`, 24, 'foreground', screenBox(p, i).x, rowY(p) - MOCK.labelGap));
+  }
+  t('iPhone', 32, 'muted-foreground', -260, rowY('i'));
+  t('Android', 32, 'muted-foreground', -260, rowY('a'));
+  t('Web · 데스크톱', 32, 'muted-foreground', -260, rowY('w'));
+}
+
+// ---------- 화면 사이 이동 화살표 ----------
+// [출발 단계, 도착 단계, 이동 이름]. 단계 번호는 FLOW_STEPS 순서(0부터)
+const FLOW_LINKS = [
+  ['login', 'signup', '새 계정 만들기'],
+  ['login', 'vault', '로그인 성공'],
+  ['signup', 'vault', '가입 완료'],
+  ['unlock', 'vault', '잠금 해제'],
+  ['vault', 'detail', '항목 선택'],
+  ['vault', 'generator', '생성기 탭'],
+  ['vault', 'settings', '설정 탭'],
+  ['settings', 'delete', '계정 삭제'],
+];
+// 기기 틀·브라우저 창까지 포함한 화면 상자의 위치
+function screenBox(p, index) {
+  if (p === 'w') return { x: MOCK.originX + index * MOCK.webPitch, y: rowY('w') - 40, w: 1280 };
+  const bezel = p === 'i' ? 14 : 10;
+  return { x: MOCK.originX + index * MOCK.phonePitch - bezel, y: rowY(p) - bezel, w: (p === 'i' ? 402 : 412) + bezel * 2 };
+}
+// 화면 위쪽에서 위로 휘어 다음 화면 위쪽으로 내려오는 곡선. 건너뛰는 화면이 많을수록 높게 뜬다
+async function flowArrow(page, p, from, to, label) {
+  const a = FLOW_STEPS.findIndex((s) => s.key === from);
+  const b = FLOW_STEPS.findIndex((s) => s.key === to);
+  const sa = screenBox(p, a); const sb = screenBox(p, b);
+  const start = { x: sa.x + sa.w * 0.6, y: sa.y - 8 };
+  const end = { x: sb.x + sb.w * 0.4, y: sb.y - 8 };
+  const lift = 60 + 40 * (Math.abs(b - a) - 1);
+  const v = figma.createVector();
+  v.name = `DS · Flow · ${PLATFORM_NAME[p]} · ${from} → ${to}`;
+  const minX = Math.min(start.x, end.x); const minY = Math.min(start.y, end.y) - lift;
+  await v.setVectorNetworkAsync({
+    vertices: [
+      { x: start.x - minX, y: start.y - minY, strokeCap: 'NONE' },
+      { x: end.x - minX, y: end.y - minY, strokeCap: 'ARROW_LINES' },
+    ],
+    segments: [{ start: 0, end: 1, tangentStart: { x: 0, y: -lift * 1.3 }, tangentEnd: { x: 0, y: -lift * 1.3 } }],
+  });
+  v.x = minX; v.y = minY;
+  v.fills = [];
+  stroke(v, to === 'delete' ? 'destructive' : 'muted-foreground', null, 2);
+  page.appendChild(v);
+  const tag = row(0);
+  tag.name = `DS · Flow · ${PLATFORM_NAME[p]} · ${label}`;
+  pad(tag, 8, 3); tag.cornerRadius = TOKEN_RADIUS.sm; fill(tag, 'background'); stroke(tag, 'border');
+  tag.appendChild(txt(label, 13, 'medium', to === 'delete' ? 'destructive' : 'foreground'));
+  page.appendChild(tag);
+  tag.x = (start.x + end.x) / 2 - tag.width / 2;
+  tag.y = Math.min(start.y, end.y) - lift - tag.height / 2;
+}
+
+let TOKEN_RADIUS = {};
 
 async function buildScreensPage() {
-  const page = getOrCreatePage('📱 Screens');
-
-  const wrapper = figma.createFrame();
-  wrapper.name = 'Screens Wrapper';
-  wrapper.layoutMode = 'HORIZONTAL';
-  wrapper.itemSpacing = 48;
-  wrapper.fills = [solidPaint('#0B0F19')];
-  wrapper.paddingLeft = 60;
-  wrapper.paddingRight = 60;
-  wrapper.paddingTop = 60;
-  wrapper.paddingBottom = 60;
-  wrapper.x = 0;
-  wrapper.y = 0;
-
-  // ------------------------------------------
-  // Screen 1: Vault Dashboard (393 x 852)
-  // ------------------------------------------
-  const s1 = figma.createFrame();
-  s1.name = 'Screen: Vault Dashboard';
-  s1.resize(393, 852);
-  s1.fills = [paint('color/background')];
-  s1.layoutMode = 'VERTICAL';
-  s1.paddingLeft = 20;
-  s1.paddingRight = 20;
-  s1.paddingTop = 56;
-  s1.paddingBottom = 40;
-  s1.itemSpacing = 20;
-  s1.cornerRadius = 44;
-  s1.clipsContent = true;
-
-  // App Bar
-  const bar = figma.createFrame();
-  bar.layoutMode = 'HORIZONTAL';
-  bar.fills = [];
-  bar.resize(353, 36);
-  bar.primaryAxisAlignItems = 'SPACE_BETWEEN';
-  bar.counterAxisAlignItems = 'CENTER';
-  bar.appendChild(await createText('KeyManage', 'heading/large', 'color/foreground'));
-  bar.appendChild(await createText('🔒 잠금', 'caption/small', 'color/primary'));
-  s1.appendChild(bar);
-
-  // Security Audit Card
-  const auditCard = createFrame('Audit Summary Card', 'VERTICAL', 16, 12, 16, 'color/card');
-  auditCard.resize(353, 110);
-  auditCard.strokes = [paint('color/border')];
-  auditCard.strokeWeight = 1;
-  auditCard.appendChild(await createText('전체 보안 안전도: 96점', 'heading/title', 'color/accent'));
-  auditCard.appendChild(await createText('등록된 계정 30개 중 28개 안전 (초강력)', 'caption/small', 'color/muted-foreground'));
-
-  const miniBar = figma.createFrame();
-  miniBar.resize(321, 6);
-  miniBar.cornerRadius = 3;
-  miniBar.fills = [paint('color/input')];
-  const miniFill = figma.createFrame();
-  miniFill.resize(308, 6);
-  miniFill.cornerRadius = 3;
-  miniFill.fills = [paint('color/accent')];
-  miniBar.appendChild(miniFill);
-  auditCard.appendChild(miniBar);
-  s1.appendChild(auditCard);
-
-  // Generator Action Button
-  const genBtn = createFrame('Generate CTA Button', 'HORIZONTAL', 16, 8, 12, 'color/primary');
-  genBtn.resize(353, 50);
-  genBtn.primaryAxisAlignItems = 'CENTER';
-  genBtn.counterAxisAlignItems = 'CENTER';
-  genBtn.appendChild(await createText('⚡ 새 강력한 비밀번호 생성', 'body/medium', 'color/primary-foreground'));
-  s1.appendChild(genBtn);
-
-  // Vault Items List Header
-  s1.appendChild(await createText('보관된 계정 (3개)', 'heading/title', 'color/foreground'));
-
-  // Account Items
-  const accounts = [
-    { title: 'Google', user: 'user@gmail.com', score: '98점' },
-    { title: 'GitHub', user: 'octocat@github.com', score: '96점' },
-    { title: 'Apple ID', user: 'dev@icloud.com', score: '92점' },
-  ];
-
-  for (const acc of accounts) {
-    const card = createFrame(`Item: ${acc.title}`, 'VERTICAL', 14, 6, 12, 'color/card');
-    card.resize(353, 76);
-    card.strokes = [paint('color/border')];
-    card.strokeWeight = 1;
-
-    const r1 = figma.createFrame();
-    r1.layoutMode = 'HORIZONTAL';
-    r1.fills = [];
-    r1.resize(325, 22);
-    r1.primaryAxisAlignItems = 'SPACE_BETWEEN';
-    r1.appendChild(await createText(acc.title, 'body/medium', 'color/foreground'));
-    r1.appendChild(await createText(acc.score, 'caption/small', 'color/accent'));
-
-    card.appendChild(r1);
-    card.appendChild(await createText(acc.user, 'caption/small', 'color/muted-foreground'));
-    s1.appendChild(card);
+  const page = await getOrCreatePage('📱 Screens');
+  TOKEN_RADIUS = Object.fromEntries(TOKENS.radius.map((r) => [r.key, r.value]));
+  await loadMockFonts();
+  for (const theme of ['light', 'dark']) {
+    THEME = theme;
+    SHIFT = theme === 'dark' ? DARK_SHIFT : 0;
+    const before = new Set(page.children);
+    // 구역 바탕: 캔버스 위에서도 라이트·다크가 구분되게 테마의 background 색을 깐다
+    const backdrop = figma.createRectangle();
+    backdrop.name = `DS · 바탕 · ${theme}`;
+    backdrop.resize(MOCK.webPitch * FLOW_STEPS.length + 400, DARK_SHIFT - 200);
+    backdrop.x = MOCK.originX - 320; backdrop.y = MOCK.labelY + SHIFT - 120;
+    backdrop.fills = [tok('background')];
+    page.appendChild(backdrop);
+    mockLabels(page);
+    for (const s of FLOW_STEPS) await step(`목업 · ${theme} · ${s.name}`, async () => MOCK_STEPS[s.key](page));
+    for (const p of ['i', 'a', 'w']) {
+      for (const [from, to, label] of FLOW_LINKS) await step(`흐름 · ${theme} · ${PLATFORM_NAME[p]} · ${from} → ${to}`, () => flowArrow(page, p, from, to, label));
+    }
+    if (theme === 'dark' && MODES.dark) {
+      for (const node of page.children.filter((n) => !before.has(n))) node.setExplicitVariableModeForCollection(COL, MODES.dark);
+    }
   }
-
-  wrapper.appendChild(s1);
-
-  // ------------------------------------------
-  // Screen 2: Password Generator Modal (393 x 852)
-  // ------------------------------------------
-  const s2 = figma.createFrame();
-  s2.name = 'Screen: Password Generator';
-  s2.resize(393, 852);
-  s2.fills = [paint('color/background')];
-  s2.layoutMode = 'VERTICAL';
-  s2.paddingLeft = 20;
-  s2.paddingRight = 20;
-  s2.paddingTop = 56;
-  s2.paddingBottom = 40;
-  s2.itemSpacing = 20;
-  s2.cornerRadius = 44;
-  s2.clipsContent = true;
-
-  // Title
-  s2.appendChild(await createText('스마트 비밀번호 생성기', 'heading/large', 'color/foreground'));
-
-  // Generated Password Display Card
-  const genCard = createFrame('Generated Password Card', 'VERTICAL', 20, 14, 16, 'color/card');
-  genCard.resize(353, 140);
-  genCard.strokes = [paint('color/border')];
-  genCard.strokeWeight = 1;
-
-  genCard.appendChild(await createText('생성된 암호 (16자리)', 'caption/small', 'color/muted-foreground'));
-  genCard.appendChild(await createText('p9$K#m2@L9vX!q4R', 'password/mono', 'color/accent'));
-
-  const copyRow = figma.createFrame();
-  copyRow.layoutMode = 'HORIZONTAL';
-  copyRow.fills = [];
-  copyRow.resize(313, 36);
-  copyRow.primaryAxisAlignItems = 'SPACE_BETWEEN';
-  copyRow.counterAxisAlignItems = 'CENTER';
-
-  const copyBtn = createFrame('Copy Btn', 'HORIZONTAL', 12, 6, 6, 'color/input');
-  copyBtn.appendChild(await createText('📋 클립보드 복사', 'caption/small', 'color/foreground'));
-  copyRow.appendChild(copyBtn);
-  copyRow.appendChild(await createText('엔트로피: 96점', 'caption/small', 'color/accent'));
-  genCard.appendChild(copyRow);
-  s2.appendChild(genCard);
-
-  // Burn Alert Badge
-  const burnBadge = createFrame('Burn Badge', 'HORIZONTAL', 12, 8, 8, 'color/destructive');
-  burnBadge.resize(353, 34);
-  burnBadge.primaryAxisAlignItems = 'CENTER';
-  burnBadge.appendChild(await createText('⏱️ 복사 30초 후 메모리 자동 소각', 'caption/small', 'color/destructive-foreground'));
-  s2.appendChild(burnBadge);
-
-  // Options Box
-  const optCard = createFrame('Options Box', 'VERTICAL', 16, 12, 16, 'color/card');
-  optCard.resize(353, 160);
-  optCard.appendChild(await createText('길이 조절: 16자', 'body/medium', 'color/foreground'));
-  optCard.appendChild(await createText('• 대문자 포함 (A-Z): ON', 'caption/small', 'color/muted-foreground'));
-  optCard.appendChild(await createText('• 소문자 포함 (a-z): ON', 'caption/small', 'color/muted-foreground'));
-  optCard.appendChild(await createText('• 숫자 포함 (0-9): ON', 'caption/small', 'color/muted-foreground'));
-  optCard.appendChild(await createText('• 특수문자 (!@#$): ON', 'caption/small', 'color/muted-foreground'));
-  s2.appendChild(optCard);
-
-  // Save to Vault CTA
-  const saveBtn = createFrame('Save CTA Button', 'HORIZONTAL', 16, 8, 12, 'color/accent');
-  saveBtn.resize(353, 50);
-  saveBtn.primaryAxisAlignItems = 'CENTER';
-  saveBtn.counterAxisAlignItems = 'CENTER';
-  saveBtn.appendChild(await createText('볼트에 안전하게 저장', 'body/medium', 'color/accent-foreground'));
-  s2.appendChild(saveBtn);
-
-  wrapper.appendChild(s2);
+  THEME = 'light';
+  SHIFT = 0;
+  figma.viewport.scrollAndZoomIntoView(page.children);
 }
 
 // ==========================================
@@ -605,16 +1237,22 @@ async function buildScreensPage() {
 // ==========================================
 
 async function main() {
+  figma.notify(`KeyManage DS Builder 시작 · ${BUILD}`, { timeout: 2000 });
+  // 페이지마다 loadAsync를 하지만, 다른 경로로 children을 읽는 경우까지 막기 위해 시작할 때 모든 페이지를 불러둔다
+  await figma.loadAllPagesAsync();
+  // 예전 버전이 만든 순서도 페이지는 더 쓰지 않는다
+  const oldFlow = figma.root.children.find((pg) => pg.name === '🔀 User Flow');
+  if (oldFlow && figma.root.children.length > 1) await step('예전 User Flow 페이지 삭제', async () => oldFlow.remove());
   await step('Variables 초기화', setupVariables);
   await step('Text Styles 초기화', setupTextStyles);
   await step('Page 1: Tokens 빌드', buildTokensPage);
   await step('Page 2: Components 빌드', buildComponentsPage);
-  await step('Page 3: Screens 빌드', buildScreensPage);
+  await step('Page 3: 플랫폼별 목업 빌드', buildScreensPage);
 
   if (LOG.length > 0) {
-    figma.notify(`⚠️ 일부 경고가 있습니다: ${LOG.join('; ')}`, { timeout: 6000 });
+    figma.notify(`⚠️ [${BUILD}] 일부 경고가 있습니다: ${LOG.join('; ')}`, { timeout: 6000 });
   } else {
-    figma.notify('✅ KeyManage 디자인 시스템 및 화면 빌드 완료!');
+    figma.notify(`✅ [${BUILD}] KeyManage 디자인 시스템 및 화면 빌드 완료!`);
   }
   figma.closePlugin();
 }

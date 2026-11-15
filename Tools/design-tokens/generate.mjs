@@ -12,6 +12,7 @@ const SOURCE = join(TOOL_DIR, 'tokens.json');
 const OUTPUTS = {
   css: join(ROOT, 'Apps/Web/src/styles/tokens.css'),
   swift: join(ROOT, 'Apps/Apple/Projects/Core/DesignSystem/Sources/Generated/DesignToken+Generated.swift'),
+  figma: join(ROOT, 'Tools/figma-builder/code.js'),
 };
 const NOTICE = '생성 파일입니다. 직접 고치지 말고 Tools/design-tokens/tokens.json을 고친 뒤 node Tools/design-tokens/generate.mjs를 실행하세요 (ADR-0026).';
 
@@ -169,6 +170,25 @@ ${typography
 
 const normalize = (text) => text.replace(/\r\n/g, '\n');
 
+// Figma 플러그인은 파일을 읽을 수 없어 code.js 안의 표시 블록에 토큰 값을 직접 넣는다
+const FIGMA_START = '// @generated:tokens:start\n';
+const FIGMA_END = '// @generated:tokens:end';
+
+function renderFigma({ colors, space, radius, typography }, current) {
+  const start = current?.indexOf(FIGMA_START) ?? -1;
+  const end = current?.indexOf(FIGMA_END) ?? -1;
+  if (start < 0 || end < start) fail(`${relative(ROOT, OUTPUTS.figma)}에 ${FIGMA_START.trim()} … ${FIGMA_END} 표시가 없습니다`);
+  const pick = (list, keys) => list.map((item) => Object.fromEntries(keys.map((k) => [k, item[k]])));
+  const data = {
+    colors: pick(colors, ['name', 'light', 'dark']),
+    space: pick(space, ['key', 'value']),
+    radius: pick(radius, ['key', 'value']),
+    typography: pick(typography, ['name', 'fontSize', 'lineHeight', 'fontWeight', 'textStyle']),
+  };
+  const block = `const TOKENS = ${JSON.stringify(data, null, 2)};\n`;
+  return current.slice(0, start + FIGMA_START.length) + block + current.slice(end);
+}
+
 function main() {
   const check = process.argv.includes('--check');
   const tokens = loadTokens();
@@ -176,6 +196,7 @@ function main() {
   const stale = [];
   for (const [kind, path] of Object.entries(OUTPUTS)) {
     const current = existsSync(path) ? normalize(readFileSync(path, 'utf8')) : null;
+    if (kind === 'figma') rendered.figma = renderFigma(tokens, current);
     if (current === rendered[kind]) continue;
     if (check) {
       stale.push(relative(ROOT, path));
