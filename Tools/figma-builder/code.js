@@ -775,13 +775,13 @@ function slider(width, ratio) {
   return f;
 }
 // EntropyGauge 계약: 취약(destructive) · 보통(primary) · 초강력(accent)
-function gauge(level) {
+function gauge(level, label) {
   const spec = { weak: ['취약함', 'destructive', 0.35], medium: ['보통', 'primary', 0.65], strong: ['초강력', 'accent', 1] }[level];
   const g = col(6);
   g.name = 'EntropyGauge · ' + spec[0];
   const head = add(g, row(0), true);
   head.primaryAxisAlignItems = 'SPACE_BETWEEN';
-  head.appendChild(txt('비밀번호 강도', 12, 'medium', 'muted-foreground'));
+  head.appendChild(txt(label || '비밀번호 강도', 12, 'medium', 'muted-foreground'));
   head.appendChild(txt(spec[0], 12, 'bold', spec[1]));
   const track = figma.createFrame(); track.name = 'Track'; track.resize(300, 6); track.cornerRadius = 3; fill(track, 'muted');
   track.layoutMode = 'HORIZONTAL'; track.primaryAxisSizingMode = 'FIXED'; track.counterAxisSizingMode = 'FIXED';
@@ -936,8 +936,69 @@ function phone(page, p, s, index, o) {
   if (p === 'a' && o.tab) navBar(f, o.tab);
   return body;
 }
-// o: { active, auth, title, subtitle, width, danger }
-function web(page, s, index, o) {
+function screen3(page, key, phoneOpts, _webOpts, build) {
+  const index = FLOW_STEPS.findIndex((s) => s.key === key);
+  const s = FLOW_STEPS[index];
+  for (const p of ['i', 'a']) build(p, phone(page, p, s, index, typeof phoneOpts === 'function' ? phoneOpts(p) : phoneOpts));
+  WEB_SCREENS[key](page, s, index);
+}
+function brand(p, parent) { parent.appendChild(txt('KeyManage', p === 'w' ? 16 : 15, 'bold', 'foreground')); }
+
+// ---------- 8단계 화면 ----------
+// ---------- Web 목업: 실제 웹 화면(Apps/Web/src/ui)을 그대로 옮긴다 ----------
+// 웹은 구현이 기준이고 목업이 따라간다. 문구는 Apps/Web/src/ui/messages와 정책 문구(SEC-001·005, COM-001)와 같다.
+// iPhone·Android는 반대로 이 파일의 목업이 시안 기준이다(docs/design-system.md 5.2절).
+const WEB_TEXT = {
+  setupTitle: '마스터 비밀번호 설정',
+  setupBody: '볼트를 열기 위한 마스터 비밀번호를 입력해주세요. 마스터 비밀번호를 잃어버리면 복구할 수 없습니다.',
+  deleteTitle: '계정 삭제',
+  deleteBody: '계정과 볼트가 서버에서 바로 지워지고 되돌릴 수 없습니다. 다른 기기도 모두 로그아웃되고, 아직 올리지 못한 변경 사항은 사라집니다. 필요하면 먼저 백업을 내보내 주세요.',
+  deletePhrase: "확인을 위해 '계정 삭제'를 입력해 주세요.",
+};
+const WEB_ITEMS = [['GitHub', 'dev@example.com'], ['Google', 'dev@gmail.com'], ['AWS 콘솔', 'admin'], ['Notion', 'dev@example.com'], ['은행', null]];
+
+function webButton(label, kind, size) {
+  const sm = size === 'sm';
+  const b = fixedRow(sm ? 32 : 40, 6);
+  b.name = 'Button · ' + label;
+  b.primaryAxisAlignItems = 'CENTER';
+  b.cornerRadius = TOKEN_RADIUS.md;
+  b.paddingLeft = sm ? 12 : 16; b.paddingRight = b.paddingLeft;
+  const color = { primary: 'primary-foreground', destructive: 'destructive-foreground', outline: 'foreground', ghost: 'muted-foreground' }[kind || 'primary'];
+  if (kind === 'outline') { b.fills = []; stroke(b, 'input'); }
+  else if (kind === 'ghost') b.fills = [];
+  else fill(b, kind || 'primary');
+  b.appendChild(txt(label, sm ? 12 : 14, 'medium', color));
+  return b;
+}
+function webField(label, value, opts) {
+  const o = opts || {};
+  const wrap = col(8);
+  wrap.appendChild(txt(label, 14, 'medium'));
+  const box = fixedRow(o.height || 40, 8);
+  box.name = 'Input · ' + label;
+  box.primaryAxisAlignItems = 'SPACE_BETWEEN';
+  box.paddingLeft = 12; box.paddingRight = 12; box.cornerRadius = TOKEN_RADIUS.md;
+  fill(box, 'background'); stroke(box, 'input');
+  if (o.height) { box.counterAxisAlignItems = 'MIN'; box.paddingTop = 10; }
+  box.appendChild(txt(value, 14, 'regular', o.placeholder ? 'muted-foreground' : 'foreground', null, o.secret));
+  if (o.secret) box.appendChild(txt('보기', 12, 'medium', 'muted-foreground'));
+  add(wrap, box, true);
+  return wrap;
+}
+function webAlert(title, body) {
+  const a = col(4); a.name = 'Alert · info';
+  pad(a, 16, 12); a.cornerRadius = TOKEN_RADIUS.lg; fill(a, 'muted'); stroke(a, 'border');
+  if (title) a.appendChild(txt(title, 14, 'bold'));
+  add(a, txt(body, 14, 'regular', 'muted-foreground', 300), true);
+  return a;
+}
+function webCard(gap) {
+  const c = col(gap == null ? 16 : gap);
+  c.cornerRadius = TOKEN_RADIUS.lg; fill(c, 'card'); stroke(c, 'border');
+  return c;
+}
+function webFrame(page, s, index) {
   const f = figma.createFrame();
   f.name = `Web · ${s.name}`;
   f.resize(1280, 800);
@@ -948,47 +1009,219 @@ function web(page, s, index, o) {
   f.clipsContent = true;
   page.appendChild(f);
   wrapBrowser(page, f, f.name, s.path);
-  if (o.auth) {
-    f.layoutMode = 'VERTICAL'; f.primaryAxisSizingMode = 'FIXED'; f.counterAxisSizingMode = 'FIXED';
-    f.primaryAxisAlignItems = 'CENTER'; f.counterAxisAlignItems = 'CENTER';
-    const card = col(16); card.name = 'Card'; f.appendChild(card);
-    card.resize(o.width || 400, 10); card.counterAxisSizingMode = 'FIXED'; card.primaryAxisSizingMode = 'AUTO';
-    pad(card, 32, 32); card.cornerRadius = TOKEN_RADIUS.lg; fill(card, 'card'); stroke(card, o.danger ? 'destructive' : 'border');
-    return card;
+  return f;
+}
+// 인증 화면: 가운데 카드(max-w-sm 384px), 머리에 'KeyManage'와 작은 부제 (AuthScreen·UnlockScreen)
+function webAuth(page, s, index, subtitle) {
+  const f = webFrame(page, s, index);
+  f.layoutMode = 'VERTICAL'; f.primaryAxisSizingMode = 'FIXED'; f.counterAxisSizingMode = 'FIXED';
+  f.primaryAxisAlignItems = 'CENTER'; f.counterAxisAlignItems = 'CENTER';
+  const card = webCard(16); card.name = 'Card'; f.appendChild(card);
+  card.resize(384, 10); card.counterAxisSizingMode = 'FIXED'; card.primaryAxisSizingMode = 'AUTO';
+  pad(card, 24, 24);
+  if (subtitle != null) {
+    const head = col(4); add(card, head, true);
+    head.appendChild(txt('KeyManage', 24, 'bold'));
+    head.appendChild(txt(subtitle, 14, 'regular', 'muted-foreground'));
   }
+  return card;
+}
+// 앱 화면: 사이드바(240px) + 메인 (VaultHomeScreen). 사이드바 하단에 자동 잠금·백업·비밀번호 변경·계정 삭제·잠그기/로그아웃
+function webApp(page, s, index, active) {
+  const f = webFrame(page, s, index);
   f.layoutMode = 'HORIZONTAL'; f.primaryAxisSizingMode = 'FIXED'; f.counterAxisSizingMode = 'FIXED';
-  const side = col(4); side.name = 'Sidebar'; f.appendChild(side);
+  const side = col(16); side.name = 'Sidebar'; f.appendChild(side);
   side.resize(240, 800); side.primaryAxisSizingMode = 'FIXED'; side.counterAxisSizingMode = 'FIXED';
-  side.paddingLeft = 16; side.paddingRight = 16; side.paddingTop = 24;
+  side.primaryAxisAlignItems = 'SPACE_BETWEEN';
+  pad(side, 16, 16);
   fill(side, 'card'); stroke(side, 'border'); side.strokeTopWeight = 0; side.strokeLeftWeight = 0; side.strokeBottomWeight = 0;
-  side.appendChild(txt('KeyManage', 18, 'bold'));
-  const gap = figma.createFrame(); gap.resize(10, 16); gap.fills = []; side.appendChild(gap);
-  for (const l of ['볼트', '비밀번호 생성기', '설정']) {
-    const it = add(side, row(0), true); it.paddingLeft = 12; it.paddingTop = 8; it.paddingBottom = 8; it.cornerRadius = TOKEN_RADIUS.md;
-    if (l === o.active) fill(it, 'muted');
-    it.appendChild(txt(l, 14, l === o.active ? 'bold' : 'medium', l === o.active ? 'foreground' : 'muted-foreground'));
+  const top = col(16); add(side, top, true);
+  const brandBox = col(2); add(top, brandBox, true);
+  brandBox.appendChild(txt('KeyManage', 18, 'bold'));
+  brandBox.appendChild(txt('dev@example.com', 12, 'regular', 'muted-foreground'));
+  const nav = col(4); add(top, nav, true);
+  for (const l of ['볼트', '생성기', '설정']) {
+    const on = l === active;
+    const it = add(nav, row(12), true); pad(it, 12, 8); it.cornerRadius = TOKEN_RADIUS.md;
+    if (on) fill(it, 'accent');
+    const icon = figma.createRectangle(); icon.resize(16, 16); icon.cornerRadius = 4; fill(icon, on ? 'accent-foreground' : 'muted-foreground', 0.8);
+    it.appendChild(icon);
+    it.appendChild(txt(l, 14, on ? 'bold' : 'medium', on ? 'accent-foreground' : 'muted-foreground'));
   }
-  const main = col(24); main.name = 'Main'; f.appendChild(main);
+  const foot = col(12); add(side, foot, true);
+  stroke(foot, 'border'); foot.strokeTopWeight = 1; foot.strokeBottomWeight = 0; foot.strokeLeftWeight = 0; foot.strokeRightWeight = 0;
+  foot.paddingTop = 12;
+  const box = col(8); add(foot, box, true);
+  pad(box, 12, 12); box.cornerRadius = TOKEN_RADIUS.lg; fill(box, 'muted', 0.3); stroke(box, 'border', 0.5);
+  const lockRow = add(box, row(8), true); lockRow.primaryAxisAlignItems = 'SPACE_BETWEEN';
+  lockRow.appendChild(txt('자동 잠금', 12, 'regular', 'muted-foreground'));
+  const sel = row(4); pad(sel, 8, 4); sel.cornerRadius = TOKEN_RADIUS.md; fill(sel, 'background'); stroke(sel, 'input');
+  sel.appendChild(txt('5분', 12, 'regular')); lockRow.appendChild(sel);
+  for (const [l, kind] of [['백업 내보내기', 'outline'], ['백업에서 복원', 'outline'], ['마스터 비밀번호 변경', 'outline'], ['계정 삭제', 'danger']]) {
+    const b = add(box, fixedRow(28, 6), true); b.paddingLeft = 8; b.cornerRadius = TOKEN_RADIUS.md; b.fills = [];
+    stroke(b, kind === 'danger' ? 'destructive' : 'input', kind === 'danger' ? 0.4 : null);
+    b.appendChild(txt(l, 12, 'regular', kind === 'danger' ? 'destructive' : 'foreground'));
+  }
+  const acts = add(foot, row(8), true);
+  add(acts, webButton('잠그기', 'outline', 'sm')).layoutGrow = 1;
+  add(acts, webButton('로그아웃', 'ghost', 'sm')).layoutGrow = 1;
+  const main = col(16); main.name = 'Main'; f.appendChild(main);
   main.layoutGrow = 1; main.layoutSizingVertical = 'FILL';
-  main.paddingLeft = 32; main.paddingRight = 32; main.paddingTop = 32;
-  if (o.title) {
-    const h = col(4); main.appendChild(h);
-    h.appendChild(txt(o.title, 24, 'bold'));
-    if (o.subtitle) h.appendChild(txt(o.subtitle, 14, 'regular', 'muted-foreground'));
+  pad(main, 24, 24);
+  return { frame: f, main };
+}
+// 볼트 탭: 왼쪽 목록(384px) + 오른쪽 상세 (VaultScreen split)
+function webVaultList(main, selected) {
+  const split = add(main, row(24), true); split.counterAxisAlignItems = 'MIN'; split.layoutGrow = 1;
+  const list = col(12); list.name = 'ItemList'; split.appendChild(list);
+  list.resize(384, 10); list.counterAxisSizingMode = 'FIXED';
+  const top = add(list, row(8), true); top.counterAxisAlignItems = 'MAX';
+  add(top, webField('항목 검색', '', { placeholder: true })).layoutGrow = 1;
+  top.appendChild(webButton('항목 추가'));
+  const items = col(8); add(list, items, true);
+  for (const [name, user] of WEB_ITEMS) {
+    const card = add(items, webCard(2), true);
+    card.name = 'VaultItem · ' + name;
+    const it = add(card, row(8), true); pad(it, 16, 12); it.primaryAxisAlignItems = 'SPACE_BETWEEN';
+    if (name === selected) stroke(card, 'ring', null, 2);
+    const texts = col(2); it.appendChild(texts);
+    texts.appendChild(txt(name, 14, 'medium'));
+    if (user) texts.appendChild(txt(user, 12, 'regular', 'muted-foreground'));
+    it.appendChild(txt('복사', 12, 'medium', 'muted-foreground'));
   }
-  const content = col(16); content.name = 'Content'; main.appendChild(content);
-  content.resize(o.width || 560, 10); content.counterAxisSizingMode = 'FIXED'; content.primaryAxisSizingMode = 'AUTO';
-  return content;
+  const detail = col(16); detail.name = 'Detail'; split.appendChild(detail);
+  detail.layoutGrow = 1;
+  return detail;
 }
-function screen3(page, key, phoneOpts, webOpts, build) {
-  const index = FLOW_STEPS.findIndex((s) => s.key === key);
-  const s = FLOW_STEPS[index];
-  for (const p of ['i', 'a']) build(p, phone(page, p, s, index, typeof phoneOpts === 'function' ? phoneOpts(p) : phoneOpts));
-  build('w', web(page, s, index, webOpts));
+function webEmptyDetail(detail) {
+  const box = add(detail, webCard(4), true);
+  pad(box, 24, 48); box.counterAxisAlignItems = 'CENTER';
+  box.appendChild(txt('선택된 항목이 없습니다', 14, 'medium'));
+  box.appendChild(txt('목록에서 항목을 선택하거나 새 항목을 추가해 주세요.', 12, 'regular', 'muted-foreground'));
 }
-function brand(p, parent) { parent.appendChild(txt('KeyManage', p === 'w' ? 16 : 15, 'bold', 'foreground')); }
+function webDetailField(parent, label, value, opts) {
+  const o = opts || {};
+  const r = add(parent, row(8), true); r.primaryAxisAlignItems = 'SPACE_BETWEEN';
+  const t = col(4); r.appendChild(t);
+  t.appendChild(txt(label, 12, 'medium', 'muted-foreground'));
+  t.appendChild(txt(value, 14, 'regular', 'foreground', null, o.secret));
+  const acts = row(8); r.appendChild(acts);
+  for (const a of o.actions || []) acts.appendChild(webButton(a, 'outline', 'sm'));
+}
 
-// ---------- 8단계 화면 ----------
+const WEB_SCREENS = {
+  login(page, s, i) {
+    const c = webAuth(page, s, i, '볼트에 로그인');
+    add(c, webField('이메일', 'dev@example.com'), true);
+    add(c, webField('마스터 비밀번호', '••••••••••••', { secret: true }), true);
+    add(c, webButton('로그인'), true);
+    add(c, webButton('계정 만들기', 'ghost'), true);
+  },
+  signup(page, s, i) {
+    const c = webAuth(page, s, i, '새 계정 만들기');
+    add(c, webField('이메일', 'dev@example.com'), true);
+    add(c, webAlert(WEB_TEXT.setupTitle, WEB_TEXT.setupBody), true);
+    add(c, webField('마스터 비밀번호', '••••••••••••••••', { secret: true }), true);
+    add(c, gauge('strong'), true);
+    add(c, webField('마스터 비밀번호 확인', '••••••••••••••••', { secret: true }), true);
+    add(c, webButton('가입'), true);
+    add(c, webButton('이미 계정이 있어요', 'ghost'), true);
+  },
+  unlock(page, s, i) {
+    const c = webAuth(page, s, i, null);
+    const head = col(8); add(c, head, true); head.counterAxisAlignItems = 'CENTER';
+    head.appendChild(lockIcon());
+    head.appendChild(txt('볼트가 잠겼습니다', 20, 'bold'));
+    head.appendChild(txt('dev@example.com', 14, 'regular', 'muted-foreground'));
+    add(c, webField('마스터 비밀번호', '••••••••••••', { secret: true }), true);
+    add(c, webButton('잠금 해제'), true);
+    add(c, webButton('로그아웃', 'ghost'), true);
+  },
+  vault(page, s, i) {
+    const { main } = webApp(page, s, i, '볼트');
+    webEmptyDetail(webVaultList(main, null));
+  },
+  detail(page, s, i) {
+    const { main } = webApp(page, s, i, '볼트');
+    const detail = webVaultList(main, 'GitHub');
+    const card = add(detail, webCard(16), true); pad(card, 24, 24);
+    const head = add(card, row(8), true); head.primaryAxisAlignItems = 'SPACE_BETWEEN';
+    head.appendChild(webButton('목록으로', 'ghost', 'sm'));
+    const right = row(8); right.appendChild(webButton('수정', 'outline', 'sm')); right.appendChild(webButton('삭제', 'destructive', 'sm')); head.appendChild(right);
+    card.appendChild(txt('GitHub', 20, 'bold'));
+    webDetailField(card, '아이디', 'dev@example.com', { actions: ['복사'] });
+    webDetailField(card, '비밀번호', '••••••••••••••••', { secret: true, actions: ['보기', '복사'] });
+    webDetailField(card, 'URL', 'https://github.com');
+    webDetailField(card, '메모', '2FA 복구 코드는 종이에 보관');
+  },
+  generator(page, s, i) {
+    const { main } = webApp(page, s, i, '생성기');
+    main.counterAxisAlignItems = 'CENTER';
+    const card = webCard(16); main.appendChild(card);
+    card.resize(576, 10); card.counterAxisSizingMode = 'FIXED'; pad(card, 24, 24);
+    card.appendChild(txt('비밀번호 생성기', 20, 'bold'));
+    const result = add(card, col(8), true); pad(result, 12, 12); result.cornerRadius = TOKEN_RADIUS.md; fill(result, 'muted');
+    result.appendChild(txt('k7#Qv2!mR9$wLx4&Tz8p', 18, 'regular', 'foreground', null, true));
+    add(card, gauge('strong', '생성된 비밀번호 강도'), true);
+    const opts = add(card, row(16), true);
+    const len = row(8); len.appendChild(txt('길이', 14, 'medium'));
+    const num = row(0); pad(num, 10, 6); num.cornerRadius = TOKEN_RADIUS.md; fill(num, 'background'); stroke(num, 'input');
+    num.appendChild(txt('20', 14, 'regular', 'foreground', null, true)); len.appendChild(num); opts.appendChild(len);
+    for (const l of ['대문자', '소문자', '숫자', '특수기호']) { const c = row(6); c.appendChild(toggle('w', true)); c.appendChild(txt(l, 14, 'regular')); opts.appendChild(c); }
+    const acts = add(card, row(8), true);
+    acts.appendChild(webButton('다시 생성', 'outline')); acts.appendChild(webButton('복사'));
+  },
+  settings(page, s, i) {
+    const { main } = webApp(page, s, i, '설정');
+    main.counterAxisAlignItems = 'CENTER';
+    const view = col(24); main.appendChild(view);
+    view.resize(576, 10); view.counterAxisSizingMode = 'FIXED';
+    const head = add(view, col(4), true);
+    head.appendChild(txt('설정', 20, 'bold'));
+    head.appendChild(txt('계정 및 보안 정책 상태를 확인합니다.', 14, 'regular', 'muted-foreground'));
+    const sections = [
+      ['계정', [['이메일', 'dev@example.com'], ['동기화 상태', '최신 상태 (동기화 완료)']]],
+      ['보안 정책', [['클립보드 자동 삭제', '30초 (고정, COM-001)'], ['암호화 구조', '클라이언트 영지식 (AES-256-GCM)']]],
+      ['서버', [['서버 주소', 'https://localhost:8443']]],
+    ];
+    for (const [title, rows] of sections) {
+      const sec = add(view, col(8), true);
+      sec.appendChild(txt(title, 14, 'bold'));
+      const card = add(sec, webCard(0), true);
+      rows.forEach(([l, v], idx) => {
+        const r = add(card, row(16), true); pad(r, 16, 16); r.primaryAxisAlignItems = 'SPACE_BETWEEN';
+        if (idx > 0) { stroke(r, 'border'); r.strokeTopWeight = 1; r.strokeBottomWeight = 0; r.strokeLeftWeight = 0; r.strokeRightWeight = 0; }
+        r.appendChild(txt(l, 14, 'regular', 'muted-foreground')); r.appendChild(txt(v, 14, 'medium'));
+      });
+    }
+    const ctrl = add(view, webCard(0), true); fill(ctrl, 'muted', 0.2);
+    const cr = add(ctrl, row(12), true); pad(cr, 16, 16); cr.primaryAxisAlignItems = 'SPACE_BETWEEN';
+    const ct = col(2); cr.appendChild(ct);
+    ct.appendChild(txt('세션 제어', 14, 'medium'));
+    ct.appendChild(txt('볼트를 잠그거나 계정에서 로그아웃합니다.', 12, 'regular', 'muted-foreground'));
+    const cb = row(8); cr.appendChild(cb);
+    cb.appendChild(webButton('잠그기', 'outline', 'sm')); cb.appendChild(webButton('로그아웃', 'destructive', 'sm'));
+  },
+  // 계정 삭제는 볼트 화면 위에 뜨는 모달이다 (DeleteAccountDialog, max-w-md 448px)
+  delete(page, s, i) {
+    const { frame, main } = webApp(page, s, i, '볼트');
+    webEmptyDetail(webVaultList(main, null));
+    const overlay = figma.createRectangle(); overlay.name = 'Overlay'; overlay.resize(1280, 800); fill(overlay, 'overlay');
+    frame.appendChild(overlay); overlay.layoutPositioning = 'ABSOLUTE'; overlay.x = 0; overlay.y = 0;
+    const dlg = webCard(16); dlg.name = 'ModalDialog · 계정 삭제';
+    frame.appendChild(dlg); dlg.layoutPositioning = 'ABSOLUTE';
+    dlg.resize(448, 10); dlg.counterAxisSizingMode = 'FIXED'; pad(dlg, 24, 24);
+    dlg.appendChild(txt(WEB_TEXT.deleteTitle, 18, 'bold', 'destructive'));
+    add(dlg, txt(WEB_TEXT.deleteBody, 14, 'regular', 'muted-foreground', 400), true);
+    add(dlg, webField('마스터 비밀번호', '••••••••••••', { secret: true }), true);
+    add(dlg, webField(WEB_TEXT.deletePhrase, '계정 삭제'), true);
+    const acts = add(dlg, row(8), true);
+    acts.appendChild(webButton('취소', 'outline', 'sm')); acts.appendChild(webButton('삭제', 'destructive', 'sm'));
+    dlg.x = (1280 - 448) / 2; dlg.y = 160;
+  },
+};
+
+// ---------- 8단계 화면 (iPhone·Android는 이 목업이 시안 기준) ----------
 const MOCK_STEPS = {
   login(page) {
     screen3(page, 'login', { center: true }, { auth: true }, (p, b) => {
@@ -1007,7 +1240,7 @@ const MOCK_STEPS = {
       add(b, input(p, '마스터 비밀번호', '••••••••••••••••'), true);
       add(b, input(p, '마스터 비밀번호 확인', '••••••••••••••••', { focus: true }), true);
       add(b, gauge('strong'), true);
-      add(b, txt('12자 이상으로 정하세요. 마스터 비밀번호를 잃어버리면 복구할 수 없습니다.', 13, 'regular', 'muted-foreground', 336), true);
+      add(b, txt(WEB_TEXT.setupBody, 13, 'regular', 'muted-foreground', 336), true);
       add(b, button(p, '가입'), true);
       add(b, link(p, '이미 계정이 있어요'), true);
     });
@@ -1128,13 +1361,13 @@ const MOCK_STEPS = {
       } else if (p === 'a') {
         box = col(16); add(b, box, true); pad(box, 24, 24); box.cornerRadius = 28; fill(box, 'card'); stroke(box, 'border');
       }
-      box.appendChild(txt('계정을 삭제할까요?', p === 'a' ? 22 : 20, p === 'a' ? 'regular' : 'bold'));
-      add(box, txt('계정과 볼트가 서버에서 바로 지워지고 되돌릴 수 없습니다. 필요하면 먼저 백업을 내보내 주세요.', 14, 'regular', 'muted-foreground', 320), true);
+      box.appendChild(txt(WEB_TEXT.deleteTitle, p === 'a' ? 22 : 20, p === 'a' ? 'regular' : 'bold', 'destructive'));
+      add(box, txt(WEB_TEXT.deleteBody, 14, 'regular', 'muted-foreground', 320), true);
       add(box, input(p, '마스터 비밀번호', '••••••••••••'), true);
-      add(box, input(p, "확인을 위해 '계정 삭제'를 입력해 주세요", '계정 삭제', { focus: true }), true);
+      add(box, input(p, WEB_TEXT.deletePhrase, '계정 삭제', { focus: true }), true);
       const acts = add(box, row(8), true);
-      if (p === 'i') { acts.layoutMode = 'VERTICAL'; add(acts, button(p, '계정 삭제', 'destructive'), true); add(acts, button(p, '취소', 'secondary'), true); }
-      else { acts.primaryAxisAlignItems = 'MAX'; acts.appendChild(button(p, '취소', 'secondary')); acts.appendChild(button(p, '계정 삭제', 'destructive')); }
+      if (p === 'i') { acts.layoutMode = 'VERTICAL'; add(acts, button(p, '삭제', 'destructive'), true); add(acts, button(p, '취소', 'secondary'), true); }
+      else { acts.primaryAxisAlignItems = 'MAX'; acts.appendChild(button(p, '취소', 'secondary')); acts.appendChild(button(p, '삭제', 'destructive')); }
     });
   },
 };
