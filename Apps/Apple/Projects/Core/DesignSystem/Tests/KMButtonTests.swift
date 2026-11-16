@@ -11,7 +11,7 @@ final class KMButtonTests: XCTestCase {
     }
 
     func testButtonVariants() {
-        let expectedVariants: [KMButtonVariant] = [.primary, .outline, .destructive, .ghost]
+        let expectedVariants: [KMButtonVariant] = [.primary, .secondary, .outline, .destructive, .ghost]
         XCTAssertEqual(KMButtonVariant.allCases, expectedVariants)
     }
 
