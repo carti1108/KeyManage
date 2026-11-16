@@ -395,3 +395,17 @@ struct MainTests {
 		#expect(viewController.receivedPasswordGeneratorViewControllable === generatorRouting.viewControllable)
 	}
 }
+
+// MARK: - 탭 이름과 화면 제목 (iPhone 목업)
+@Suite("MainTab 제목")
+struct MainTabTitleTests {
+	@Test("탭 이름은 짧게, 화면 제목은 목업대로 쓴다", arguments: [
+		(MainTab.vault, "볼트", "볼트"),
+		(MainTab.generator, "생성기", "비밀번호 생성기"),
+		(MainTab.settings, "설정", "설정"),
+	])
+	func titles_matchMockup(tab: MainTab, tabTitle: String, navigationTitle: String) {
+		#expect(tab.title == tabTitle)
+		#expect(tab.navigationTitle == navigationTitle)
+	}
+}

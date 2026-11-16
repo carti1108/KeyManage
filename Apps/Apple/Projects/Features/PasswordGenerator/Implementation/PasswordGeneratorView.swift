@@ -7,18 +7,15 @@ struct PasswordGeneratorView: View {
 
 	var body: some View {
 		ScrollView {
-			VStack(spacing: DesignToken.Spacing.space6) {
-				// 1. 비밀번호 표시 및 액션 카드
-				passwordDisplayCard
-
-				// 2. 강도 및 취약점 진단 카드
-				strengthScoreCard
-
-				// 3. 생성 옵션 설정 카드
-				optionsCard
+			VStack(alignment: .leading, spacing: DesignToken.Spacing.space4) {
+				resultCard
+				lengthControl
+				optionsGroup
+				actionButtons
 			}
-			.padding(DesignToken.Spacing.space6)
+			.padding(DesignToken.Spacing.space4)
 		}
+		.background(DesignToken.View.background)
 		.overlay(alignment: .bottom) {
 			if let toast = viewModel.state.toastMessage {
 				toastOverlay(toast)
@@ -28,203 +25,106 @@ struct PasswordGeneratorView: View {
 
 	// MARK: - Subviews
 
-	private var passwordDisplayCard: some View {
-		KMCard {
-			VStack(alignment: .leading, spacing: DesignToken.Spacing.space4) {
-				Text("생성된 비밀번호")
-					.font(DesignToken.Typography.heading)
-					.foregroundColor(DesignToken.View.foreground)
+	private var resultCard: some View {
+		VStack(alignment: .leading, spacing: DesignToken.Spacing.space3) {
+			Text(viewModel.state.generatedPassword.isEmpty ? "비밀번호를 생성 중입니다..." : viewModel.state.generatedPassword)
+				.font(DesignToken.Typography.titleMono)
+				.foregroundColor(DesignToken.View.foreground)
+				.lineLimit(3)
+				.minimumScaleFactor(0.7)
+				.textSelection(.enabled)
+				.accessibilityLabel("생성된 비밀번호")
+				.accessibilityValue(viewModel.state.generatedPassword)
 
-				HStack {
-					Text(viewModel.state.generatedPassword.isEmpty ? "비밀번호를 생성 중입니다..." : viewModel.state.generatedPassword)
-						.font(DesignToken.Typography.titleMono)
-						.bold()
-						.foregroundColor(DesignToken.View.primary)
-						.lineLimit(2)
-						.minimumScaleFactor(0.7)
+			KMGaugeBar(score: viewModel.state.score)
 
-					Spacer()
-
-					HStack(spacing: DesignToken.Spacing.space2) {
-						KMButton(
-							"재생성",
-							variant: .outline,
-							size: .sm,
-							action: { viewModel.request(action: .regenerate) }
-						)
-
-						KMButton(
-							"복사",
-							variant: .primary,
-							size: .sm,
-							action: { viewModel.request(action: .copyPassword(viewModel.state.generatedPassword)) }
-						)
-						.disabled(viewModel.state.generatedPassword.isEmpty)
-					}
-				}
-				.padding(DesignToken.Spacing.space3)
-				.background(DesignToken.View.muted)
-				.cornerRadius(DesignToken.Radius.md)
+			if viewModel.state.securityLevel == .danger {
+				warningText(EntropyScorer.warningMessage)
 			}
-			.padding(DesignToken.Spacing.space4)
+			if let notice = viewModel.state.sequentialDigitsNotice {
+				warningText(notice)
+			}
+		}
+		.padding(DesignToken.Spacing.space4)
+		.frame(maxWidth: .infinity, alignment: .leading)
+		.background(DesignToken.View.muted)
+		.clipShape(RoundedRectangle(cornerRadius: DesignToken.Radius.lg))
+	}
+
+	private var lengthControl: some View {
+		VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
+			HStack {
+				Text("길이")
+					.font(DesignToken.Typography.body.weight(.medium))
+				Spacer()
+				Text("\(Int(viewModel.state.length))")
+					.font(DesignToken.Typography.bodyMono.weight(.bold))
+			}
+			.foregroundColor(DesignToken.View.foreground)
+
+			Slider(
+				value: Binding(
+					get: { viewModel.state.length },
+					set: { viewModel.request(action: .updateLength($0)) }
+				),
+				in: Double(PasswordGenerationOptions.minimumLength)...Double(PasswordGenerationOptions.maximumLength),
+				step: 1
+			)
+			.accessibilityLabel("길이")
+			.accessibilityValue("\(Int(viewModel.state.length))자")
 		}
 	}
 
-	private var strengthScoreCard: some View {
-		KMCard {
-			VStack(alignment: .leading, spacing: DesignToken.Spacing.space4) {
-				HStack {
-					Text("보안 강도")
-						.font(DesignToken.Typography.heading)
-						.foregroundColor(DesignToken.View.foreground)
-
-					Spacer()
-
-					Text(viewModel.state.securityLevel.title)
-						.font(DesignToken.Typography.caption.weight(.bold))
-						.padding(.horizontal, DesignToken.Spacing.space2)
-						.padding(.vertical, DesignToken.Spacing.space1)
-						.background(scoreColor(for: viewModel.state.securityLevel).opacity(0.15))
-						.foregroundColor(scoreColor(for: viewModel.state.securityLevel))
-						.cornerRadius(DesignToken.Radius.sm)
-
-					Text("\(viewModel.state.score)점 / 100점")
-						.font(DesignToken.Typography.label.weight(.bold))
-						.foregroundColor(DesignToken.View.mutedForeground)
-				}
-
-				// 강도 게이지 바
-				GeometryReader { geometry in
-					ZStack(alignment: .leading) {
-						RoundedRectangle(cornerRadius: DesignToken.Radius.sm)
-							.fill(DesignToken.View.muted)
-							.frame(height: 8)
-
-						RoundedRectangle(cornerRadius: DesignToken.Radius.sm)
-							.fill(scoreColor(for: viewModel.state.securityLevel))
-							.frame(width: max(0, min(geometry.size.width, geometry.size.width * CGFloat(viewModel.state.score) / 100.0)), height: 8)
-					}
-				}
-				.frame(height: 8)
-
-				// 안내 및 경고 문구
-				if viewModel.state.securityLevel == .danger {
-					Text(EntropyScorer.warningMessage)
-						.font(DesignToken.Typography.caption)
-						.foregroundColor(DesignToken.View.destructive)
-				}
-
-				if let notice = viewModel.state.sequentialDigitsNotice {
-					Text(notice)
-						.font(DesignToken.Typography.caption)
-						.foregroundColor(DesignToken.View.destructive)
-				}
-			}
-			.padding(DesignToken.Spacing.space4)
+	private var optionsGroup: some View {
+		VStack(spacing: 0) {
+			optionToggle("대문자", isOn: viewModel.state.includeUppercase, action: .toggleUppercase)
+			Divider()
+			optionToggle("소문자", isOn: viewModel.state.includeLowercase, action: .toggleLowercase)
+			Divider()
+			optionToggle("숫자", isOn: viewModel.state.includeDigits, action: .toggleDigits)
+			Divider()
+			optionToggle("특수기호", isOn: viewModel.state.includeSymbols, action: .toggleSymbols)
 		}
+		.padding(.horizontal, DesignToken.Spacing.space4)
+		.background(DesignToken.View.muted)
+		.clipShape(RoundedRectangle(cornerRadius: DesignToken.Radius.lg))
 	}
 
-	private var optionsCard: some View {
-		KMCard {
-			VStack(alignment: .leading, spacing: DesignToken.Spacing.space5) {
-				Text("생성 옵션")
-					.font(DesignToken.Typography.heading)
-					.foregroundColor(DesignToken.View.foreground)
-
-				// 길이 슬라이더
-				VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
-					HStack {
-						Text("비밀번호 길이")
-							.font(DesignToken.Typography.label)
-							.foregroundColor(DesignToken.View.foreground)
-						Spacer()
-						Text("\(Int(viewModel.state.length))자")
-							.font(DesignToken.Typography.label.weight(.bold))
-							.foregroundColor(DesignToken.View.primary)
-					}
-
-					Slider(
-						value: Binding(
-							get: { viewModel.state.length },
-							set: { viewModel.request(action: .updateLength($0)) }
-						),
-						in: Double(PasswordGenerationOptions.minimumLength)...Double(PasswordGenerationOptions.maximumLength),
-						step: 1
-					)
-				}
-
-				Divider()
-
-				// 문자 종류 토글들
-				VStack(alignment: .leading, spacing: DesignToken.Spacing.space3) {
-					Toggle(isOn: Binding(
-						get: { viewModel.state.includeUppercase },
-						set: { _ in viewModel.request(action: .toggleUppercase) }
-					)) {
-						VStack(alignment: .leading) {
-							Text("대문자 (A-Z)")
-								.font(DesignToken.Typography.label)
-							Text("ABC...XYZ")
-								.font(DesignToken.Typography.caption)
-								.foregroundColor(DesignToken.View.mutedForeground)
-						}
-					}
-
-					Toggle(isOn: Binding(
-						get: { viewModel.state.includeLowercase },
-						set: { _ in viewModel.request(action: .toggleLowercase) }
-					)) {
-						VStack(alignment: .leading) {
-							Text("소문자 (a-z)")
-								.font(DesignToken.Typography.label)
-							Text("abc...xyz")
-								.font(DesignToken.Typography.caption)
-								.foregroundColor(DesignToken.View.mutedForeground)
-						}
-					}
-
-					Toggle(isOn: Binding(
-						get: { viewModel.state.includeDigits },
-						set: { _ in viewModel.request(action: .toggleDigits) }
-					)) {
-						VStack(alignment: .leading) {
-							Text("숫자 (0-9)")
-								.font(DesignToken.Typography.label)
-							Text("0123456789")
-								.font(DesignToken.Typography.caption)
-								.foregroundColor(DesignToken.View.mutedForeground)
-						}
-					}
-
-					Toggle(isOn: Binding(
-						get: { viewModel.state.includeSymbols },
-						set: { _ in viewModel.request(action: .toggleSymbols) }
-					)) {
-						VStack(alignment: .leading) {
-							Text("특수문자")
-								.font(DesignToken.Typography.label)
-							Text("!@#$%^&*()_+-=[]{}|;:,.<>?")
-								.font(DesignToken.Typography.caption)
-								.foregroundColor(DesignToken.View.mutedForeground)
-						}
-					}
-				}
+	private var actionButtons: some View {
+		HStack(spacing: DesignToken.Spacing.space2) {
+			KMButton("다시 생성", variant: .secondary, size: .lg, isFullWidth: true) {
+				viewModel.request(action: .regenerate)
 			}
-			.padding(DesignToken.Spacing.space4)
+			KMButton(
+				"복사",
+				variant: .primary,
+				size: .lg,
+				isDisabled: viewModel.state.generatedPassword.isEmpty,
+				isFullWidth: true
+			) {
+				viewModel.request(action: .copyPassword(viewModel.state.generatedPassword))
+			}
 		}
 	}
 
 	// MARK: - Helpers
 
-	private func scoreColor(for level: PasswordSecurityLevel) -> Color {
-		switch level {
-		case .danger:
-			return DesignToken.View.destructive
-		case .warning:
-			return DesignToken.View.primary
-		case .secure:
-			return DesignToken.View.accent
+	private func optionToggle(_ title: String, isOn: Bool, action: PasswordGeneratorViewAction) -> some View {
+		Toggle(isOn: Binding(
+			get: { isOn },
+			set: { _ in viewModel.request(action: action) }
+		)) {
+			Text(title)
+				.font(DesignToken.Typography.body)
+				.foregroundColor(DesignToken.View.foreground)
 		}
+		.padding(.vertical, DesignToken.Spacing.space3)
+	}
+
+	private func warningText(_ message: String) -> some View {
+		Text(message)
+			.font(DesignToken.Typography.caption)
+			.foregroundColor(DesignToken.View.destructive)
 	}
 
 	private func toastOverlay(_ message: String) -> some View {
