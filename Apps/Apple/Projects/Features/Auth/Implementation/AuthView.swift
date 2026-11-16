@@ -9,177 +9,172 @@ public struct AuthView: View {
 		self.viewModel = viewModel
 	}
 
+	private var isRegister: Bool { viewModel.state.mode == .register }
+
 	public var body: some View {
-		ZStack {
+		ZStack(alignment: .topLeading) {
 			DesignToken.View.background
 				.ignoresSafeArea()
 
-			ScrollView {
-				VStack(spacing: DesignToken.Spacing.space6) {
-					Spacer(minLength: 40)
-
-					// Header
-					VStack(spacing: DesignToken.Spacing.space2) {
-						Image(systemName: "lock.shield.fill")
-							.font(.system(size: 48))
-							.foregroundColor(DesignToken.View.primary)
-
-						Text("KeyManage")
-							.font(DesignToken.Typography.display)
-							.foregroundColor(DesignToken.View.foreground)
-
-						Text(viewModel.state.mode == .register ? AuthStrings.registerTitle : AuthStrings.loginTitle)
-							.font(DesignToken.Typography.label)
-							.foregroundColor(DesignToken.View.mutedForeground)
+			GeometryReader { proxy in
+				ScrollView {
+					VStack(alignment: .leading, spacing: DesignToken.Spacing.space4) {
+						header
+						errorBanner
+						fields
+						submitButton
+						switchModeButton
 					}
-
-					// Card Container
-					VStack(alignment: .leading, spacing: DesignToken.Spacing.space5) {
-						// Error banner
-						if let error = viewModel.state.errorMessage {
-							HStack(spacing: DesignToken.Spacing.space3) {
-								Image(systemName: "exclamationmark.triangle.fill")
-									.foregroundColor(DesignToken.View.destructive)
-								Text(error)
-									.font(DesignToken.Typography.caption)
-									.foregroundColor(DesignToken.View.destructive)
-									.fixedSize(horizontal: false, vertical: true)
-							}
-							.padding(DesignToken.Spacing.space3)
-							.frame(maxWidth: .infinity, alignment: .leading)
-							.background(DesignToken.View.destructive.opacity(0.1))
-							.cornerRadius(DesignToken.Radius.md)
-						}
-
-						// Email Input
-						VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
-							Text("이메일")
-								.font(DesignToken.Typography.label.weight(.bold))
-								.foregroundColor(DesignToken.View.foreground)
-
-							TextField(AuthStrings.emailPlaceholder, text: $viewModel.email)
-								.textFieldStyle(.plain)
-								#if os(iOS)
-								.keyboardType(.emailAddress)
-								.textInputAutocapitalization(.never)
-								.textContentType(.username)
-								#endif
-								.disableAutocorrection(true)
-								.padding(DesignToken.Spacing.space3)
-								.background(DesignToken.View.card)
-								.cornerRadius(DesignToken.Radius.md)
-								.overlay(
-									RoundedRectangle(cornerRadius: DesignToken.Radius.md)
-										.stroke(DesignToken.View.border, lineWidth: 1)
-								)
-						}
-
-						// Password Input
-						VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
-							Text("마스터 비밀번호")
-								.font(DesignToken.Typography.label.weight(.bold))
-								.foregroundColor(DesignToken.View.foreground)
-
-							SecureField(AuthStrings.passwordPlaceholder, text: $viewModel.password)
-								.textFieldStyle(.plain)
-								#if os(iOS)
-								.textContentType(viewModel.state.mode == .register ? .newPassword : .password)
-								#endif
-								.padding(DesignToken.Spacing.space3)
-								.background(DesignToken.View.card)
-								.cornerRadius(DesignToken.Radius.md)
-								.overlay(
-									RoundedRectangle(cornerRadius: DesignToken.Radius.md)
-										.stroke(DesignToken.View.border, lineWidth: 1)
-								)
-
-							// 가입 화면 강도 안내. 취약해도 가입은 막지 않는다 (SEC-002)
-							if viewModel.state.showsStrengthGauge {
-								KMGaugeBar(score: viewModel.state.passwordStrengthScore)
-							}
-							if viewModel.state.showsWeakPasswordWarning {
-								Text(AuthStrings.weakMasterPasswordWarning)
-									.font(DesignToken.Typography.caption)
-									.foregroundColor(DesignToken.View.mutedForeground)
-									.fixedSize(horizontal: false, vertical: true)
-							}
-						}
-
-						// Confirmation Input (Register Mode Only)
-						if viewModel.state.mode == .register {
-							VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
-								Text("비밀번호 확인")
-									.font(DesignToken.Typography.label.weight(.bold))
-									.foregroundColor(DesignToken.View.foreground)
-
-								SecureField(AuthStrings.confirmationPlaceholder, text: $viewModel.confirmation)
-									.textFieldStyle(.plain)
-									#if os(iOS)
-									.textContentType(.newPassword)
-									#endif
-									.padding(DesignToken.Spacing.space3)
-									.background(DesignToken.View.card)
-									.cornerRadius(DesignToken.Radius.md)
-									.overlay(
-										RoundedRectangle(cornerRadius: DesignToken.Radius.md)
-											.stroke(DesignToken.View.border, lineWidth: 1)
-									)
-
-								Text("마스터 비밀번호는 12자 이상이어야 하며, 분실 시 복구할 수 없습니다.")
-									.font(DesignToken.Typography.caption)
-									.foregroundColor(DesignToken.View.mutedForeground)
-							}
-						}
-
-						// Submit Button
-						Button {
-							viewModel.send(.submit)
-						} label: {
-							HStack {
-								Spacer()
-								if viewModel.state.isLoading {
-									ProgressView()
-										.progressViewStyle(.circular)
-										.tint(DesignToken.View.primaryForeground)
-								} else {
-									Text(viewModel.state.mode == .register ? AuthStrings.registerTitle : AuthStrings.loginTitle)
-										.font(DesignToken.Typography.body.weight(.bold))
-										.foregroundColor(DesignToken.View.primaryForeground)
-								}
-								Spacer()
-							}
-							.padding(.vertical, DesignToken.Spacing.space4)
-							.background(viewModel.canSubmit ? DesignToken.View.primary : DesignToken.View.primary.opacity(0.5))
-							.cornerRadius(DesignToken.Radius.md)
-						}
-						.buttonStyle(.plain)
-						.disabled(!viewModel.canSubmit)
-
-						// Switch Mode Button
-						Button {
-							viewModel.send(.switchMode)
-						} label: {
-							Text(viewModel.state.mode == .register ? AuthStrings.switchToLoginPrompt : AuthStrings.switchToRegisterPrompt)
-								.font(DesignToken.Typography.label)
-								.foregroundColor(DesignToken.View.primary)
-								.frame(maxWidth: .infinity, alignment: .center)
-						}
-						.buttonStyle(.plain)
-						.padding(.top, DesignToken.Spacing.space1)
-					}
-					.padding(DesignToken.Spacing.space6)
-					.background(DesignToken.View.card)
-					.cornerRadius(DesignToken.Radius.lg)
-					.overlay(
-						RoundedRectangle(cornerRadius: DesignToken.Radius.lg)
-							.stroke(DesignToken.View.border, lineWidth: 1)
-					)
 					.frame(maxWidth: 420)
-
-					Spacer(minLength: 40)
+					.padding(.horizontal, DesignToken.Spacing.space4)
+					.padding(.vertical, DesignToken.Spacing.space6)
+					.frame(maxWidth: .infinity, minHeight: proxy.size.height)
 				}
-				.padding(.horizontal, DesignToken.Spacing.space5)
+			}
+
+			if isRegister {
+				backToLoginButton
 			}
 		}
+	}
+
+	// MARK: - Sections
+
+	private var header: some View {
+		VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
+			if !isRegister {
+				Text("KeyManage")
+					.font(DesignToken.Typography.heading)
+					.foregroundColor(DesignToken.View.foreground)
+			}
+			Text(isRegister ? AuthStrings.registerTitle : AuthStrings.loginTitle)
+				.font(DesignToken.Typography.display)
+				.foregroundColor(DesignToken.View.foreground)
+				.accessibilityAddTraits(.isHeader)
+		}
+	}
+
+	@ViewBuilder
+	private var errorBanner: some View {
+		if let error = viewModel.state.errorMessage {
+			HStack(spacing: DesignToken.Spacing.space3) {
+				Image(systemName: DesignToken.Icon.warning)
+					.foregroundColor(DesignToken.View.destructive)
+					.accessibilityHidden(true)
+				Text(error)
+					.font(DesignToken.Typography.caption)
+					.foregroundColor(DesignToken.View.destructive)
+					.fixedSize(horizontal: false, vertical: true)
+			}
+			.padding(DesignToken.Spacing.space3)
+			.frame(maxWidth: .infinity, alignment: .leading)
+			.background(DesignToken.View.destructive.opacity(0.1))
+			.clipShape(RoundedRectangle(cornerRadius: DesignToken.Radius.md))
+		}
+	}
+
+	private var fields: some View {
+		VStack(alignment: .leading, spacing: DesignToken.Spacing.space4) {
+			labeled(AuthStrings.emailLabel) {
+				TextField(AuthStrings.emailLabel, text: $viewModel.email)
+					.textFieldStyle(.plain)
+					#if os(iOS)
+					.keyboardType(.emailAddress)
+					.textInputAutocapitalization(.never)
+					.textContentType(.username)
+					#endif
+					.disableAutocorrection(true)
+					.kmFieldContainer()
+			}
+
+			labeled(AuthStrings.passwordLabel) {
+				SecureField(AuthStrings.passwordLabel, text: $viewModel.password)
+					.textFieldStyle(.plain)
+					#if os(iOS)
+					.textContentType(isRegister ? .newPassword : .password)
+					#endif
+					.kmFieldContainer()
+			}
+
+			if isRegister {
+				labeled(AuthStrings.confirmationLabel) {
+					SecureField(AuthStrings.confirmationLabel, text: $viewModel.confirmation)
+						.textFieldStyle(.plain)
+						#if os(iOS)
+						.textContentType(.newPassword)
+						#endif
+						.kmFieldContainer()
+				}
+
+				// 가입 화면 강도 안내. 취약해도 가입은 막지 않는다 (SEC-002)
+				if viewModel.state.showsStrengthGauge {
+					KMGaugeBar(score: viewModel.state.passwordStrengthScore)
+				}
+				if viewModel.state.showsWeakPasswordWarning {
+					helperText(AuthStrings.weakMasterPasswordWarning)
+				}
+				helperText(AuthStrings.setupNotice)
+			}
+		}
+	}
+
+	private var submitButton: some View {
+		KMButton(
+			isRegister ? AuthStrings.registerButtonTitle : AuthStrings.loginButtonTitle,
+			size: .lg,
+			isLoading: viewModel.state.isLoading,
+			isDisabled: !viewModel.canSubmit,
+			isFullWidth: true
+		) {
+			viewModel.send(.submit)
+		}
+	}
+
+	private var switchModeButton: some View {
+		Button {
+			viewModel.send(.switchMode)
+		} label: {
+			Text(isRegister ? AuthStrings.switchToLoginPrompt : AuthStrings.switchToRegisterPrompt)
+				.font(DesignToken.Typography.label.weight(.medium))
+				.foregroundColor(DesignToken.View.foreground)
+				.frame(maxWidth: .infinity, minHeight: 44)
+		}
+		.buttonStyle(.plain)
+	}
+
+	private var backToLoginButton: some View {
+		Button {
+			viewModel.send(.switchMode)
+		} label: {
+			HStack(spacing: DesignToken.Spacing.space1) {
+				Image(systemName: "chevron.left")
+					.font(DesignToken.Typography.body.weight(.semibold))
+				Text(AuthStrings.loginButtonTitle)
+					.font(DesignToken.Typography.body)
+			}
+			.foregroundColor(DesignToken.View.foreground)
+			.frame(minHeight: 44)
+		}
+		.buttonStyle(.plain)
+		.padding(.horizontal, DesignToken.Spacing.space4)
+		.accessibilityLabel("로그인으로 돌아가기")
+	}
+
+	// MARK: - Helpers
+
+	private func labeled<Field: View>(_ title: String, @ViewBuilder field: () -> Field) -> some View {
+		VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
+			Text(title)
+				.font(DesignToken.Typography.caption.weight(.medium))
+				.foregroundColor(DesignToken.View.mutedForeground)
+			field()
+		}
+	}
+
+	private func helperText(_ text: String) -> some View {
+		Text(text)
+			.font(DesignToken.Typography.caption)
+			.foregroundColor(DesignToken.View.mutedForeground)
+			.fixedSize(horizontal: false, vertical: true)
 	}
 }
