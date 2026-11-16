@@ -243,6 +243,22 @@ final class SettingsDependencyMock: SettingsDependency {
 @MainActor
 struct SettingsTests {
 
+	// MARK: - 0. 계정 그룹 (iPhone 목업)
+
+	@Test("interactor.didBecomeActive() 시 계정 이메일을 상태에 담는다")
+	func interactor_didBecomeActive_exposesAccountEmail() {
+		// Given
+		let lockManager = MockVaultLockManager()
+		lockManager.email = "dev@example.com"
+		let interactor = SettingsInteractor(lockManager: lockManager)
+
+		// When
+		interactor.didBecomeActive()
+
+		// Then
+		#expect(interactor.state.email == "dev@example.com")
+	}
+
 	// MARK: - 1. 타임아웃 동기화 및 갱신 (SEC-003)
 
 	@Test("interactor.didBecomeActive() 시 현재 lockManager.autoLockTimeout을 presenter에 전달 검증")
