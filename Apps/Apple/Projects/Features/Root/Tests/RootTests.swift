@@ -74,6 +74,8 @@ final class RootInteractableMock: RootInteractable {
 		didUnlockVaultCallCount += 1
 	}
 
+	func unlockDidRequestLogout() {}
+
 	func didLockVault() {
 		didLockVaultCallCount += 1
 	}
@@ -170,6 +172,22 @@ struct RootFeatureTests {
 
 		// Then
 		#expect(router.routeToMainCallCount == 1)
+	}
+
+	@Test("UnlockListener.unlockDidRequestLogout() 수신 시 router.routeToAuth() 호출 검증")
+	func unlockListener_whenLogoutRequested_routesToAuth() {
+		// Given
+		let lockManager = MockVaultLockManager(isLocked: true)
+		let interactor = RootInteractor(lockManager: lockManager)
+		let router = RootRoutingMock()
+		interactor.router = router
+
+		// When
+		interactor.unlockDidRequestLogout()
+
+		// Then
+		#expect(router.routeToAuthCallCount == 1)
+		#expect(router.routeToMainCallCount == 0)
 	}
 
 	// MARK: - 4. 볼트 잠금 이벤트 발생 시 Unlock RIB 전이

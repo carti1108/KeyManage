@@ -61,7 +61,10 @@ final class UnlockInteractor: Interactor, UnlockInteractable, UnlockPresentableL
 		self.biometricKeyStore = biometricKeyStore
 		self.networkClient = networkClient
 		self.presenter = presenter
-		self.state = UnlockViewState(isBiometricsEnabled: lockManager.isBiometricsEnabled)
+		self.state = UnlockViewState(
+			isBiometricsEnabled: lockManager.isBiometricsEnabled,
+			email: lockManager.email
+		)
 		super.init()
 		presenter?.listener = self
 	}
@@ -87,6 +90,9 @@ final class UnlockInteractor: Interactor, UnlockInteractable, UnlockPresentableL
 			state.password = ""
 			presenter?.clearInputPassword()
 			presenter?.update(state: state)
+		case .logout:
+			lockManager.logout()
+			listener?.unlockDidRequestLogout()
 		}
 	}
 
