@@ -652,4 +652,88 @@ struct VaultListTests {
 		#expect(presenter.receivedHasPending == true)
 		#expect(presenter.receivedIsOffline == false)
 	}
+
+	// MARK: - 항목 상세 화면 (iPhone 목업)
+
+	private static func makeItem(id: String = "1") -> VaultItem {
+		VaultItem(id: id, serviceName: "GitHub", username: "octocat", password: "p1", createdAt: "2026-11-02T00:00:00Z", updatedAt: "2026-11-02T00:00:00Z")
+	}
+
+	@Test("목록에서 항목을 고르면 상세 화면 대상이 그 항목이 된다")
+	func openDetail_selectsItem() {
+		// Given
+		let item = Self.makeItem()
+		let lockManager = VaultLockManagerMock(decryptedVault: VaultData(updatedAt: "2026-11-02T00:00:00Z", items: [item]))
+		let interactor = VaultListInteractor(lockManager: lockManager, clipboardManager: ClipboardManagerSpy())
+		interactor.didBecomeActive()
+
+		// When
+		interactor.request(action: .openDetail(id: "1"))
+
+		// Then
+		#expect(interactor.state.selectedItemId == "1")
+		#expect(interactor.state.selectedItem == item)
+	}
+
+	@Test("상세 화면을 닫으면 대상과 소각 배지가 지워진다")
+	func closeDetail_clearsSelectionAndBurnBadge() {
+		// Given
+		let interactor = VaultListInteractor(lockManager: VaultLockManagerMock(), clipboardManager: ClipboardManagerSpy(), now: { Date(timeIntervalSince1970: 100) })
+		interactor.request(action: .openDetail(id: "1"))
+		interactor.didRequestCopyUsername(item: Self.makeItem())
+
+		// When
+		interactor.request(action: .closeDetail)
+
+		// Then
+		#expect(interactor.state.selectedItemId == nil)
+		#expect(interactor.state.clipboardBurnStartedAt == nil)
+	}
+
+	@Test("상세 화면에서 보던 항목을 지우면 상세 화면이 닫힌다")
+	func deleteSelectedItem_closesDetail() {
+		// Given
+		let item = Self.makeItem()
+		let lockManager = VaultLockManagerMock(decryptedVault: VaultData(updatedAt: "2026-11-02T00:00:00Z", items: [item]))
+		let interactor = VaultListInteractor(lockManager: lockManager, clipboardManager: ClipboardManagerSpy())
+		interactor.didBecomeActive()
+		interactor.request(action: .openDetail(id: "1"))
+
+		// When
+		interactor.didRequestDeleteItem(id: "1")
+
+		// Then
+		#expect(interactor.state.selectedItemId == nil)
+	}
+
+	@Test("복사에 성공하면 소각 배지 시작 시각을 기록한다 (COM-001)", arguments: [false, true])
+	func copy_success_startsBurnBadge(copyPassword: Bool) {
+		// Given
+		let startedAt = Date(timeIntervalSince1970: 1_000)
+		let interactor = VaultListInteractor(lockManager: VaultLockManagerMock(), clipboardManager: ClipboardManagerSpy(), now: { startedAt })
+
+		// When
+		if copyPassword {
+			interactor.didRequestCopyPassword(item: Self.makeItem())
+		} else {
+			interactor.didRequestCopyUsername(item: Self.makeItem())
+		}
+
+		// Then
+		#expect(interactor.state.clipboardBurnStartedAt == startedAt)
+	}
+
+	@Test("복사에 실패하면 소각 배지를 띄우지 않는다")
+	func copy_failure_doesNotStartBurnBadge() {
+		// Given
+		let clipboard = ClipboardManagerSpy()
+		clipboard.shouldThrowOnCopy = true
+		let interactor = VaultListInteractor(lockManager: VaultLockManagerMock(), clipboardManager: clipboard, now: { Date(timeIntervalSince1970: 1) })
+
+		// When
+		interactor.didRequestCopyUsername(item: Self.makeItem())
+
+		// Then
+		#expect(interactor.state.clipboardBurnStartedAt == nil)
+	}
 }

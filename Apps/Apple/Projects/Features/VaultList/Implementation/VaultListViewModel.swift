@@ -213,6 +213,11 @@ final class VaultListViewModel: ObservableObject {
 			onCopyPassword?(item)
 		case .copyUsername(let item):
 			onCopyUsername?(item)
+		case .openDetail(let id):
+			state.selectedItemId = id
+		case .closeDetail:
+			state.selectedItemId = nil
+			state.clipboardBurnStartedAt = nil
 		case .togglePasswordVisibility(let id):
 			if state.revealedPasswordIds.contains(id) {
 				state.revealedPasswordIds.remove(id)

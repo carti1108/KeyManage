@@ -7,6 +7,7 @@ struct UnlockViewState: Equatable, Sendable {
 	var errorMessage: String?
 	var isLoading: Bool = false
 	var isBiometricsEnabled: Bool = false
+	var email: String?
 }
 
 // MARK: - ViewAction
@@ -17,4 +18,5 @@ enum UnlockViewAction: Equatable, Sendable {
 	case unlockWithPassword(String)
 	case unlockWithBiometrics
 	case clearPassword
+	case logout
 }

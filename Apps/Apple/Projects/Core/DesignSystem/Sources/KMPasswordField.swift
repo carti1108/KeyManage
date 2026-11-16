@@ -130,14 +130,7 @@ public struct KMPasswordField: View {
                 .accessibilityLabel("비밀번호 복사")
             }
         }
-        .padding(.horizontal, DesignToken.Spacing.space3)
-        .frame(height: 40)
-        .background(DesignToken.View.card)
-        .clipShape(RoundedRectangle(cornerRadius: DesignToken.Radius.sm))
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignToken.Radius.sm)
-                .stroke(DesignToken.View.input, lineWidth: 1)
-        )
+        .kmFieldContainer()
 #if os(macOS)
         .onChange(of: text) { _, newValue in
             engine.updateText(newValue)

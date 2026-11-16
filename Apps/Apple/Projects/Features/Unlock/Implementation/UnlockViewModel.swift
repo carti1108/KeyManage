@@ -74,6 +74,8 @@ final class UnlockViewModel: ObservableObject {
 			onUnlockBiometrics?()
 		case .clearPassword:
 			state.password = ""
+		case .logout:
+			break
 		}
 	}
 

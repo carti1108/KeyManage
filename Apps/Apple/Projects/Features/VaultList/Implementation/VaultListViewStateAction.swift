@@ -11,6 +11,16 @@ struct VaultListViewState: Equatable, Sendable {
 	var isOffline: Bool = false
 	var isSyncing: Bool = false
 
+	// 항목 상세 화면
+	var selectedItemId: String? = nil
+	/// 마지막으로 복사에 성공한 시각. 상세 화면의 클립보드 소각 배지가 남은 초를 센다 (COM-001)
+	var clipboardBurnStartedAt: Date? = nil
+
+	var selectedItem: VaultItem? {
+		guard let selectedItemId else { return nil }
+		return items.first { $0.id == selectedItemId }
+	}
+
 	// 모달 및 폼 상태
 	var isItemSheetPresented: Bool = false
 	var isDeleteAlertPresented: Bool = false
@@ -54,6 +64,8 @@ enum VaultListViewAction: Equatable, Sendable {
 	case copyPassword(VaultItem)
 	case copyUsername(VaultItem)
 	case togglePasswordVisibility(id: String)
+	case openDetail(id: String)
+	case closeDetail
 	case startCreatingItem
 	case startEditingItem(VaultItem)
 	case cancelEditing

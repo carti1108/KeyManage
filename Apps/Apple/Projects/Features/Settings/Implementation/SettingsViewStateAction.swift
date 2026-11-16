@@ -5,6 +5,7 @@ import KeyManageDomain
 
 struct SettingsViewState: Equatable, Sendable {
 	var selectedTimeout: AutoLockTimeout = .default
+	var email: String?
 	var toastMessage: String?
 	var hasPendingSync: Bool = false
 	var isRestoreModalPresented: Bool = false

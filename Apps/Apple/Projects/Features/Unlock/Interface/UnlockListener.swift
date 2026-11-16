@@ -5,4 +5,5 @@ import MicroRIBs
 @MainActor
 public protocol UnlockListener: AnyObject {
 	func didUnlockVault()
+	func unlockDidRequestLogout()
 }

@@ -238,4 +238,40 @@ struct UnlockFeatureTests {
 		#expect(lockManager.checkIfPasswordChangedOnServerCallCount == 1)
 		#expect(interactor.errorMessage == MasterPasswordChangeStrings.passwordChangedReLoginNotice)
 	}
+
+	// MARK: - 잠금 화면 계정 표시와 로그아웃 (iPhone 목업)
+	@Test("잠금 화면 상태는 기기에 저장된 계정 이메일을 담는다")
+	func init_withStoredEmail_exposesEmailInState() {
+		// Given
+		let lockManager = MockVaultLockManager()
+		lockManager.email = "dev@example.com"
+
+		// When
+		let interactor = UnlockInteractor(lockManager: lockManager)
+
+		// Then
+		#expect(interactor.state.email == "dev@example.com")
+	}
+
+	@Test("로그아웃 요청 시 lockManager.logout() 1회와 listener.unlockDidRequestLogout() 1회 호출")
+	func request_logout_logsOutAndNotifiesListener() {
+		// Given
+		let lockManager = MockVaultLockManager()
+		let interactor = UnlockInteractor(lockManager: lockManager)
+		let listener = UnlockListenerMock()
+		interactor.listener = listener
+
+		// When
+		interactor.request(action: .logout)
+
+		// Then
+		#expect(lockManager.logoutCallCount == 1)
+		#expect(listener.unlockDidRequestLogoutCallCount == 1)
+		#expect(listener.didUnlockVaultCallCount == 0)
+	}
+
+	@Test("잠금 화면 제목은 SEC-003 문구와 같다")
+	func lockedTitle_matchesPolicyWording() {
+		#expect(VaultLockUIStrings.lockedTitle == "볼트가 잠겼습니다")
+	}
 }

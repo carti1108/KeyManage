@@ -598,7 +598,7 @@ final class VaultLockTests: XCTestCase {
 			LockError.emptyVaultPreparationFailed.errorDescription,
 			"계정은 만들었지만 볼트를 준비하지 못했습니다. 다시 로그인해 주세요."
 		)
-		XCTAssertEqual(VaultLockUIStrings.lockedTitle, "볼트가 잠겨 있습니다")
+		XCTAssertEqual(VaultLockUIStrings.lockedTitle, "볼트가 잠겼습니다")
 		XCTAssertEqual(VaultLockUIStrings.unlockButtonTitle, "잠금 해제")
 		XCTAssertEqual(VaultLockUIStrings.biometricUnlockButtonTitle, "생체 인증으로 잠금 해제")
 

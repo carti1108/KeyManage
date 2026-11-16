@@ -10,22 +10,15 @@ struct SettingsView: View {
 	@State private var isFileImporterPresented = false
 
 	var body: some View {
-		ScrollView {
-			VStack(spacing: DesignToken.Spacing.space6) {
-				// 1. 자동 잠금 섹션
-				autoLockSection
-
-				// 2. 백업 및 복원 섹션
-				backupSection
-
-				// 3. 마스터 비밀번호 변경 섹션
-				changePasswordSection
-
-				// 4. 계정 섹션 (로그아웃)
-				accountSection
-			}
-			.padding(DesignToken.Spacing.space6)
+		Form {
+			accountSection
+			securitySection
+			backupSection
+			sessionSection
 		}
+		#if os(macOS)
+		.formStyle(.grouped)
+		#endif
 		.overlay(alignment: .bottom) {
 			if let toast = viewModel.state.toastMessage {
 				toastOverlay(toast)
@@ -60,133 +53,88 @@ struct SettingsView: View {
 
 	// MARK: - Sections
 
-	private var autoLockSection: some View {
-		KMCard {
-			VStack(alignment: .leading, spacing: DesignToken.Spacing.space4) {
-				Text("보안 설정")
-					.font(DesignToken.Typography.heading)
-					.foregroundColor(DesignToken.View.foreground)
+	private var accountSection: some View {
+		Section("계정") {
+			valueRow("이메일", value: viewModel.state.email ?? "-")
+		}
+	}
 
-				VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
-					Text("자동 잠금 시간")
-						.font(DesignToken.Typography.label)
-						.foregroundColor(DesignToken.View.mutedForeground)
-
-					Picker("자동 잠금 시간", selection: Binding(
-						get: { viewModel.state.selectedTimeout },
-						set: { viewModel.send(.selectAutoLockTimeout($0)) }
-					)) {
-						ForEach(AutoLockTimeout.allCases, id: \.self) { timeout in
-							Text(timeoutTitle(for: timeout)).tag(timeout)
-						}
-					}
-					.pickerStyle(.menu)
+	private var securitySection: some View {
+		Section("보안") {
+			Picker("자동 잠금", selection: Binding(
+				get: { viewModel.state.selectedTimeout },
+				set: { viewModel.send(.selectAutoLockTimeout($0)) }
+			)) {
+				ForEach(AutoLockTimeout.allCases, id: \.self) { timeout in
+					Text(timeoutTitle(for: timeout)).tag(timeout)
 				}
 			}
-			.padding(DesignToken.Spacing.space4)
+			valueRow("클립보드 자동 삭제", value: "\(Int(ClipboardManager.defaultAutoBurnInterval))초")
+			valueRow("암호화 구조", value: VaultCipher.supportedCipher)
 		}
 	}
 
 	private var backupSection: some View {
-		KMCard {
-			VStack(alignment: .leading, spacing: DesignToken.Spacing.space4) {
-				Text("백업 및 복원")
-					.font(DesignToken.Typography.heading)
-					.foregroundColor(DesignToken.View.foreground)
-
-				VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
-					Text(KeyManageBackupStrings.exportTitle)
-						.font(DesignToken.Typography.label)
-						.foregroundColor(DesignToken.View.foreground)
-
-					Text(KeyManageBackupStrings.exportDescription)
-						.font(DesignToken.Typography.caption)
-						.foregroundColor(DesignToken.View.mutedForeground)
-						.fixedSize(horizontal: false, vertical: true)
-
-					KMButton(
-						KeyManageBackupStrings.exportButton,
-						variant: .outline,
-						action: { viewModel.send(.requestExportBackup) }
-					)
-				}
-
-				Divider()
-
-				VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
-					Text(KeyManageBackupStrings.restoreTitle)
-						.font(DesignToken.Typography.label)
-						.foregroundColor(DesignToken.View.foreground)
-
-					Text(KeyManageBackupStrings.restoreDescription)
-						.font(DesignToken.Typography.caption)
-						.foregroundColor(DesignToken.View.mutedForeground)
-						.fixedSize(horizontal: false, vertical: true)
-
-					KMButton(
-						KeyManageBackupStrings.restoreButton,
-						variant: .outline,
-						action: { viewModel.send(.setRestoreModalPresented(true)) }
-					)
-				}
+		Section {
+			settingsRow(KeyManageBackupStrings.exportTitle) {
+				viewModel.send(.requestExportBackup)
 			}
-			.padding(DesignToken.Spacing.space4)
+			settingsRow(KeyManageBackupStrings.restoreTitle) {
+				viewModel.send(.setRestoreModalPresented(true))
+			}
+		} header: {
+			Text("백업")
+		} footer: {
+			Text(KeyManageBackupStrings.exportDescription)
 		}
 	}
 
-	private var changePasswordSection: some View {
-		KMCard {
-			VStack(alignment: .leading, spacing: DesignToken.Spacing.space4) {
-				Text("마스터 비밀번호")
-					.font(DesignToken.Typography.heading)
-					.foregroundColor(DesignToken.View.foreground)
-
-				VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
-					Text(MasterPasswordChangeStrings.noticeTitle)
-						.font(DesignToken.Typography.label)
-						.foregroundColor(DesignToken.View.foreground)
-
-					Text(MasterPasswordChangeStrings.noticeBody)
-						.font(DesignToken.Typography.caption)
-						.foregroundColor(DesignToken.View.mutedForeground)
-						.fixedSize(horizontal: false, vertical: true)
-
-					KMButton(
-						"비밀번호 변경",
-						variant: .outline,
-						action: { viewModel.send(.setChangePasswordPresented(true)) }
-					)
-				}
+	private var sessionSection: some View {
+		Section {
+			settingsRow("마스터 비밀번호 변경") {
+				viewModel.send(.setChangePasswordPresented(true))
 			}
-			.padding(DesignToken.Spacing.space4)
+			Button("로그아웃") {
+				viewModel.send(.showPendingLogoutConfirmation)
+			}
+			.foregroundColor(DesignToken.View.foreground)
+			Button(AccountDeletionStrings.preNoticeTitle, role: .destructive) {
+				viewModel.send(.startAccountDeletion)
+			}
+			.foregroundColor(DesignToken.View.destructive)
+		} header: {
+			Text("세션 제어")
+		} footer: {
+			Text(MasterPasswordChangeStrings.noticeBody)
 		}
 	}
 
-	private var accountSection: some View {
-		KMCard {
-			VStack(alignment: .leading, spacing: DesignToken.Spacing.space4) {
-				Text("계정")
-					.font(DesignToken.Typography.heading)
-					.foregroundColor(DesignToken.View.foreground)
-
-				HStack(spacing: DesignToken.Spacing.space3) {
-					KMButton(
-						"로그아웃",
-						variant: .outline,
-						action: { viewModel.send(.showPendingLogoutConfirmation) }
-					)
-
-					Spacer()
-
-					KMButton(
-						AccountDeletionStrings.preNoticeTitle,
-						variant: .destructive,
-						action: { viewModel.send(.startAccountDeletion) }
-					)
-				}
-			}
-			.padding(DesignToken.Spacing.space4)
+	private func valueRow(_ title: String, value: String) -> some View {
+		HStack {
+			Text(title)
+				.foregroundColor(DesignToken.View.foreground)
+			Spacer()
+			Text(value)
+				.foregroundColor(DesignToken.View.mutedForeground)
 		}
+		.accessibilityElement(children: .combine)
+	}
+
+	/// 누르면 다음 화면이나 시트로 넘어가는 행. 오른쪽에 쉐브론을 붙인다.
+	private func settingsRow(_ title: String, action: @escaping () -> Void) -> some View {
+		Button(action: action) {
+			HStack {
+				Text(title)
+					.foregroundColor(DesignToken.View.foreground)
+				Spacer()
+				Image(systemName: "chevron.right")
+					.font(DesignToken.Typography.caption.weight(.semibold))
+					.foregroundColor(DesignToken.View.mutedForeground)
+					.accessibilityHidden(true)
+			}
+			.contentShape(Rectangle())
+		}
+		.buttonStyle(.plain)
 	}
 
 	// MARK: - Change Password Modal
@@ -387,105 +335,76 @@ struct SettingsView: View {
 	// MARK: - Delete Account Modal (SEC-005)
 
 	private var deleteAccountModalView: some View {
-		modalNavigationContainer {
-			ScrollView {
-				VStack(alignment: .leading, spacing: DesignToken.Spacing.space5) {
-					// 경고 카드
-					KMCard {
-						VStack(alignment: .leading, spacing: DesignToken.Spacing.space3) {
-							HStack(spacing: DesignToken.Spacing.space2) {
-								Image(systemName: "exclamationmark.triangle.fill")
-									.foregroundColor(DesignToken.View.destructive)
-								Text("되돌릴 수 없습니다")
-									.font(DesignToken.Typography.heading)
-									.foregroundColor(DesignToken.View.destructive)
-							}
+		ScrollView {
+			VStack(alignment: .leading, spacing: DesignToken.Spacing.space4) {
+				Text(AccountDeletionStrings.preNoticeTitle)
+					.font(DesignToken.Typography.title.weight(.bold))
+					.foregroundColor(DesignToken.View.destructive)
+					.accessibilityAddTraits(.isHeader)
 
-							Text(AccountDeletionStrings.preNoticeBody)
-								.font(DesignToken.Typography.caption)
-								.foregroundColor(DesignToken.View.foreground)
-								.fixedSize(horizontal: false, vertical: true)
-						}
-						.padding(DesignToken.Spacing.space4)
-					}
+				Text(AccountDeletionStrings.preNoticeBody)
+					.font(DesignToken.Typography.label)
+					.foregroundColor(DesignToken.View.mutedForeground)
+					.fixedSize(horizontal: false, vertical: true)
 
-					if let error = viewModel.state.deleteAccountErrorMessage {
-						Text(error)
-							.font(DesignToken.Typography.caption)
-							.foregroundColor(DesignToken.View.destructive)
-					}
-
-					// 마스터 비밀번호 입력
-					VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
-						Text("마스터 비밀번호")
-							.font(DesignToken.Typography.label.weight(.bold))
-							.foregroundColor(DesignToken.View.foreground)
-
-						KMPasswordField(
-							text: $viewModel.deleteAccountPasswordInput,
-							placeholder: "현재 마스터 비밀번호 입력",
-							showCopyAction: false
-						)
-					}
-
-					// 확인 문구 입력 ('계정 삭제')
-					VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
-						Text("확인 문구 입력")
-							.font(DesignToken.Typography.label.weight(.bold))
-							.foregroundColor(DesignToken.View.foreground)
-
-						TextField(AccountDeletionStrings.confirmationPrompt, text: $viewModel.deleteAccountConfirmationInput)
-							.textFieldStyle(.plain)
-							#if os(iOS)
-							.textInputAutocapitalization(.never)
-							#endif
-							.disableAutocorrection(true)
-							.padding(DesignToken.Spacing.space3)
-							.background(DesignToken.View.card)
-							.cornerRadius(DesignToken.Radius.sm)
-							.overlay(
-								RoundedRectangle(cornerRadius: DesignToken.Radius.sm)
-									.stroke(DesignToken.View.border, lineWidth: 1)
-							)
-
-						Text("진행하려면 '\(AccountDeletionStrings.confirmationPhrase)'를 정확히 입력해 주세요.")
-							.font(DesignToken.Typography.caption)
-							.foregroundColor(DesignToken.View.mutedForeground)
-					}
+				if let error = viewModel.state.deleteAccountErrorMessage {
+					Text(error)
+						.font(DesignToken.Typography.caption)
+						.foregroundColor(DesignToken.View.destructive)
 				}
-				.padding(DesignToken.Spacing.space5)
-			}
-			.navigationTitle(AccountDeletionStrings.preNoticeTitle)
-			#if os(iOS)
-			.navigationBarTitleDisplayMode(.inline)
-			#endif
-			.toolbar {
-				ToolbarItem(placement: .cancellationAction) {
-					Button(AccountDeletionStrings.cancelButtonTitle) {
+
+				fieldLabel("마스터 비밀번호")
+				KMPasswordField(
+					text: $viewModel.deleteAccountPasswordInput,
+					placeholder: "마스터 비밀번호",
+					showCopyAction: false
+				)
+
+				fieldLabel(AccountDeletionStrings.confirmationPrompt)
+				TextField(AccountDeletionStrings.confirmationPhrase, text: $viewModel.deleteAccountConfirmationInput)
+					.textFieldStyle(.plain)
+					#if os(iOS)
+					.textInputAutocapitalization(.never)
+					#endif
+					.disableAutocorrection(true)
+					.kmFieldContainer()
+
+				VStack(spacing: DesignToken.Spacing.space2) {
+					KMButton(
+						AccountDeletionStrings.deleteButtonTitle,
+						variant: .destructive,
+						size: .lg,
+						isLoading: viewModel.state.isDeletingAccount,
+						isDisabled: !viewModel.canExecuteDeleteAccount,
+						isFullWidth: true
+					) {
+						viewModel.executeDeleteAccount()
+					}
+					KMButton(
+						AccountDeletionStrings.cancelButtonTitle,
+						variant: .secondary,
+						size: .lg,
+						isDisabled: viewModel.state.isDeletingAccount,
+						isFullWidth: true
+					) {
 						viewModel.send(.cancelAccountDeletion)
 					}
-					.disabled(viewModel.state.isDeletingAccount)
 				}
-				ToolbarItem(placement: .confirmationAction) {
-					Button(role: .destructive) {
-						viewModel.executeDeleteAccount()
-					} label: {
-						if viewModel.state.isDeletingAccount {
-							ProgressView()
-								.progressViewStyle(.circular)
-						} else {
-							Text(AccountDeletionStrings.deleteButtonTitle)
-								.font(DesignToken.Typography.body.weight(.bold))
-						}
-					}
-					.tint(DesignToken.View.destructive)
-					.disabled(!viewModel.canExecuteDeleteAccount || viewModel.state.isDeletingAccount)
-				}
+				.padding(.top, DesignToken.Spacing.space2)
 			}
+			.padding(DesignToken.Spacing.space5)
 		}
-		#if os(macOS)
+		#if os(iOS)
+		.modifier(SheetGrabber())
+		#else
 		.frame(minWidth: 460, minHeight: 440)
 		#endif
+	}
+
+	private func fieldLabel(_ text: String) -> some View {
+		Text(text)
+			.font(DesignToken.Typography.caption.weight(.medium))
+			.foregroundColor(DesignToken.View.mutedForeground)
 	}
 
 	@ViewBuilder
@@ -501,6 +420,19 @@ struct SettingsView: View {
 			#if os(iOS)
 			.navigationViewStyle(.stack)
 			#endif
+		}
+	}
+}
+
+/// iOS 16 이상에서 시트 위에 그래버를 보인다 (iPhone 목업 계정 삭제 시트)
+private struct SheetGrabber: ViewModifier {
+	func body(content: Content) -> some View {
+		if #available(iOS 16.0, *) {
+			content
+				.presentationDetents([.large])
+				.presentationDragIndicator(.visible)
+		} else {
+			content
 		}
 	}
 }

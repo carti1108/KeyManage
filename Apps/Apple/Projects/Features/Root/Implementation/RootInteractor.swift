@@ -35,6 +35,10 @@ final class RootInteractor: Interactor, RootInteractable {
 		router?.routeToMain()
 	}
 
+	func unlockDidRequestLogout() {
+		router?.routeToAuth()
+	}
+
 	func didLockVault() {
 		if !lockManager.hasActiveSession {
 			router?.routeToAuth()

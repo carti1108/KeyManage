@@ -75,7 +75,7 @@ struct MainView: View {
 			ForEach(MainTab.allCases) { tab in
 				navigationContainer {
 					tabContent(for: tab)
-						.navigationTitle(tab.title)
+						.navigationTitle(tab.navigationTitle)
 						.toolbar {
 							ToolbarItem(placement: .topBarTrailing) {
 								Button {

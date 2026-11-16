@@ -800,13 +800,17 @@ struct AuthTests {
 			#expect(AuthStrings.serverConnectionFailedMessage == "서버에 연결할 수 없습니다. 네트워크 연결을 확인해 주세요.")
 
 			// UI 레이블 검증
-			#expect(AuthStrings.loginTitle == "로그인")
-			#expect(AuthStrings.registerTitle == "회원가입")
-			#expect(AuthStrings.emailPlaceholder == "이메일 주소")
-			#expect(AuthStrings.passwordPlaceholder == "마스터 비밀번호 (12자 이상)")
-			#expect(AuthStrings.confirmationPlaceholder == "비밀번호 확인")
-			#expect(AuthStrings.switchToRegisterPrompt == "계정이 없으신가요? 회원가입")
-			#expect(AuthStrings.switchToLoginPrompt == "이미 계정이 있으신가요? 로그인")
+			// iPhone 목업 문구 (docs/design-system.md 5.2)
+			#expect(AuthStrings.loginTitle == "볼트에 로그인")
+			#expect(AuthStrings.registerTitle == "계정 만들기")
+			#expect(AuthStrings.loginButtonTitle == "로그인")
+			#expect(AuthStrings.registerButtonTitle == "가입")
+			#expect(AuthStrings.emailLabel == "이메일")
+			#expect(AuthStrings.passwordLabel == "마스터 비밀번호")
+			#expect(AuthStrings.confirmationLabel == "마스터 비밀번호 확인")
+			#expect(AuthStrings.setupNotice == "볼트를 열기 위한 마스터 비밀번호를 입력해주세요. 마스터 비밀번호를 잃어버리면 복구할 수 없습니다.")
+			#expect(AuthStrings.switchToRegisterPrompt == "새 계정 만들기")
+			#expect(AuthStrings.switchToLoginPrompt == "이미 계정이 있어요")
 		}
 
 		@Test("SEC-002: AuthError 열거형의 errorDescription이 해당 정책 문구를 정확히 반환")

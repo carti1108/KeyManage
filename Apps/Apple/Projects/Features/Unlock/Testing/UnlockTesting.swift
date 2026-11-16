@@ -176,11 +176,16 @@ public final class UnlockBuildableMock: UnlockBuildable {
 @MainActor
 public final class UnlockListenerMock: UnlockListener {
 	public var didUnlockVaultCallCount = 0
+	public var unlockDidRequestLogoutCallCount = 0
 
 	public init() {}
 
 	public func didUnlockVault() {
 		didUnlockVaultCallCount += 1
+	}
+
+	public func unlockDidRequestLogout() {
+		unlockDidRequestLogoutCallCount += 1
 	}
 }
 

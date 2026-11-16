@@ -2,6 +2,8 @@ import SwiftUI
 
 public enum KMButtonVariant: String, CaseIterable, Sendable {
     case primary
+    /// 채운 회색 배경. iPhone 목업의 보조 버튼(다시 생성·취소 등)
+    case secondary
     case outline
     case destructive
     case ghost
@@ -16,7 +18,11 @@ public enum KMButtonSize: String, CaseIterable, Sendable {
         switch self {
         case .sm: return 32.0
         case .md: return 40.0
+        #if os(iOS)
+        case .lg: return 50.0
+        #else
         case .lg: return 48.0
+        #endif
         }
     }
 
@@ -53,6 +59,7 @@ public struct KMButton: View {
     public let icon: String?
     public let isLoading: Bool
     public let isDisabled: Bool
+    public let isFullWidth: Bool
     public let action: () -> Void
 
     public init(
@@ -62,6 +69,7 @@ public struct KMButton: View {
         icon: String? = nil,
         isLoading: Bool = false,
         isDisabled: Bool = false,
+        isFullWidth: Bool = false,
         action: @escaping () -> Void
     ) {
         self.title = title
@@ -70,6 +78,7 @@ public struct KMButton: View {
         self.icon = icon
         self.isLoading = isLoading
         self.isDisabled = isDisabled
+        self.isFullWidth = isFullWidth
         self.action = action
     }
 
@@ -97,12 +106,13 @@ public struct KMButton: View {
                     .font(size.font)
             }
             .padding(.horizontal, size.horizontalPadding)
+            .frame(maxWidth: isFullWidth ? .infinity : nil)
             .frame(height: size.height)
             .background(backgroundColor)
             .foregroundColor(foregroundColor)
-            .clipShape(RoundedRectangle(cornerRadius: DesignToken.Radius.sm))
+            .clipShape(Self.shape)
             .overlay(
-                RoundedRectangle(cornerRadius: DesignToken.Radius.sm)
+                Self.shape
                     .stroke(borderColor, lineWidth: variant == .outline ? 1 : 0)
             )
             .opacity(isDisabled ? 0.5 : 1.0)
@@ -113,6 +123,13 @@ public struct KMButton: View {
         .accessibilityLabel(isLoading ? "\(title), 로딩 중" : title)
         .accessibilityAddTraits(.isButton)
     }
+
+    /// iPhone 목업은 캡슐 버튼, macOS는 기존 둥근 사각형을 쓴다.
+    #if os(iOS)
+    private static var shape: Capsule { Capsule() }
+    #else
+    private static var shape: RoundedRectangle { RoundedRectangle(cornerRadius: DesignToken.Radius.sm) }
+    #endif
 
     private struct KMButtonStyle: ButtonStyle {
         let isInteractive: Bool
@@ -127,6 +144,7 @@ public struct KMButton: View {
     private var backgroundColor: Color {
         switch variant {
         case .primary: return DesignToken.View.primary
+        case .secondary: return DesignToken.View.muted
         case .outline: return .clear
         case .destructive: return DesignToken.View.destructive
         case .ghost: return .clear
@@ -136,6 +154,7 @@ public struct KMButton: View {
     private var foregroundColor: Color {
         switch variant {
         case .primary: return DesignToken.View.primaryForeground
+        case .secondary: return DesignToken.View.foreground
         case .outline: return DesignToken.View.foreground
         case .destructive: return DesignToken.View.destructiveForeground
         case .ghost: return DesignToken.View.foreground

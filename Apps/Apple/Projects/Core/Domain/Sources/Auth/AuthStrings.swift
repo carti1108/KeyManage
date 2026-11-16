@@ -13,12 +13,15 @@ public enum AuthStrings {
 	public static let invalidCharacterMessage = "마스터 비밀번호에 쓸 수 없는 문자가 있습니다."
 	public static let serverConnectionFailedMessage = "서버에 연결할 수 없습니다. 네트워크 연결을 확인해 주세요."
 
-	// UI 라벨
-	public static let loginTitle = "로그인"
-	public static let registerTitle = "회원가입"
-	public static let emailPlaceholder = "이메일 주소"
-	public static let passwordPlaceholder = "마스터 비밀번호 (12자 이상)"
-	public static let confirmationPlaceholder = "비밀번호 확인"
-	public static let switchToRegisterPrompt = "계정이 없으신가요? 회원가입"
-	public static let switchToLoginPrompt = "이미 계정이 있으신가요? 로그인"
+	// UI 라벨 (iPhone 목업, docs/design-system.md 5.2)
+	public static let loginTitle = "볼트에 로그인"
+	public static let registerTitle = "계정 만들기"
+	public static let loginButtonTitle = "로그인"
+	public static let registerButtonTitle = "가입"
+	public static let emailLabel = "이메일"
+	public static let passwordLabel = "마스터 비밀번호"
+	public static let confirmationLabel = "마스터 비밀번호 확인"
+	public static let setupNotice = "볼트를 열기 위한 마스터 비밀번호를 입력해주세요. 마스터 비밀번호를 잃어버리면 복구할 수 없습니다."
+	public static let switchToRegisterPrompt = "새 계정 만들기"
+	public static let switchToLoginPrompt = "이미 계정이 있어요"
 }

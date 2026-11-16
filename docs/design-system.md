@@ -205,8 +205,9 @@
 
 | 속성 | 타입 | 기본값 | 뜻 |
 | :--- | :--- | :--- | :--- |
-| `variant` | `primary` \| `outline` \| `destructive` \| `ghost` | | `primary`: 주요 액션, `outline`: 보조 액션, `destructive`: 위험한 액션, `ghost`: 아이콘 전용 액션 |
-| `size` | `sm` \| `md` \| `lg` | `md` | 최소 높이 `sm` 32pt, `md` 40pt, `lg` 48pt. 터치 플랫폼에서는 터치 영역을 44pt 이상으로 둔다. |
+| `variant` | `primary` \| `secondary` \| `outline` \| `destructive` \| `ghost` | | `primary`: 주요 액션, `secondary`: 회색으로 채운 보조 액션(Apple만, iPhone 목업의 다시 생성·취소), `outline`: 보조 액션, `destructive`: 위험한 액션, `ghost`: 아이콘 전용 액션 |
+| `size` | `sm` \| `md` \| `lg` | `md` | 최소 높이 `sm` 32pt, `md` 40pt, `lg` 48pt(iOS는 목업대로 50pt). 터치 플랫폼에서는 터치 영역을 44pt 이상으로 둔다. |
+| `isFullWidth` | Boolean | false | 부모 너비를 채운다(Apple만) |
 | `title` | String | | 버튼 텍스트 |
 | `icon` | 아이콘 (선택) | | 왼쪽·오른쪽 아이콘 |
 | `isLoading` | Boolean | false | 로딩 표시. 로딩 중에는 다시 누를 수 없다. |
@@ -214,6 +215,7 @@
 | `action` | `() -> Void` | | 탭·클릭 콜백 |
 
 - 접근성: `ghost`처럼 텍스트가 없는 버튼은 접근성 레이블을 반드시 단다.
+- 모양: iOS는 목업대로 캡슐, macOS는 `Radius.sm` 둥근 사각형이다.
 
 ### 6.3. `Card` (`KMCard`)
 

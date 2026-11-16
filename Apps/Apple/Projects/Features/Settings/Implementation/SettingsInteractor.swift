@@ -49,6 +49,7 @@ final class SettingsInteractor: Interactor, SettingsInteractable, SettingsPresen
 	override func didBecomeActive() {
 		super.didBecomeActive()
 		state.selectedTimeout = lockManager.autoLockTimeout
+		state.email = lockManager.email
 		state.hasPendingSync = lockManager.hasPendingSync
 		presenter?.update(state: state)
 		presenter?.displayAutoLockTimeout(lockManager.autoLockTimeout)
