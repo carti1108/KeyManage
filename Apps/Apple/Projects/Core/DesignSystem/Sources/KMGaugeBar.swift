@@ -60,11 +60,11 @@ public struct KMGaugeBar: View {
             if showLabel {
                 HStack {
                     Text(statusText)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(DesignToken.Typography.caption.weight(.semibold))
                         .foregroundColor(colorToken.color())
                     Spacer()
                     Text("\(clampedScore)%")
-                        .font(.system(size: 13, weight: .medium, design: .monospaced))
+                        .font(DesignToken.Typography.captionMono.weight(.medium))
                         .foregroundColor(DesignToken.View.mutedForeground)
                 }
             }

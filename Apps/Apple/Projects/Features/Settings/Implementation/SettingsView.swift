@@ -11,7 +11,7 @@ struct SettingsView: View {
 
 	var body: some View {
 		ScrollView {
-			VStack(spacing: 24) {
+			VStack(spacing: DesignToken.Spacing.space6) {
 				// 1. 자동 잠금 섹션
 				autoLockSection
 
@@ -24,7 +24,7 @@ struct SettingsView: View {
 				// 4. 계정 섹션 (로그아웃)
 				accountSection
 			}
-			.padding(24)
+			.padding(DesignToken.Spacing.space6)
 		}
 		.overlay(alignment: .bottom) {
 			if let toast = viewModel.state.toastMessage {
@@ -62,14 +62,14 @@ struct SettingsView: View {
 
 	private var autoLockSection: some View {
 		KMCard {
-			VStack(alignment: .leading, spacing: 16) {
+			VStack(alignment: .leading, spacing: DesignToken.Spacing.space4) {
 				Text("보안 설정")
-					.font(.headline)
+					.font(DesignToken.Typography.heading)
 					.foregroundColor(DesignToken.View.foreground)
 
-				VStack(alignment: .leading, spacing: 8) {
+				VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
 					Text("자동 잠금 시간")
-						.font(.subheadline)
+						.font(DesignToken.Typography.label)
 						.foregroundColor(DesignToken.View.mutedForeground)
 
 					Picker("자동 잠금 시간", selection: Binding(
@@ -83,24 +83,24 @@ struct SettingsView: View {
 					.pickerStyle(.menu)
 				}
 			}
-			.padding(16)
+			.padding(DesignToken.Spacing.space4)
 		}
 	}
 
 	private var backupSection: some View {
 		KMCard {
-			VStack(alignment: .leading, spacing: 16) {
+			VStack(alignment: .leading, spacing: DesignToken.Spacing.space4) {
 				Text("백업 및 복원")
-					.font(.headline)
+					.font(DesignToken.Typography.heading)
 					.foregroundColor(DesignToken.View.foreground)
 
-				VStack(alignment: .leading, spacing: 8) {
+				VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
 					Text(KeyManageBackupStrings.exportTitle)
-						.font(.subheadline)
+						.font(DesignToken.Typography.label)
 						.foregroundColor(DesignToken.View.foreground)
 
 					Text(KeyManageBackupStrings.exportDescription)
-						.font(.footnote)
+						.font(DesignToken.Typography.caption)
 						.foregroundColor(DesignToken.View.mutedForeground)
 						.fixedSize(horizontal: false, vertical: true)
 
@@ -113,13 +113,13 @@ struct SettingsView: View {
 
 				Divider()
 
-				VStack(alignment: .leading, spacing: 8) {
+				VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
 					Text(KeyManageBackupStrings.restoreTitle)
-						.font(.subheadline)
+						.font(DesignToken.Typography.label)
 						.foregroundColor(DesignToken.View.foreground)
 
 					Text(KeyManageBackupStrings.restoreDescription)
-						.font(.footnote)
+						.font(DesignToken.Typography.caption)
 						.foregroundColor(DesignToken.View.mutedForeground)
 						.fixedSize(horizontal: false, vertical: true)
 
@@ -130,24 +130,24 @@ struct SettingsView: View {
 					)
 				}
 			}
-			.padding(16)
+			.padding(DesignToken.Spacing.space4)
 		}
 	}
 
 	private var changePasswordSection: some View {
 		KMCard {
-			VStack(alignment: .leading, spacing: 16) {
+			VStack(alignment: .leading, spacing: DesignToken.Spacing.space4) {
 				Text("마스터 비밀번호")
-					.font(.headline)
+					.font(DesignToken.Typography.heading)
 					.foregroundColor(DesignToken.View.foreground)
 
-				VStack(alignment: .leading, spacing: 8) {
+				VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
 					Text(MasterPasswordChangeStrings.noticeTitle)
-						.font(.subheadline)
+						.font(DesignToken.Typography.label)
 						.foregroundColor(DesignToken.View.foreground)
 
 					Text(MasterPasswordChangeStrings.noticeBody)
-						.font(.footnote)
+						.font(DesignToken.Typography.caption)
 						.foregroundColor(DesignToken.View.mutedForeground)
 						.fixedSize(horizontal: false, vertical: true)
 
@@ -158,18 +158,18 @@ struct SettingsView: View {
 					)
 				}
 			}
-			.padding(16)
+			.padding(DesignToken.Spacing.space4)
 		}
 	}
 
 	private var accountSection: some View {
 		KMCard {
-			VStack(alignment: .leading, spacing: 16) {
+			VStack(alignment: .leading, spacing: DesignToken.Spacing.space4) {
 				Text("계정")
-					.font(.headline)
+					.font(DesignToken.Typography.heading)
 					.foregroundColor(DesignToken.View.foreground)
 
-				HStack(spacing: 12) {
+				HStack(spacing: DesignToken.Spacing.space3) {
 					KMButton(
 						"로그아웃",
 						variant: .outline,
@@ -185,16 +185,16 @@ struct SettingsView: View {
 					)
 				}
 			}
-			.padding(16)
+			.padding(DesignToken.Spacing.space4)
 		}
 	}
 
 	// MARK: - Change Password Modal
 
 	private var changePasswordModalView: some View {
-		VStack(spacing: 20) {
+		VStack(spacing: DesignToken.Spacing.space5) {
 			Text(MasterPasswordChangeStrings.noticeTitle)
-				.font(.title2)
+				.font(DesignToken.Typography.title)
 				.bold()
 				.foregroundColor(DesignToken.View.foreground)
 
@@ -204,29 +204,29 @@ struct SettingsView: View {
 
 			changePasswordButtonsView
 		}
-		.padding(24)
+		.padding(DesignToken.Spacing.space6)
 		.frame(minWidth: 420)
 	}
 
 	private var changePasswordWarningCard: some View {
 		KMCard {
-			VStack(alignment: .leading, spacing: 8) {
+			VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
 				Text("주의 사항")
-					.font(.caption)
+					.font(DesignToken.Typography.caption)
 					.bold()
-					.foregroundColor(.orange)
+					.foregroundColor(DesignToken.View.foreground)
 
 				Text(MasterPasswordChangeStrings.noticeBody)
-					.font(.footnote)
+					.font(DesignToken.Typography.caption)
 					.foregroundColor(DesignToken.View.mutedForeground)
 					.fixedSize(horizontal: false, vertical: true)
 			}
-			.padding(12)
+			.padding(DesignToken.Spacing.space3)
 		}
 	}
 
 	private var changePasswordFieldsView: some View {
-		VStack(spacing: 12) {
+		VStack(spacing: DesignToken.Spacing.space3) {
 			KMPasswordField(
 				text: $viewModel.currentPasswordInput,
 				placeholder: MasterPasswordChangeStrings.currentPasswordPlaceholder,
@@ -254,7 +254,7 @@ struct SettingsView: View {
 	}
 
 	private var changePasswordButtonsView: some View {
-		HStack(spacing: 12) {
+		HStack(spacing: DesignToken.Spacing.space3) {
 			KMButton(
 				"취소",
 				variant: .outline,
@@ -275,21 +275,21 @@ struct SettingsView: View {
 	// MARK: - Restore Modal
 
 	private var restoreModalView: some View {
-		VStack(spacing: 20) {
+		VStack(spacing: DesignToken.Spacing.space5) {
 			Text(KeyManageBackupStrings.restoreTitle)
-				.font(.title2)
+				.font(DesignToken.Typography.title)
 				.bold()
 				.foregroundColor(DesignToken.View.foreground)
 
 			Text(KeyManageBackupStrings.restoreDescription)
-				.font(.footnote)
+				.font(DesignToken.Typography.caption)
 				.foregroundColor(DesignToken.View.mutedForeground)
 				.multilineTextAlignment(.center)
 				.padding(.horizontal)
 
 			if let fileName = selectedFileName {
 				Text("선택된 파일: \(fileName)")
-					.font(.caption)
+					.font(DesignToken.Typography.caption)
 					.foregroundColor(DesignToken.View.accent)
 			} else {
 				KMButton(
@@ -303,7 +303,7 @@ struct SettingsView: View {
 				.textFieldStyle(.roundedBorder)
 				.padding(.horizontal)
 
-			HStack(spacing: 12) {
+			HStack(spacing: DesignToken.Spacing.space3) {
 				KMButton(
 					"취소",
 					variant: .outline,
@@ -327,7 +327,7 @@ struct SettingsView: View {
 			}
 			.padding(.horizontal)
 		}
-		.padding(24)
+		.padding(DesignToken.Spacing.space6)
 		.frame(minWidth: 360, minHeight: 320)
 	}
 
@@ -374,13 +374,13 @@ struct SettingsView: View {
 
 	private func toastOverlay(_ message: String) -> some View {
 		Text(message)
-			.font(.footnote)
-			.foregroundColor(.white)
-			.padding(.horizontal, 16)
-			.padding(.vertical, 10)
-			.background(Color.black.opacity(0.85))
-			.cornerRadius(8)
-			.padding(.bottom, 24)
+			.font(DesignToken.Typography.caption)
+			.foregroundColor(DesignToken.View.primaryForeground)
+			.padding(.horizontal, DesignToken.Spacing.space4)
+			.padding(.vertical, DesignToken.Spacing.space3)
+			.background(DesignToken.View.primary)
+			.cornerRadius(DesignToken.Radius.md)
+			.padding(.bottom, DesignToken.Spacing.space6)
 			.transition(.opacity)
 	}
 
@@ -389,36 +389,36 @@ struct SettingsView: View {
 	private var deleteAccountModalView: some View {
 		modalNavigationContainer {
 			ScrollView {
-				VStack(alignment: .leading, spacing: 20) {
+				VStack(alignment: .leading, spacing: DesignToken.Spacing.space5) {
 					// 경고 카드
 					KMCard {
-						VStack(alignment: .leading, spacing: 10) {
-							HStack(spacing: 8) {
+						VStack(alignment: .leading, spacing: DesignToken.Spacing.space3) {
+							HStack(spacing: DesignToken.Spacing.space2) {
 								Image(systemName: "exclamationmark.triangle.fill")
-									.foregroundColor(.red)
+									.foregroundColor(DesignToken.View.destructive)
 								Text("되돌릴 수 없습니다")
-									.font(.headline)
-									.foregroundColor(.red)
+									.font(DesignToken.Typography.heading)
+									.foregroundColor(DesignToken.View.destructive)
 							}
 
 							Text(AccountDeletionStrings.preNoticeBody)
-								.font(.footnote)
+								.font(DesignToken.Typography.caption)
 								.foregroundColor(DesignToken.View.foreground)
 								.fixedSize(horizontal: false, vertical: true)
 						}
-						.padding(16)
+						.padding(DesignToken.Spacing.space4)
 					}
 
 					if let error = viewModel.state.deleteAccountErrorMessage {
 						Text(error)
-							.font(.footnote)
-							.foregroundColor(.red)
+							.font(DesignToken.Typography.caption)
+							.foregroundColor(DesignToken.View.destructive)
 					}
 
 					// 마스터 비밀번호 입력
-					VStack(alignment: .leading, spacing: 6) {
+					VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
 						Text("마스터 비밀번호")
-							.font(.subheadline.bold())
+							.font(DesignToken.Typography.label.weight(.bold))
 							.foregroundColor(DesignToken.View.foreground)
 
 						KMPasswordField(
@@ -429,9 +429,9 @@ struct SettingsView: View {
 					}
 
 					// 확인 문구 입력 ('계정 삭제')
-					VStack(alignment: .leading, spacing: 6) {
+					VStack(alignment: .leading, spacing: DesignToken.Spacing.space2) {
 						Text("확인 문구 입력")
-							.font(.subheadline.bold())
+							.font(DesignToken.Typography.label.weight(.bold))
 							.foregroundColor(DesignToken.View.foreground)
 
 						TextField(AccountDeletionStrings.confirmationPrompt, text: $viewModel.deleteAccountConfirmationInput)
@@ -440,20 +440,20 @@ struct SettingsView: View {
 							.textInputAutocapitalization(.never)
 							#endif
 							.disableAutocorrection(true)
-							.padding(10)
+							.padding(DesignToken.Spacing.space3)
 							.background(DesignToken.View.card)
-							.cornerRadius(6)
+							.cornerRadius(DesignToken.Radius.sm)
 							.overlay(
-								RoundedRectangle(cornerRadius: 6)
+								RoundedRectangle(cornerRadius: DesignToken.Radius.sm)
 									.stroke(DesignToken.View.border, lineWidth: 1)
 							)
 
 						Text("진행하려면 '\(AccountDeletionStrings.confirmationPhrase)'를 정확히 입력해 주세요.")
-							.font(.caption)
+							.font(DesignToken.Typography.caption)
 							.foregroundColor(DesignToken.View.mutedForeground)
 					}
 				}
-				.padding(20)
+				.padding(DesignToken.Spacing.space5)
 			}
 			.navigationTitle(AccountDeletionStrings.preNoticeTitle)
 			#if os(iOS)
@@ -475,10 +475,10 @@ struct SettingsView: View {
 								.progressViewStyle(.circular)
 						} else {
 							Text(AccountDeletionStrings.deleteButtonTitle)
-								.font(.body.weight(.bold))
+								.font(DesignToken.Typography.body.weight(.bold))
 						}
 					}
-					.tint(.red)
+					.tint(DesignToken.View.destructive)
 					.disabled(!viewModel.canExecuteDeleteAccount || viewModel.state.isDeletingAccount)
 				}
 			}

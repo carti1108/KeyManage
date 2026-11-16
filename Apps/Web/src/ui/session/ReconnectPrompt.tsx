@@ -28,7 +28,7 @@ export function ReconnectPrompt({ email, onReconnect }: ReconnectPromptProps) {
 
   return (
     <form className="flex flex-col gap-3 rounded-md border border-border p-3" onSubmit={submit} noValidate>
-      <p className="text-sm">{RECONNECT_PROMPT.body}</p>
+      <p className="text-label">{RECONNECT_PROMPT.body}</p>
       {/* 비밀번호 관리자가 계정을 알아보도록 숨은 사용자 이름을 둔다 */}
       <input type="email" autoComplete="username" value={email} readOnly hidden />
       <PasswordField label="마스터 비밀번호" autoComplete="current-password" value={password} onTextChange={setPassword} />

@@ -56,8 +56,8 @@ export function AuthScreen({ notice, onDismissNotice, onLogin, onRegister }: Aut
     <main className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card padding="lg" className="flex w-full max-w-sm flex-col gap-4">
         <header className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold">KeyManage</h1>
-          <p className="text-sm text-muted-foreground">{registering ? '새 계정 만들기' : '볼트에 로그인'}</p>
+          <h1 className="text-display font-bold">KeyManage</h1>
+          <p className="text-label text-muted-foreground">{registering ? '새 계정 만들기' : '볼트에 로그인'}</p>
         </header>
         {notice && <Alert variant="info">{notice}</Alert>}
         <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
@@ -90,7 +90,7 @@ export function AuthScreen({ notice, onDismissNotice, onLogin, onRegister }: Aut
           {registering && (
             <div role="status">
               {showsStrength && isWeak(score) && (
-                <p className="text-sm text-muted-foreground">{WEAK_MASTER_PASSWORD_WARNING}</p>
+                <p className="text-label text-muted-foreground">{WEAK_MASTER_PASSWORD_WARNING}</p>
               )}
             </div>
           )}

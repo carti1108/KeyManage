@@ -95,13 +95,13 @@ export function ChangePasswordAction({ readOnly, offline, onChange }: ChangePass
   }
 
   return (
-    <section className="flex flex-col gap-1.5 w-full" aria-label="계정">
-      <div className="flex flex-col gap-1.5 w-full">
+    <section className="flex flex-col gap-2 w-full" aria-label="계정">
+      <div className="flex flex-col gap-2 w-full">
         <Button
           ref={openButton}
           variant="outline"
           size="sm"
-          className="w-full justify-start gap-2 h-7 px-2 text-xs font-normal whitespace-nowrap"
+          className="w-full justify-start gap-2 h-7 px-2 text-caption font-normal whitespace-nowrap"
           icon={<KeyRound aria-hidden className="size-3.5 shrink-0" />}
           disabled={readOnly || pending}
           onClick={start}
@@ -148,10 +148,10 @@ function ChangePasswordDialog({ inputs, currentRef, onInputsChange, pending, onS
   return (
     <ModalDialog labelledBy={titleId} describedBy={bodyId} onKeyDown={onKeyDown}>
       <form className="flex flex-col gap-3" onSubmit={onSubmit} noValidate>
-        <p id={titleId} className="text-sm font-semibold">
+        <p id={titleId} className="text-label font-semibold">
           {CHANGE_PASSWORD_DIALOG.title}
         </p>
-        <p id={bodyId} className="text-sm text-muted-foreground">
+        <p id={bodyId} className="text-label text-muted-foreground">
           {CHANGE_PASSWORD_DIALOG.body}
         </p>
         <PasswordField
@@ -173,7 +173,7 @@ function ChangePasswordDialog({ inputs, currentRef, onInputsChange, pending, onS
           disabled={pending}
           aria-describedby={ruleId}
         />
-        <p id={ruleId} className="text-xs text-muted-foreground">
+        <p id={ruleId} className="text-caption text-muted-foreground">
           {NEW_PASSWORD_PROBLEMS.tooShort}
         </p>
         <PasswordField
@@ -194,7 +194,7 @@ function ChangePasswordDialog({ inputs, currentRef, onInputsChange, pending, onS
           </Button>
         </div>
         {pending && (
-          <p role="status" className="text-sm text-muted-foreground">
+          <p role="status" className="text-label text-muted-foreground">
             {CHANGE_PASSWORD_DIALOG.progress}
           </p>
         )}

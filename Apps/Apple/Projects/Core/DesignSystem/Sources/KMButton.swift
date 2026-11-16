@@ -35,6 +35,15 @@ public enum KMButtonSize: String, CaseIterable, Sendable {
         case .lg: return 16.0
         }
     }
+
+    /// 버튼 글자: 크기마다 타이포그래피 역할을 쓰므로 Dynamic Type을 따른다 (ADR-0027)
+    public var font: Font {
+        switch self {
+        case .sm: return DesignToken.Typography.caption.weight(.medium)
+        case .md: return DesignToken.Typography.label.weight(.medium)
+        case .lg: return DesignToken.Typography.body.weight(.medium)
+        }
+    }
 }
 
 public struct KMButton: View {
@@ -74,7 +83,7 @@ public struct KMButton: View {
                 action()
             }
         }) {
-            HStack(spacing: 8) {
+            HStack(spacing: DesignToken.Spacing.space2) {
                 if isLoading {
                     ProgressView()
                         .controlSize(size == .sm ? .small : .regular)
@@ -85,15 +94,15 @@ public struct KMButton: View {
                 }
 
                 Text(title)
-                    .font(.system(size: size.fontSize, weight: .medium))
+                    .font(size.font)
             }
             .padding(.horizontal, size.horizontalPadding)
             .frame(height: size.height)
             .background(backgroundColor)
             .foregroundColor(foregroundColor)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .clipShape(RoundedRectangle(cornerRadius: DesignToken.Radius.sm))
             .overlay(
-                RoundedRectangle(cornerRadius: 6)
+                RoundedRectangle(cornerRadius: DesignToken.Radius.sm)
                     .stroke(borderColor, lineWidth: variant == .outline ? 1 : 0)
             )
             .opacity(isDisabled ? 0.5 : 1.0)

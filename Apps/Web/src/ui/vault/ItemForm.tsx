@@ -61,7 +61,7 @@ export function ItemForm({ item, onSubmit, onCancel }: ItemFormProps) {
   return (
     <Card padding="lg">
       <div role="group" aria-labelledby={titleId} className="flex flex-col gap-4" onKeyDown={onKeyDown}>
-        <h2 id={titleId} className="text-lg font-semibold">
+        <h2 id={titleId} className="text-heading font-semibold">
           {item ? '항목 수정' : '항목 추가'}
         </h2>
         <TextField label="서비스 이름" value={serviceName} onChange={(e) => setServiceName(e.target.value)} required autoFocus />
@@ -86,7 +86,7 @@ export function ItemForm({ item, onSubmit, onCancel }: ItemFormProps) {
           )}
           {/* 점수와 별개로 안내만 한다. 점수가 높아도 보인다 (GEN-001) */}
           {hasSequentialDigits(password) && (
-            <p className="mt-1 text-sm text-muted-foreground">123처럼 이어지는 숫자가 들어 있어 추측하기 쉽습니다.</p>
+            <p className="mt-1 text-label text-muted-foreground">123처럼 이어지는 숫자가 들어 있어 추측하기 쉽습니다.</p>
           )}
         </div>
         {generating ? (
@@ -103,8 +103,8 @@ export function ItemForm({ item, onSubmit, onCancel }: ItemFormProps) {
           </Button>
         )}
         <TextField label="URL" type="url" value={url} onChange={(e) => setUrl(e.target.value)} {...PRIVATE_TEXT} />
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor={notesId} className="text-sm font-medium">
+        <div className="flex flex-col gap-2">
+          <label htmlFor={notesId} className="text-label font-medium">
             메모
           </label>
           <textarea
@@ -113,7 +113,7 @@ export function ItemForm({ item, onSubmit, onCancel }: ItemFormProps) {
             onChange={(e) => setNotes(e.target.value)}
             rows={3}
             {...PRIVATE_TEXT}
-            className="rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="rounded-md border border-input bg-transparent px-3 py-2 text-label outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         </div>
         {save.error && <Alert title={save.error.title}>{save.error.body}</Alert>}

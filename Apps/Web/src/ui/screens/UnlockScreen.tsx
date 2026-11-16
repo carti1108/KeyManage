@@ -33,8 +33,8 @@ export function UnlockScreen({ email, onUnlock, onLogout, logoutConfirm }: Unloc
       <Card padding="lg" className="flex w-full max-w-sm flex-col gap-4">
         <header className="flex flex-col items-center gap-2 text-center">
           <Lock aria-hidden className="size-8 text-primary" />
-          <h1 className="text-xl font-bold">볼트가 잠겼습니다</h1>
-          <p className="text-sm text-muted-foreground">{email}</p>
+          <h1 className="text-title font-bold">볼트가 잠겼습니다</h1>
+          <p className="text-label text-muted-foreground">{email}</p>
         </header>
         <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
           {/* 비밀번호 관리자가 계정을 알아보도록 숨은 사용자 이름을 둔다 */}

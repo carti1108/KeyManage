@@ -45,7 +45,7 @@ export function ItemList({ data, readOnly, focusId = null, onOpen, onAdd, onCopy
         )}
       </div>
       {items.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">{empty ? '저장된 항목이 없습니다.' : '검색 결과가 없습니다.'}</p>
+        <p className="py-6 text-center text-label text-muted-foreground">{empty ? '저장된 항목이 없습니다.' : '검색 결과가 없습니다.'}</p>
       ) : (
         <ul aria-label="항목 목록" className="flex flex-col gap-2">
           {items.map((item) => (
@@ -59,7 +59,7 @@ export function ItemList({ data, readOnly, focusId = null, onOpen, onAdd, onCopy
                 ref={item.id === focusId ? returnTarget : undefined}
               >
                 <span className="block font-medium">{item.serviceName}</span>
-                {item.username && <span className="block truncate text-sm text-muted-foreground">{item.username}</span>}
+                {item.username && <span className="block truncate text-label text-muted-foreground">{item.username}</span>}
               </Card>
               {item.password && (
                 <Button

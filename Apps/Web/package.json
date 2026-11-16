@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "test": "vitest",
-    "check": "tsc -b && oxlint --deny-warnings && vitest run",
+    "check": "tsc -b && oxlint --deny-warnings && node scripts/designLiterals.ts && vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "preview": "vite preview",
     "tauri": "tauri",
