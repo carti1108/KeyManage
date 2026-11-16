@@ -35,6 +35,7 @@ final class VaultListInteractor: Interactor, VaultListInteractable, VaultListPre
 	let lockManager: VaultLockManagerProtocol
 	let clipboardManager: ClipboardManagerProtocol
 	let networkClient: AuthNetworkClientProtocol
+	private let now: @Sendable () -> Date
 
 	private(set) var state = VaultListViewState()
 	private var toastDismissTask: Task<Void, Never>?
@@ -47,8 +48,10 @@ final class VaultListInteractor: Interactor, VaultListInteractable, VaultListPre
 		lockManager: VaultLockManagerProtocol,
 		clipboardManager: ClipboardManagerProtocol,
 		networkClient: AuthNetworkClientProtocol = URLSessionAuthNetworkClient(),
-		presenter: VaultListPresentable? = nil
+		presenter: VaultListPresentable? = nil,
+		now: @escaping @Sendable () -> Date = Date.init
 	) {
+		self.now = now
 		self.lockManager = lockManager
 		self.clipboardManager = clipboardManager
 		self.networkClient = networkClient
@@ -81,6 +84,13 @@ final class VaultListInteractor: Interactor, VaultListInteractable, VaultListPre
 			}
 		case .search(let query):
 			didSearch(query: query)
+		case .openDetail(let id):
+			state.selectedItemId = id
+			presenter?.update(state: state)
+		case .closeDetail:
+			state.selectedItemId = nil
+			state.clipboardBurnStartedAt = nil
+			presenter?.update(state: state)
 		case .copyPassword(let item):
 			didRequestCopyPassword(item: item)
 		case .copyUsername(let item):
@@ -211,6 +221,7 @@ final class VaultListInteractor: Interactor, VaultListInteractable, VaultListPre
 	func didRequestCopyPassword(item: VaultItem) {
 		do {
 			try clipboardManager.copy(item.password)
+			state.clipboardBurnStartedAt = now()
 			presentToast(message: "비밀번호가 복사되었습니다. (30초 후 자동 소각)")
 		} catch {
 			presentToast(message: ClipboardStrings.copyFailedMessage)
@@ -220,6 +231,7 @@ final class VaultListInteractor: Interactor, VaultListInteractable, VaultListPre
 	func didRequestCopyUsername(item: VaultItem) {
 		do {
 			try clipboardManager.copy(item.username)
+			state.clipboardBurnStartedAt = now()
 			presentToast(message: "아이디가 복사되었습니다.")
 		} catch {
 			presentToast(message: ClipboardStrings.copyFailedMessage)
@@ -275,6 +287,10 @@ final class VaultListInteractor: Interactor, VaultListInteractable, VaultListPre
 	func didRequestDeleteItem(id: String) {
 		do {
 			try lockManager.deleteVaultItem(id: id)
+			if state.selectedItemId == id {
+				state.selectedItemId = nil
+				state.clipboardBurnStartedAt = nil
+			}
 			presentToast(message: "항목이 삭제되었습니다.")
 			state.isItemSheetPresented = false
 			resetFormState()

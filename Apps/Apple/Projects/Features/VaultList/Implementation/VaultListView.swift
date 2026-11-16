@@ -32,7 +32,7 @@ struct VaultListView: View {
 				get: { viewModel.state.searchQuery },
 				set: { viewModel.request(action: .search($0)) }
 			),
-			prompt: "서비스명, 아이디 검색..."
+			prompt: "서비스 이름이나 아이디"
 		)
 		.toolbar {
 			ToolbarItem(placement: .automatic) {
@@ -78,6 +78,7 @@ struct VaultListView: View {
 		) {
 			itemFormModalView
 		}
+		.background(detailNavigation)
 		.alert(
 			"항목 삭제",
 			isPresented: Binding(
@@ -104,9 +105,9 @@ struct VaultListView: View {
 				emptyStateView
 			} else {
 				ScrollView {
-					LazyVStack(spacing: DesignToken.Spacing.space3) {
+					LazyVStack(spacing: DesignToken.Spacing.space2) {
 						ForEach(viewModel.state.items, id: \.id) { item in
-							itemCard(item)
+							itemRow(item)
 						}
 					}
 					.padding(.horizontal)
@@ -163,109 +164,75 @@ struct VaultListView: View {
 		.frame(maxWidth: .infinity, maxHeight: .infinity)
 	}
 
-	// MARK: - Item Card
+	// MARK: - Detail Navigation
 
-	private func itemCard(_ item: VaultItem) -> some View {
-		KMCard(padding: .md) {
-			VStack(alignment: .leading, spacing: DesignToken.Spacing.space3) {
-				HStack {
+	private var isDetailPresented: Binding<Bool> {
+		Binding(
+			get: { viewModel.state.selectedItemId != nil },
+			set: { if !$0 { viewModel.request(action: .closeDetail) } }
+		)
+	}
+
+	/// iOS 15도 지원하므로 navigationDestination 대신 숨은 NavigationLink로 상세 화면을 연다
+	private var detailNavigation: some View {
+		NavigationLink(isActive: isDetailPresented) {
+			if let item = viewModel.state.selectedItem {
+				VaultItemDetailView(
+					item: item,
+					isPasswordRevealed: viewModel.state.isPasswordRevealed(id: item.id),
+					isReadOnly: viewModel.state.isReadOnly,
+					clipboardBurnStartedAt: viewModel.state.clipboardBurnStartedAt,
+					send: { viewModel.request(action: $0) }
+				)
+			}
+		} label: {
+			EmptyView()
+		}
+		.hidden()
+	}
+
+	// MARK: - Item Row
+
+	private func itemRow(_ item: VaultItem) -> some View {
+		Button {
+			viewModel.request(action: .openDetail(id: item.id))
+		} label: {
+			HStack(spacing: DesignToken.Spacing.space3) {
+				Text(String(item.serviceName.prefix(1)))
+					.font(DesignToken.Typography.label.weight(.bold))
+					.foregroundColor(DesignToken.View.foreground)
+					.frame(width: 36, height: 36)
+					.background(DesignToken.View.background)
+					.clipShape(Circle())
+					.overlay(Circle().stroke(DesignToken.View.border, lineWidth: 1))
+					.accessibilityHidden(true)
+
+				VStack(alignment: .leading, spacing: DesignToken.Spacing.space1) {
 					Text(item.serviceName)
-						.font(DesignToken.Typography.heading.weight(.bold))
+						.font(DesignToken.Typography.body.weight(.medium))
 						.foregroundColor(DesignToken.View.foreground)
-
-					Spacer()
-
-					if let url = item.url, !url.isEmpty {
-						Text(url)
-							.font(DesignToken.Typography.caption)
-							.foregroundColor(DesignToken.View.mutedForeground)
-							.lineLimit(1)
-					}
-
-					if !viewModel.state.isReadOnly {
-						Button(action: { viewModel.request(action: .startEditingItem(item)) }) {
-							Image(systemName: "pencil")
-								.foregroundColor(DesignToken.View.mutedForeground)
-						}
-						.buttonStyle(.plain)
-						.help("수정")
-
-						Button(action: { viewModel.request(action: .confirmDeleteItem(item)) }) {
-							Image(systemName: "trash")
-								.foregroundColor(DesignToken.View.destructive)
-						}
-						.buttonStyle(.plain)
-						.help("삭제")
-					}
-				}
-
-				Divider()
-
-				// Username row
-				HStack {
-					Label(item.username.isEmpty ? "(아이디 없음)" : item.username, systemImage: "person.fill")
-						.font(DesignToken.Typography.label)
-						.foregroundColor(item.username.isEmpty ? DesignToken.View.mutedForeground : DesignToken.View.foreground)
-
-					Spacer()
-
-					if !item.username.isEmpty {
-						KMButton(
-							"아이디 복사",
-							variant: .outline,
-							size: .sm,
-							action: { viewModel.request(action: .copyUsername(item)) }
-						)
-					}
-				}
-
-				// Password row
-				HStack {
-					HStack(spacing: DesignToken.Spacing.space2) {
-						Image(systemName: "key.fill")
-							.foregroundColor(DesignToken.View.mutedForeground)
-
-						if viewModel.state.isPasswordRevealed(id: item.id) {
-							Text(item.password.isEmpty ? "(비밀번호 없음)" : item.password)
-								.font(DesignToken.Typography.labelMono)
-								.foregroundColor(item.password.isEmpty ? DesignToken.View.mutedForeground : DesignToken.View.foreground)
-								.lineLimit(1)
-								.truncationMode(.middle)
-						} else {
-							Text(item.password.isEmpty ? "(비밀번호 없음)" : String(repeating: "•", count: min(item.password.count, 12)))
-								.font(DesignToken.Typography.label)
-								.foregroundColor(DesignToken.View.mutedForeground)
-						}
-
-						if !item.password.isEmpty {
-							Button(action: { viewModel.request(action: .togglePasswordVisibility(id: item.id)) }) {
-								Image(systemName: viewModel.state.isPasswordRevealed(id: item.id) ? "eye.slash" : "eye")
-									.foregroundColor(DesignToken.View.mutedForeground)
-							}
-							.buttonStyle(.plain)
-						}
-					}
-
-					Spacer()
-
-					if !item.password.isEmpty {
-						KMButton(
-							"비밀번호 복사",
-							variant: .primary,
-							size: .sm,
-							action: { viewModel.request(action: .copyPassword(item)) }
-						)
-					}
-				}
-
-				if let notes = item.notes, !notes.isEmpty {
-					Text(notes)
+					Text(item.username.isEmpty ? "(아이디 없음)" : item.username)
 						.font(DesignToken.Typography.caption)
 						.foregroundColor(DesignToken.View.mutedForeground)
-						.lineLimit(2)
 				}
+				.lineLimit(1)
+
+				Spacer(minLength: 0)
+
+				Image(systemName: "chevron.right")
+					.font(DesignToken.Typography.caption.weight(.semibold))
+					.foregroundColor(DesignToken.View.mutedForeground)
+					.accessibilityHidden(true)
 			}
+			.padding(.horizontal, DesignToken.Spacing.space4)
+			.padding(.vertical, DesignToken.Spacing.space3)
+			.background(DesignToken.View.muted)
+			.clipShape(RoundedRectangle(cornerRadius: DesignToken.Radius.lg))
+			.contentShape(Rectangle())
 		}
+		.buttonStyle(.plain)
+		.accessibilityElement(children: .combine)
+		.accessibilityHint("상세 정보 보기")
 	}
 
 	// MARK: - Item Form Modal Sheet
