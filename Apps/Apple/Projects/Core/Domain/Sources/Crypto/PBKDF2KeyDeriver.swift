@@ -8,6 +8,8 @@ public enum KeyDerivationError: Error, Equatable, Sendable {
 }
 
 public struct PBKDF2KeyDeriver: Sendable {
+	public init() {}
+
 	public static let minIterations: Int = 600_000
 	public static let maxIterations: Int = 10_000_000
 	public static let defaultIterations: Int = 600_000

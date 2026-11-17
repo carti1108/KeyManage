@@ -12,6 +12,8 @@ public struct SeparatedKeys: Sendable, Equatable {
 }
 
 public struct HKDFKeySeparator: Sendable {
+	public init() {}
+
 	public static let encryptionInfo = "keymanage-enc"
 	public static let authInfo = "keymanage-auth"
 	public static let keyLength: Int = 32

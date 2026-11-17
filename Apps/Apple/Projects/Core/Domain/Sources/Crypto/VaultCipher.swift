@@ -10,6 +10,8 @@ public enum VaultCipherError: Error, Equatable, Sendable {
 }
 
 public struct VaultCipher: Sendable {
+	public init() {}
+
 	public static let supportedCipher = "AES-256-GCM"
 	public static let expectedIVLength = 12
 	public static let expectedTagLength = 16
