@@ -1,7 +1,19 @@
 import Foundation
 
 public struct BackupCipherService: Sendable {
-	public init() {}
+	private let keyDeriver: any MasterKeyDeriverProtocol
+	private let keySeparator: any KeySeparatorProtocol
+	private let vaultCipher: any VaultCipherProtocol
+
+	public init(
+		keyDeriver: any MasterKeyDeriverProtocol = PBKDF2KeyDeriver(),
+		keySeparator: any KeySeparatorProtocol = HKDFKeySeparator(),
+		vaultCipher: any VaultCipherProtocol = VaultCipher()
+	) {
+		self.keyDeriver = keyDeriver
+		self.keySeparator = keySeparator
+		self.vaultCipher = vaultCipher
+	}
 
 	public func createBackupFile(
 		vault: VaultData,
@@ -14,7 +26,7 @@ public struct BackupCipherService: Sendable {
 		var vaultEncoded = try vault.encode()
 		defer { zeroizeData(&vaultEncoded) }
 
-		let encryptedPayload = try VaultCipher.encrypt(
+		let encryptedPayload = try vaultCipher.encrypt(
 			plaintext: vaultEncoded,
 			key: encryptionKey
 		)
@@ -156,7 +168,7 @@ public struct BackupCipherService: Sendable {
 
 		var masterKey: Data
 		do {
-			masterKey = try PBKDF2KeyDeriver.deriveMasterKey(
+			masterKey = try keyDeriver.deriveMasterKey(
 				password: normalizedPasswordData,
 				salt: saltData,
 				iterations: iterations
@@ -168,7 +180,7 @@ public struct BackupCipherService: Sendable {
 
 		var encryptionKey: Data
 		do {
-			encryptionKey = try HKDFKeySeparator.deriveEncryptionKey(masterKey: masterKey)
+			encryptionKey = try keySeparator.deriveEncryptionKey(masterKey: masterKey)
 		} catch {
 			throw KeyManageBackupError.backupDecryptFailed
 		}
@@ -177,7 +189,7 @@ public struct BackupCipherService: Sendable {
 		// 8. 복호화
 		var decryptedData: Data
 		do {
-			decryptedData = try VaultCipher.decrypt(
+			decryptedData = try vaultCipher.decrypt(
 				payload: encryptedVaultPayload,
 				key: encryptionKey
 			)

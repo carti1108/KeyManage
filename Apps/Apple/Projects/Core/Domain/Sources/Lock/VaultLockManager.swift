@@ -409,7 +409,23 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 		}
 	}
 
-	public init() {}
+	private let keyDeriver: any MasterKeyDeriverProtocol
+	private let keySeparator: any KeySeparatorProtocol
+	private let vaultCipher: any VaultCipherProtocol
+
+	public init(
+		keyDeriver: any MasterKeyDeriverProtocol = PBKDF2KeyDeriver(),
+		keySeparator: any KeySeparatorProtocol = HKDFKeySeparator(),
+		vaultCipher: any VaultCipherProtocol = VaultCipher()
+	) {
+		self.keyDeriver = keyDeriver
+		self.keySeparator = keySeparator
+		self.vaultCipher = vaultCipher
+	}
+
+	private func makeBackupCipherService() -> BackupCipherService {
+		BackupCipherService(keyDeriver: keyDeriver, keySeparator: keySeparator, vaultCipher: vaultCipher)
+	}
 
 	private var _hasPendingSync: Bool = false
 	public var hasPendingSync: Bool {
@@ -575,7 +591,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 
 		var derivedMasterKey: Data?
 		do {
-			derivedMasterKey = try PBKDF2KeyDeriver.deriveMasterKey(
+			derivedMasterKey = try self.keyDeriver.deriveMasterKey(
 				password: normalized ?? Data(),
 				salt: salt,
 				iterations: _iterations
@@ -587,7 +603,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 
 		let derivedKeys: SeparatedKeys
 		do {
-			derivedKeys = try HKDFKeySeparator.separate(masterKey: derivedMasterKey ?? Data())
+			derivedKeys = try self.keySeparator.separate(masterKey: derivedMasterKey ?? Data())
 		} catch {
 			zeroizeData(&derivedMasterKey)
 			throw LockError.invalidMasterPassword
@@ -599,7 +615,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 		var decryptedData: Data?
 		defer { zeroizeData(&decryptedData) }
 		do {
-			decryptedData = try VaultCipher.decrypt(
+			decryptedData = try self.vaultCipher.decrypt(
 				payload: encryptedVault,
 				key: tempEncKey ?? Data()
 			)
@@ -659,7 +675,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 		defer { zeroizeData(&decryptedData) }
 		let decodedVault: VaultData
 		do {
-			let plain = try VaultCipher.decrypt(payload: encryptedVault, key: recoveredEncryptionKey)
+			let plain = try self.vaultCipher.decrypt(payload: encryptedVault, key: recoveredEncryptionKey)
 			decryptedData = plain
 			decodedVault = try VaultData.decode(from: plain)
 		} catch {
@@ -705,7 +721,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 			throw KeyManageBackupError.sessionNotUnlocked
 		}
 
-		let service = BackupCipherService()
+		let service = self.makeBackupCipherService()
 		return try service.createBackupFile(
 			vault: vault,
 			encryptionKey: encKey,
@@ -733,7 +749,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 			throw KeyManageBackupError.readOnlyVault
 		}
 
-		let cipherService = BackupCipherService()
+		let cipherService = self.makeBackupCipherService()
 		let backupVault = try cipherService.readAndDecryptBackup(fileData: fileData, password: password)
 
 		let merger = VaultBackupMerger()
@@ -745,7 +761,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 				throw KeyManageBackupError.notABackupFile("복원 결과 볼트 크기(\(encodedMerged.count)B)가 5MB 한도를 초과했습니다.")
 			}
 			_decryptedVault = mergedVault
-			let reencrypted = try VaultCipher.encrypt(
+			let reencrypted = try self.vaultCipher.encrypt(
 				plaintext: encodedMerged,
 				key: encKey
 			)
@@ -867,7 +883,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 		var derivedCurrentMasterKey: Data?
 		defer { zeroizeData(&derivedCurrentMasterKey) }
 		do {
-			derivedCurrentMasterKey = try PBKDF2KeyDeriver.deriveMasterKey(
+			derivedCurrentMasterKey = try self.keyDeriver.deriveMasterKey(
 				password: normalizedCurrent ?? Data(),
 				salt: currentSalt,
 				iterations: snapshot.iterations
@@ -878,7 +894,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 
 		let currentKeys: SeparatedKeys
 		do {
-			currentKeys = try HKDFKeySeparator.separate(masterKey: derivedCurrentMasterKey ?? Data())
+			currentKeys = try self.keySeparator.separate(masterKey: derivedCurrentMasterKey ?? Data())
 		} catch {
 			throw MasterPasswordChangeError.invalidCurrentPassword
 		}
@@ -891,7 +907,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 
 		if let encVault = snapshot.encryptedVault {
 			do {
-				_ = try VaultCipher.decrypt(payload: encVault, key: currentEncKey ?? Data())
+				_ = try self.vaultCipher.decrypt(payload: encVault, key: currentEncKey ?? Data())
 			} catch {
 				throw MasterPasswordChangeError.invalidCurrentPassword
 			}
@@ -935,7 +951,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 		}
 
 		do {
-			newDerivedMasterKey = try PBKDF2KeyDeriver.deriveMasterKey(
+			newDerivedMasterKey = try self.keyDeriver.deriveMasterKey(
 				password: normalizedNew ?? Data(),
 				salt: newSalt,
 				iterations: snapshot.iterations
@@ -946,7 +962,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 
 		let newKeys: SeparatedKeys
 		do {
-			newKeys = try HKDFKeySeparator.separate(masterKey: newDerivedMasterKey ?? Data())
+			newKeys = try self.keySeparator.separate(masterKey: newDerivedMasterKey ?? Data())
 		} catch {
 			throw MasterPasswordChangeError.other("새 키 분리에 실패했습니다.")
 		}
@@ -958,7 +974,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 
 		// 5. 볼트 재암호화
 		let encodedVault = try decryptedVault.encode()
-		let newEncryptedVault = try VaultCipher.encrypt(plaintext: encodedVault, key: newEncKey ?? Data())
+		let newEncryptedVault = try self.vaultCipher.encrypt(plaintext: encodedVault, key: newEncKey ?? Data())
 		guard newEncryptedVault.ciphertext.count <= BackupFileFormat.maxPayloadBytes else {
 			throw MasterPasswordChangeError.vaultTooLarge
 		}
@@ -1040,7 +1056,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 		var derivedMasterKey: Data?
 		defer { zeroizeData(&derivedMasterKey) }
 		do {
-			derivedMasterKey = try PBKDF2KeyDeriver.deriveMasterKey(
+			derivedMasterKey = try self.keyDeriver.deriveMasterKey(
 				password: normalizedPassword ?? Data(),
 				salt: currentSalt,
 				iterations: snapshot.iterations
@@ -1051,7 +1067,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 
 		let currentKeys: SeparatedKeys
 		do {
-			currentKeys = try HKDFKeySeparator.separate(masterKey: derivedMasterKey ?? Data())
+			currentKeys = try self.keySeparator.separate(masterKey: derivedMasterKey ?? Data())
 		} catch {
 			throw AccountDeletionError.invalidPassword
 		}
@@ -1065,7 +1081,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 
 		// 암호화된 볼트 복호화 시도로 로컬 비밀번호 정확성 1차 검증
 		do {
-			_ = try VaultCipher.decrypt(payload: encVault, key: currentEncKey ?? Data())
+			_ = try self.vaultCipher.decrypt(payload: encVault, key: currentEncKey ?? Data())
 		} catch {
 			throw AccountDeletionError.invalidPassword
 		}
@@ -1123,7 +1139,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 			throw VaultItemError.vaultTooLarge
 		}
 
-		let newEncrypted = try VaultCipher.encrypt(plaintext: encoded, key: encKey)
+		let newEncrypted = try self.vaultCipher.encrypt(plaintext: encoded, key: encKey)
 		_decryptedVault = vault
 		_encryptedVault = newEncrypted
 		_hasPendingSync = true
@@ -1170,7 +1186,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 			throw VaultItemError.vaultTooLarge
 		}
 
-		let newEncrypted = try VaultCipher.encrypt(plaintext: encoded, key: encKey)
+		let newEncrypted = try self.vaultCipher.encrypt(plaintext: encoded, key: encKey)
 		_decryptedVault = vault
 		_encryptedVault = newEncrypted
 		_hasPendingSync = true
@@ -1202,7 +1218,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 			throw VaultItemError.vaultTooLarge
 		}
 
-		let newEncrypted = try VaultCipher.encrypt(plaintext: encoded, key: encKey)
+		let newEncrypted = try self.vaultCipher.encrypt(plaintext: encoded, key: encKey)
 		_decryptedVault = vault
 		_encryptedVault = newEncrypted
 		_hasPendingSync = true
@@ -1312,7 +1328,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 		var derivedMasterKey: Data?
 		defer { zeroizeData(&derivedMasterKey) }
 		do {
-			derivedMasterKey = try PBKDF2KeyDeriver.deriveMasterKey(
+			derivedMasterKey = try self.keyDeriver.deriveMasterKey(
 				password: normalizedPassword ?? Data(),
 				salt: saltData,
 				iterations: PBKDF2KeyDeriver.defaultIterations
@@ -1323,7 +1339,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 
 		let keys: SeparatedKeys
 		do {
-			keys = try HKDFKeySeparator.separate(masterKey: derivedMasterKey ?? Data())
+			keys = try self.keySeparator.separate(masterKey: derivedMasterKey ?? Data())
 		} catch {
 			throw AuthError.other("키 분리 실패")
 		}
@@ -1346,7 +1362,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 		let nowString = ISO8601DateFormatter().string(from: now)
 		let emptyVault = VaultData(version: 1, updatedAt: nowString, items: [])
 		let encoded = try JSONEncoder().encode(emptyVault)
-		let encPayload = try VaultCipher.encrypt(plaintext: encoded, key: encKey)
+		let encPayload = try self.vaultCipher.encrypt(plaintext: encoded, key: encKey)
 
 		applyRegistration(
 			email: trimmedEmail,
@@ -1389,7 +1405,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 		var derivedMasterKey: Data?
 		defer { zeroizeData(&derivedMasterKey) }
 		do {
-			derivedMasterKey = try PBKDF2KeyDeriver.deriveMasterKey(
+			derivedMasterKey = try self.keyDeriver.deriveMasterKey(
 				password: normalizedPassword ?? Data(),
 				salt: saltData,
 				iterations: prelogin.iterations
@@ -1400,7 +1416,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 
 		let keys: SeparatedKeys
 		do {
-			keys = try HKDFKeySeparator.separate(masterKey: derivedMasterKey ?? Data())
+			keys = try self.keySeparator.separate(masterKey: derivedMasterKey ?? Data())
 		} catch {
 			throw AuthError.loginFailed
 		}
@@ -1427,7 +1443,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 			encryptedVault = remoteVault.payload
 			revision = remoteVault.revision
 			do {
-				let plaintext = try VaultCipher.decrypt(payload: encryptedVault, key: encKey)
+				let plaintext = try self.vaultCipher.decrypt(payload: encryptedVault, key: encKey)
 				decryptedVault = try JSONDecoder().decode(VaultData.self, from: plaintext)
 			} catch {
 				throw AuthError.loginFailed
@@ -1436,7 +1452,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 			let nowString = ISO8601DateFormatter().string(from: now)
 			let empty = VaultData(version: 1, updatedAt: nowString, items: [])
 			let encoded = try JSONEncoder().encode(empty)
-			encryptedVault = try VaultCipher.encrypt(plaintext: encoded, key: encKey)
+			encryptedVault = try self.vaultCipher.encrypt(plaintext: encoded, key: encKey)
 			decryptedVault = empty
 			revision = 1
 		}
@@ -1570,7 +1586,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 				}
 
 				// 서버 revision이 앞서 있으므로 원격 복호화 후 3-way 병합
-				let decryptedRemote = try VaultCipher.decrypt(payload: remote.payload, key: encKey)
+				let decryptedRemote = try self.vaultCipher.decrypt(payload: remote.payload, key: encKey)
 				let serverVault = try VaultData.decode(from: decryptedRemote)
 				let mergedVault = try VaultMerger().merge(local: localVault, server: serverVault)
 
@@ -1582,7 +1598,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 				// 병합본이 원격과 다르면 병합본 업로드 필요, 같으면 로컬 상태만 갱신
 				if mergedVault.items != serverVault.items {
 					let mergedEncoded = try mergedVault.encode()
-					let newEncrypted = try VaultCipher.encrypt(plaintext: mergedEncoded, key: encKey)
+					let newEncrypted = try self.vaultCipher.encrypt(plaintext: mergedEncoded, key: encKey)
 					let newRev = try await networkClient.saveVault(
 						accessToken: token,
 						expectedRevision: remote.revision,
@@ -1625,7 +1641,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 			do {
 				let encoded = try currentVault.encode()
 				try VaultSyncValidator().validatePayloadSize(encoded.count)
-				let encrypted = try VaultCipher.encrypt(plaintext: encoded, key: encKey)
+				let encrypted = try self.vaultCipher.encrypt(plaintext: encoded, key: encKey)
 
 				let newRev = try await networkClient.saveVault(
 					accessToken: token,
@@ -1673,7 +1689,7 @@ public final class VaultLockManager: VaultLockManagerProtocol, @unchecked Sendab
 						throw VaultSyncError.revisionRollbackDetected(lastSeen: expectedRev, server: remote.revision)
 					}
 
-					let decrypted = try VaultCipher.decrypt(payload: remote.payload, key: encKey)
+					let decrypted = try self.vaultCipher.decrypt(payload: remote.payload, key: encKey)
 					let serverVault = try VaultData.decode(from: decrypted)
 					currentVault = try VaultMerger().merge(local: currentVault, server: serverVault)
 					guard !currentVault.isReadOnly else {
