@@ -14,6 +14,7 @@
 | :--- | :--- |
 | [`Apps/Web/src/styles/tokens.css`](../../Apps/Web/src/styles/tokens.css) | `:root`·`.dark` CSS 변수와 Tailwind `@theme inline`(`text-<역할>` 포함) |
 | [`Apps/Apple/.../Generated/DesignToken+Generated.swift`](../../Apps/Apple/Projects/Core/DesignSystem/Sources/Generated/DesignToken+Generated.swift) | `DesignToken.Colors`·`Spacing`·`Radius` 값, `DesignToken.Typography` 역할 글꼴 |
+| [`Apps/Android/.../generated/DesignTokens.kt`](../../Apps/Android/core/designsystem/src/main/kotlin/com/keymanage/android/designsystem/generated/DesignTokens.kt) | `KeyManageColors`(라이트·다크), `DesignTokens.Spacing`·`Radius`(dp), `DesignTokens.Typography` 역할 글자(rem × 16 sp, 고정폭 포함) |
 | [`Tools/figma-builder/code.js`](../figma-builder/code.js)의 `@generated:tokens` 블록 | Figma 플러그인이 쓰는 토큰 값. 파일의 나머지(그리기 코드)는 손으로 쓴다 |
 
 생성 파일은 직접 고치지 않습니다. 색 파싱, `View`·`UI` 접근자, 글꼴처럼 값이 아닌 코드는 각 플랫폼 소스에 손으로 씁니다.

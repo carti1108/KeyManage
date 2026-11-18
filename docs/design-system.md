@@ -141,7 +141,7 @@
 | 간격 | 🟦 | 3장 | 3장 | 3장 | 3장 |
 | 모서리 | 🟨 | 3장 | 웹과 같음 | 시스템 형태 | M3 shape scale |
 | UI 글꼴 | 🟨 | 시스템 산세리프 | OS 시스템 글꼴 | SF Pro | Roboto |
-| 글자 크기 (역할 6개) | 🟨 | `text-<역할>` (rem) | 웹과 같음 | Dynamic Type 스타일 | 글꼴 배율 따름 (미정) |
+| 글자 크기 (역할 6개) | 🟨 | `text-<역할>` (rem) | 웹과 같음 | Dynamic Type 스타일 | 웹 rem × 16 sp (글꼴 배율 따름) |
 | 비밀번호 글꼴 (고정폭) | 🟦 | 필수 | 필수 | 필수 | 필수 |
 | 그림자·재질 | 🟥 | 3장 토큰 | 웹과 같음 | Liquid Glass | Tonal elevation |
 | 모션 | 🟨 | CSS transition | 웹과 같음 | 시스템 spring | M3 motion |

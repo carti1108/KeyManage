@@ -19,7 +19,31 @@
 
 ## 색상 토큰
 
-Jetpack Compose의 Material3 `darkColorScheme()`와 `lightColorScheme()`에 공통 토큰 값을 그대로 넣는다. 화면에서는 `MaterialTheme.colorScheme.*`로 쓴다.
+값은 `node Tools/design-tokens/generate.mjs`가 만드는 `core/designsystem/.../generated/DesignTokens.kt`에서 온다. `KeyManageTheme`이 시멘틱 토큰을 Material3 `ColorScheme`에 아래처럼 넣으므로 Material 컴포넌트도 토큰 색을 쓴다. 슬롯이 없는 토큰(`accent`, `ring` 등)은 `KeyManageThemeValues.colors.<이름>`으로 쓴다. 다이내믹 컬러는 쓰지 않고, 기본 모드는 다크다.
+
+| 토큰 | ColorScheme 슬롯 |
+| :--- | :--- |
+| `background` / `foreground` | `background` / `onBackground` |
+| `card` / `card-foreground` | `surface` / `onSurface` |
+| `muted` / `muted-foreground` | `surfaceVariant`·`surfaceContainerHighest` / `onSurfaceVariant` |
+| `primary` / `primary-foreground` | `primary` / `onPrimary` |
+| `accent` / `accent-foreground` | `secondary` / `onSecondary` |
+| `destructive` / `destructive-foreground` | `error` / `onError` |
+| `border` / `input` | `outline` / `outlineVariant` |
+| `overlay` | `scrim` |
+
+## 글자 역할
+
+크기는 웹 rem 값에 16을 곱한 sp다(예: `display` 1.5rem → 24sp). sp라서 Android 글꼴 배율을 따른다. 역할은 Material3 `Typography` 슬롯에 넣는다.
+
+| 역할 | Typography 슬롯 |
+| :--- | :--- |
+| `display` | `displaySmall`, `headlineSmall` |
+| `title` | `titleLarge` |
+| `heading` | `titleMedium` |
+| `body` | `bodyLarge` |
+| `label` | `bodyMedium`, `labelLarge` |
+| `caption` | `bodySmall`, `labelSmall` |
 
 ## 글꼴
 
