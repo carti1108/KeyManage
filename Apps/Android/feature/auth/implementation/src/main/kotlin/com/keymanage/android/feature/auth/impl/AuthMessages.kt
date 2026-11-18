@@ -17,6 +17,7 @@ object AuthMessages {
     const val EMAIL_TAKEN = "이미 가입된 이메일입니다."
     const val REGISTRATION_DISABLED = "현재 새 계정을 만들 수 없습니다."
     const val NETWORK = "서버에 연결할 수 없습니다. 네트워크 연결을 확인해 주세요."
+    const val WEAK_PASSWORD = "마스터 비밀번호가 보안에 취약합니다. 더 길게 만들거나 여러 종류의 문자를 섞어 주세요."
     const val UNKNOWN = "알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
 
     fun of(error: Throwable): String = when (error) {

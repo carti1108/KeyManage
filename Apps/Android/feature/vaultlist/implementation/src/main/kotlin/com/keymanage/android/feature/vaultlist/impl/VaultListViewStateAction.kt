@@ -42,6 +42,7 @@ sealed interface VaultListViewAction {
     data object StartAdd : VaultListViewAction
     data object StartEdit : VaultListViewAction
     data class FormChanged(val fields: ItemFields) : VaultListViewAction
+    data object GeneratePassword : VaultListViewAction
     data object Save : VaultListViewAction
     data object RequestDelete : VaultListViewAction
     data object ConfirmDelete : VaultListViewAction
@@ -61,5 +62,7 @@ object VaultMessages {
     const val READ_ONLY = "새 버전 앱에서 저장한 볼트입니다. 앱을 업데이트하기 전까지는 읽기만 할 수 있습니다."
     const val SESSION_EXPIRED = "로그인이 만료되었습니다. 다시 로그인해 주세요."
     const val COPY_FAILED = "클립보드에 복사하지 못했습니다."
+    const val SEQUENTIAL_DIGITS = "123처럼 이어지는 숫자가 들어 있어 추측하기 쉽습니다."
+    const val WEAK_PASSWORD = "현재 비밀번호는 보안에 취약합니다. 80점 이상의 강력한 비밀번호로 재생성하세요."
     const val UNKNOWN = "알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
 }

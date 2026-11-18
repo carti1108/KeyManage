@@ -54,7 +54,8 @@
 | 항목 상세·추가·수정·삭제(VLT-001) | `:core:domain`의 `VaultEditing`(웹 `addItem`·`updateItem`·`deleteItem`과 같은 규칙, 바뀐 것이 없으면 저장하지 않음). 화면은 Apple처럼 `:feature:vaultlist` 안에 둔다. 저장은 키를 쥔 Root가 `VaultSessionUseCase.save`로 하고, 세션 없이 연 볼트는 대기로 둔다. |
 | 클립보드 자동 비우기(COM-001) | `:core:domain`의 `ClipboardBurner`(30초, 다시 복사하면 새로 잼, 밖에서 복사하면 타이머 무효, 잠그면 바로 비움). `:core:data`의 `AndroidClipboard`가 `EXTRA_IS_SENSITIVE`로 표시해 Android 13+ 복사 미리 보기에서 가리고, 다른 앱의 복사는 `OnPrimaryClipChangedListener`로 알아챈다. |
 | 앱 전환 화면 가림(SEC-003 규칙 3) | `MainActivity`의 `FLAG_SECURE`. 화면 녹화·스크린숏도 막힌다. |
-| 가입 강도 게이지(SEC-002 규칙 8) | GEN-001 점수가 도메인에 들어오는 생성기 단계에서 붙인다. |
+| 가입 강도 게이지(SEC-002 규칙 8) | `AuthViewState.passwordScore`(가입 모드, 비밀번호가 있을 때)와 `KMGaugeBar`. 60점 미만이면 SEC-002 취약 문구를 보이되 가입은 막지 않는다. |
+| 비밀번호 생성·강도(GEN-001) | `:core:domain`의 `PasswordGenerator`(`SecureRandom.nextInt`로 균등 추출, 빠진 문자군이 있으면 통째로 다시 뽑음)와 `PasswordStrength`(점수·취약·이어지는 숫자). 웹 `passwordGenerator`·`passwordStrength`와 같은 규칙이다. 항목 상세·입력에 게이지와 안내를, 입력 폼에 기본 옵션 생성 버튼을 둔다. 옵션을 고르는 생성기 화면은 탭 구조와 함께 붙인다. |
 
 
 | 규격 | 구현 |
