@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import com.keymanage.android.domain.vault.VaultData
 import com.keymanage.android.feature.generator.GeneratorBuildable
+import com.keymanage.android.feature.settings.BackupPort
 import com.keymanage.android.feature.settings.SettingsBuildable
 import com.keymanage.android.feature.settings.SettingsListener
 import com.keymanage.android.feature.vaultlist.VaultListBuildable
@@ -19,6 +20,7 @@ interface MainBuildable {
         isOffline: Boolean,
         email: String,
         saver: VaultSaver,
+        backup: BackupPort,
         listener: MainListener,
     ): Router<*>
 }

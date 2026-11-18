@@ -41,7 +41,8 @@
 | :--- | :--- |
 | 백업 파일(vault-spec 6장, VLT-004) | `:core:domain`의 `BackupFile`과 `BackupCodec` 포트. 구현은 `:core:data`의 `JsonBackupCodec`(org.json)이고, 파일 전체 5MB + 64KB, `vault` 필드 압축 JSON 5MB 상한과 `format`·`formatVersion`·`kdf.name` 검사를 맡는다. |
 | 내보내기·복원 | `:core:domain`의 `BackupUseCase`. 내보내기는 지금 암호화 키와 계정 KDF 값을 쓰고, 복원은 파일의 KDF 값으로 키를 새로 만든다. 항목 되돌리기는 `VaultRestorer`이며 웹 `restoreItems`와 같은 순서·시각 규칙을 쓴다. 복원 결과 저장은 `VaultSyncCoordinator.save`로 넘긴다. |
-| 파일 이름 | `keymanage-backup-YYYYMMDD.json`(기기 현지 날짜). 파일 선택은 화면 단계에서 저장소 접근 프레임워크(SAF)로 한다. |
+| 파일 이름 | `keymanage-backup-YYYYMMDD.json`(기기 현지 날짜) |
+| 화면 | 설정 탭의 백업 화면. 파일 위치는 저장소 접근 프레임워크(`CreateDocument`·`OpenDocument`)로 고르고, `:app`의 `ContentResolverDocuments`가 파일 상한(5MB + 64KB)보다 1바이트 더까지만 읽는다. 내보내기·복원은 키를 쥔 Root가 `BackupSession`으로 하고, 복원 결과는 일반 수정처럼 저장한다. 복원 전 안내 대화상자를 거치고, 복원 중에는 다시 실행하지 않는다. |
 
 ## 인증 화면
 

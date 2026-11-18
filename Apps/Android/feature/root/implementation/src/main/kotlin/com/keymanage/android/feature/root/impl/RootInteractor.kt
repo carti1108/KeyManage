@@ -9,6 +9,9 @@ import com.keymanage.android.feature.unlock.UnlockListener
 import com.keymanage.android.domain.lock.AutoLockOption
 import com.keymanage.android.feature.main.MainListener
 import com.keymanage.android.feature.root.AppEvents
+import com.keymanage.android.feature.settings.BackupPort
+import com.keymanage.android.feature.settings.RestoreOutcome
+import java.time.Instant
 import com.keymanage.android.feature.vaultlist.VaultSaver
 import com.keymanage.android.domain.session.SavedVault
 import com.keymanage.android.domain.vault.VaultData
@@ -48,10 +51,13 @@ class RootInteractor(
     private val onLocked: () -> Unit = {},
     private val autoLock: RootAutoLock? = null,
     private val appEvents: AppEvents? = null,
-) : BasicInteractor<EmptyPresenter, RootRouter>(presenter), AuthListener, UnlockListener, MainListener, VaultSaver {
+) : BasicInteractor<EmptyPresenter, RootRouter>(presenter), AuthListener, UnlockListener, MainListener, VaultSaver, BackupPort {
     private var opened: OpenedVault? = null
     private var session: Session? = null
     private var email: String? = null
+
+    /** 잠금이 풀린 동안 마지막으로 저장한 볼트. 내보내기·복원의 기준이다. */
+    private var latestVault: VaultData? = null
 
     private val nav: RootRouting get() = routing ?: router
 
@@ -156,12 +162,26 @@ class RootInteractor(
     /** 목록 RIB의 저장 요청. 키를 쥔 [opened]로 저장한다. 메인 스레드 밖에서 불린다. */
     override fun save(vault: VaultData): SavedVault {
         val current = checkNotNull(opened) { "잠긴 동안에는 저장할 수 없다" }
-        return checkNotNull(gateway).save(current, vault)
+        return checkNotNull(gateway).save(current, vault).also { latestVault = it.vault }
+    }
+
+    /** 설정 탭의 백업 내보내기. 마지막으로 저장한 볼트(대기 중인 변경 포함)를 쓴다(VLT-004 규칙 2). */
+    override fun export(now: Instant): ByteArray {
+        val current = checkNotNull(opened) { "잠긴 동안에는 내보낼 수 없다" }
+        return checkNotNull(gateway).exportBackup(current, checkNotNull(latestVault), now)
+    }
+
+    override fun restore(bytes: ByteArray, password: String, now: Instant): RestoreOutcome {
+        val current = checkNotNull(opened) { "잠긴 동안에는 복원할 수 없다" }
+        val result = checkNotNull(gateway).restoreBackup(current, checkNotNull(latestVault), bytes, password, now)
+        result.saved?.let { latestVault = it.vault }
+        return RestoreOutcome(result.restored, result.saved?.vault)
     }
 
     private fun showVault(vault: OpenedVault) {
         wipe()
         opened = vault
+        latestVault = vault.vault
         session = vault.session
         email = vault.account.email
         store.update { it.copy(notice = null) }
@@ -174,5 +194,6 @@ class RootInteractor(
         if (opened != null) onLocked()
         opened?.wipe()
         opened = null
+        latestVault = null
     }
 }

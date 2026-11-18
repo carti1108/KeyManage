@@ -4,6 +4,7 @@ import com.keymanage.android.domain.auth.AuthResult
 import com.keymanage.android.domain.clipboard.ClipboardBurner
 import com.keymanage.android.domain.remote.Session
 import com.keymanage.android.domain.session.OpenedVault
+import com.keymanage.android.domain.session.RestoredBackup
 import com.keymanage.android.domain.session.SavedVault
 import com.keymanage.android.domain.vault.VaultData
 import com.keymanage.android.feature.auth.AuthBuildable
@@ -12,6 +13,7 @@ import com.keymanage.android.domain.clipboard.Scheduler
 import com.keymanage.android.domain.lock.AutoLockSettingStore
 import com.keymanage.android.feature.main.MainBuildable
 import kotlinx.coroutines.CoroutineDispatcher
+import java.time.Instant
 
 /** Root RIB이 부모(앱)에게서 받는 의존성. */
 interface RootDependency {
@@ -56,4 +58,10 @@ interface VaultSessionGateway {
 
     /** 잠금이 풀린 볼트의 수정을 저장한다. */
     fun save(opened: OpenedVault, vault: VaultData): SavedVault
+
+    /** 백업 파일 바이트(VLT-004). */
+    fun exportBackup(opened: OpenedVault, vault: VaultData, now: Instant): ByteArray
+
+    /** 백업에서 [current]로 되돌리고 저장한다. */
+    fun restoreBackup(opened: OpenedVault, current: VaultData, bytes: ByteArray, password: String, now: Instant): RestoredBackup
 }

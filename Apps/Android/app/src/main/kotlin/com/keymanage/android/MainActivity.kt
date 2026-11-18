@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.os.SystemClock
 import android.view.ViewGroup
 import android.view.WindowManager
+import com.keymanage.android.data.backup.JsonBackupCodec
 import com.keymanage.android.data.clipboard.AndroidClipboard
 import com.keymanage.android.data.clipboard.MainLooperScheduler
 import com.keymanage.android.data.crypto.AesGcmVaultCipher
@@ -16,11 +17,13 @@ import com.keymanage.android.data.remote.HttpApiClient
 import com.keymanage.android.data.sync.FileDeviceRecordStore
 import com.keymanage.android.data.vault.JsonVaultSerializer
 import com.keymanage.android.domain.auth.AuthResult
+import com.keymanage.android.domain.backup.BackupUseCase
 import com.keymanage.android.domain.auth.AuthUseCase
 import com.keymanage.android.domain.clipboard.ClipboardBurner
 import com.keymanage.android.domain.clipboard.Scheduler
 import com.keymanage.android.domain.generator.PasswordGenerator
 import com.keymanage.android.domain.remote.Session
+import com.keymanage.android.domain.session.BackupSession
 import com.keymanage.android.domain.session.OpenedVault
 import com.keymanage.android.domain.session.VaultSessionUseCase
 import com.keymanage.android.domain.sync.VaultSyncCoordinator
@@ -50,6 +53,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import java.io.File
 import java.time.Instant
+import java.time.LocalDate
 
 /** 앱의 유일한 Activity. Root RIB 트리를 만들어 붙인다. */
 class MainActivity : RibActivity() {
@@ -98,6 +102,9 @@ private class AppRootDependency(context: Context, override val appEvents: AppEve
     private val cipher = AesGcmVaultCipher()
     private val serializer = JsonVaultSerializer()
     private val store = FileDeviceRecordStore(File(context.noBackupFilesDir, "device-record.json"))
+    private val backupSession by lazy {
+        BackupSession(BackupUseCase(deriver, separator, cipher, serializer, JsonBackupCodec())) { opened, vault -> sessions.save(opened, vault) }
+    }
     private val sessions by lazy {
         VaultSessionUseCase(api, api, deriver, separator, cipher, serializer, VaultSyncCoordinator(api, cipher, serializer, store))
     }
@@ -150,6 +157,10 @@ private class AppRootDependency(context: Context, override val appEvents: AppEve
                 object : SettingsDependency {
                     override val autoLockStore = this@AppRootDependency.autoLockStore
                     override val pendingChanges = PendingChanges { sessions.hasPendingChanges() }
+                    override val documents = ContentResolverDocuments(context.contentResolver)
+                    override val workDispatcher = this@AppRootDependency.workDispatcher
+                    override val clock: () -> Instant = Instant::now
+                    override val today: () -> LocalDate = LocalDate::now
                 },
             )
         },
@@ -160,5 +171,8 @@ private class AppRootDependency(context: Context, override val appEvents: AppEve
         override fun openAfterAuth(result: AuthResult) = sessions.openAfterAuth(result)
         override fun logout(session: Session?) = sessions.logout(session)
         override fun save(opened: OpenedVault, vault: VaultData) = sessions.save(opened, vault)
+        override fun exportBackup(opened: OpenedVault, vault: VaultData, now: Instant) = backupSession.export(opened, vault, now)
+        override fun restoreBackup(opened: OpenedVault, current: VaultData, bytes: ByteArray, password: String, now: Instant) =
+            backupSession.restore(opened, current, bytes, password, now)
     }
 }

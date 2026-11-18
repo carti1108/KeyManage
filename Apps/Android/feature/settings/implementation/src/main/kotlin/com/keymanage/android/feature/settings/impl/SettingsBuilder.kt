@@ -31,6 +31,7 @@ import com.keymanage.android.designsystem.KeyManageTheme
 import com.keymanage.android.designsystem.component.KMCard
 import com.keymanage.android.designsystem.generated.DesignTokens
 import com.keymanage.android.domain.lock.AutoLockOption
+import com.keymanage.android.feature.settings.BackupPort
 import com.keymanage.android.feature.settings.SettingsBuildable
 import com.keymanage.android.feature.settings.SettingsDependency
 import com.keymanage.android.feature.settings.SettingsListener
@@ -51,18 +52,25 @@ class SettingsPresenter(
 }
 
 class SettingsBuilder(private val dependency: SettingsDependency) : SettingsBuildable {
-    override fun build(slot: MutableState<@Composable () -> Unit>, email: String, listener: SettingsListener): Router<*> {
+    override fun build(slot: MutableState<@Composable () -> Unit>, email: String, backup: BackupPort, listener: SettingsListener): Router<*> {
         val store = ViewStateStore(SettingsViewState(email = email))
         val actions = ViewActionStream<SettingsViewAction>()
         val presenter = SettingsPresenter(store, actions)
-        val interactor = SettingsInteractor(presenter, store, actions, dependency.autoLockStore, dependency.pendingChanges, listener)
+        val interactor = SettingsInteractor(
+            presenter, store, actions, dependency.autoLockStore, dependency.pendingChanges, listener,
+            backup, dependency.documents, dependency.workDispatcher, dependency.clock, dependency.today,
+        )
         return BasicComposeRouter(presenter, interactor, slot)
     }
 }
 
-/** 설정 화면(목업 7단계). 백업·비밀번호 변경·계정 삭제는 다음 단계에서 붙인다. */
+/** 설정 화면(목업 7단계). 비밀번호 변경·계정 삭제는 다음 단계에서 붙인다. */
 @Composable
 fun SettingsView(state: SettingsViewState, onAction: (SettingsViewAction) -> Unit) {
+    if (state.screen == SettingsScreen.BACKUP) {
+        BackupView(state.backup, onAction)
+        return
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -77,6 +85,9 @@ fun SettingsView(state: SettingsViewState, onAction: (SettingsViewAction) -> Uni
             SettingRow("자동 잠금", state.autoLock.label) { onAction(SettingsViewAction.OpenAutoLock) }
             SettingRow("클립보드 자동 삭제", "30초")
             SettingRow("암호화 구조", "AES-256-GCM")
+        }
+        Section("백업") {
+            SettingRow("백업 내보내기·복원", null) { onAction(SettingsViewAction.OpenBackup) }
         }
         Section("세션 제어") {
             SettingRow("로그아웃", null, color = MaterialTheme.colorScheme.error) { onAction(SettingsViewAction.Logout) }
@@ -122,7 +133,7 @@ fun SettingsView(state: SettingsViewState, onAction: (SettingsViewAction) -> Uni
 }
 
 @Composable
-private fun Section(title: String, content: @Composable () -> Unit) {
+internal fun Section(title: String, content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.Spacing.space2)) {
         Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         KMCard { content() }
