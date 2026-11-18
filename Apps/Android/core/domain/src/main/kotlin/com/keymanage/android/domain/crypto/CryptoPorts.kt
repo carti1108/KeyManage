@@ -33,6 +33,13 @@ data class EncryptedVaultPayload(
     val additionalAuthenticatedData: String
         get() = "keymanage-vault|$version|$cipher"
 
+    /**
+     * 서버로 보내는 JSON(vault-spec 3장 필드 순서). 값은 Base64와 ASCII 암호 이름이라 이스케이프가 필요 없다.
+     * VLT-001 5MB 상한은 이 문자열의 바이트 수로 잰다.
+     */
+    fun canonicalJson(): String =
+        """{"version":$version,"cipher":"$cipher","iv":"$iv","ciphertext":"$ciphertext","tag":"$tag"}"""
+
     companion object {
         const val CURRENT_VERSION = 1
         const val CIPHER_AES_256_GCM = "AES-256-GCM"
