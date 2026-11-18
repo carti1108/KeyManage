@@ -26,6 +26,9 @@ sealed class SyncError(message: String) : Exception(message) {
 
     /** 페이로드 JSON이 5MB를 넘는다. */
     class VaultTooLarge(val bytes: Int) : SyncError("볼트 페이로드 ${bytes}바이트가 상한을 넘는다")
+
+    /** 저장 응답 revision이 expectedRevision + 1이 아니다. 서버 규약 위반이라 대기로 숨기지 않는다(VLT-002 규칙 4). */
+    class UnexpectedRevision(val expected: Int, val actual: Int) : SyncError("저장 응답 revision $actual, 기대값 $expected")
 }
 
 /**
@@ -49,7 +52,9 @@ class SaveVaultUseCase(
             if (current.isReadOnly) throw SyncError.ReadOnlyVault(current.version)
             val payload = encrypt(current, key)
             try {
-                return SaveResult(current, api.saveVault(accessToken, expected, payload))
+                val revision = api.saveVault(accessToken, expected, payload)
+                if (revision != expected + 1) throw SyncError.UnexpectedRevision(expected + 1, revision)
+                return SaveResult(current, revision)
             } catch (error: ApiError.Server) {
                 if (error.code != ServerErrorCode.VAULT_CONFLICT) throw error
                 if (attempt == MAX_MERGE_RETRIES) break
