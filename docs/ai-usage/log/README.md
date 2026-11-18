@@ -109,3 +109,4 @@
 | 101 | 2026-11-18 | [Android 탭 구조·생성기·설정과 자동 잠금](101-android-main-tabs-auto-lock.md) |
 | 102 | 2026-11-18 | [Android 백업 화면과 목업 보강](102-android-backup-screen.md) |
 | 103 | 2026-11-18 | [Android 계정 삭제와 마스터 비밀번호 변경](103-android-account-delete-password-change.md) |
+| 104 | 2026-11-19 | [CI 잡을 바뀐 경로로 고르기](104-ci-path-filters.md) |
