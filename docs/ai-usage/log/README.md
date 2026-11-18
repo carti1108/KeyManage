@@ -93,3 +93,4 @@
 | 085 | 2026-11-15 | [DS Builder에 플랫폼별 화면 흐름(목업과 이동 화살표) 추가](085-figma-mockups-user-flow.md) |
 | 086 | 2026-11-16 | [Web 목업을 실제 웹 화면에 맞추고 시안 기준을 플랫폼별로 정함](086-web-mockups-follow-implementation.md) |
 | 087 | 2026-11-16 | [iOS 화면을 iPhone 목업에 맞춤](087-ios-screens-follow-mockup.md) |
+| 088 | 2026-11-18 | [Android 구현 계획과 아키텍처 ADR 작성](088-android-architecture-adr.md) |
