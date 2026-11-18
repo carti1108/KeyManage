@@ -13,6 +13,7 @@ const OUTPUTS = {
   css: join(ROOT, 'Apps/Web/src/styles/tokens.css'),
   swift: join(ROOT, 'Apps/Apple/Projects/Core/DesignSystem/Sources/Generated/DesignToken+Generated.swift'),
   figma: join(ROOT, 'Tools/figma-builder/code.js'),
+  kotlin: join(ROOT, 'Apps/Android/core/designsystem/src/main/kotlin/com/keymanage/android/designsystem/generated/DesignTokens.kt'),
 };
 const NOTICE = '생성 파일입니다. 직접 고치지 말고 Tools/design-tokens/tokens.json을 고친 뒤 node Tools/design-tokens/generate.mjs를 실행하세요 (ADR-0026).';
 
@@ -168,6 +169,71 @@ ${typography
 `;
 }
 
+// Compose Color는 0xAARRGGBB다. #RRGGBBAA(CSS 순서)와 rgba()를 바꿔 넣는다
+function kotlinColor(value) {
+  const hex2 = (n) => n.toString(16).padStart(2, '0').toUpperCase();
+  if (HEX.test(value)) {
+    const v = value.slice(1).toUpperCase();
+    return `Color(0x${v.length === 8 ? v.slice(6) + v.slice(0, 6) : 'FF' + v})`;
+  }
+  const [r, g, b, a] = value.match(/[\d.]+/g).map(Number);
+  return `Color(0x${hex2(Math.round(a * 255))}${hex2(r)}${hex2(g)}${hex2(b)})`;
+}
+
+// 글자 크기는 웹 rem 값에 16을 곱한 sp를 쓴다. sp는 Android 글꼴 배율을 따른다(design-system.md 4장)
+const REM_TO_SP = 16;
+
+function renderKotlin({ colors, space, radius, typography }) {
+  const colorArgs = (mode) => colors.map((c) => `        ${camel(c.name)} = ${kotlinColor(c[mode])},`).join('\n');
+  const style = (t) => `TextStyle(fontSize = ${t.fontSize * REM_TO_SP}.sp, lineHeight = ${t.lineHeight * REM_TO_SP}.sp, fontWeight = FontWeight(${t.fontWeight}))`;
+  return `// ${NOTICE}
+package com.keymanage.android.designsystem.generated
+
+import androidx.compose.runtime.Immutable
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
+/** 시멘틱 색 토큰 한 벌(라이트 또는 다크). 이름은 웹·Apple과 같다. */
+@Immutable
+data class KeyManageColors(
+${colors.map((c) => `    val ${camel(c.name)}: Color,`).join('\n')}
+)
+
+object DesignTokens {
+    val LightColors = KeyManageColors(
+${colorArgs('light')}
+    )
+
+    val DarkColors = KeyManageColors(
+${colorArgs('dark')}
+    )
+
+    object Spacing {
+${space.map((s) => `        val ${camel(s.name)} = ${s.value}.dp`).join('\n')}
+    }
+
+    object Radius {
+${radius.map((r) => `        val ${camel(r.key)} = ${r.value}.dp`).join('\n')}
+    }
+
+    object Typography {
+${typography
+  .map((t) =>
+    [
+      `        val ${camel(t.name)} = ${style(t)}`,
+      `        val ${camel(t.name)}Mono = ${camel(t.name)}.copy(fontFamily = FontFamily.Monospace)`,
+    ].join('\n'),
+  )
+  .join('\n')}
+    }
+}
+`;
+}
+
 const normalize = (text) => text.replace(/\r\n/g, '\n');
 
 // Figma 플러그인은 파일을 읽을 수 없어 code.js 안의 표시 블록에 토큰 값을 직접 넣는다
@@ -192,7 +258,7 @@ function renderFigma({ colors, space, radius, typography }, current) {
 function main() {
   const check = process.argv.includes('--check');
   const tokens = loadTokens();
-  const rendered = { css: renderCss(tokens), swift: renderSwift(tokens) };
+  const rendered = { css: renderCss(tokens), swift: renderSwift(tokens), kotlin: renderKotlin(tokens) };
   const stale = [];
   for (const [kind, path] of Object.entries(OUTPUTS)) {
     const current = existsSync(path) ? normalize(readFileSync(path, 'utf8')) : null;
