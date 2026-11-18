@@ -26,6 +26,14 @@
 | 제한 시간 | 연결·읽기 30초(VLT-001) |
 | 409 자동 병합 | `:core:domain`의 `SaveVaultUseCase`. 서버 볼트를 받아 병합한 뒤 서버 revision으로 다시 저장하고, 재시도는 3회까지다. 서버 revision이 마지막으로 본 값보다 낮으면 멈춘다. |
 
+## 기기 저장과 동기화 대기
+
+| 규격 | 구현 |
+| :--- | :--- |
+| 기기 기록(VLT-003) | `:core:domain`의 `DeviceRecord`(이메일, KDF 반복 횟수·salt, 암호화된 볼트, 기준 revision, 마지막으로 본 revision, 대기 표시)를 `DeviceRecordStore` 포트로 저장한다. 구현은 `:core:data`의 `FileDeviceRecordStore`이고, JSON 파일 하나를 임시 파일에 쓴 뒤 이름을 바꿔 원자적으로 교체한다. 앱은 `noBackupFilesDir`에 둔다(백업 제외 규칙과 함께 기기 밖으로 나가지 않는다). |
+| 기기 기록 암호화 | 볼트는 이미 마스터 키 유도 키로 AES-GCM 암호화한 페이로드라 Keystore로 한 번 더 감싸지 않는다. 생체 해제용 키 보관(SEC-003)은 화면 단계에서 Keystore로 따로 다룬다. |
+| 동기화 대기(VLT-002) | `:core:domain`의 `VaultSyncCoordinator`. 네트워크 오류·응답 형식 오류·5xx·429는 대기로 두고 성공 처리한다. 분명한 거절(용량 초과·읽기 전용·되돌림)은 오류로 올리고 자동 재전송을 멈춘다. 재시도 3회를 모두 충돌하면 대기 내용을 남긴 채 오류를 올린다. 30초 간격·재연결·잠금 해제 재전송의 시점은 화면 단계에서 이 조정자를 부른다. |
+
 ## 볼트 JSON
 
 | 규격 | 구현 |
