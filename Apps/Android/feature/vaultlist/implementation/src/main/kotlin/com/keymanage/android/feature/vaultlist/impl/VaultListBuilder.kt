@@ -6,7 +6,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import com.keymanage.android.domain.vault.VaultData
 import com.keymanage.android.feature.vaultlist.VaultListBuildable
+import com.keymanage.android.feature.vaultlist.VaultListDependency
 import com.keymanage.android.feature.vaultlist.VaultListListener
+import com.keymanage.android.feature.vaultlist.VaultSaver
 import com.keymanage.android.rib.ViewActionStream
 import com.keymanage.android.rib.ViewStateStore
 import com.uber.rib.core.BasicComposeRouter
@@ -23,16 +25,20 @@ class VaultListPresenter(
     }
 }
 
-class VaultListBuilder : VaultListBuildable {
+class VaultListBuilder(private val dependency: VaultListDependency) : VaultListBuildable {
     override fun build(
         slot: MutableState<@Composable () -> Unit>,
         vault: VaultData,
         isOffline: Boolean,
+        saver: VaultSaver,
         listener: VaultListListener,
     ): Router<*> {
         val store = ViewStateStore(VaultListViewState(isOffline = isOffline))
         val actions = ViewActionStream<VaultListViewAction>()
         val presenter = VaultListPresenter(store, actions)
-        return BasicComposeRouter(presenter, VaultListInteractor(presenter, store, actions, vault, listener), slot)
+        val interactor = VaultListInteractor(
+            presenter, store, actions, vault, saver, dependency.clipboard, listener, dependency.workDispatcher, dependency.clock,
+        )
+        return BasicComposeRouter(presenter, interactor, slot)
     }
 }
