@@ -171,6 +171,33 @@ if os.path.isdir(web_src_dir):
         if extra_ep_web:
             violations.append(f"[Apps/Web] HTTP 어댑터에만 존재하고 docs/api-spec.md에 없는 엔드포인트: {extra_ep_web}")
 
+# 4. Apps/Android: ServerErrorCode 목록과 ApiEndpoints 선언 대조 (HTTP 어댑터가 있을 때만)
+android_remote_dir = os.path.join(root, "Apps", "Android", "core", "data", "src", "main", "kotlin", "com", "keymanage", "android", "data", "remote")
+android_errors_path = os.path.join(root, "Apps", "Android", "core", "domain", "src", "main", "kotlin", "com", "keymanage", "android", "domain", "remote", "ApiError.kt")
+android_endpoints_path = os.path.join(android_remote_dir, "ApiEndpoints.kt")
+if os.path.isfile(android_endpoints_path):
+    if not os.path.isfile(android_errors_path):
+        violations.append("[Apps/Android] domain/remote/ApiError.kt 파일을 찾을 수 없습니다.")
+    else:
+        with open(android_errors_path, encoding="utf-8") as f:
+            enum_body = re.search(r"enum class ServerErrorCode \{(.*?);", f.read(), re.S)
+        android_codes = set(re.findall(r"\b([A-Z][A-Z_]+),", enum_body.group(1))) - {"UNKNOWN"} if enum_body else set()
+        missing_in_android = sorted(spec_error_codes - android_codes)
+        extra_in_android = sorted(android_codes - spec_error_codes)
+        if missing_in_android:
+            violations.append(f"[Apps/Android] docs/api-spec.md에 정의되었으나 ServerErrorCode에 누락된 오류 코드: {', '.join(missing_in_android)}")
+        if extra_in_android:
+            violations.append(f"[Apps/Android] ServerErrorCode에만 존재하고 docs/api-spec.md에 없는 오류 코드: {', '.join(extra_in_android)}")
+
+    with open(android_endpoints_path, encoding="utf-8") as f:
+        android_endpoints = set(re.findall(r'Endpoint\("(GET|POST|PUT|DELETE|PATCH)", "(/api/v1/[^"]+)"', f.read()))
+    missing_ep_android = sorted(spec_endpoints - android_endpoints)
+    extra_ep_android = sorted(android_endpoints - spec_endpoints)
+    if missing_ep_android:
+        violations.append(f"[Apps/Android] docs/api-spec.md에 정의되었으나 ApiEndpoints에 누락된 엔드포인트: {missing_ep_android}")
+    if extra_ep_android:
+        violations.append(f"[Apps/Android] ApiEndpoints에만 존재하고 docs/api-spec.md에 없는 엔드포인트: {extra_ep_android}")
+
 if violations:
     print("API 명세(docs/api-spec.md) 계약 드리프트 위반 발견:")
     for v in violations:
@@ -178,6 +205,6 @@ if violations:
     sys.exit(1)
 
 print(
-    f"✔ API 계약 정합성 감사 통과 (엔드포인트 {len(spec_endpoints)}종, 표준 오류 코드 {len(spec_error_codes)}종 — Back/api 및 Apps/Web 일치)"
+    f"✔ API 계약 정합성 감사 통과 (엔드포인트 {len(spec_endpoints)}종, 표준 오류 코드 {len(spec_error_codes)}종 — Back/api, Apps/Web, Apps/Android(어댑터가 있을 때) 일치)"
 )
 PY
