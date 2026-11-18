@@ -17,7 +17,43 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # PR에서 바뀐 경로를 보고 플랫폼 잡을 고른다. main 푸시와 워크플로 변경은 전부 돌린다
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.pick.outputs.backend }}
+      android: ${{ steps.pick.outputs.android }}
+      web: ${{ steps.pick.outputs.web }}
+      apple: ${{ steps.pick.outputs.apple }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: pick
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$EVENT" != "pull_request" ]; then
+            files="__all__"
+          else
+            files=$(git diff --name-only "$BASE"...HEAD)
+          fi
+          echo "$files"
+          hit() {
+            [ "$files" = "__all__" ] && return 0
+            echo "$files" | grep -Eq "^(\.github/workflows/|$1)"
+          }
+          out() { if hit "$2"; then echo "$1=true"; else echo "$1=false"; fi >> "$GITHUB_OUTPUT"; }
+          out backend 'Back/'
+          out android 'Apps/Android/|Tools/design-tokens/'
+          out web 'Apps/Web/|Tools/design-tokens/'
+          out apple 'Apps/Apple/|Tools/design-tokens/|Scripts/(verify-apple|check-apple-lint|check-swift-architecture)\.sh'
+
   backend:
+    needs: changes
+    if: ${{ needs.changes.outputs.backend == 'true' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -55,6 +91,8 @@ jobs:
 
   # Android 클라이언트 (ADR-AND-001). 러너에 설치된 Android SDK를 쓰고, 없는 SDK 플랫폼은 AGP가 받는다
   android:
+    needs: changes
+    if: ${{ needs.changes.outputs.android == 'true' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -84,6 +122,8 @@ jobs:
 
   # 웹·데스크톱 클라이언트 (ADR-0010, ADR-0012)
   web:
+    needs: changes
+    if: ${{ needs.changes.outputs.web == 'true' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -108,6 +148,8 @@ jobs:
 
   # 웹 클라이언트 코드를 실제 백엔드에 붙여 가입·동기화·충돌 병합·잠금 흐름을 확인한다
   integration:
+    needs: changes
+    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.web == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -157,6 +199,8 @@ jobs:
 
   # 데스크톱 틀(Tauri v2)이 컴파일되는지 확인한다 (ADR-0012)
   desktop:
+    needs: changes
+    if: ${{ needs.changes.outputs.web == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -244,6 +288,8 @@ jobs:
 
   # Apple 클라이언트(iOS·macOS): 정적 린트·정책 합격 기준·Tuist 생성·Swift 6 빌드·단위 테스트 (ADR-0014, ADR-0015)
   apple:
+    needs: changes
+    if: ${{ needs.changes.outputs.apple == 'true' }}
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
