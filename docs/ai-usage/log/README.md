@@ -104,3 +104,4 @@
 | 096 | 2026-11-18 | [Android 암호화 백업 내보내기와 복원](096-android-encrypted-backup.md) |
 | 097 | 2026-11-18 | [Android 로그인·가입 화면](097-android-auth-screen.md) |
 | 098 | 2026-11-18 | [Android 잠금 해제와 볼트 목록](098-android-unlock-vault-list.md) |
+| 099 | 2026-11-18 | [Android 항목 상세·편집과 클립보드 자동 비우기](099-android-item-detail-clipboard.md) |
