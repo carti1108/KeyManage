@@ -24,6 +24,7 @@
 | HTTP(api-spec.md) | `HttpURLConnection`과 `org.json`(`core/data/.../remote/HttpApiClient`). 외부 HTTP 라이브러리는 추가하지 않는다. 엔드포인트는 `ApiEndpoints`, 오류 코드는 `ServerErrorCode`에 두고 `Scripts/check-api-contract.sh`가 명세와 대조한다. |
 | 전송 보안(SEC-002) | 원격 서버는 HTTPS만 허용한다. 앱의 `network_security_config.xml`도 `localhost`·`127.0.0.1`만 HTTP를 허용한다. 에뮬레이터에서 로컬 백엔드에 붙을 때는 `adb reverse tcp:8080 tcp:8080` 뒤 `http://localhost:8080`을 쓴다. |
 | 제한 시간 | 연결·읽기 30초(VLT-001) |
+| 서버 주소 | `:app`의 `BuildConfig.SERVER_URL`. 기본은 `http://localhost:8080`(adb reverse로 잇는 로컬 백엔드)이고, 다른 서버는 `./gradlew assembleDebug -Pkeymanage.serverUrl=https://...`로 넘긴다. |
 | 409 자동 병합 | `:core:domain`의 `SaveVaultUseCase`. 서버 볼트를 받아 병합한 뒤 서버 revision으로 다시 저장하고, 재시도는 3회까지다. 서버 revision이 마지막으로 본 값보다 낮으면 멈춘다. |
 
 ## 기기 저장과 동기화 대기
@@ -42,7 +43,14 @@
 | 내보내기·복원 | `:core:domain`의 `BackupUseCase`. 내보내기는 지금 암호화 키와 계정 KDF 값을 쓰고, 복원은 파일의 KDF 값으로 키를 새로 만든다. 항목 되돌리기는 `VaultRestorer`이며 웹 `restoreItems`와 같은 순서·시각 규칙을 쓴다. 복원 결과 저장은 `VaultSyncCoordinator.save`로 넘긴다. |
 | 파일 이름 | `keymanage-backup-YYYYMMDD.json`(기기 현지 날짜). 파일 선택은 화면 단계에서 저장소 접근 프레임워크(SAF)로 한다. |
 
-## 볼트 JSON
+## 인증 화면
+
+| 규격 | 구현 |
+| :--- | :--- |
+| 가입·로그인(SEC-002) | `:core:domain`의 `AuthUseCase`. 웹 `authService`와 같이 이메일을 정규화·형식 검사한 뒤에만 키를 유도하고, prelogin KDF 값이 규격 밖이면 로그인 요청을 보내지 않는다. 새 마스터 비밀번호는 코드포인트 12자 이상과 확인 일치를 검사한다. |
+| 화면 흐름 | `:feature:auth` RIB(로그인·가입 두 모드). Root가 처음에 붙이고, 인증이 끝나면 뗀다. 키 유도는 `Dispatchers.Default`에서 돈다. 문구는 SEC-002·COM-002 표 그대로다(`AuthMessages`). |
+| 가입 강도 게이지(SEC-002 규칙 8) | GEN-001 점수가 도메인에 들어오는 생성기 단계에서 붙인다. |
+
 
 | 규격 | 구현 |
 | :--- | :--- |
