@@ -25,6 +25,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.keymanage.android.designsystem.KeyManageTheme
 import com.keymanage.android.designsystem.component.KMButton
 import com.keymanage.android.designsystem.component.KMButtonSize
+import com.keymanage.android.designsystem.component.KMGaugeBar
 import com.keymanage.android.designsystem.component.KMPasswordField
 import com.keymanage.android.designsystem.generated.DesignTokens
 
@@ -69,6 +70,12 @@ fun AuthView(state: AuthViewState, onAction: (AuthViewAction) -> Unit) {
                 showCopyAction = false,
                 readOnly = state.isSubmitting,
             )
+            state.passwordScore?.let { score ->
+                KMGaugeBar(score = score)
+                if (state.isWeakPassword) {
+                    Text(AuthMessages.WEAK_PASSWORD, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                }
+            }
             Text(SETUP_NOTICE, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         state.errorMessage?.let {
