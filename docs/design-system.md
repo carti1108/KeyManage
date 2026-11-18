@@ -187,17 +187,17 @@
 
 ### 6.1. 구현 현황
 
-| 컴포넌트 | Web | Apple |
-| :--- | :--- | :--- |
-| `Button` (`KMButton`) | 구현 | 구현 |
-| `Card` (`KMCard`) | 구현 | 구현 |
-| `PasswordInputField` (`KMPasswordField`) | 구현 (`PasswordField`) | 구현 |
-| `EntropyGauge` (`KMGaugeBar`) | 구현 | 구현 |
-| `BurnTimerBadge` (`KMBurnBadge`) | 구현 | 구현 |
-| `Alert` (`KMAlert`) | 구현 | 미구현 |
-| `ConfirmPrompt` (`KMConfirmPrompt`) | 구현 | 미구현(시스템 확인 대화상자 사용) |
-| `ModalDialog` (`KMModal`) | 구현 | 미구현(시스템 시트 사용) |
-| `TextField` (`KMTextField`) | 구현 | 미구현(시스템 `TextField` 사용) |
+| 컴포넌트 | Web | Apple | Android |
+| :--- | :--- | :--- | :--- |
+| `Button` (`KMButton`) | 구현 | 구현 | 구현 |
+| `Card` (`KMCard`) | 구현 | 구현 | 구현 |
+| `PasswordInputField` (`KMPasswordField`) | 구현 (`PasswordField`) | 구현 | 구현 |
+| `EntropyGauge` (`KMGaugeBar`) | 구현 | 구현 | 구현 |
+| `BurnTimerBadge` (`KMBurnBadge`) | 구현 | 구현 | 구현 |
+| `Alert` (`KMAlert`) | 구현 | 미구현 | 미구현 |
+| `ConfirmPrompt` (`KMConfirmPrompt`) | 구현 | 미구현(시스템 확인 대화상자 사용) | 미구현(M3 `AlertDialog` 사용) |
+| `ModalDialog` (`KMModal`) | 구현 | 미구현(시스템 시트 사용) | 미구현(M3 다이얼로그·바텀 시트 사용) |
+| `TextField` (`KMTextField`) | 구현 | 미구현(시스템 `TextField` 사용) | 미구현(M3 `TextField` 사용) |
 
 ### 6.2. `Button` (`KMButton`)
 

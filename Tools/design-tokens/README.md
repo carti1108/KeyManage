@@ -1,6 +1,6 @@
 # 디자인 토큰 생성기
 
-시멘틱 디자인 토큰(색, 간격, 모서리, 글자 역할)의 값을 [`tokens.json`](tokens.json) 한 곳에 두고, 웹과 Apple 코드를 여기서 만듭니다([ADR-0026](../../docs/adr/ADR-0026-design-token-generation.md)). 토큰 이름과 의미는 [디자인 시스템](../../docs/design-system.md) 2·3장을 따릅니다.
+시멘틱 디자인 토큰(색, 간격, 모서리, 글자 역할)의 값을 [`tokens.json`](tokens.json) 한 곳에 두고, 웹·Apple·Android 코드를 여기서 만듭니다([ADR-0026](../../docs/adr/ADR-0026-design-token-generation.md)). 토큰 이름과 의미는 [디자인 시스템](../../docs/design-system.md) 2·3장을 따릅니다.
 
 ## 구성
 
@@ -8,7 +8,7 @@
 | :--- | :--- |
 | `tokens.json` | 토큰 원본. W3C 디자인 토큰 형식(`$type`·`$value`)이고, 색은 `light`·`dark` 값을 함께 적는다. 글자 역할은 웹 rem 값과 Apple Dynamic Type 스타일(`$extensions`)을 함께 적는다([ADR-0027](../../docs/adr/ADR-0027-typography-role-tokens.md)) |
 | `generate.mjs` | Node 표준 라이브러리만 쓰는 생성기. 원본 형식을 검사한 뒤 아래 두 파일을 쓴다 |
-| `check-components.mjs` | 컴포넌트 계약 게이트. [디자인 시스템](../../docs/design-system.md) 6.1절 구현 현황 표와 웹 `components/`, Apple `DesignSystem/Sources`의 구현을 양방향으로 대조한다 |
+| `check-components.mjs` | 컴포넌트 계약 게이트. [디자인 시스템](../../docs/design-system.md) 6.1절 구현 현황 표와 웹 `components/`, Apple `DesignSystem/Sources`, Android `core/designsystem`의 구현을 양방향으로 대조한다 |
 
 | 생성 파일 | 내용 |
 | :--- | :--- |
