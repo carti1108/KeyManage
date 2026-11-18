@@ -34,6 +34,14 @@
 | 기기 기록 암호화 | 볼트는 이미 마스터 키 유도 키로 AES-GCM 암호화한 페이로드라 Keystore로 한 번 더 감싸지 않는다. 생체 해제용 키 보관(SEC-003)은 화면 단계에서 Keystore로 따로 다룬다. |
 | 동기화 대기(VLT-002) | `:core:domain`의 `VaultSyncCoordinator`. 네트워크 오류·응답 형식 오류·5xx·429는 대기로 두고 성공 처리한다. 분명한 거절(용량 초과·읽기 전용·되돌림)은 오류로 올리고 자동 재전송을 멈춘다. 재시도 3회를 모두 충돌하면 대기 내용을 남긴 채 오류를 올린다. 30초 간격·재연결·잠금 해제 재전송의 시점은 화면 단계에서 이 조정자를 부른다. |
 
+## 암호화 백업
+
+| 규격 | 구현 |
+| :--- | :--- |
+| 백업 파일(vault-spec 6장, VLT-004) | `:core:domain`의 `BackupFile`과 `BackupCodec` 포트. 구현은 `:core:data`의 `JsonBackupCodec`(org.json)이고, 파일 전체 5MB + 64KB, `vault` 필드 압축 JSON 5MB 상한과 `format`·`formatVersion`·`kdf.name` 검사를 맡는다. |
+| 내보내기·복원 | `:core:domain`의 `BackupUseCase`. 내보내기는 지금 암호화 키와 계정 KDF 값을 쓰고, 복원은 파일의 KDF 값으로 키를 새로 만든다. 항목 되돌리기는 `VaultRestorer`이며 웹 `restoreItems`와 같은 순서·시각 규칙을 쓴다. 복원 결과 저장은 `VaultSyncCoordinator.save`로 넘긴다. |
+| 파일 이름 | `keymanage-backup-YYYYMMDD.json`(기기 현지 날짜). 파일 선택은 화면 단계에서 저장소 접근 프레임워크(SAF)로 한다. |
+
 ## 볼트 JSON
 
 | 규격 | 구현 |
