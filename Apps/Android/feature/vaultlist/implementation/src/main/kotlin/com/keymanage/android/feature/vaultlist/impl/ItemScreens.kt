@@ -16,8 +16,10 @@ import androidx.compose.ui.Modifier
 import com.keymanage.android.designsystem.component.KMButton
 import com.keymanage.android.designsystem.component.KMButtonVariant
 import com.keymanage.android.designsystem.component.KMCard
+import com.keymanage.android.designsystem.component.KMGaugeBar
 import com.keymanage.android.designsystem.component.KMPasswordField
 import com.keymanage.android.designsystem.generated.DesignTokens
+import com.keymanage.android.domain.generator.PasswordStrength
 
 /** 항목 상세(목업 5단계). 비밀번호는 가린 채 보이고 복사하면 30초 뒤 비운다. */
 @Composable
@@ -42,6 +44,7 @@ internal fun ItemDetailScreen(screen: VaultScreen.Detail, state: VaultListViewSt
             readOnly = true,
             onCopy = { onAction(VaultListViewAction.CopyPassword) },
         )
+        StrengthNotes(fields.password)
         if (fields.notes.isNotEmpty()) KMCard { Field("메모", fields.notes) }
         Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.Spacing.space2)) {
             KMButton(
@@ -61,6 +64,19 @@ internal fun ItemDetailScreen(screen: VaultScreen.Detail, state: VaultListViewSt
                 )
             }
         }
+    }
+}
+
+/** 강도 게이지와 GEN-001 안내. 취약해도 경고만 하고 저장은 막지 않는다. */
+@Composable
+private fun StrengthNotes(password: String) {
+    val score = PasswordStrength.score(password)
+    KMGaugeBar(score = score)
+    if (PasswordStrength.isWeak(score)) {
+        Text(VaultMessages.WEAK_PASSWORD, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+    }
+    if (PasswordStrength.hasSequentialDigits(password)) {
+        Text(VaultMessages.SEQUENTIAL_DIGITS, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -91,6 +107,13 @@ internal fun ItemFormScreen(screen: VaultScreen.Edit, state: VaultListViewState,
             placeholder = "",
             showCopyAction = false,
             readOnly = state.isSaving,
+        )
+        if (fields.password.isNotEmpty()) StrengthNotes(fields.password)
+        KMButton(
+            title = "비밀번호 생성",
+            onClick = { onAction(VaultListViewAction.GeneratePassword) },
+            variant = KMButtonVariant.OUTLINE,
+            isDisabled = state.isSaving,
         )
         TextInput("URL", fields.url, !state.isSaving) { change(fields.copy(url = it)) }
         TextInput("메모", fields.notes, !state.isSaving, singleLine = false) { change(fields.copy(notes = it)) }

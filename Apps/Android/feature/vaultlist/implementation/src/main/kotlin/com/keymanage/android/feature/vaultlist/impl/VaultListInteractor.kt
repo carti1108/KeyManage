@@ -1,6 +1,8 @@
 package com.keymanage.android.feature.vaultlist.impl
 
 import com.keymanage.android.domain.clipboard.ClipboardBurner
+import com.keymanage.android.domain.generator.GeneratorOptions
+import com.keymanage.android.domain.generator.PasswordGenerator
 import com.keymanage.android.domain.remote.ApiError
 import com.keymanage.android.domain.sync.SyncError
 import com.keymanage.android.domain.vault.ItemFields
@@ -37,6 +39,7 @@ class VaultListInteractor(
     private val listener: VaultListListener,
     private val workDispatcher: CoroutineDispatcher,
     private val clock: () -> Instant,
+    private val generator: PasswordGenerator = PasswordGenerator(),
 ) : BasicInteractor<VaultListPresenter, BasicComposeRouter<VaultListInteractor>>(presenter) {
     private var ticker: Job? = null
 
@@ -65,6 +68,7 @@ class VaultListInteractor(
             VaultListViewAction.StartAdd -> if (!vault.isReadOnly) show(VaultScreen.Edit(null, ItemFields("", "", "")))
             VaultListViewAction.StartEdit -> startEdit()
             is VaultListViewAction.FormChanged -> updateForm(action.fields)
+            VaultListViewAction.GeneratePassword -> generatePassword()
             VaultListViewAction.Save -> coroutineScope.launch { save() }
             VaultListViewAction.RequestDelete -> if (!vault.isReadOnly) store.update { it.copy(isConfirmingDelete = true) }
             VaultListViewAction.ConfirmDelete -> coroutineScope.launch { delete() }
@@ -130,6 +134,12 @@ class VaultListInteractor(
     private fun updateForm(fields: ItemFields) {
         val screen = store.current.screen as? VaultScreen.Edit ?: return
         store.update { it.copy(screen = screen.copy(fields = fields), errorMessage = null) }
+    }
+
+    /** 기본 옵션(16자, 문자군 4종)으로 만든 비밀번호를 폼에 넣는다(GEN-001). */
+    private fun generatePassword() {
+        val screen = store.current.screen as? VaultScreen.Edit ?: return
+        updateForm(screen.fields.copy(password = generator.generate(GeneratorOptions())))
     }
 
     private fun back() {
