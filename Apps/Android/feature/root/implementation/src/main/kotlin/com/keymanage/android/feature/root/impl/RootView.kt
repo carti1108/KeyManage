@@ -1,20 +1,28 @@
 package com.keymanage.android.feature.root.impl
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import com.keymanage.android.designsystem.KeyManageTheme
 import com.keymanage.android.designsystem.generated.DesignTokens
 
-/** Root 화면. 상태를 그리고 동작만 보낸다. 하위 RIB이 붙으면 [childContent]가 화면을 채운다. */
+/** Root 화면. 하위 RIB이 [childContent]를 채우고, 남길 안내가 있으면 위에 띠로 보인다. */
 @Composable
 fun RootView(
     state: RootViewState,
@@ -23,12 +31,25 @@ fun RootView(
 ) {
     LaunchedEffect(Unit) { onAction(RootViewAction.ViewAppeared) }
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        val email = state.signedInEmail
-        if (email == null) {
-            if (state.hasAppeared) childContent()
-        } else {
-            Box(modifier = Modifier.fillMaxSize().padding(DesignTokens.Spacing.space5), contentAlignment = Alignment.Center) {
-                Text(text = "$email 계정으로 로그인했습니다.", style = MaterialTheme.typography.bodyLarge)
+        Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
+            state.notice?.let { notice ->
+                Surface(color = MaterialTheme.colorScheme.errorContainer, modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = DesignTokens.Spacing.space4, vertical = DesignTokens.Spacing.space2),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            notice,
+                            modifier = Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                        )
+                        TextButton(onClick = { onAction(RootViewAction.DismissNotice) }) { Text("닫기") }
+                    }
+                }
+            }
+            Box(modifier = Modifier.weight(1f)) {
+                if (state.hasAppeared) childContent()
             }
         }
     }
@@ -37,5 +58,7 @@ fun RootView(
 @Preview
 @Composable
 private fun RootViewPreview() {
-    KeyManageTheme { RootView(state = RootViewState(hasAppeared = true, signedInEmail = "dev@example.com"), onAction = {}, childContent = {}) }
+    KeyManageTheme {
+        RootView(state = RootViewState(hasAppeared = true, notice = RootMessages.VAULT_NOT_READY), onAction = {}, childContent = {})
+    }
 }
