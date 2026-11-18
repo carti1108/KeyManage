@@ -103,6 +103,12 @@ class VaultSyncCoordinator(
         return send(vault, key, accessToken)
     }
 
+    /** 세션 없이 연 볼트의 저장. 서버에 보내지 않고 대기로 둔다(SEC-003 규칙 10, VLT-002 규칙 2). */
+    fun saveLocally(vault: VaultData, key: ByteArray): SaveOutcome {
+        keepPending(vault, key)
+        return SaveOutcome.Pending
+    }
+
     /** 대기 내용을 다시 보낸다. 대기가 없거나 자동 재전송이 멈춘 상태면 null. */
     fun retryPending(key: ByteArray, accessToken: String, trigger: RetryTrigger): SaveOutcome? {
         if (trigger.isAutomatic && autoRetryBlocked) return null
