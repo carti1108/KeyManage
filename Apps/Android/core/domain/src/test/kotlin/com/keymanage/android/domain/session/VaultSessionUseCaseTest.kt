@@ -171,6 +171,35 @@ class VaultSessionUseCaseTest {
         assertNull(useCase.lockedAccount())
     }
 
+    @Test
+    fun `세션이 있으면 서버에 저장하고 병합 결과를 돌려준다`() {
+        // Given
+        val opened = useCase.openAfterAuth(auth())
+
+        // When
+        val saved = useCase.save(opened, vault("a"))
+
+        // Then
+        assertEquals(com.keymanage.android.domain.sync.SaveOutcome.Synced(2), saved.outcome)
+        assertEquals(listOf("a"), saved.vault.items.map { it.id })
+    }
+
+    @Test
+    fun `세션 없이 연 볼트의 저장은 대기로 둔다`() {
+        // Given
+        useCase.openAfterAuth(auth())
+        authApi.offline = true
+        val opened = useCase.unlock("password", null)
+
+        // When
+        val saved = useCase.save(opened, vault("a"))
+
+        // Then
+        assertEquals(com.keymanage.android.domain.sync.SaveOutcome.Pending, saved.outcome)
+        assertTrue(store.record!!.hasPending)
+        assertEquals(1, vaultApi.saveCalls)
+    }
+
     private fun vault(vararg ids: String) = VaultData(
         1, t0, ids.map { VaultItem(id = it, serviceName = it, username = "u", password = "p", createdAt = t0, updatedAt = t0) },
     )

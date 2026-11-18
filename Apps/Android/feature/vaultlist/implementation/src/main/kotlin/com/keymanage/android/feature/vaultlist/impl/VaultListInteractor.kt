@@ -1,44 +1,48 @@
 package com.keymanage.android.feature.vaultlist.impl
 
+import com.keymanage.android.domain.clipboard.ClipboardBurner
+import com.keymanage.android.domain.remote.ApiError
+import com.keymanage.android.domain.sync.SyncError
+import com.keymanage.android.domain.vault.ItemFields
+import com.keymanage.android.domain.vault.ItemFieldsProblem
 import com.keymanage.android.domain.vault.ItemList
 import com.keymanage.android.domain.vault.VaultData
+import com.keymanage.android.domain.vault.VaultEditing
 import com.keymanage.android.feature.vaultlist.VaultListListener
+import com.keymanage.android.feature.vaultlist.VaultSaver
 import com.keymanage.android.rib.ViewActionStream
 import com.keymanage.android.rib.ViewStateStore
 import com.uber.rib.core.BasicComposeRouter
 import com.uber.rib.core.BasicInteractor
 import com.uber.rib.core.Bundle
 import com.uber.rib.core.coroutineScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.time.Instant
 
-/** 목록 한 줄. 비밀번호·메모는 목록 상태에 담지 않는다. */
-data class VaultRow(val id: String, val serviceName: String, val username: String?)
-
-/** 볼트 목록 상태. */
-data class VaultListViewState(
-    val query: String = "",
-    val rows: List<VaultRow> = emptyList(),
-    val totalCount: Int = 0,
-    val isOffline: Boolean = false,
-)
-
-sealed interface VaultListViewAction {
-    data class QueryChanged(val value: String) : VaultListViewAction
-    data object Lock : VaultListViewAction
-    data object Resync : VaultListViewAction
-}
-
-/** 볼트 목록과 검색. 항목 추가·상세는 다음 단계에서 붙인다. */
+/** 볼트 목록·검색, 항목 상세·복사, 추가·수정·삭제(VLT-001, COM-001). */
 class VaultListInteractor(
     presenter: VaultListPresenter,
     private val store: ViewStateStore<VaultListViewState>,
     private val actions: ViewActionStream<VaultListViewAction>,
-    private val vault: VaultData,
+    private var vault: VaultData,
+    private val saver: VaultSaver,
+    private val clipboard: ClipboardBurner,
     private val listener: VaultListListener,
+    private val workDispatcher: CoroutineDispatcher,
+    private val clock: () -> Instant,
 ) : BasicInteractor<VaultListPresenter, BasicComposeRouter<VaultListInteractor>>(presenter) {
+    private var ticker: Job? = null
+
     init {
-        store.update { it.copy(rows = rowsFor(it.query), totalCount = vault.visibleItems.size) }
+        store.update { it.copy(isReadOnly = vault.isReadOnly) }
+        refreshRows()
     }
 
     override fun didBecomeActive(savedInstanceState: Bundle?) {
@@ -48,11 +52,140 @@ class VaultListInteractor(
 
     fun handle(action: VaultListViewAction) {
         when (action) {
-            is VaultListViewAction.QueryChanged -> store.update { it.copy(query = action.value, rows = rowsFor(action.value)) }
+            is VaultListViewAction.QueryChanged -> {
+                store.update { it.copy(query = action.value) }
+                refreshRows()
+            }
             VaultListViewAction.Lock -> listener.onLockRequested()
             VaultListViewAction.Resync -> listener.onResyncRequested()
+            is VaultListViewAction.OpenItem -> openDetail(action.id)
+            VaultListViewAction.Back -> back()
+            VaultListViewAction.CopyUsername -> copy { it.username }
+            VaultListViewAction.CopyPassword -> copy { it.password }
+            VaultListViewAction.StartAdd -> if (!vault.isReadOnly) show(VaultScreen.Edit(null, ItemFields("", "", "")))
+            VaultListViewAction.StartEdit -> startEdit()
+            is VaultListViewAction.FormChanged -> updateForm(action.fields)
+            VaultListViewAction.Save -> coroutineScope.launch { save() }
+            VaultListViewAction.RequestDelete -> if (!vault.isReadOnly) store.update { it.copy(isConfirmingDelete = true) }
+            VaultListViewAction.ConfirmDelete -> coroutineScope.launch { delete() }
+            VaultListViewAction.CancelDelete -> store.update { it.copy(isConfirmingDelete = false) }
+            VaultListViewAction.DismissError -> store.update { it.copy(errorMessage = null) }
         }
     }
 
-    private fun rowsFor(query: String) = ItemList.list(vault, query).map { VaultRow(it.id, it.serviceName.orEmpty(), it.username) }
+    /** 폼을 저장한다. 서비스 이름이 비었거나 바뀐 것이 없으면 서버에 보내지 않는다. 테스트는 직접 부른다. */
+    suspend fun save() {
+        val screen = store.current.screen as? VaultScreen.Edit ?: return
+        if (store.current.isSaving) return
+        if (VaultEditing.check(screen.fields) == ItemFieldsProblem.MISSING_SERVICE_NAME) {
+            store.update { it.copy(errorMessage = VaultMessages.MISSING_SERVICE_NAME) }
+            return
+        }
+        val id = screen.id
+        val now = clock()
+        val (next, savedId) = if (id == null) {
+            val added = VaultEditing.add(vault, screen.fields, now)
+            added to added.items.last().id
+        } else {
+            val updated = VaultEditing.update(vault, id, screen.fields, now) ?: return openDetail(id)
+            updated to id
+        }
+        if (persist(next)) openDetail(savedId)
+    }
+
+    /** 삭제 확인 뒤 지운다. 테스트는 직접 부른다. */
+    suspend fun delete() {
+        val screen = store.current.screen as? VaultScreen.Detail ?: return
+        store.update { it.copy(isConfirmingDelete = false) }
+        if (persist(VaultEditing.delete(vault, screen.id, clock()))) show(VaultScreen.List)
+    }
+
+    private suspend fun persist(next: VaultData): Boolean {
+        store.update { it.copy(isSaving = true, errorMessage = null) }
+        val saved = try {
+            withContext(workDispatcher) { saver.save(next) }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            store.update { it.copy(isSaving = false, errorMessage = messageOf(error)) }
+            if (error is ApiError.Server && error.status == UNAUTHORIZED) listener.onResyncRequested()
+            return false
+        }
+        vault = saved.vault
+        store.update { it.copy(isSaving = false) }
+        refreshRows()
+        return true
+    }
+
+    private fun openDetail(id: String) {
+        val item = vault.visibleItems.firstOrNull { it.id == id } ?: return show(VaultScreen.List)
+        show(VaultScreen.Detail(id, ItemFields.of(item)))
+    }
+
+    private fun startEdit() {
+        val detail = store.current.screen as? VaultScreen.Detail ?: return
+        if (!vault.isReadOnly) show(VaultScreen.Edit(detail.id, detail.fields))
+    }
+
+    private fun updateForm(fields: ItemFields) {
+        val screen = store.current.screen as? VaultScreen.Edit ?: return
+        store.update { it.copy(screen = screen.copy(fields = fields), errorMessage = null) }
+    }
+
+    private fun back() {
+        when (val screen = store.current.screen) {
+            is VaultScreen.Edit -> if (screen.id != null) openDetail(screen.id) else show(VaultScreen.List)
+            is VaultScreen.Detail -> show(VaultScreen.List)
+            VaultScreen.List -> Unit
+        }
+    }
+
+    private fun show(screen: VaultScreen) =
+        store.update { it.copy(screen = screen, isConfirmingDelete = false, errorMessage = null) }
+
+    private fun copy(select: (ItemFields) -> String) {
+        val detail = store.current.screen as? VaultScreen.Detail ?: return
+        try {
+            clipboard.copy(select(detail.fields))
+        } catch (error: Exception) {
+            store.update { it.copy(errorMessage = VaultMessages.COPY_FAILED) }
+            return
+        }
+        store.update { it.copy(burnSeconds = clipboard.remainingSeconds()) }
+        startTicker()
+    }
+
+    /** 배지의 남은 초를 1초마다 고친다. 밖에서 복사해 타이머가 멈추면 배지도 사라진다. */
+    private fun startTicker() {
+        if (!isAttached()) return
+        ticker?.cancel()
+        ticker = coroutineScope.launch {
+            while (true) {
+                delay(TICK_MILLIS)
+                val seconds = clipboard.remainingSeconds()
+                store.update { it.copy(burnSeconds = seconds) }
+                if (seconds == null) break
+            }
+        }
+    }
+
+    private fun refreshRows() {
+        val query = store.current.query
+        val rows = ItemList.list(vault, query).map { VaultRow(it.id, it.serviceName.orEmpty(), it.username) }
+        store.update { it.copy(rows = rows, totalCount = vault.visibleItems.size) }
+    }
+
+    private companion object {
+        const val TICK_MILLIS = 1_000L
+        const val UNAUTHORIZED = 401
+
+        fun messageOf(error: Exception): String = when (error) {
+            is SyncError.VaultTooLarge -> VaultMessages.TOO_LARGE
+            is SyncError.ConflictRetriesExhausted -> VaultMessages.CONFLICT
+            is SyncError.RevisionRollback -> VaultMessages.ROLLBACK
+            is SyncError.ReadOnlyVault -> VaultMessages.READ_ONLY
+            is ApiError.Server -> if (error.status == UNAUTHORIZED) VaultMessages.SESSION_EXPIRED else VaultMessages.UNKNOWN
+            else -> VaultMessages.UNKNOWN
+        }
+    }
 }

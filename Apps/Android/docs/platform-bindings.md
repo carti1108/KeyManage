@@ -51,6 +51,8 @@
 | 화면 흐름 | `:feature:auth` RIB(로그인·가입 두 모드). Root가 처음에 붙이고, 인증이 끝나면 뗀다. 키 유도는 `Dispatchers.Default`에서 돈다. 문구는 SEC-002·COM-002 표 그대로다(`AuthMessages`). |
 | 볼트 열기·잠금 해제(SEC-003) | `:core:domain`의 `VaultSessionUseCase`. 인증 직후 볼트가 없으면 빈 볼트를 저장하고, 대기 내용은 병합해 올린다. 잠금 해제는 기기 기록 복호화로 확인하고, 세션이 없으면 인증 해시로 다시 로그인하며 서버에 닿지 못하면 세션 없이 연다. KDF 값이 다르거나 인증 실패면 로그인 화면으로 보낸다. |
 | 화면 흐름 | Root가 기기 기록이 있으면 `:feature:unlock`, 없으면 `:feature:auth`를 붙이고, 열리면 `:feature:vaultlist`를 붙인다. 화면을 바꿀 때 이전 RIB을 먼저 떼므로 잠그면 목록 RIB과 평문 상태가 함께 사라진다. 암호화 키는 Root만 들고 잠글 때 0으로 덮어쓴다. LoggedIn·Main(탭) RIB은 생성기·설정 화면이 붙는 단계에서 나눈다. |
+| 항목 상세·추가·수정·삭제(VLT-001) | `:core:domain`의 `VaultEditing`(웹 `addItem`·`updateItem`·`deleteItem`과 같은 규칙, 바뀐 것이 없으면 저장하지 않음). 화면은 Apple처럼 `:feature:vaultlist` 안에 둔다. 저장은 키를 쥔 Root가 `VaultSessionUseCase.save`로 하고, 세션 없이 연 볼트는 대기로 둔다. |
+| 클립보드 자동 비우기(COM-001) | `:core:domain`의 `ClipboardBurner`(30초, 다시 복사하면 새로 잼, 밖에서 복사하면 타이머 무효, 잠그면 바로 비움). `:core:data`의 `AndroidClipboard`가 `EXTRA_IS_SENSITIVE`로 표시해 Android 13+ 복사 미리 보기에서 가리고, 다른 앱의 복사는 `OnPrimaryClipChangedListener`로 알아챈다. |
 | 앱 전환 화면 가림(SEC-003 규칙 3) | `MainActivity`의 `FLAG_SECURE`. 화면 녹화·스크린숏도 막힌다. |
 | 가입 강도 게이지(SEC-002 규칙 8) | GEN-001 점수가 도메인에 들어오는 생성기 단계에서 붙인다. |
 

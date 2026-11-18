@@ -3,6 +3,9 @@ package com.keymanage.android.feature.root.testing
 import com.keymanage.android.domain.auth.AuthResult
 import com.keymanage.android.domain.remote.Session
 import com.keymanage.android.domain.session.OpenedVault
+import com.keymanage.android.domain.session.SavedVault
+import com.keymanage.android.domain.sync.SaveOutcome
+import com.keymanage.android.domain.vault.VaultData
 import com.keymanage.android.feature.root.VaultSessionGateway
 
 /** 테스트용 세션 게이트웨이. 정한 결과를 돌려주고 호출을 기록한다. */
@@ -16,6 +19,13 @@ class FakeVaultSessionGateway(
     override fun lockedAccountEmail() = lockedEmail
 
     override fun openAfterAuth(result: AuthResult) = open(result)
+
+    val saved = mutableListOf<VaultData>()
+
+    override fun save(opened: OpenedVault, vault: VaultData): SavedVault {
+        saved += vault
+        return SavedVault(vault, SaveOutcome.Synced(saved.size))
+    }
 
     override fun logout(session: Session?) {
         logouts += session

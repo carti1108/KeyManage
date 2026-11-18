@@ -7,6 +7,9 @@ import com.keymanage.android.feature.auth.AuthListener
 import com.keymanage.android.feature.root.VaultSessionGateway
 import com.keymanage.android.feature.unlock.UnlockListener
 import com.keymanage.android.feature.vaultlist.VaultListListener
+import com.keymanage.android.feature.vaultlist.VaultSaver
+import com.keymanage.android.domain.session.SavedVault
+import com.keymanage.android.domain.vault.VaultData
 import com.keymanage.android.rib.ViewActionStream
 import com.keymanage.android.rib.ViewStateStore
 import com.uber.rib.core.BasicInteractor
@@ -40,7 +43,8 @@ class RootInteractor(
     private val gateway: VaultSessionGateway? = null,
     private val workDispatcher: CoroutineDispatcher = Dispatchers.Default,
     private val routing: RootRouting? = null,
-) : BasicInteractor<EmptyPresenter, RootRouter>(presenter), AuthListener, UnlockListener, VaultListListener {
+    private val onLocked: () -> Unit = {},
+) : BasicInteractor<EmptyPresenter, RootRouter>(presenter), AuthListener, UnlockListener, VaultListListener, VaultSaver {
     private var opened: OpenedVault? = null
     private var session: Session? = null
     private var email: String? = null
@@ -138,6 +142,12 @@ class RootInteractor(
         nav.showUnlock(lockedEmail, session, this)
     }
 
+    /** 목록 RIB의 저장 요청. 키를 쥔 [opened]로 저장한다. 메인 스레드 밖에서 불린다. */
+    override fun save(vault: VaultData): SavedVault {
+        val current = checkNotNull(opened) { "잠긴 동안에는 저장할 수 없다" }
+        return checkNotNull(gateway).save(current, vault)
+    }
+
     private fun showVault(vault: OpenedVault) {
         wipe()
         opened = vault
@@ -148,6 +158,7 @@ class RootInteractor(
     }
 
     private fun wipe() {
+        if (opened != null) onLocked()
         opened?.wipe()
         opened = null
     }

@@ -14,6 +14,7 @@ import com.keymanage.android.domain.remote.Session
 import com.keymanage.android.domain.remote.VaultApi
 import com.keymanage.android.domain.sync.DeviceAccount
 import com.keymanage.android.domain.sync.RetryTrigger
+import com.keymanage.android.domain.sync.SaveOutcome
 import com.keymanage.android.domain.sync.VaultSyncCoordinator
 import com.keymanage.android.domain.vault.VaultData
 import com.keymanage.android.domain.vault.VaultSerializer
@@ -34,6 +35,9 @@ class OpenedVault(
 ) {
     fun wipe() = encryptionKey.fill(0)
 }
+
+/** 저장 결과. [vault]는 409 병합까지 반영한 볼트라 화면은 이것으로 다시 그린다. */
+class SavedVault(val vault: VaultData, val outcome: SaveOutcome)
 
 /** 잠금 해제 실패. */
 sealed class UnlockError(message: String) : Exception(message) {
@@ -113,6 +117,16 @@ class VaultSessionUseCase(
         } finally {
             keys.authHash.fill(0)
         }
+    }
+
+    /**
+     * 사용자 수정 저장(VLT-001·002). 세션이 없으면 대기로 둔다.
+     * 분명한 거절(`SyncError`)과 401은 그대로 던진다.
+     */
+    fun save(opened: OpenedVault, vault: VaultData): SavedVault {
+        val outcome = opened.session?.let { coordinator.save(vault, opened.encryptionKey, it.accessToken) }
+            ?: coordinator.saveLocally(vault, opened.encryptionKey)
+        return SavedVault(coordinator.latestVault ?: vault, outcome)
     }
 
     /**
