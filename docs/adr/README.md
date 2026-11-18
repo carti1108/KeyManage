@@ -12,7 +12,7 @@
 | 대안을 쓴다 | 고려한 대안과 기각 이유가 없는 ADR은 쓰지 않는다. |
 | 한 결정에 한 파일 | 파일 하나에는 결정 하나만 쓴다. |
 | 파일 이름 | `ADR-<네 자리 순번>-<영문-슬러그>.md`. 이 순번은 공통 ADR만 쓴다. |
-| 플랫폼 ADR | 한 플랫폼에만 해당하는 결정은 그 플랫폼의 `docs/adr/`에 `ADR-WEB-NNN`·`ADR-APL-NNN`·`ADR-BE-NNN` 번호로 쓴다. 위치는 [문서 지도](../README.md)에 있다. |
+| 플랫폼 ADR | 한 플랫폼에만 해당하는 결정은 그 플랫폼의 `docs/adr/`에 `ADR-WEB-NNN`·`ADR-APL-NNN`·`ADR-AND-NNN`·`ADR-BE-NNN` 번호로 쓴다. 위치는 [문서 지도](../README.md)에 있다. |
 | 절차 | 기록·조회·대체는 `adr-manager` 스킬 절차를 따른다. 새 ADR은 [`templates/adr.md`](../templates/adr.md)를 복사해 쓴다. |
 
 ---

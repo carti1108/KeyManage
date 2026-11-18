@@ -38,7 +38,7 @@
 | :--- | :--- | :--- |
 | [`policies/`](policies/README.md) | 서비스 정책. 동작 규칙의 유일한 기준이다. | `policy-manager` 스킬 |
 | [`adr/`](adr/README.md) | 공통 아키텍처 결정 기록. 채택한 결정은 고치지 않는다. | `adr-manager` 스킬 |
-| [`ai-usage/`](ai-usage/README.md) | AI 활용 기록. 항목은 추가만 한다. | `project-docs:ai-usage` 스킬 |
+| [`ai-usage/`](ai-usage/README.md) | AI 활용 기록. 항목은 추가만 한다. | `docs:ai-usage` 스킬 |
 | [`templates/`](templates/) | 정책·ADR·플랫폼 명세·AI 로그 템플릿 | [작성 가이드](writing-guide.md) |
 
 ---
@@ -52,7 +52,7 @@
 | [`Apps/Web/docs/`](../Apps/Web/docs/README.md) | 웹·데스크톱(Tauri) 클라이언트 ADR, 기기 저장 명세, 플랫폼 바인딩 |
 | [`Apps/Apple/docs/`](../Apps/Apple/docs/README.md) | Apple(iOS·macOS) 클라이언트 ADR, 구현 계약, 플랫폼 바인딩, 실험 보고서 |
 | [`Back/docs/`](../Back/docs/README.md) | 백엔드 ADR |
-| [`Apps/Android/docs/`](../Apps/Android/docs/README.md) | Android 클라이언트(아직 없음)를 만들 때 쓸 플랫폼 바인딩 |
+| [`Apps/Android/docs/`](../Apps/Android/docs/README.md) | Android 클라이언트 ADR, 플랫폼 바인딩 |
 
 ---
 
