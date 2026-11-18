@@ -38,6 +38,14 @@ class VaultSyncCoordinator(
     private var pendingVault: VaultData? = null
     private var autoRetryBlocked = false
 
+    /** 마지막으로 저장(동기화 또는 대기)한 볼트. 409 병합 결과를 화면에 반영할 때 쓴다. */
+    var latestVault: VaultData? = null
+        private set
+
+    /** 대기 내용이 있는지. */
+    val hasPending: Boolean
+        get() = pendingVault != null || (restore()?.let { it.hasPending && it.account.email == account?.email } ?: false)
+
     /** 기기 저장에 실패한 뒤 다음 저장이 성공할 때까지 true(VLT-003 규칙 7). */
     var storageWarning = false
         private set
@@ -82,6 +90,13 @@ class VaultSyncCoordinator(
         if (pendingVault == null) baseRevision = serverRevision
     }
 
+    /** 서버에서 받은 볼트를 대기 내용이 없을 때만 기기 사본으로 둔다(VLT-003 규칙 1·5). */
+    fun keepServerCopy(vault: VaultData, key: ByteArray) {
+        if (hasPending) return
+        latestVault = vault
+        persist(vault, key, hasPending = false)
+    }
+
     /** 사용자 저장. 분명한 거절 뒤 멈췄던 자동 재전송도 다시 연다(VLT-002 규칙 7). */
     fun save(vault: VaultData, key: ByteArray, accessToken: String): SaveOutcome {
         autoRetryBlocked = false
@@ -118,12 +133,14 @@ class VaultSyncCoordinator(
         baseRevision = result.revision
         lastSeenRevision = result.revision
         pendingVault = null
+        latestVault = result.vault
         persist(result.vault, key, hasPending = false)
         return SaveOutcome.Synced(result.revision)
     }
 
     private fun keepPending(vault: VaultData, key: ByteArray) {
         pendingVault = vault
+        latestVault = vault
         persist(vault, key, hasPending = true)
     }
 
@@ -149,6 +166,7 @@ class VaultSyncCoordinator(
         baseRevision = 0
         lastSeenRevision = 0
         pendingVault = null
+        latestVault = null
         autoRetryBlocked = false
     }
 

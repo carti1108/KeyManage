@@ -22,5 +22,7 @@ dependencies {
     implementation(project(":core:data"))
     implementation(project(":feature:root:implementation"))
     implementation(project(":feature:auth:implementation"))
+    implementation(project(":feature:unlock:implementation"))
+    implementation(project(":feature:vaultlist:implementation"))
     implementation(libs.androidx.core.ktx)
 }

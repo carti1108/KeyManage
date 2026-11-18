@@ -2,14 +2,15 @@ package com.keymanage.android.feature.root.impl
 
 /**
  * Root 화면 상태.
- * [signedInEmail]은 인증을 마친 계정이다. LoggedIn RIB(볼트 화면)이 붙기 전까지 Root가 임시 화면으로 보여 준다.
+ * [notice]는 하위 화면이 바뀌어도 남겨 보여 줄 안내(비밀번호 바뀜, 볼트 준비 실패 등)다.
  */
 data class RootViewState(
     val hasAppeared: Boolean = false,
-    val signedInEmail: String? = null,
+    val notice: String? = null,
 )
 
 /** Root 화면에서 View가 보내는 동작. */
 sealed interface RootViewAction {
     data object ViewAppeared : RootViewAction
+    data object DismissNotice : RootViewAction
 }
