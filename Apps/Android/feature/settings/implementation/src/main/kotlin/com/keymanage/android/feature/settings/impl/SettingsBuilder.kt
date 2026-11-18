@@ -31,6 +31,7 @@ import com.keymanage.android.designsystem.KeyManageTheme
 import com.keymanage.android.designsystem.component.KMCard
 import com.keymanage.android.designsystem.generated.DesignTokens
 import com.keymanage.android.domain.lock.AutoLockOption
+import com.keymanage.android.feature.settings.AccountPort
 import com.keymanage.android.feature.settings.BackupPort
 import com.keymanage.android.feature.settings.SettingsBuildable
 import com.keymanage.android.feature.settings.SettingsDependency
@@ -52,24 +53,26 @@ class SettingsPresenter(
 }
 
 class SettingsBuilder(private val dependency: SettingsDependency) : SettingsBuildable {
-    override fun build(slot: MutableState<@Composable () -> Unit>, email: String, backup: BackupPort, listener: SettingsListener): Router<*> {
+    override fun build(slot: MutableState<@Composable () -> Unit>, email: String, backup: BackupPort, account: AccountPort, listener: SettingsListener): Router<*> {
         val store = ViewStateStore(SettingsViewState(email = email))
         val actions = ViewActionStream<SettingsViewAction>()
         val presenter = SettingsPresenter(store, actions)
         val interactor = SettingsInteractor(
             presenter, store, actions, dependency.autoLockStore, dependency.pendingChanges, listener,
-            backup, dependency.documents, dependency.workDispatcher, dependency.clock, dependency.today,
+            backup, dependency.documents, dependency.workDispatcher, dependency.clock, dependency.today, account,
         )
         return BasicComposeRouter(presenter, interactor, slot)
     }
 }
 
-/** 설정 화면(목업 7단계). 비밀번호 변경·계정 삭제는 다음 단계에서 붙인다. */
+/** 설정 화면(목업 7단계). 백업·비밀번호 변경·계정 삭제는 하위 화면으로 연다. */
 @Composable
 fun SettingsView(state: SettingsViewState, onAction: (SettingsViewAction) -> Unit) {
-    if (state.screen == SettingsScreen.BACKUP) {
-        BackupView(state.backup, onAction)
-        return
+    when (state.screen) {
+        SettingsScreen.BACKUP -> return BackupView(state.backup, onAction)
+        SettingsScreen.PASSWORD -> return PasswordChangeView(state.password, onAction)
+        SettingsScreen.DELETE -> return DeleteAccountView(state.delete, onAction)
+        SettingsScreen.MAIN -> Unit
     }
     Column(
         modifier = Modifier
@@ -90,7 +93,9 @@ fun SettingsView(state: SettingsViewState, onAction: (SettingsViewAction) -> Uni
             SettingRow("백업 내보내기·복원", null) { onAction(SettingsViewAction.OpenBackup) }
         }
         Section("세션 제어") {
-            SettingRow("로그아웃", null, color = MaterialTheme.colorScheme.error) { onAction(SettingsViewAction.Logout) }
+            SettingRow("마스터 비밀번호 변경", null) { onAction(SettingsViewAction.OpenPasswordChange) }
+            SettingRow("로그아웃", null) { onAction(SettingsViewAction.Logout) }
+            SettingRow("계정 삭제", null, color = MaterialTheme.colorScheme.error) { onAction(SettingsViewAction.OpenDeleteAccount) }
         }
     }
     if (state.isChoosingAutoLock) {

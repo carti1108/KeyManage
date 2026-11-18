@@ -1,12 +1,16 @@
 package com.keymanage.android.feature.settings.impl
 
+import com.keymanage.android.domain.auth.NewPasswordProblem
 import com.keymanage.android.domain.backup.BackupError
+import com.keymanage.android.domain.generator.PasswordStrength
+import com.keymanage.android.domain.session.AccountError
 import com.keymanage.android.domain.backup.BackupUseCase
 import com.keymanage.android.domain.lock.AutoLockOption
 import com.keymanage.android.domain.lock.AutoLockSettingStore
 import com.keymanage.android.domain.sync.SaveVaultUseCase
 import com.keymanage.android.domain.sync.SyncError
 import com.keymanage.android.domain.vault.VaultFormatError
+import com.keymanage.android.feature.settings.AccountPort
 import com.keymanage.android.feature.settings.BackupPort
 import com.keymanage.android.feature.settings.DocumentIo
 import com.keymanage.android.feature.settings.PendingChanges
@@ -27,7 +31,34 @@ import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.LocalDate
 
-enum class SettingsScreen { MAIN, BACKUP }
+enum class SettingsScreen { MAIN, BACKUP, PASSWORD, DELETE }
+
+/** 비밀번호 변경 화면 상태. 입력값은 화면을 떠나거나 끝나면 지운다. */
+data class PasswordChangeState(
+    val current: String = "",
+    val new: String = "",
+    val confirmation: String = "",
+    val isWorking: Boolean = false,
+    val message: String? = null,
+    val isError: Boolean = false,
+) {
+    val canSubmit: Boolean get() = !isWorking && current.isNotEmpty() && new.isNotEmpty() && confirmation.isNotEmpty()
+    val newScore: Int? get() = if (new.isEmpty()) null else PasswordStrength.score(new)
+
+    override fun toString() = "PasswordChangeState(isWorking=$isWorking, message=$message)"
+}
+
+/** 계정 삭제 화면 상태. 확인 문구가 정확히 같아야 삭제할 수 있다(SEC-005 규칙 2). */
+data class DeleteAccountState(
+    val password: String = "",
+    val phrase: String = "",
+    val isWorking: Boolean = false,
+    val message: String? = null,
+) {
+    val canDelete: Boolean get() = !isWorking && password.isNotEmpty() && phrase == SettingsMessages.DELETE_PHRASE
+
+    override fun toString() = "DeleteAccountState(isWorking=$isWorking, message=$message)"
+}
 
 /** 백업 화면 상태. 복원 비밀번호는 복원이 끝나거나 화면을 떠나면 지운다. */
 data class BackupState(
@@ -51,6 +82,8 @@ data class SettingsViewState(
     val isConfirmingLogout: Boolean = false,
     val screen: SettingsScreen = SettingsScreen.MAIN,
     val backup: BackupState = BackupState(),
+    val password: PasswordChangeState = PasswordChangeState(),
+    val delete: DeleteAccountState = DeleteAccountState(),
 )
 
 sealed interface SettingsViewAction {
@@ -68,6 +101,12 @@ sealed interface SettingsViewAction {
     data class RestorePasswordChanged(val value: String) : SettingsViewAction
     data object RequestRestore : SettingsViewAction
     data object ConfirmRestore : SettingsViewAction
+    data object OpenPasswordChange : SettingsViewAction
+    data class PasswordFieldsChanged(val current: String, val new: String, val confirmation: String) : SettingsViewAction
+    data object SubmitPasswordChange : SettingsViewAction
+    data object OpenDeleteAccount : SettingsViewAction
+    data class DeleteFieldsChanged(val password: String, val phrase: String) : SettingsViewAction
+    data object SubmitDeleteAccount : SettingsViewAction
 }
 
 /** VLT-001·VLT-002·VLT-004·COM-002 사용자 문구. */
@@ -87,6 +126,22 @@ object SettingsMessages {
     const val EXPORTED = "백업 파일을 저장했습니다."
     const val UNKNOWN = "알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
 
+    const val PASSWORD_TITLE = "마스터 비밀번호 변경"
+    const val PASSWORD_BODY = "비밀번호를 바꾸면 다른 기기는 모두 로그아웃되고, 새 비밀번호로 다시 로그인해야 합니다. 다른 기기에서 아직 올리지 못한 변경 사항은 사라집니다. 예전에 내보낸 백업은 예전 비밀번호로 엽니다."
+    const val WRONG_PASSWORD = "마스터 비밀번호가 올바르지 않습니다."
+    const val SAME_PASSWORD = "새 비밀번호가 지금 비밀번호와 같습니다."
+    const val PASSWORD_OFFLINE = "인터넷에 연결된 상태에서만 비밀번호를 바꿀 수 있습니다."
+    const val CONFLICT = "다른 기기의 변경 사항과 충돌했습니다. 잠시 후 다시 시도해 주세요."
+    const val PASSWORD_CHANGED = "마스터 비밀번호를 바꿨습니다."
+    const val TOO_SHORT = "마스터 비밀번호는 12자 이상이어야 합니다."
+    const val MISMATCH = "비밀번호 확인이 일치하지 않습니다."
+    const val DELETE_TITLE = "계정 삭제"
+    const val DELETE_BODY = "계정과 볼트가 서버에서 바로 지워지고 되돌릴 수 없습니다. 다른 기기도 모두 로그아웃되고, 아직 올리지 못한 변경 사항은 사라집니다. 필요하면 먼저 백업을 내보내 주세요."
+    const val DELETE_PHRASE = "계정 삭제"
+    const val DELETE_PHRASE_LABEL = "확인을 위해 '계정 삭제'를 입력해 주세요."
+    const val DELETE_OFFLINE = "인터넷에 연결된 상태에서만 계정을 삭제할 수 있습니다."
+    const val ACCOUNT_DELETED = "계정을 삭제했습니다."
+
     fun restored(count: Int) = "백업에서 항목 ${count}개를 복원했습니다."
 }
 
@@ -103,6 +158,7 @@ class SettingsInteractor(
     private val workDispatcher: CoroutineDispatcher = Dispatchers.Default,
     private val clock: () -> Instant = Instant::now,
     private val today: () -> LocalDate = LocalDate::now,
+    private val account: AccountPort? = null,
 ) : BasicInteractor<SettingsPresenter, BasicComposeRouter<SettingsInteractor>>(presenter) {
     init {
         store.update { it.copy(autoLock = autoLockStore.read()) }
@@ -133,7 +189,19 @@ class SettingsInteractor(
             SettingsViewAction.OpenBackup -> store.update {
                 it.copy(screen = SettingsScreen.BACKUP, backup = BackupState(fileName = BackupUseCase.fileName(today())))
             }
-            SettingsViewAction.Back -> store.update { it.copy(screen = SettingsScreen.MAIN, backup = BackupState()) }
+            SettingsViewAction.Back -> store.update {
+                it.copy(screen = SettingsScreen.MAIN, backup = BackupState(), password = PasswordChangeState(), delete = DeleteAccountState())
+            }
+            SettingsViewAction.OpenPasswordChange -> store.update { it.copy(screen = SettingsScreen.PASSWORD, password = PasswordChangeState()) }
+            is SettingsViewAction.PasswordFieldsChanged -> store.update {
+                it.copy(password = it.password.copy(current = action.current, new = action.new, confirmation = action.confirmation, message = null))
+            }
+            SettingsViewAction.SubmitPasswordChange -> coroutineScope.launch { changePassword() }
+            SettingsViewAction.OpenDeleteAccount -> store.update { it.copy(screen = SettingsScreen.DELETE, delete = DeleteAccountState()) }
+            is SettingsViewAction.DeleteFieldsChanged -> store.update {
+                it.copy(delete = it.delete.copy(password = action.password, phrase = action.phrase, message = null))
+            }
+            SettingsViewAction.SubmitDeleteAccount -> coroutineScope.launch { deleteAccount() }
             is SettingsViewAction.ExportTo -> coroutineScope.launch { export(action.uri) }
             is SettingsViewAction.RestoreFilePicked -> updateBackup { it.copy(restoreUri = action.uri, message = null) }
             is SettingsViewAction.RestorePasswordChanged -> updateBackup { it.copy(restorePassword = action.value, message = null) }
@@ -176,6 +244,51 @@ class SettingsInteractor(
         }
     }
 
+    /** 마스터 비밀번호 변경(SEC-004). 테스트는 직접 부른다. */
+    suspend fun changePassword() {
+        val account = account ?: return
+        val state = store.current.password
+        if (!state.canSubmit) return
+        store.update { it.copy(password = state.copy(isWorking = true, message = null)) }
+        val failure = runWork { account.changePassword(state.current, state.new, state.confirmation) }
+        if (failure is AccountError.LoginRequired) {
+            store.update { it.copy(password = PasswordChangeState()) }
+            listener.onSessionExpired()
+            return
+        }
+        store.update {
+            it.copy(
+                password = if (failure == null) {
+                    PasswordChangeState(message = SettingsMessages.PASSWORD_CHANGED)
+                } else {
+                    it.password.copy(isWorking = false, message = accountMessageOf(failure, SettingsMessages.PASSWORD_OFFLINE), isError = true)
+                },
+            )
+        }
+    }
+
+    /** 계정 삭제(SEC-005). 성공하면 부모가 로그인 화면으로 보낸다. 테스트는 직접 부른다. */
+    suspend fun deleteAccount() {
+        val account = account ?: return
+        val state = store.current.delete
+        if (!state.canDelete) return
+        store.update { it.copy(delete = state.copy(isWorking = true, message = null)) }
+        val failure = runWork { account.deleteAccount(state.password) }
+        when (failure) {
+            null -> {
+                store.update { it.copy(delete = DeleteAccountState()) }
+                listener.onAccountDeleted()
+            }
+            is AccountError.LoginRequired -> {
+                store.update { it.copy(delete = DeleteAccountState()) }
+                listener.onSessionExpired()
+            }
+            else -> store.update {
+                it.copy(delete = it.delete.copy(isWorking = false, message = accountMessageOf(failure, SettingsMessages.DELETE_OFFLINE)))
+            }
+        }
+    }
+
     private suspend fun runWork(block: () -> Unit): Exception? = try {
         withContext(workDispatcher) { block() }
         null
@@ -190,6 +303,18 @@ class SettingsInteractor(
     private companion object {
         /** 파일 전체 상한: 볼트 5MB + 64KB(VLT-004 값 표). 넘으면 코덱이 거절하도록 1바이트 더 읽는다. */
         const val MAX_FILE_BYTES = SaveVaultUseCase.MAX_PAYLOAD_BYTES + 65_536
+
+        fun accountMessageOf(error: Exception, offline: String): String = when (error) {
+            is AccountError.WrongPassword -> SettingsMessages.WRONG_PASSWORD
+            is AccountError.SamePassword -> SettingsMessages.SAME_PASSWORD
+            is AccountError.WeakNewPassword ->
+                if (error.problem == NewPasswordProblem.TOO_SHORT) SettingsMessages.TOO_SHORT else SettingsMessages.MISMATCH
+            is AccountError.Offline -> offline
+            is AccountError.Conflict -> SettingsMessages.CONFLICT
+            is SyncError.ReadOnlyVault -> SettingsMessages.READ_ONLY
+            is SyncError.VaultTooLarge -> SettingsMessages.TOO_LARGE
+            else -> SettingsMessages.UNKNOWN
+        }
 
         fun messageOf(error: Exception): String = when (error) {
             is BackupError.CannotOpen -> SettingsMessages.CANNOT_OPEN
