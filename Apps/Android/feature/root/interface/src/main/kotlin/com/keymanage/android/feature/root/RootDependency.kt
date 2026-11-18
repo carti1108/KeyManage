@@ -64,4 +64,10 @@ interface VaultSessionGateway {
 
     /** 백업에서 [current]로 되돌리고 저장한다. */
     fun restoreBackup(opened: OpenedVault, current: VaultData, bytes: ByteArray, password: String, now: Instant): RestoredBackup
+
+    /** 마스터 비밀번호 변경(SEC-004). 새 키·새 세션으로 연 볼트를 돌려준다. */
+    fun changePassword(opened: OpenedVault, vault: VaultData, current: String, new: String, confirmation: String): OpenedVault
+
+    /** 계정 삭제(SEC-005). 이 기기의 기록도 지운다. */
+    fun deleteAccount(opened: OpenedVault, password: String)
 }

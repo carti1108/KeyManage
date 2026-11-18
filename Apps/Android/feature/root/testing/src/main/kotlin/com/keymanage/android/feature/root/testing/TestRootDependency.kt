@@ -38,6 +38,16 @@ class FakeVaultSessionGateway(
         return RestoredBackup(1, save(opened, current))
     }
 
+    val deletePasswords = mutableListOf<String>()
+    var changed: ((OpenedVault) -> OpenedVault)? = null
+
+    override fun changePassword(opened: OpenedVault, vault: VaultData, current: String, new: String, confirmation: String): OpenedVault =
+        checkNotNull(changed) { "changePassword 결과를 정하지 않음" }(opened)
+
+    override fun deleteAccount(opened: OpenedVault, password: String) {
+        deletePasswords += password
+    }
+
     override fun logout(session: Session?) {
         logouts += session
         logoutFailure?.let { throw it }

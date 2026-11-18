@@ -16,6 +16,7 @@ import com.keymanage.android.domain.vault.VaultData
 import com.keymanage.android.feature.main.MainBuildable
 import com.keymanage.android.feature.main.MainDependency
 import com.keymanage.android.feature.main.MainListener
+import com.keymanage.android.feature.settings.AccountPort
 import com.keymanage.android.feature.settings.BackupPort
 import com.keymanage.android.feature.vaultlist.VaultSaver
 import com.keymanage.android.rib.ViewActionStream
@@ -57,6 +58,7 @@ class MainRouter(
     private val dependency: MainDependency,
     private val email: String,
     private val isOffline: Boolean,
+    private val account: AccountPort,
 ) : BasicComposeRouter<MainInteractor>(presenter, interactor, slot), MainRouting {
     private val childSlot = presenter.childSlot
     private var current: Router<*>? = null
@@ -66,7 +68,7 @@ class MainRouter(
 
     override fun showGenerator() = replace { dependency.generatorBuildable.build(childSlot) }
 
-    override fun showSettings() = replace { dependency.settingsBuildable.build(childSlot, email, interactor, interactor.mainListener) }
+    override fun showSettings() = replace { dependency.settingsBuildable.build(childSlot, email, interactor, account, interactor.mainListener) }
 
     private fun replace(build: () -> Router<*>) {
         current?.let(::detachChild)
@@ -82,12 +84,13 @@ class MainBuilder(private val dependency: MainDependency) : MainBuildable {
         email: String,
         saver: VaultSaver,
         backup: BackupPort,
+        account: AccountPort,
         listener: MainListener,
     ): Router<*> {
         val store = ViewStateStore(MainViewState())
         val actions = ViewActionStream<MainViewAction>()
         val presenter = MainPresenter(store, actions)
         val interactor = MainInteractor(presenter, store, actions, vault, saver, listener, parentBackup = backup)
-        return MainRouter(presenter, interactor, slot, dependency, email, isOffline)
+        return MainRouter(presenter, interactor, slot, dependency, email, isOffline, account)
     }
 }
