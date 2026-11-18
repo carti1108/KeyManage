@@ -3,7 +3,10 @@ package com.keymanage.android.feature.main.impl
 import com.keymanage.android.domain.session.SavedVault
 import com.keymanage.android.domain.vault.VaultData
 import com.keymanage.android.feature.main.MainListener
+import com.keymanage.android.feature.settings.BackupPort
+import com.keymanage.android.feature.settings.RestoreOutcome
 import com.keymanage.android.feature.vaultlist.VaultSaver
+import java.time.Instant
 import com.keymanage.android.rib.ViewActionStream
 import com.keymanage.android.rib.ViewStateStore
 import com.uber.rib.core.BasicInteractor
@@ -40,7 +43,8 @@ class MainInteractor(
     private val parentSaver: VaultSaver,
     private val listener: MainListener,
     private val routing: MainRouting? = null,
-) : BasicInteractor<MainPresenter, MainRouter>(presenter), VaultSaver {
+    private val parentBackup: BackupPort? = null,
+) : BasicInteractor<MainPresenter, MainRouter>(presenter), VaultSaver, BackupPort {
     var vault: VaultData = initialVault
         private set
 
@@ -63,6 +67,12 @@ class MainInteractor(
     }
 
     override fun save(vault: VaultData): SavedVault = parentSaver.save(vault).also { this.vault = it.vault }
+
+    override fun export(now: Instant): ByteArray = checkNotNull(parentBackup).export(now)
+
+    /** 복원한 볼트를 들고 있다가 볼트 탭을 다시 붙일 때 쓴다. */
+    override fun restore(bytes: ByteArray, password: String, now: Instant): RestoreOutcome =
+        checkNotNull(parentBackup).restore(bytes, password, now).also { outcome -> outcome.vault?.let { vault = it } }
 
     val mainListener: MainListener get() = listener
 
