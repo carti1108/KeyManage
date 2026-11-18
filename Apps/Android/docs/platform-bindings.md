@@ -50,9 +50,11 @@
 | 가입·로그인(SEC-002) | `:core:domain`의 `AuthUseCase`. 웹 `authService`와 같이 이메일을 정규화·형식 검사한 뒤에만 키를 유도하고, prelogin KDF 값이 규격 밖이면 로그인 요청을 보내지 않는다. 새 마스터 비밀번호는 코드포인트 12자 이상과 확인 일치를 검사한다. |
 | 화면 흐름 | `:feature:auth` RIB(로그인·가입 두 모드). Root가 처음에 붙이고, 인증이 끝나면 뗀다. 키 유도는 `Dispatchers.Default`에서 돈다. 문구는 SEC-002·COM-002 표 그대로다(`AuthMessages`). |
 | 볼트 열기·잠금 해제(SEC-003) | `:core:domain`의 `VaultSessionUseCase`. 인증 직후 볼트가 없으면 빈 볼트를 저장하고, 대기 내용은 병합해 올린다. 잠금 해제는 기기 기록 복호화로 확인하고, 세션이 없으면 인증 해시로 다시 로그인하며 서버에 닿지 못하면 세션 없이 연다. KDF 값이 다르거나 인증 실패면 로그인 화면으로 보낸다. |
-| 화면 흐름 | Root가 기기 기록이 있으면 `:feature:unlock`, 없으면 `:feature:auth`를 붙이고, 열리면 `:feature:vaultlist`를 붙인다. 화면을 바꿀 때 이전 RIB을 먼저 떼므로 잠그면 목록 RIB과 평문 상태가 함께 사라진다. 암호화 키는 Root만 들고 잠글 때 0으로 덮어쓴다. LoggedIn·Main(탭) RIB은 생성기·설정 화면이 붙는 단계에서 나눈다. |
+| 화면 흐름 | Root가 기기 기록이 있으면 `:feature:unlock`, 없으면 `:feature:auth`를 붙이고, 열리면 `:feature:vaultlist`를 붙인다. 화면을 바꿀 때 이전 RIB을 먼저 떼므로 잠그면 목록 RIB과 평문 상태가 함께 사라진다. 암호화 키는 Root만 들고 잠글 때 0으로 덮어쓴다. 잠금이 풀리면 `:feature:main`(볼트·생성기·설정 탭)을 붙인다. ADR-AND-001의 LoggedIn 역할(키 보관·잠금)은 Root가 맡는다. |
 | 항목 상세·추가·수정·삭제(VLT-001) | `:core:domain`의 `VaultEditing`(웹 `addItem`·`updateItem`·`deleteItem`과 같은 규칙, 바뀐 것이 없으면 저장하지 않음). 화면은 Apple처럼 `:feature:vaultlist` 안에 둔다. 저장은 키를 쥔 Root가 `VaultSessionUseCase.save`로 하고, 세션 없이 연 볼트는 대기로 둔다. |
 | 클립보드 자동 비우기(COM-001) | `:core:domain`의 `ClipboardBurner`(30초, 다시 복사하면 새로 잼, 밖에서 복사하면 타이머 무효, 잠그면 바로 비움). `:core:data`의 `AndroidClipboard`가 `EXTRA_IS_SENSITIVE`로 표시해 Android 13+ 복사 미리 보기에서 가리고, 다른 앱의 복사는 `OnPrimaryClipChangedListener`로 알아챈다. |
+| 자동 잠금(SEC-003 규칙 2) | `:core:domain`의 `AutoLock`(웹 `createAutoLock`과 같은 규칙, 선택지 즉시·1분·5분·15분·1시간, 기본 5분). Root의 `RootAutoLock`이 잠금이 풀린 동안 돌리고, `MainActivity`의 `onStart`·`onStop`·`onUserInteraction`을 받는다. 경과 시간은 `SystemClock.elapsedRealtime`으로 재 기기 시계 변경에 흔들리지 않는다. 설정은 `SharedPreferences`(`PreferencesAutoLockStore`)에 두고 계정과 묶지 않는다. |
+| 대기 중 로그아웃 확인(VLT-002 규칙 11) | 설정 탭이 `VaultSessionUseCase.hasPendingChanges`로 확인하고 대기 내용이 있으면 확인 대화상자를 띄운다. |
 | 앱 전환 화면 가림(SEC-003 규칙 3) | `MainActivity`의 `FLAG_SECURE`. 화면 녹화·스크린숏도 막힌다. |
 | 가입 강도 게이지(SEC-002 규칙 8) | `AuthViewState.passwordScore`(가입 모드, 비밀번호가 있을 때)와 `KMGaugeBar`. 60점 미만이면 SEC-002 취약 문구를 보이되 가입은 막지 않는다. |
 | 비밀번호 생성·강도(GEN-001) | `:core:domain`의 `PasswordGenerator`(`SecureRandom.nextInt`로 균등 추출, 빠진 문자군이 있으면 통째로 다시 뽑음)와 `PasswordStrength`(점수·취약·이어지는 숫자). 웹 `passwordGenerator`·`passwordStrength`와 같은 규칙이다. 항목 상세·입력에 게이지와 안내를, 입력 폼에 기본 옵션 생성 버튼을 둔다. 옵션을 고르는 생성기 화면은 탭 구조와 함께 붙인다. |
