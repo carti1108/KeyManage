@@ -1,5 +1,5 @@
 # 검증 위임 체계의 기계 판정 단계 (ADR-0009)
-# PR과 main 푸시마다 백엔드(빌드·테스트·격리 검사·뮤테이션), 웹 클라이언트(타입·lint·테스트·빌드),
+# PR과 main 푸시마다 백엔드(빌드·테스트·격리 검사·뮤테이션), Android(테스트·lint·빌드), 웹 클라이언트(타입·lint·테스트·빌드),
 # 플랫폼 간 암호 테스트 벡터, 문서 검사를 돌린다
 name: CI
 
@@ -51,6 +51,35 @@ jobs:
           path: |
             Back/*/build/reports/tests
             Back/domain/build/reports/pitest
+          if-no-files-found: ignore
+
+  # Android 클라이언트 (ADR-AND-001). 러너에 설치된 Android SDK를 쓰고, 없는 SDK 플랫폼은 AGP가 받는다
+  android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Apps/Android
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: 단위 테스트·lint·디버그 빌드
+        run: ./gradlew test lint assembleDebug --console=plain
+
+      - name: 리포트 보관
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-reports
+          path: |
+            Apps/Android/**/build/reports/tests
+            Apps/Android/**/build/reports/lint-results-*.html
           if-no-files-found: ignore
 
   # 웹·데스크톱 클라이언트 (ADR-0010, ADR-0012)
