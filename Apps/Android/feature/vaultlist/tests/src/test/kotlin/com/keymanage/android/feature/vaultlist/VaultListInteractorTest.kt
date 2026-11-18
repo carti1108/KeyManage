@@ -1,5 +1,6 @@
 package com.keymanage.android.feature.vaultlist
 
+import com.keymanage.android.domain.clipboard.ClipboardBurner
 import com.keymanage.android.domain.vault.VaultData
 import com.keymanage.android.domain.vault.VaultItem
 import com.keymanage.android.domain.vault.VaultRules
@@ -8,9 +9,13 @@ import com.keymanage.android.feature.vaultlist.impl.VaultListPresenter
 import com.keymanage.android.feature.vaultlist.impl.VaultListViewAction
 import com.keymanage.android.feature.vaultlist.impl.VaultListViewState
 import com.keymanage.android.feature.vaultlist.impl.VaultRow
+import com.keymanage.android.feature.vaultlist.testing.FakeClipboard
+import com.keymanage.android.feature.vaultlist.testing.HeldScheduler
 import com.keymanage.android.feature.vaultlist.testing.RecordingVaultListListener
+import com.keymanage.android.feature.vaultlist.testing.RecordingVaultSaver
 import com.keymanage.android.rib.ViewActionStream
 import com.keymanage.android.rib.ViewStateStore
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -26,7 +31,10 @@ class VaultListInteractorTest {
     )
     private val listener = RecordingVaultListListener()
     private val store = ViewStateStore(VaultListViewState())
-    private val interactor = VaultListInteractor(VaultListPresenter(store, ViewActionStream()), store, ViewActionStream(), vault, listener)
+    private val interactor = VaultListInteractor(
+        VaultListPresenter(store, ViewActionStream()), store, ViewActionStream(), vault, RecordingVaultSaver(),
+        ClipboardBurner(FakeClipboard(), HeldScheduler()), listener, UnconfinedTestDispatcher(), clock = { t0 },
+    )
 
     @Test
     fun `삭제되지 않은 항목을 이름순으로 보이고 비밀번호는 상태에 담지 않는다`() {
