@@ -102,3 +102,4 @@
 | 094 | 2026-11-18 | [Android API 어댑터와 볼트 저장 동기화](094-android-api-sync.md) |
 | 095 | 2026-11-18 | [Android 기기 저장과 동기화 대기](095-android-device-storage-pending-sync.md) |
 | 096 | 2026-11-18 | [Android 암호화 백업 내보내기와 복원](096-android-encrypted-backup.md) |
+| 097 | 2026-11-18 | [Android 로그인·가입 화면](097-android-auth-screen.md) |
