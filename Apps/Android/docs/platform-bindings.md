@@ -17,6 +17,15 @@
 
 구현은 `:core:data`에 두고, `:core:domain`에는 포트 인터페이스만 둔다([ADR-AND-001](adr/ADR-AND-001-android-architecture.md)). 모든 구현은 [`docs/crypto-test-vectors.json`](../../../docs/crypto-test-vectors.json)으로 단위 테스트한다.
 
+## 서버 통신
+
+| 규격 | 구현 |
+| :--- | :--- |
+| HTTP(api-spec.md) | `HttpURLConnection`과 `org.json`(`core/data/.../remote/HttpApiClient`). 외부 HTTP 라이브러리는 추가하지 않는다. 엔드포인트는 `ApiEndpoints`, 오류 코드는 `ServerErrorCode`에 두고 `Scripts/check-api-contract.sh`가 명세와 대조한다. |
+| 전송 보안(SEC-002) | 원격 서버는 HTTPS만 허용한다. 앱의 `network_security_config.xml`도 `localhost`·`127.0.0.1`만 HTTP를 허용한다. 에뮬레이터에서 로컬 백엔드에 붙을 때는 `adb reverse tcp:8080 tcp:8080` 뒤 `http://localhost:8080`을 쓴다. |
+| 제한 시간 | 연결·읽기 30초(VLT-001) |
+| 409 자동 병합 | `:core:domain`의 `SaveVaultUseCase`. 서버 볼트를 받아 병합한 뒤 서버 revision으로 다시 저장하고, 재시도는 3회까지다. 서버 revision이 마지막으로 본 값보다 낮으면 멈춘다. |
+
 ## 볼트 JSON
 
 | 규격 | 구현 |

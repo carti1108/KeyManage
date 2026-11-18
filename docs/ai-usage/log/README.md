@@ -99,3 +99,4 @@
 | 091 | 2026-11-18 | [Android 디자인 토큰 생성과 테마 연결](091-android-design-tokens.md) |
 | 092 | 2026-11-18 | [Android KM 컴포넌트 5종 구현](092-android-components.md) |
 | 093 | 2026-11-18 | [Android 평문 볼트 스키마와 병합](093-android-vault-data.md) |
+| 094 | 2026-11-18 | [Android API 어댑터와 볼트 저장 동기화](094-android-api-sync.md) |
