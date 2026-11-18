@@ -609,6 +609,8 @@ const FLOW_STEPS = [
   { key: 'detail', name: '항목 상세', path: '/vault/github' },
   { key: 'generator', name: '비밀번호 생성기', path: '/generator' },
   { key: 'settings', name: '설정', path: '/settings' },
+  { key: 'backup', name: '백업', path: '/settings/backup' },
+  { key: 'password', name: '마스터 비밀번호 변경', path: '/settings/password' },
   { key: 'delete', name: '계정 삭제 확인', path: '/settings/delete' },
 ];
 // 행 사이에 이동 화살표가 뜰 자리(labelGap)를 둔다
@@ -954,6 +956,9 @@ const WEB_TEXT = {
   deleteTitle: '계정 삭제',
   deleteBody: '계정과 볼트가 서버에서 바로 지워지고 되돌릴 수 없습니다. 다른 기기도 모두 로그아웃되고, 아직 올리지 못한 변경 사항은 사라집니다. 필요하면 먼저 백업을 내보내 주세요.',
   deletePhrase: "확인을 위해 '계정 삭제'를 입력해 주세요.",
+  backupExportBody: '이 파일은 내보낸 시점의 마스터 비밀번호로만 열 수 있습니다. 비밀번호를 바꾼 뒤에도 이 파일은 예전 비밀번호로 엽니다.',
+  backupRestoreBody: '백업에 있던 항목은 백업 시점 내용으로 돌아갑니다. 백업 뒤에 고치거나 지운 내용은 되돌아가고, 백업 뒤에 새로 만든 항목은 그대로 남습니다.',
+  passwordChangeBody: '비밀번호를 바꾸면 다른 기기는 모두 로그아웃되고, 새 비밀번호로 다시 로그인해야 합니다. 다른 기기에서 아직 올리지 못한 변경 사항은 사라집니다. 예전에 내보낸 백업은 예전 비밀번호로 엽니다.',
 };
 const WEB_ITEMS = [['GitHub', 'dev@example.com'], ['Google', 'dev@gmail.com'], ['AWS 콘솔', 'admin'], ['Notion', 'dev@example.com'], ['은행', null]];
 
@@ -1351,6 +1356,34 @@ const MOCK_STEPS = {
       add(b, group(p, '세션 제어', [['마스터 비밀번호 변경', null, null, true], ['로그아웃'], ['계정 삭제', null, 'destructive']]), true);
     });
   },
+  // VLT-004. 내보내기 안내와 복원(백업 비밀번호 입력)을 한 화면에 둔다
+  backup(page) {
+    screen3(page, 'backup', (p) => ({ back: p === 'i' ? '설정' : true, title: '백업' }),
+      { active: '설정', title: '백업', subtitle: '볼트를 암호화된 파일로 내보내거나 그 파일에서 복원합니다.' }, (p, b) => {
+      add(b, txt('백업 내보내기', p === 'i' ? 20 : 16, 'bold'), true);
+      add(b, txt(WEB_TEXT.backupExportBody, 14, 'regular', 'muted-foreground', 336), true);
+      add(b, txt('keymanage-backup-20261118.json', 13, 'regular', 'muted-foreground', null, true), true);
+      add(b, button(p, '내보내기'), true);
+      add(b, txt('백업에서 복원', p === 'i' ? 20 : 16, 'bold'), true);
+      add(b, txt(WEB_TEXT.backupRestoreBody, 14, 'regular', 'muted-foreground', 336), true);
+      add(b, button(p, '파일 선택', 'secondary'), true);
+      add(b, input(p, '백업 파일의 마스터 비밀번호', '••••••••••••', { focus: true }), true);
+      add(b, button(p, '복원'), true);
+    });
+  },
+  // SEC-004. 변경 전 안내와 세 입력 칸
+  password(page) {
+    screen3(page, 'password', (p) => ({ back: p === 'i' ? '설정' : true, title: p === 'a' ? '비밀번호 변경' : null }),
+      { active: '설정', title: '마스터 비밀번호 변경', subtitle: '모든 기기가 새 비밀번호로 다시 로그인합니다.' }, (p, b) => {
+      if (p === 'i') b.appendChild(txt('마스터 비밀번호 변경', 28, 'bold'));
+      add(b, txt(WEB_TEXT.passwordChangeBody, 14, 'regular', 'muted-foreground', 336), true);
+      add(b, input(p, '현재 마스터 비밀번호', '••••••••••••'), true);
+      add(b, input(p, '새 마스터 비밀번호', '••••••••••••••••'), true);
+      add(b, input(p, '새 마스터 비밀번호 확인', '••••••••••••••••', { focus: true }), true);
+      add(b, gauge('strong'), true);
+      add(b, button(p, '변경'), true);
+    });
+  },
   delete(page) {
     screen3(page, 'delete', (p) => ({ bottom: p === 'i', center: p === 'a' }), { auth: true, width: 460, danger: true }, (p, b) => {
       let box = b;
@@ -1395,6 +1428,8 @@ const FLOW_LINKS = [
   ['vault', 'detail', '항목 선택'],
   ['vault', 'generator', '생성기 탭'],
   ['vault', 'settings', '설정 탭'],
+  ['settings', 'backup', '백업'],
+  ['settings', 'password', '비밀번호 변경'],
   ['settings', 'delete', '계정 삭제'],
 ];
 // 기기 틀·브라우저 창까지 포함한 화면 상자의 위치
