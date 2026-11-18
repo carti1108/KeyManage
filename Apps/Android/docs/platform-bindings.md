@@ -17,6 +17,14 @@
 
 구현은 `:core:data`에 두고, `:core:domain`에는 포트 인터페이스만 둔다([ADR-AND-001](adr/ADR-AND-001-android-architecture.md)). 모든 구현은 [`docs/crypto-test-vectors.json`](../../../docs/crypto-test-vectors.json)으로 단위 테스트한다.
 
+## 볼트 JSON
+
+| 규격 | 구현 |
+| :--- | :--- |
+| 평문 볼트(vault-spec 4장) 읽기·쓰기 | Android 플랫폼의 `org.json`. 외부 직렬화 라이브러리는 추가하지 않는다. 모르는 필드는 원래 JSON 조각으로 보관했다가 그대로 다시 쓴다. |
+| 시각 | `java.time.OffsetDateTime`으로 시간대 표기가 있는 ISO 8601만 받고, 쓸 때는 `yyyy-MM-dd'T'HH:mm:ss'Z'`(UTC) |
+| 병합·삭제 표시·검증 | `:core:domain`의 `VaultMerger`·`VaultRules`(순수 Kotlin). 웹 `mergeVaults`와 같은 순서로 병합한다. |
+
 ## 색상 토큰
 
 값은 `node Tools/design-tokens/generate.mjs`가 만드는 `core/designsystem/.../generated/DesignTokens.kt`에서 온다. `KeyManageTheme`이 시멘틱 토큰을 Material3 `ColorScheme`에 아래처럼 넣으므로 Material 컴포넌트도 토큰 색을 쓴다. 슬롯이 없는 토큰(`accent`, `ring` 등)은 `KeyManageThemeValues.colors.<이름>`으로 쓴다. 다이내믹 컬러는 쓰지 않고, 기본 모드는 다크다.
