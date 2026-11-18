@@ -5,8 +5,8 @@ package com.keymanage.android.domain.crypto
  * 규격은 docs/vault-spec.md를 따른다.
  */
 interface MasterKeyDeriver {
-    /** PBKDF2-HMAC-SHA256으로 32바이트 마스터 키를 만든다. [password]는 전처리를 마친 UTF-8 바이트다. */
-    fun deriveMasterKey(password: ByteArray, salt: ByteArray, iterations: Int): ByteArray
+    /** PBKDF2-HMAC-SHA256으로 32바이트 마스터 키를 만든다. [password]는 [PasswordPreprocessor]를 거친 바이트다. */
+    fun deriveMasterKey(password: ByteArray, parameters: KdfParameters): ByteArray
 }
 
 interface KeySeparator {
@@ -21,7 +21,7 @@ interface VaultCipher {
 
 class SeparatedKeys(val encryptionKey: ByteArray, val authHash: ByteArray)
 
-/** 서버에 저장되는 볼트 암호문. 바이트 필드는 Standard Base64 문자열이다. */
+/** 서버에 저장되는 볼트 암호문(vault-spec 3장). 바이트 필드는 Standard Base64 문자열이다. */
 data class EncryptedVaultPayload(
     val version: Int,
     val cipher: String,
@@ -32,4 +32,9 @@ data class EncryptedVaultPayload(
     /** AES-GCM 추가 인증 데이터(ADR-0011). */
     val additionalAuthenticatedData: String
         get() = "keymanage-vault|$version|$cipher"
+
+    companion object {
+        const val CURRENT_VERSION = 1
+        const val CIPHER_AES_256_GCM = "AES-256-GCM"
+    }
 }
