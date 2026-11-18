@@ -94,3 +94,4 @@
 | 086 | 2026-11-16 | [Web 목업을 실제 웹 화면에 맞추고 시안 기준을 플랫폼별로 정함](086-web-mockups-follow-implementation.md) |
 | 087 | 2026-11-16 | [iOS 화면을 iPhone 목업에 맞춤](087-ios-screens-follow-mockup.md) |
 | 088 | 2026-11-18 | [Android 구현 계획과 아키텍처 ADR 작성](088-android-architecture-adr.md) |
+| 089 | 2026-11-18 | [Android Gradle 스캐폴딩과 CI 잡 추가](089-android-gradle-scaffolding.md) |

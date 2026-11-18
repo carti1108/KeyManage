@@ -1,7 +1,7 @@
 # Android 플랫폼 바인딩
 
 - 대상 명세: [vault-spec.md](../../../docs/vault-spec.md), [design-system.md](../../../docs/design-system.md)
-- 대상 코드: 없음 (Android 클라이언트는 아직 코드가 없다)
+- 대상 코드: `Apps/Android/core/domain`(포트), `Apps/Android/core/data`(구현, 3단계에서 추가)
 
 > **요약** Android 클라이언트를 만들 때 쓸 라이브러리와 이름을 미리 적어 둔다. 공통 명세에 있던 Android 항목을 옮긴 것이다.
 
