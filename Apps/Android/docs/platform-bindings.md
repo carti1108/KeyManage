@@ -1,7 +1,7 @@
 # Android 플랫폼 바인딩
 
 - 대상 명세: [vault-spec.md](../../../docs/vault-spec.md), [design-system.md](../../../docs/design-system.md)
-- 대상 코드: `Apps/Android/core/domain`(포트), `Apps/Android/core/data`(구현, 3단계에서 추가)
+- 대상 코드: `Apps/Android/core/domain/.../crypto`(포트, 전처리, KDF 파라미터 검사), `Apps/Android/core/data/.../crypto`(PBKDF2·HKDF·AES-GCM 구현)
 
 > **요약** Android 클라이언트를 만들 때 쓸 라이브러리와 이름을 미리 적어 둔다. 공통 명세에 있던 Android 항목을 옮긴 것이다.
 
@@ -9,7 +9,7 @@
 
 | 규격 | 구현 |
 | :--- | :--- |
-| PBKDF2 | `SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")` |
+| PBKDF2 | `Mac.getInstance("HmacSHA256")`로 RFC 8018 블록 1개를 직접 계산한다. `SecretKeyFactory("PBKDF2WithHmacSHA256")`은 비밀번호를 `char[]`로 받아 전처리한 UTF-8 바이트를 그대로 넣을 수 없어 쓰지 않는다. |
 | HKDF-SHA256 | JDK에 HKDF API가 없다. `Mac.getInstance("HmacSHA256")`로 RFC 5869 Extract·Expand를 직접 구현한다. 외부 라이브러리는 추가하지 않는다. |
 | AES-256-GCM | `Cipher.getInstance("AES/GCM/NoPadding")`, `GCMParameterSpec(128, iv)`, AAD는 `updateAAD()` |
 | 비밀번호 전처리 | `java.text.Normalizer.normalize(input, Normalizer.Form.NFC)` 뒤 명세의 공백 6종만 양끝에서 잘라 UTF-8로 인코딩한다. 짝 없는 서로게이트가 있으면 거부한다. |

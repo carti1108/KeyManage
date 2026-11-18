@@ -7,6 +7,7 @@ activity-compose = "1.13.0"
 core-ktx = "1.19.1"
 ribs = "0.17.0"
 junit4 = "4.13.2"
+org-json = "20260814"
 compile-sdk = "37"
 min-sdk = "26"
 target-sdk = "37"
@@ -29,6 +30,7 @@ ribs-coroutines = { module = "com.uber.rib:rib-coroutines", version.ref = "ribs"
 ribs-test = { module = "com.uber.rib:rib-test", version.ref = "ribs" }
 ribs-coroutines-test = { module = "com.uber.rib:rib-coroutines-test", version.ref = "ribs" }
 junit4 = { module = "junit:junit", version.ref = "junit4" }
+org-json = { module = "org.json:json", version.ref = "org-json" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 # build-logic 전용
 android-gradle-plugin = { module = "com.android.tools.build:gradle", version.ref = "agp" }
