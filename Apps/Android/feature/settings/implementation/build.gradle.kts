@@ -10,4 +10,5 @@ android {
 dependencies {
     api(project(":feature:settings:interface"))
     implementation(project(":core:designsystem"))
+    implementation(libs.androidx.activity.compose)
 }
