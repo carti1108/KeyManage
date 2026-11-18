@@ -12,7 +12,7 @@ import com.keymanage.android.feature.root.impl.RootRouting
 import com.keymanage.android.feature.root.impl.RootViewState
 import com.keymanage.android.feature.root.testing.FakeVaultSessionGateway
 import com.keymanage.android.feature.unlock.UnlockListener
-import com.keymanage.android.feature.vaultlist.VaultListListener
+import com.keymanage.android.feature.main.MainListener
 import com.keymanage.android.rib.ViewActionStream
 import com.keymanage.android.rib.ViewStateStore
 import com.uber.rib.core.EmptyPresenter
@@ -42,7 +42,7 @@ class RootFlowTest {
             unlockSession = session
         }
 
-        override fun showVaultList(vault: VaultData, isOffline: Boolean, listener: VaultListListener) {
+        override fun showMain(vault: VaultData, isOffline: Boolean, email: String, listener: MainListener) {
             screens += if (isOffline) "vault:offline" else "vault"
         }
     }
