@@ -6,7 +6,9 @@ import com.keymanage.android.domain.session.OpenedVault
 import com.keymanage.android.feature.auth.AuthListener
 import com.keymanage.android.feature.root.VaultSessionGateway
 import com.keymanage.android.feature.unlock.UnlockListener
-import com.keymanage.android.feature.vaultlist.VaultListListener
+import com.keymanage.android.domain.lock.AutoLockOption
+import com.keymanage.android.feature.main.MainListener
+import com.keymanage.android.feature.root.AppEvents
 import com.keymanage.android.feature.vaultlist.VaultSaver
 import com.keymanage.android.domain.session.SavedVault
 import com.keymanage.android.domain.vault.VaultData
@@ -44,7 +46,9 @@ class RootInteractor(
     private val workDispatcher: CoroutineDispatcher = Dispatchers.Default,
     private val routing: RootRouting? = null,
     private val onLocked: () -> Unit = {},
-) : BasicInteractor<EmptyPresenter, RootRouter>(presenter), AuthListener, UnlockListener, VaultListListener, VaultSaver {
+    private val autoLock: RootAutoLock? = null,
+    private val appEvents: AppEvents? = null,
+) : BasicInteractor<EmptyPresenter, RootRouter>(presenter), AuthListener, UnlockListener, MainListener, VaultSaver {
     private var opened: OpenedVault? = null
     private var session: Session? = null
     private var email: String? = null
@@ -54,10 +58,12 @@ class RootInteractor(
     override fun didBecomeActive(savedInstanceState: Bundle?) {
         super.didBecomeActive(savedInstanceState)
         actions.actions.onEach(::handle).launchIn(coroutineScope)
+        appEvents?.setListener(autoLock)
         coroutineScope.launch { start() }
     }
 
     override fun willResignActive() {
+        appEvents?.setListener(null)
         wipe()
         super.willResignActive()
     }
@@ -109,6 +115,11 @@ class RootInteractor(
     /** 다시 입력받아 로그인하도록 세션 없이 잠근다(SEC-003 규칙 12). */
     override fun onResyncRequested() = lock()
 
+    /** 설정에서 자동 잠금 시간을 바꿨다. 그때부터 새 시간으로 잰다. */
+    override fun onAutoLockChanged(option: AutoLockOption) {
+        autoLock?.restart()
+    }
+
     override fun onLoginRequired(message: String?) {
         wipe()
         session = null
@@ -154,10 +165,12 @@ class RootInteractor(
         session = vault.session
         email = vault.account.email
         store.update { it.copy(notice = null) }
-        nav.showVaultList(vault.vault, isOffline = vault.session == null, listener = this)
+        nav.showMain(vault.vault, isOffline = vault.session == null, email = vault.account.email, listener = this)
+        autoLock?.start(::lock)
     }
 
     private fun wipe() {
+        autoLock?.stop()
         if (opened != null) onLocked()
         opened?.wipe()
         opened = null

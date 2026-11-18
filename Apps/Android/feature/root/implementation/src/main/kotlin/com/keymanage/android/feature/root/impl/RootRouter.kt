@@ -9,8 +9,8 @@ import com.keymanage.android.feature.auth.AuthBuildable
 import com.keymanage.android.feature.auth.AuthListener
 import com.keymanage.android.feature.unlock.UnlockBuildable
 import com.keymanage.android.feature.unlock.UnlockListener
-import com.keymanage.android.feature.vaultlist.VaultListBuildable
-import com.keymanage.android.feature.vaultlist.VaultListListener
+import com.keymanage.android.feature.main.MainBuildable
+import com.keymanage.android.feature.main.MainListener
 import com.uber.rib.core.BasicViewRouter
 import com.uber.rib.core.Router
 
@@ -18,7 +18,8 @@ import com.uber.rib.core.Router
 interface RootRouting {
     fun showAuth(listener: AuthListener)
     fun showUnlock(email: String, session: Session?, listener: UnlockListener)
-    fun showVaultList(vault: VaultData, isOffline: Boolean, listener: VaultListListener)
+    /** 잠금이 풀린 화면(Main 탭 묶음). */
+    fun showMain(vault: VaultData, isOffline: Boolean, email: String, listener: MainListener)
 }
 
 /**
@@ -31,7 +32,7 @@ class RootRouter(
     val childSlot: MutableState<@Composable () -> Unit>,
     private val authBuildable: AuthBuildable,
     private val unlockBuildable: UnlockBuildable,
-    private val vaultListBuildable: VaultListBuildable,
+    private val mainBuildable: MainBuildable,
 ) : BasicViewRouter<ComposeView, RootInteractor>(view, interactor), RootRouting {
     private var current: Router<*>? = null
 
@@ -40,8 +41,8 @@ class RootRouter(
     override fun showUnlock(email: String, session: Session?, listener: UnlockListener) =
         replace { unlockBuildable.build(childSlot, email, session, listener) }
 
-    override fun showVaultList(vault: VaultData, isOffline: Boolean, listener: VaultListListener) =
-        replace { vaultListBuildable.build(childSlot, vault, isOffline, interactor, listener) }
+    override fun showMain(vault: VaultData, isOffline: Boolean, email: String, listener: MainListener) =
+        replace { mainBuildable.build(childSlot, vault, isOffline, email, interactor, listener) }
 
     private fun replace(build: () -> Router<*>) {
         current?.let(::detachChild)

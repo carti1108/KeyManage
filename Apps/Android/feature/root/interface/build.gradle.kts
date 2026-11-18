@@ -10,5 +10,5 @@ dependencies {
     api(project(":core:rib"))
     api(project(":feature:auth:interface"))
     api(project(":feature:unlock:interface"))
-    api(project(":feature:vaultlist:interface"))
+    api(project(":feature:main:interface"))
 }
