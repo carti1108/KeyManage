@@ -32,7 +32,10 @@ class RootBuilder(
                 }
             }
         }
-        val interactor = RootInteractor(EmptyPresenter(), store, actions, dependency.sessionGateway, dependency.workDispatcher)
+        val interactor = RootInteractor(
+            EmptyPresenter(), store, actions, dependency.sessionGateway, dependency.workDispatcher,
+            onLocked = dependency.clipboard::burnNow,
+        )
         return RootRouter(
             view, interactor, childSlot,
             dependency.authBuildable, dependency.unlockBuildable, dependency.vaultListBuildable,

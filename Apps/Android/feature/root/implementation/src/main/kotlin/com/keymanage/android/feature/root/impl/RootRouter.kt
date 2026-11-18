@@ -41,7 +41,7 @@ class RootRouter(
         replace { unlockBuildable.build(childSlot, email, session, listener) }
 
     override fun showVaultList(vault: VaultData, isOffline: Boolean, listener: VaultListListener) =
-        replace { vaultListBuildable.build(childSlot, vault, isOffline, listener) }
+        replace { vaultListBuildable.build(childSlot, vault, isOffline, interactor, listener) }
 
     private fun replace(build: () -> Router<*>) {
         current?.let(::detachChild)
