@@ -94,6 +94,8 @@ struct CryptoProtocolInjectionTests {
 			biometryStateHash: nil,
 			revision: 1
 		)
+		// setupSession은 잠금 해제 상태로 시작하므로, 잠긴 볼트에서 해제를 시도하는 상황을 만든다
+		manager.lock()
 
 		// When
 		#expect(throws: (any Error).self) {
