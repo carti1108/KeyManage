@@ -95,3 +95,4 @@
 | 087 | 2026-11-16 | [iOS 화면을 iPhone 목업에 맞춤](087-ios-screens-follow-mockup.md) |
 | 088 | 2026-11-18 | [Android 구현 계획과 아키텍처 ADR 작성](088-android-architecture-adr.md) |
 | 089 | 2026-11-18 | [Android Gradle 스캐폴딩과 CI 잡 추가](089-android-gradle-scaffolding.md) |
+| 090 | 2026-11-18 | [Android 암호 엔진 구현](090-android-crypto-engine.md) |
