@@ -8,4 +8,5 @@ android {
 
 dependencies {
     api(project(":core:rib"))
+    api(project(":feature:auth:interface"))
 }
