@@ -119,6 +119,9 @@ class VaultSessionUseCase(
         }
     }
 
+    /** 서버에 올리지 못한 변경 사항이 있는지(VLT-002 규칙 11). */
+    fun hasPendingChanges(): Boolean = coordinator.hasPending
+
     /**
      * 사용자 수정 저장(VLT-001·002). 세션이 없으면 대기로 둔다.
      * 분명한 거절(`SyncError`)과 401은 그대로 던진다.
