@@ -44,6 +44,8 @@ class MainInteractorTest {
         override fun onResyncRequested() = Unit
         override fun onAutoLockChanged(option: AutoLockOption) = Unit
         override fun onLogoutRequested() = Unit
+        override fun onAccountDeleted() = Unit
+        override fun onSessionExpired() = Unit
     }
 
     private val store = ViewStateStore(MainViewState())

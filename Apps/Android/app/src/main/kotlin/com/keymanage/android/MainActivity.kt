@@ -23,6 +23,7 @@ import com.keymanage.android.domain.clipboard.ClipboardBurner
 import com.keymanage.android.domain.clipboard.Scheduler
 import com.keymanage.android.domain.generator.PasswordGenerator
 import com.keymanage.android.domain.remote.Session
+import com.keymanage.android.domain.session.AccountUseCase
 import com.keymanage.android.domain.session.BackupSession
 import com.keymanage.android.domain.session.OpenedVault
 import com.keymanage.android.domain.session.VaultSessionUseCase
@@ -105,8 +106,12 @@ private class AppRootDependency(context: Context, override val appEvents: AppEve
     private val backupSession by lazy {
         BackupSession(BackupUseCase(deriver, separator, cipher, serializer, JsonBackupCodec())) { opened, vault -> sessions.save(opened, vault) }
     }
+    private val accounts by lazy {
+        AccountUseCase(api, deriver, separator, cipher, serializer, coordinator)
+    }
+    private val coordinator by lazy { VaultSyncCoordinator(api, cipher, serializer, store) }
     private val sessions by lazy {
-        VaultSessionUseCase(api, api, deriver, separator, cipher, serializer, VaultSyncCoordinator(api, cipher, serializer, store))
+        VaultSessionUseCase(api, api, deriver, separator, cipher, serializer, coordinator)
     }
 
     override val workDispatcher: CoroutineDispatcher = Dispatchers.Default
@@ -174,5 +179,8 @@ private class AppRootDependency(context: Context, override val appEvents: AppEve
         override fun exportBackup(opened: OpenedVault, vault: VaultData, now: Instant) = backupSession.export(opened, vault, now)
         override fun restoreBackup(opened: OpenedVault, current: VaultData, bytes: ByteArray, password: String, now: Instant) =
             backupSession.restore(opened, current, bytes, password, now)
+        override fun changePassword(opened: OpenedVault, vault: VaultData, current: String, new: String, confirmation: String) =
+            accounts.changePassword(opened, vault, current, new, confirmation)
+        override fun deleteAccount(opened: OpenedVault, password: String) = accounts.deleteAccount(opened, password)
     }
 }

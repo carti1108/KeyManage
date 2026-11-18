@@ -12,7 +12,7 @@ import java.time.LocalDate
 
 /** 설정 탭 RIB(목업 7단계). */
 interface SettingsBuildable {
-    fun build(slot: MutableState<@Composable () -> Unit>, email: String, backup: BackupPort, listener: SettingsListener): Router<*>
+    fun build(slot: MutableState<@Composable () -> Unit>, email: String, backup: BackupPort, account: AccountPort, listener: SettingsListener): Router<*>
 }
 
 /** 서버에 올리지 못한 변경 사항이 있는지(VLT-002 규칙 11). */
@@ -35,6 +35,18 @@ interface SettingsListener {
 
     /** 로그아웃을 확정했다. */
     fun onLogoutRequested()
+
+    /** 계정을 지웠다. 로그인 화면에 완료 안내를 보인다(SEC-005 규칙 5). */
+    fun onAccountDeleted()
+
+    /** 세션이 만료됐다. 다시 로그인한다(SEC-004 규칙 7). */
+    fun onSessionExpired()
+}
+
+/** 계정 삭제·비밀번호 변경(SEC-004, SEC-005). 키를 쥔 부모가 맡는다. 실패는 `AccountError`·`SyncError`로 던진다. */
+interface AccountPort {
+    fun changePassword(current: String, new: String, confirmation: String)
+    fun deleteAccount(password: String)
 }
 
 /** 복원 결과. [vault]는 되돌린 볼트이며 되돌린 항목이 없으면 null이다. */

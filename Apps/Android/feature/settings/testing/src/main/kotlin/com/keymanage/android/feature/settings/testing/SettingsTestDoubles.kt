@@ -23,4 +23,17 @@ class RecordingSettingsListener : SettingsListener {
     override fun onLogoutRequested() {
         logoutRequests++
     }
+
+    var deletedCount = 0
+        private set
+    var sessionExpiredCount = 0
+        private set
+
+    override fun onAccountDeleted() {
+        deletedCount++
+    }
+
+    override fun onSessionExpired() {
+        sessionExpiredCount++
+    }
 }

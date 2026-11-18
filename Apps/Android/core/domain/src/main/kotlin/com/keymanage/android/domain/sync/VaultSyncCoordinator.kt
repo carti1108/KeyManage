@@ -103,6 +103,24 @@ class VaultSyncCoordinator(
         return send(vault, key, accessToken)
     }
 
+    /** 다음 저장의 expectedRevision. 마지막으로 서버와 맞춘 revision이다. */
+    val expectedRevision: Int
+        get() = baseRevision
+
+    /**
+     * 마스터 비밀번호 변경이 서버에서 확정됐다(SEC-004). 새 KDF 값과 새 키로 암호화한 볼트를 기기 기록으로 두고,
+     * 볼트에 담아 올린 대기 내용은 지운다.
+     */
+    fun adoptPasswordChange(changed: DeviceAccount, vault: VaultData, newKey: ByteArray, revision: Int) {
+        account = changed
+        baseRevision = revision
+        lastSeenRevision = revision
+        pendingVault = null
+        latestVault = vault
+        autoRetryBlocked = false
+        persist(vault, newKey, hasPending = false)
+    }
+
     /** 세션 없이 연 볼트의 저장. 서버에 보내지 않고 대기로 둔다(SEC-003 규칙 10, VLT-002 규칙 2). */
     fun saveLocally(vault: VaultData, key: ByteArray): SaveOutcome {
         keepPending(vault, key)

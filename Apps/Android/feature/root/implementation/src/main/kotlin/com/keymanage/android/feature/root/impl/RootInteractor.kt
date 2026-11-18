@@ -9,6 +9,7 @@ import com.keymanage.android.feature.unlock.UnlockListener
 import com.keymanage.android.domain.lock.AutoLockOption
 import com.keymanage.android.feature.main.MainListener
 import com.keymanage.android.feature.root.AppEvents
+import com.keymanage.android.feature.settings.AccountPort
 import com.keymanage.android.feature.settings.BackupPort
 import com.keymanage.android.feature.settings.RestoreOutcome
 import java.time.Instant
@@ -32,6 +33,8 @@ import kotlinx.coroutines.withContext
 /** Root 문구(SEC-003·COM-002). */
 object RootMessages {
     const val VAULT_NOT_READY = "계정은 만들었지만 볼트를 준비하지 못했습니다. 다시 로그인해 주세요."
+    const val ACCOUNT_DELETED = "계정을 삭제했습니다."
+    const val SESSION_EXPIRED = "로그인이 만료되었습니다. 다시 로그인해 주세요."
     const val UNKNOWN = "알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
 }
 
@@ -51,7 +54,7 @@ class RootInteractor(
     private val onLocked: () -> Unit = {},
     private val autoLock: RootAutoLock? = null,
     private val appEvents: AppEvents? = null,
-) : BasicInteractor<EmptyPresenter, RootRouter>(presenter), AuthListener, UnlockListener, MainListener, VaultSaver, BackupPort {
+) : BasicInteractor<EmptyPresenter, RootRouter>(presenter), AuthListener, UnlockListener, MainListener, VaultSaver, BackupPort, AccountPort {
     private var opened: OpenedVault? = null
     private var session: Session? = null
     private var email: String? = null
@@ -170,6 +173,30 @@ class RootInteractor(
         val current = checkNotNull(opened) { "잠긴 동안에는 내보낼 수 없다" }
         return checkNotNull(gateway).exportBackup(current, checkNotNull(latestVault), now)
     }
+
+    /** 비밀번호를 바꾸면 옛 키를 지우고 새 키·새 세션으로 바꿔 든다(SEC-004 규칙 7). */
+    override fun changePassword(current: String, new: String, confirmation: String) {
+        val opened = checkNotNull(opened) { "잠긴 동안에는 바꿀 수 없다" }
+        val changed = checkNotNull(gateway).changePassword(opened, checkNotNull(latestVault), current, new, confirmation)
+        opened.wipe()
+        this.opened = changed
+        session = changed.session
+    }
+
+    override fun deleteAccount(password: String) {
+        checkNotNull(gateway).deleteAccount(checkNotNull(opened) { "잠긴 동안에는 지울 수 없다" }, password)
+    }
+
+    /** 계정을 지웠다. 키와 세션을 버리고 로그인 화면에 완료 안내를 보인다(SEC-005 규칙 5). */
+    override fun onAccountDeleted() {
+        wipe()
+        session = null
+        email = null
+        store.update { it.copy(notice = RootMessages.ACCOUNT_DELETED) }
+        nav.showAuth(this)
+    }
+
+    override fun onSessionExpired() = onLoginRequired(RootMessages.SESSION_EXPIRED)
 
     override fun restore(bytes: ByteArray, password: String, now: Instant): RestoreOutcome {
         val current = checkNotNull(opened) { "잠긴 동안에는 복원할 수 없다" }
