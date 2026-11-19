@@ -112,3 +112,4 @@
 | 104 | 2026-11-19 | [CI 잡을 바뀐 경로로 고르기](104-ci-path-filters.md) |
 | 105 | 2026-11-19 | [Android 생체 해제 판정과 Keystore 키 보관](105-android-biometric-domain-keystore.md) |
 | 106 | 2026-11-19 | [Android 생체 해제 화면 연결](106-android-biometric-ui.md) |
+| 107 | 2026-11-19 | [Android 가입 직후 생체 인증 안내](107-android-biometric-signup-prompt.md) |

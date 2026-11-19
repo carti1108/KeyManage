@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -50,6 +51,15 @@ fun RootView(
             }
             Box(modifier = Modifier.weight(1f)) {
                 if (state.hasAppeared) childContent()
+            }
+            if (state.isAskingBiometrics) {
+                AlertDialog(
+                    onDismissRequest = { onAction(RootViewAction.AnswerBiometricPrompt(enable = false)) },
+                    title = { Text(RootMessages.BIOMETRIC_PROMPT_TITLE) },
+                    text = { Text(RootMessages.BIOMETRIC_PROMPT_BODY) },
+                    confirmButton = { TextButton(onClick = { onAction(RootViewAction.AnswerBiometricPrompt(enable = true)) }) { Text("켜기") } },
+                    dismissButton = { TextButton(onClick = { onAction(RootViewAction.AnswerBiometricPrompt(enable = false)) }) { Text("나중에") } },
+                )
             }
         }
     }

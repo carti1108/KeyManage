@@ -11,8 +11,16 @@ import com.keymanage.android.domain.sync.DeviceAccount
 import java.security.SecureRandom
 import java.util.Base64
 
-/** 가입·로그인 성공 결과. [encryptionKey]는 볼트 암·복호화 키이며 잠그면 0으로 덮어쓴다(SEC-003). */
-class AuthResult(val session: Session, val encryptionKey: ByteArray, val account: DeviceAccount)
+/**
+ * 가입·로그인 성공 결과. [encryptionKey]는 볼트 암·복호화 키이며 잠그면 0으로 덮어쓴다(SEC-003).
+ * [isNewAccount]는 가입 결과다. 가입 직후 생체 인증을 켤지 묻는 데 쓴다(SEC-003 값 표).
+ */
+class AuthResult(
+    val session: Session,
+    val encryptionKey: ByteArray,
+    val account: DeviceAccount,
+    val isNewAccount: Boolean = false,
+)
 
 /** 새 마스터 비밀번호 문제(SEC-002 규칙 7). */
 enum class NewPasswordProblem { TOO_SHORT, MISMATCH }
@@ -38,7 +46,7 @@ class AuthUseCase(
         val normalized = normalizeEmail(email)
         checkNewPassword(password, confirmation)?.let { throw AuthError.WeakNewPassword(it) }
         val kdf = KdfParameters(saltSource(), KdfParameters.DEFAULT_ITERATIONS)
-        return authenticate(normalized, password, kdf) { authHash ->
+        return authenticate(normalized, password, kdf, isNewAccount = true) { authHash ->
             api.register(normalized, authHash, kdf.salt, kdf.iterations)
         }
     }
@@ -52,7 +60,13 @@ class AuthUseCase(
         return authenticate(normalized, password, kdf) { authHash -> api.login(normalized, authHash) }
     }
 
-    private fun authenticate(email: String, password: String, kdf: KdfParameters, send: (ByteArray) -> Session): AuthResult {
+    private fun authenticate(
+        email: String,
+        password: String,
+        kdf: KdfParameters,
+        isNewAccount: Boolean = false,
+        send: (ByteArray) -> Session,
+    ): AuthResult {
         val passwordBytes = PasswordPreprocessor.preprocess(password)
         val masterKey = try {
             deriver.deriveMasterKey(passwordBytes, kdf)
@@ -73,7 +87,7 @@ class AuthUseCase(
             keys.authHash.fill(0)
         }
         val account = DeviceAccount(email, kdf.iterations, Base64.getEncoder().encodeToString(kdf.salt))
-        return AuthResult(session, keys.encryptionKey, account)
+        return AuthResult(session, keys.encryptionKey, account, isNewAccount)
     }
 
     companion object {

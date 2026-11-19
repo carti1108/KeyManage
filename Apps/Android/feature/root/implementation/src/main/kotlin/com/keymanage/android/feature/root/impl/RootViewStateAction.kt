@@ -7,10 +7,13 @@ package com.keymanage.android.feature.root.impl
 data class RootViewState(
     val hasAppeared: Boolean = false,
     val notice: String? = null,
+    /** 가입 직후 생체 인증을 켤지 묻는 중(SEC-003 값 표). */
+    val isAskingBiometrics: Boolean = false,
 )
 
 /** Root 화면에서 View가 보내는 동작. */
 sealed interface RootViewAction {
     data object ViewAppeared : RootViewAction
     data object DismissNotice : RootViewAction
+    data class AnswerBiometricPrompt(val enable: Boolean) : RootViewAction
 }

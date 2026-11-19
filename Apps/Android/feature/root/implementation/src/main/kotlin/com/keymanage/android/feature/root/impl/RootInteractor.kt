@@ -10,6 +10,7 @@ import com.keymanage.android.domain.lock.AutoLockOption
 import com.keymanage.android.feature.main.MainListener
 import com.keymanage.android.feature.root.AppEvents
 import com.keymanage.android.feature.root.BiometricGateway
+import com.keymanage.android.domain.lock.BiometricError
 import com.keymanage.android.feature.settings.AccountPort
 import com.keymanage.android.feature.settings.BiometricPort
 import com.keymanage.android.feature.settings.BackupPort
@@ -37,6 +38,9 @@ object RootMessages {
     const val VAULT_NOT_READY = "계정은 만들었지만 볼트를 준비하지 못했습니다. 다시 로그인해 주세요."
     const val ACCOUNT_DELETED = "계정을 삭제했습니다."
     const val SESSION_EXPIRED = "로그인이 만료되었습니다. 다시 로그인해 주세요."
+    const val BIOMETRIC_PROMPT_TITLE = "생체 인증으로 잠금을 풀까요?"
+    const val BIOMETRIC_PROMPT_BODY = "잠금 화면에서 마스터 비밀번호 대신 생체 인증을 쓸 수 있습니다. 14일마다 한 번은 마스터 비밀번호를 입력해야 합니다. 설정에서 언제든 바꿀 수 있습니다."
+    const val BIOMETRIC_UNAVAILABLE = "생체 인증을 켜지 못했습니다. 설정에서 다시 시도해 주세요."
     const val UNKNOWN = "알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
 }
 
@@ -86,6 +90,7 @@ class RootInteractor(
         when (action) {
             RootViewAction.ViewAppeared -> store.update { it.copy(hasAppeared = true) }
             RootViewAction.DismissNotice -> store.update { it.copy(notice = null) }
+            is RootViewAction.AnswerBiometricPrompt -> coroutineScope.launch { answerBiometricPrompt(action.enable) }
         }
     }
 
@@ -119,6 +124,22 @@ class RootInteractor(
             return
         }
         showVault(vault)
+        if (result.isNewAccount && isAvailable && !isEnabled) store.update { it.copy(isAskingBiometrics = true) }
+    }
+
+    /** 가입 직후 안내의 답. 켜기를 고르면 생체 인증 창을 거쳐 볼트 키를 감싼다. 테스트는 직접 부른다. */
+    suspend fun answerBiometricPrompt(enable: Boolean) {
+        store.update { it.copy(isAskingBiometrics = false) }
+        if (!enable) return
+        try {
+            enable()
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: BiometricError.Cancelled) {
+            // 나중에 설정에서 켤 수 있다
+        } catch (error: Exception) {
+            store.update { it.copy(notice = RootMessages.BIOMETRIC_UNAVAILABLE) }
+        }
     }
 
     override fun onUnlocked(opened: OpenedVault) = showVault(opened)
