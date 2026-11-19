@@ -16,7 +16,9 @@ import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class AuthUseCaseTest {
     private val salt = ByteArray(16) { 9 }
@@ -94,6 +96,12 @@ class AuthUseCaseTest {
         assertContentEquals(salt, api.registerSalt)
         assertEquals(KdfParameters.DEFAULT_ITERATIONS, api.registerIterations)
         assertEquals(KdfParameters.DEFAULT_ITERATIONS, result.account.kdfIterations)
+    }
+
+    @Test
+    fun `가입 결과만 새 계정으로 표시한다`() {
+        assertTrue(useCase.register("dev@example.com", "a".repeat(12), "a".repeat(12)).isNewAccount)
+        assertFalse(useCase.login("dev@example.com", "password").isNewAccount)
     }
 
     @Test
