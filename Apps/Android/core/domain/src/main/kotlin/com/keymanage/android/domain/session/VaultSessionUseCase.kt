@@ -7,6 +7,7 @@ import com.keymanage.android.domain.crypto.KeySeparator
 import com.keymanage.android.domain.crypto.MasterKeyDeriver
 import com.keymanage.android.domain.crypto.PasswordPreprocessor
 import com.keymanage.android.domain.crypto.VaultCipher
+import com.keymanage.android.domain.lock.BiometricError
 import com.keymanage.android.domain.remote.ApiError
 import com.keymanage.android.domain.remote.AuthApi
 import com.keymanage.android.domain.remote.ServerErrorCode
@@ -116,6 +117,28 @@ class VaultSessionUseCase(
             return OpenedVault(account, vault, activeSession, keys.encryptionKey, offlineReason)
         } finally {
             keys.authHash.fill(0)
+        }
+    }
+
+    /**
+     * 생체 해제(SEC-003 규칙 4, ADR-AND-002). 감싸 둔 볼트 키로 기기 볼트를 연다.
+     * 인증 해시가 없어 다시 로그인하지 않는다. [session]이 있으면 서버 볼트를 받는다.
+     * 키로 열리지 않으면 [BiometricError.Invalidated]를 던진다.
+     */
+    fun unlockWithKey(encryptionKey: ByteArray, session: Session?): OpenedVault {
+        val record = coordinator.restore() ?: throw UnlockError.NoDeviceRecord()
+        val local = try {
+            serializer.decode(cipher.decrypt(record.payload, encryptionKey))
+        } catch (error: CryptoError.AuthenticationFailed) {
+            encryptionKey.fill(0)
+            throw BiometricError.Invalidated()
+        }
+        coordinator.onAuthenticated(record.account)
+        if (session == null) return OpenedVault(record.account, local, null, encryptionKey)
+        return try {
+            OpenedVault(record.account, openOnline(record.account, session, encryptionKey), session, encryptionKey)
+        } catch (error: ApiError) {
+            OpenedVault(record.account, local, session, encryptionKey, error)
         }
     }
 
