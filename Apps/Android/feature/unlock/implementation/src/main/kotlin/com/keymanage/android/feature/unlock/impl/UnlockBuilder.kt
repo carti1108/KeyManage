@@ -35,7 +35,7 @@ class UnlockBuilder(private val dependency: UnlockDependency) : UnlockBuildable 
         val store = ViewStateStore(UnlockViewState(email = email))
         val actions = ViewActionStream<UnlockViewAction>()
         val presenter = UnlockPresenter(store, actions)
-        val interactor = UnlockInteractor(presenter, store, actions, session, dependency.unlocker, listener, dependency.workDispatcher)
+        val interactor = UnlockInteractor(presenter, store, actions, session, dependency.unlocker, listener, dependency.workDispatcher, dependency.biometricUnlocker)
         return BasicComposeRouter(presenter, interactor, slot)
     }
 }
