@@ -55,7 +55,7 @@ check_diff_args() {
     local removed_assertions
     removed_assertions="$(git diff -U0 "${diff_args[@]}" -- "${test_file}" \
       | grep -E '^-[^-]' \
-      | grep -E '(#expect|#require|XCTAssert|expect\(|assertEquals|assertTrue|assertFalse|assertThrows|assertThat)' || true)"
+      | grep -E '(#expect|#require|XCTAssert|expect\(|assertEquals|assertTrue|assertFalse|assertThrows|assertThat|assertContentEquals|assertFailsWith|assertIs|assertNull|assertNotNull|assertSame|assertContains)' || true)"
 
     if [ -n "${removed_assertions}" ]; then
       echo "✖ [TDD 무결성 위반] ${label} — 기존 테스트 파일(${test_file})의 어설션이 임의 수정·삭제되었습니다:" >&2
