@@ -24,7 +24,7 @@
 2. **TDD 어설션 불변성 감사 (`Scripts/verify-tdd-integrity.sh`)**:
    - 구현(`feat:` / `fix:`) 단계에서 기존 단위 테스트(`*Tests.swift`, `*.test.ts*`, `*Test.kt`, `*Test.java`)의 어설션 줄을 임의 삭제·변조(Silent Test Modification)하는 행위 즉시 차단.
 3. **멀티 플랫폼 정책 합격 기준 감사 (`Scripts/check-policy-acceptance.sh`)**:
-   - `Apps/Apple`과 `Apps/Web`(및 존재하는 클라이언트 플랫폼) 양쪽의 단위 테스트가 공통 정책(`SEC-001`, `SEC-003`, `VLT-001~003`, `GEN-001`, `COM-001`)의 필수 경계값과 표준 한국어 사용자 문구를 누락 없이 어설션하고 있는지 교차 검증.
+   - `Apps/Apple`, `Apps/Web`, `Apps/Android`(및 존재하는 클라이언트 플랫폼) 양쪽의 단위 테스트가 공통 정책(`SEC-001`, `SEC-003`, `VLT-001~003`, `GEN-001`, `COM-001`)의 필수 경계값과 표준 한국어 사용자 문구를 누락 없이 어설션하고 있는지 교차 검증.
 4. **API 명세 ↔ 코드 계약 드리프트 감사 (`Scripts/check-api-contract.sh`)**:
    - `docs/api-spec.md`의 엔드포인트(메서드·경로) 및 표준 오류 코드·메시지가 `Back/api` 컨트롤러/`ApiError.kt` 및 클라이언트(`Apps/Web`의 `SERVER_ERROR_CODES`/HTTP 어댑터 등)와 100% 일치하는지 검증.
 

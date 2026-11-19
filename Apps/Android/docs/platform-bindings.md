@@ -17,6 +17,8 @@
 
 구현은 `:core:data`에 두고, `:core:domain`에는 포트 인터페이스만 둔다([ADR-AND-001](adr/ADR-AND-001-android-architecture.md)). 모든 구현은 [`docs/crypto-test-vectors.json`](../../../docs/crypto-test-vectors.json)으로 단위 테스트한다.
 
+교차 검증(VLT-001): 공용 벡터의 암호문은 웹 구현으로 만들고 iOS도 같은 벡터를 통과한다. Android는 이 암호문을 `AesGcmVaultCipher`로 복호화하는 데서 그치지 않고, `JsonVaultSerializer`로 평문 볼트(vault-spec 4장)를 읽어 항목 값까지 확인한다. 같은 암호문을 vault-spec 6장 백업 파일로 감싸 `BackupUseCase.open`에 마스터 비밀번호만 넣어 여는 경로도 확인한다. 정책 경계값은 `Scripts/check-policy-acceptance.sh`의 Android 규칙이 테스트(`*Test.kt`)와 소스의 표준 문구를 함께 검사한다.
+
 ## 서버 통신
 
 | 규격 | 구현 |
