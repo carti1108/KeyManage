@@ -32,6 +32,20 @@ interface RootDependency {
     /** 단조 증가 시계(밀리초). 자동 잠금 경과 시간을 잰다. */
     val monotonicClock: () -> Long
     val appEvents: AppEvents
+
+    /** 생체 해제 켜기·끄기. 없으면 설정에 스위치를 보이지 않는다. */
+    val biometricGateway: BiometricGateway? get() = null
+}
+
+/** 생체 해제 설정(SEC-003 규칙 4, ADR-AND-002). 앱은 `BiometricUnlock`으로 구현한다. */
+interface BiometricGateway {
+    val isAvailable: Boolean
+    val isEnabled: Boolean
+
+    /** 생체 인증 창을 거쳐 [encryptionKey]를 감싼다. 메인 스레드에서 부른다. 실패는 `BiometricError`. */
+    suspend fun enable(encryptionKey: ByteArray)
+
+    fun disable()
 }
 
 /** 앱 생명주기와 사용자 조작. Activity가 알린다. */

@@ -42,6 +42,9 @@
 | 판정(SEC-003 규칙 4·8, 14일 재요구) | `:core:domain`의 `BiometricUnlock`. 켜짐 여부·마지막 마스터 비밀번호 해제 시각은 `BiometricSettingStore`, 감싼 키는 `BiometricKeyStore` 포트로 다룬다. 14일이 지나면 키를 남긴 채 비밀번호를 요구하고, 키가 무효가 되면 지우고 끈다. |
 | 키 보관 | [ADR-AND-002](adr/ADR-AND-002-biometric-unlock-keystore.md). `:core:data`의 `KeystoreBiometricKeyStore`가 Keystore AES-256-GCM 키(매번 강한 생체 인증, 생체 등록 시 무효)로 볼트 암호화 키를 감싸 `noBackupFilesDir`에 둔다. 인증 화면은 `BiometricAuthenticator` 포트로 받아 `:app`에서 `BiometricPrompt`로 띄운다. |
 | 잠금 해제 | `VaultSessionUseCase.unlockWithKey`. 기기 볼트만 복호화하고 서버 재로그인은 하지 않는다. 메모리 세션이 있으면 서버 볼트를 받는다. |
+| 화면 | 잠금 화면은 `BiometricUnlocker`가 쓸 수 있다고 할 때만 "생체 인증으로 잠금 해제" 버튼을 보인다. 설정 탭 "보안"에 스위치를 두고 기기에 강한 생체 인증과 화면 잠금이 있을 때만 보인다. 인증 창은 `:app`의 `BiometricPrompt`(`BIOMETRIC_STRONG`, 취소 버튼 "마스터 비밀번호 사용")다. |
+| 문구 | 14일 경과 "보안을 위해 14일마다 마스터 비밀번호를 입력해야 합니다.", 무효화 "생체 정보가 바뀌어 생체 인증을 껐습니다. 마스터 비밀번호로 잠금을 풀어 주세요.", 쓸 수 없음 "지금은 생체 인증을 쓸 수 없습니다. 마스터 비밀번호를 입력해 주세요." SEC-003 문구 표에는 iOS의 Face ID 버튼만 있어 Android 문구는 여기에 둔다. |
+| 끄는 시점 | 로그아웃·계정 삭제·마스터 비밀번호 변경 뒤 `:app`이 끈다. 마스터 비밀번호 해제·로그인 때 14일 기준 시각을 새로 남긴다. |
 
 ## 암호화 백업
 

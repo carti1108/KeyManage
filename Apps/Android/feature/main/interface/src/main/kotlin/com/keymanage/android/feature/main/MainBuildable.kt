@@ -5,6 +5,7 @@ import androidx.compose.runtime.MutableState
 import com.keymanage.android.domain.vault.VaultData
 import com.keymanage.android.feature.generator.GeneratorBuildable
 import com.keymanage.android.feature.settings.AccountPort
+import com.keymanage.android.feature.settings.BiometricPort
 import com.keymanage.android.feature.settings.BackupPort
 import com.keymanage.android.feature.settings.SettingsBuildable
 import com.keymanage.android.feature.settings.SettingsListener
@@ -23,6 +24,7 @@ interface MainBuildable {
         saver: VaultSaver,
         backup: BackupPort,
         account: AccountPort,
+        biometric: BiometricPort,
         listener: MainListener,
     ): Router<*>
 }

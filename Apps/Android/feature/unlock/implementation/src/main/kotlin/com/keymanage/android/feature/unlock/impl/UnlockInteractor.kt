@@ -1,7 +1,9 @@
 package com.keymanage.android.feature.unlock.impl
 
+import com.keymanage.android.domain.lock.BiometricError
 import com.keymanage.android.domain.remote.Session
 import com.keymanage.android.domain.session.UnlockError
+import com.keymanage.android.feature.unlock.BiometricUnlocker
 import com.keymanage.android.feature.unlock.UnlockListener
 import com.keymanage.android.feature.unlock.Unlocker
 import com.keymanage.android.rib.ViewActionStream
@@ -23,23 +25,29 @@ data class UnlockViewState(
     val password: String = "",
     val isSubmitting: Boolean = false,
     val errorMessage: String? = null,
+    val canUseBiometrics: Boolean = false,
 ) {
     val canSubmit: Boolean
         get() = !isSubmitting && password.isNotEmpty()
 
-    override fun toString() = "UnlockViewState(email=$email, isSubmitting=$isSubmitting, errorMessage=$errorMessage)"
+    override fun toString() = "UnlockViewState(email=$email, isSubmitting=$isSubmitting, errorMessage=$errorMessage, canUseBiometrics=$canUseBiometrics)"
 }
 
 sealed interface UnlockViewAction {
     data class PasswordChanged(val value: String) : UnlockViewAction
     data object Submit : UnlockViewAction
     data object Logout : UnlockViewAction
+    data object UnlockWithBiometrics : UnlockViewAction
 }
 
 /** SEC-003·COM-002 사용자 문구. */
 object UnlockMessages {
     const val WRONG_PASSWORD = "마스터 비밀번호가 올바르지 않습니다."
     const val PASSWORD_CHANGED = "마스터 비밀번호가 바뀌었습니다. 새 비밀번호로 로그인해 주세요."
+    const val BIOMETRIC_BUTTON = "생체 인증으로 잠금 해제"
+    const val BIOMETRIC_EXPIRED = "보안을 위해 14일마다 마스터 비밀번호를 입력해야 합니다."
+    const val BIOMETRIC_INVALIDATED = "생체 정보가 바뀌어 생체 인증을 껐습니다. 마스터 비밀번호로 잠금을 풀어 주세요."
+    const val BIOMETRIC_UNAVAILABLE = "지금은 생체 인증을 쓸 수 없습니다. 마스터 비밀번호를 입력해 주세요."
     const val UNKNOWN = "알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
 }
 
@@ -52,7 +60,12 @@ class UnlockInteractor(
     private val unlocker: Unlocker,
     private val listener: UnlockListener,
     private val workDispatcher: CoroutineDispatcher,
+    private val biometric: BiometricUnlocker? = null,
 ) : BasicInteractor<UnlockPresenter, BasicComposeRouter<UnlockInteractor>>(presenter) {
+    init {
+        store.update { it.copy(canUseBiometrics = biometric?.isAvailable() == true) }
+    }
+
     override fun didBecomeActive(savedInstanceState: Bundle?) {
         super.didBecomeActive(savedInstanceState)
         actions.actions.onEach(::handle).launchIn(coroutineScope)
@@ -68,7 +81,41 @@ class UnlockInteractor(
             is UnlockViewAction.PasswordChanged -> store.update { it.copy(password = action.value, errorMessage = null) }
             UnlockViewAction.Submit -> coroutineScope.launch { submit() }
             UnlockViewAction.Logout -> if (!store.current.isSubmitting) listener.onLogoutRequested()
+            UnlockViewAction.UnlockWithBiometrics -> coroutineScope.launch { unlockWithBiometrics() }
         }
+    }
+
+    /** 생체 해제(SEC-003 규칙 4·8). 취소는 그대로 두고, 쓸 수 없게 되면 버튼을 숨기고 비밀번호를 요구한다. 테스트는 직접 부른다. */
+    suspend fun unlockWithBiometrics() {
+        val biometric = biometric ?: return
+        if (store.current.isSubmitting || !store.current.canUseBiometrics) return
+        store.update { it.copy(isSubmitting = true, errorMessage = null) }
+        val opened = try {
+            biometric.unlock(session)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: BiometricError.Cancelled) {
+            store.update { it.copy(isSubmitting = false) }
+            return
+        } catch (error: BiometricError) {
+            store.update { it.copy(isSubmitting = false, canUseBiometrics = false, errorMessage = biometricMessageOf(error)) }
+            return
+        } catch (error: UnlockError.NoDeviceRecord) {
+            store.update { it.copy(isSubmitting = false) }
+            listener.onLoginRequired(null)
+            return
+        } catch (error: Exception) {
+            store.update { it.copy(isSubmitting = false, errorMessage = UnlockMessages.UNKNOWN) }
+            return
+        }
+        store.update { it.copy(isSubmitting = false, password = "") }
+        listener.onUnlocked(opened)
+    }
+
+    private fun biometricMessageOf(error: BiometricError): String = when (error) {
+        is BiometricError.Expired -> UnlockMessages.BIOMETRIC_EXPIRED
+        is BiometricError.Unavailable -> UnlockMessages.BIOMETRIC_UNAVAILABLE
+        else -> UnlockMessages.BIOMETRIC_INVALIDATED
     }
 
     /** 제출. 진행 중이거나 비밀번호가 비었으면 무시한다. 테스트는 이 함수를 직접 부른다. */

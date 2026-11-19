@@ -9,7 +9,9 @@ import com.keymanage.android.feature.unlock.UnlockListener
 import com.keymanage.android.domain.lock.AutoLockOption
 import com.keymanage.android.feature.main.MainListener
 import com.keymanage.android.feature.root.AppEvents
+import com.keymanage.android.feature.root.BiometricGateway
 import com.keymanage.android.feature.settings.AccountPort
+import com.keymanage.android.feature.settings.BiometricPort
 import com.keymanage.android.feature.settings.BackupPort
 import com.keymanage.android.feature.settings.RestoreOutcome
 import java.time.Instant
@@ -54,7 +56,9 @@ class RootInteractor(
     private val onLocked: () -> Unit = {},
     private val autoLock: RootAutoLock? = null,
     private val appEvents: AppEvents? = null,
-) : BasicInteractor<EmptyPresenter, RootRouter>(presenter), AuthListener, UnlockListener, MainListener, VaultSaver, BackupPort, AccountPort {
+    private val biometrics: BiometricGateway? = null,
+) : BasicInteractor<EmptyPresenter, RootRouter>(presenter), AuthListener, UnlockListener, MainListener, VaultSaver, BackupPort, AccountPort,
+    BiometricPort {
     private var opened: OpenedVault? = null
     private var session: Session? = null
     private var email: String? = null
@@ -181,6 +185,19 @@ class RootInteractor(
         opened.wipe()
         this.opened = changed
         session = changed.session
+    }
+
+    override val isAvailable: Boolean get() = biometrics?.isAvailable == true
+    override val isEnabled: Boolean get() = biometrics?.isEnabled == true
+
+    /** 지금 든 볼트 키를 생체 키로 감싼다(ADR-AND-002). */
+    override suspend fun enable() {
+        val key = checkNotNull(opened) { "잠긴 동안에는 켤 수 없다" }.encryptionKey
+        checkNotNull(biometrics).enable(key)
+    }
+
+    override fun disable() {
+        biometrics?.disable()
     }
 
     override fun deleteAccount(password: String) {

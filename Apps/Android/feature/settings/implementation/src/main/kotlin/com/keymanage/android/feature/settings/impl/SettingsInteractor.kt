@@ -3,6 +3,7 @@ package com.keymanage.android.feature.settings.impl
 import com.keymanage.android.domain.auth.NewPasswordProblem
 import com.keymanage.android.domain.backup.BackupError
 import com.keymanage.android.domain.generator.PasswordStrength
+import com.keymanage.android.domain.lock.BiometricError
 import com.keymanage.android.domain.session.AccountError
 import com.keymanage.android.domain.backup.BackupUseCase
 import com.keymanage.android.domain.lock.AutoLockOption
@@ -12,6 +13,7 @@ import com.keymanage.android.domain.sync.SyncError
 import com.keymanage.android.domain.vault.VaultFormatError
 import com.keymanage.android.feature.settings.AccountPort
 import com.keymanage.android.feature.settings.BackupPort
+import com.keymanage.android.feature.settings.BiometricPort
 import com.keymanage.android.feature.settings.DocumentIo
 import com.keymanage.android.feature.settings.PendingChanges
 import com.keymanage.android.feature.settings.SettingsListener
@@ -75,6 +77,14 @@ data class BackupState(
     override fun toString() = "BackupState(isWorking=$isWorking, message=$message)"
 }
 
+/** 생체 인증 스위치 상태. 기기에서 쓸 수 없으면 보이지 않는다. */
+data class BiometricState(
+    val isAvailable: Boolean = false,
+    val isEnabled: Boolean = false,
+    val isWorking: Boolean = false,
+    val message: String? = null,
+)
+
 data class SettingsViewState(
     val email: String,
     val autoLock: AutoLockOption = AutoLockOption.DEFAULT,
@@ -84,10 +94,12 @@ data class SettingsViewState(
     val backup: BackupState = BackupState(),
     val password: PasswordChangeState = PasswordChangeState(),
     val delete: DeleteAccountState = DeleteAccountState(),
+    val biometric: BiometricState = BiometricState(),
 )
 
 sealed interface SettingsViewAction {
     data object OpenAutoLock : SettingsViewAction
+    data class ToggleBiometric(val enabled: Boolean) : SettingsViewAction
     data class ChooseAutoLock(val option: AutoLockOption) : SettingsViewAction
     data object DismissDialog : SettingsViewAction
     data object Logout : SettingsViewAction
@@ -126,6 +138,7 @@ object SettingsMessages {
     const val EXPORTED = "백업 파일을 저장했습니다."
     const val UNKNOWN = "알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
 
+    const val BIOMETRIC_UNAVAILABLE = "이 기기에서는 생체 인증을 쓸 수 없습니다. 생체 정보와 화면 잠금을 등록해 주세요."
     const val PASSWORD_TITLE = "마스터 비밀번호 변경"
     const val PASSWORD_BODY = "비밀번호를 바꾸면 다른 기기는 모두 로그아웃되고, 새 비밀번호로 다시 로그인해야 합니다. 다른 기기에서 아직 올리지 못한 변경 사항은 사라집니다. 예전에 내보낸 백업은 예전 비밀번호로 엽니다."
     const val WRONG_PASSWORD = "마스터 비밀번호가 올바르지 않습니다."
@@ -159,9 +172,15 @@ class SettingsInteractor(
     private val clock: () -> Instant = Instant::now,
     private val today: () -> LocalDate = LocalDate::now,
     private val account: AccountPort? = null,
+    private val biometric: BiometricPort? = null,
 ) : BasicInteractor<SettingsPresenter, BasicComposeRouter<SettingsInteractor>>(presenter) {
     init {
-        store.update { it.copy(autoLock = autoLockStore.read()) }
+        store.update {
+            it.copy(
+                autoLock = autoLockStore.read(),
+                biometric = BiometricState(isAvailable = biometric?.isAvailable == true, isEnabled = biometric?.isEnabled == true),
+            )
+        }
     }
 
     override fun didBecomeActive(savedInstanceState: Bundle?) {
@@ -172,6 +191,7 @@ class SettingsInteractor(
     fun handle(action: SettingsViewAction) {
         when (action) {
             SettingsViewAction.OpenAutoLock -> store.update { it.copy(isChoosingAutoLock = true) }
+            is SettingsViewAction.ToggleBiometric -> coroutineScope.launch { toggleBiometric(action.enabled) }
             is SettingsViewAction.ChooseAutoLock -> {
                 autoLockStore.write(action.option)
                 store.update { it.copy(autoLock = action.option, isChoosingAutoLock = false) }
@@ -242,6 +262,31 @@ class SettingsInteractor(
                 it.copy(isWorking = false, message = messageOf(failure), isError = true)
             }
         }
+    }
+
+    /** 생체 해제 켜기·끄기. 켤 때는 생체 인증 창을 거친다. 취소하면 꺼진 채로 둔다. 테스트는 직접 부른다. */
+    suspend fun toggleBiometric(enabled: Boolean) {
+        val biometric = biometric ?: return
+        if (store.current.biometric.isWorking) return
+        if (!enabled) {
+            biometric.disable()
+            store.update { it.copy(biometric = it.biometric.copy(isEnabled = false, message = null)) }
+            return
+        }
+        store.update { it.copy(biometric = it.biometric.copy(isWorking = true, message = null)) }
+        val message = try {
+            biometric.enable()
+            null
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: BiometricError.Cancelled) {
+            null
+        } catch (error: BiometricError) {
+            SettingsMessages.BIOMETRIC_UNAVAILABLE
+        } catch (error: Exception) {
+            SettingsMessages.UNKNOWN
+        }
+        store.update { it.copy(biometric = it.biometric.copy(isWorking = false, isEnabled = biometric.isEnabled, message = message)) }
     }
 
     /** 마스터 비밀번호 변경(SEC-004). 테스트는 직접 부른다. */

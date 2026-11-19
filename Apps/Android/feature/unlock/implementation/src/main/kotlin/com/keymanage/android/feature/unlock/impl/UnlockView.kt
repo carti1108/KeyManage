@@ -23,6 +23,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.keymanage.android.designsystem.KeyManageTheme
 import com.keymanage.android.designsystem.component.KMButton
 import com.keymanage.android.designsystem.component.KMButtonSize
+import com.keymanage.android.designsystem.component.KMButtonVariant
 import com.keymanage.android.designsystem.component.KMPasswordField
 import com.keymanage.android.designsystem.generated.DesignTokens
 
@@ -65,6 +66,16 @@ fun UnlockView(state: UnlockViewState, onAction: (UnlockViewAction) -> Unit) {
             isLoading = state.isSubmitting,
             isDisabled = !state.canSubmit,
         )
+        if (state.canUseBiometrics) {
+            KMButton(
+                title = UnlockMessages.BIOMETRIC_BUTTON,
+                onClick = { onAction(UnlockViewAction.UnlockWithBiometrics) },
+                modifier = Modifier.fillMaxWidth(),
+                variant = KMButtonVariant.OUTLINE,
+                size = KMButtonSize.LG,
+                isDisabled = state.isSubmitting,
+            )
+        }
         TextButton(onClick = { onAction(UnlockViewAction.Logout) }, enabled = !state.isSubmitting) {
             Text("로그아웃", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }

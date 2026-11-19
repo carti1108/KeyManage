@@ -12,7 +12,7 @@ import java.time.LocalDate
 
 /** 설정 탭 RIB(목업 7단계). */
 interface SettingsBuildable {
-    fun build(slot: MutableState<@Composable () -> Unit>, email: String, backup: BackupPort, account: AccountPort, listener: SettingsListener): Router<*>
+    fun build(slot: MutableState<@Composable () -> Unit>, email: String, backup: BackupPort, account: AccountPort, biometric: BiometricPort, listener: SettingsListener): Router<*>
 }
 
 /** 서버에 올리지 못한 변경 사항이 있는지(VLT-002 규칙 11). */
@@ -47,6 +47,18 @@ interface SettingsListener {
 interface AccountPort {
     fun changePassword(current: String, new: String, confirmation: String)
     fun deleteAccount(password: String)
+}
+
+/** 생체 해제 켜기·끄기(SEC-003 규칙 4, ADR-AND-002). 볼트 키를 쥔 부모가 맡는다. */
+interface BiometricPort {
+    /** 기기에서 강한 생체 인증과 기기 암호를 쓸 수 있는지. */
+    val isAvailable: Boolean
+    val isEnabled: Boolean
+
+    /** 생체 인증 창을 거쳐 볼트 키를 감싼다. 실패는 `BiometricError`로 던진다. */
+    suspend fun enable()
+
+    fun disable()
 }
 
 /** 복원 결과. [vault]는 되돌린 볼트이며 되돌린 항목이 없으면 null이다. */

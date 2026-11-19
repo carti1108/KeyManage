@@ -17,9 +17,24 @@ fun interface Unlocker {
     fun unlock(password: String, session: Session?): OpenedVault
 }
 
+/**
+ * 생체 인증으로 감싼 볼트 키를 꺼내 기기 볼트를 연다(SEC-003 규칙 4, ADR-AND-002).
+ * 생체 인증 창은 메인 스레드에서 띄우고, 무거운 일은 구현이 메인 스레드 밖으로 옮긴다.
+ */
+interface BiometricUnlocker {
+    /** 켜져 있고 키가 있으며 14일이 지나지 않았는지. */
+    fun isAvailable(): Boolean
+
+    /** 실패는 `BiometricError`·`UnlockError`·`ApiError`로 던진다. */
+    suspend fun unlock(session: Session?): OpenedVault
+}
+
 interface UnlockDependency {
     val unlocker: Unlocker
     val workDispatcher: CoroutineDispatcher
+
+    /** 생체 해제. 없으면 마스터 비밀번호만 쓴다. */
+    val biometricUnlocker: BiometricUnlocker? get() = null
 }
 
 interface UnlockListener {

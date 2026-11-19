@@ -10,10 +10,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -23,8 +25,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import com.keymanage.android.designsystem.KeyManageTheme
@@ -33,6 +37,7 @@ import com.keymanage.android.designsystem.generated.DesignTokens
 import com.keymanage.android.domain.lock.AutoLockOption
 import com.keymanage.android.feature.settings.AccountPort
 import com.keymanage.android.feature.settings.BackupPort
+import com.keymanage.android.feature.settings.BiometricPort
 import com.keymanage.android.feature.settings.SettingsBuildable
 import com.keymanage.android.feature.settings.SettingsDependency
 import com.keymanage.android.feature.settings.SettingsListener
@@ -53,13 +58,13 @@ class SettingsPresenter(
 }
 
 class SettingsBuilder(private val dependency: SettingsDependency) : SettingsBuildable {
-    override fun build(slot: MutableState<@Composable () -> Unit>, email: String, backup: BackupPort, account: AccountPort, listener: SettingsListener): Router<*> {
+    override fun build(slot: MutableState<@Composable () -> Unit>, email: String, backup: BackupPort, account: AccountPort, biometric: BiometricPort, listener: SettingsListener): Router<*> {
         val store = ViewStateStore(SettingsViewState(email = email))
         val actions = ViewActionStream<SettingsViewAction>()
         val presenter = SettingsPresenter(store, actions)
         val interactor = SettingsInteractor(
             presenter, store, actions, dependency.autoLockStore, dependency.pendingChanges, listener,
-            backup, dependency.documents, dependency.workDispatcher, dependency.clock, dependency.today, account,
+            backup, dependency.documents, dependency.workDispatcher, dependency.clock, dependency.today, account, biometric,
         )
         return BasicComposeRouter(presenter, interactor, slot)
     }
@@ -86,6 +91,7 @@ fun SettingsView(state: SettingsViewState, onAction: (SettingsViewAction) -> Uni
         Section("계정") { SettingRow("이메일", state.email) }
         Section("보안") {
             SettingRow("자동 잠금", state.autoLock.label) { onAction(SettingsViewAction.OpenAutoLock) }
+            if (state.biometric.isAvailable) BiometricRow(state.biometric, onAction)
             SettingRow("클립보드 자동 삭제", "30초")
             SettingRow("암호화 구조", "AES-256-GCM")
         }
@@ -156,6 +162,36 @@ private fun SettingRow(label: String, value: String?, color: Color = Color.Unspe
     ) {
         Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = color)
         value?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+    }
+}
+
+/** 생체 인증 스위치(SEC-003 값 표: 기본 꺼짐). 켤 때 생체 인증 창이 뜬다. */
+@Composable
+private fun BiometricRow(state: BiometricState, onAction: (SettingsViewAction) -> Unit) {
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .toggleable(
+                    value = state.isEnabled,
+                    enabled = !state.isWorking,
+                    role = Role.Switch,
+                    onValueChange = { onAction(SettingsViewAction.ToggleBiometric(it)) },
+                )
+                .padding(vertical = DesignTokens.Spacing.space2),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("생체 인증으로 잠금 해제", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+            Switch(checked = state.isEnabled, onCheckedChange = null, enabled = !state.isWorking)
+        }
+        state.message?.let {
+            Text(
+                it,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
     }
 }
 
