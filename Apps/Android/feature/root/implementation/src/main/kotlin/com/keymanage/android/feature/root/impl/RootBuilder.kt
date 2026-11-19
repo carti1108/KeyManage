@@ -37,6 +37,7 @@ class RootBuilder(
             onLocked = dependency.clipboard::burnNow,
             autoLock = RootAutoLock(dependency.autoLockStore, dependency.scheduler, dependency.monotonicClock),
             appEvents = dependency.appEvents,
+            biometrics = dependency.biometricGateway,
         )
         return RootRouter(
             view, interactor, childSlot,
