@@ -113,3 +113,4 @@
 | 105 | 2026-11-19 | [Android 생체 해제 판정과 Keystore 키 보관](105-android-biometric-domain-keystore.md) |
 | 106 | 2026-11-19 | [Android 생체 해제 화면 연결](106-android-biometric-ui.md) |
 | 107 | 2026-11-19 | [Android 가입 직후 생체 인증 안내](107-android-biometric-signup-prompt.md) |
+| 108 | 2026-11-19 | [Android 교차 검증과 정적 감사 Kotlin 확장](108-android-cross-verify-static-gates.md) |
