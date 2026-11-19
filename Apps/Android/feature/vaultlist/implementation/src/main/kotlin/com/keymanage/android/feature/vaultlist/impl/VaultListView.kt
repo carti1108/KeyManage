@@ -81,9 +81,16 @@ private fun Banners(state: VaultListViewState, onAction: (VaultListViewAction) -
         if (state.isOffline) {
             Notice(VaultMessages.RESYNC_NOTICE, action = "동기화") { onAction(VaultListViewAction.Resync) }
         }
+        if (state.isPendingSync) Notice(VaultMessages.OFFLINE)
         if (state.isReadOnly) Notice(VaultMessages.READ_ONLY)
-        state.errorMessage?.let { Notice(it, isError = true, action = "닫기") { onAction(VaultListViewAction.DismissError) } }
-        state.burnSeconds?.let { KMBurnBadge(remainingSeconds = it) }
+        state.errorMessage?.let { message ->
+            val text = state.errorTitle?.let { "$it\n$message" } ?: message
+            Notice(text, isError = true, action = "닫기") { onAction(VaultListViewAction.DismissError) }
+        }
+        state.burnSeconds?.let {
+            Notice("${VaultMessages.CLIPBOARD_TITLE}\n${VaultMessages.CLIPBOARD_BODY}")
+            KMBurnBadge(remainingSeconds = it)
+        }
     }
 }
 

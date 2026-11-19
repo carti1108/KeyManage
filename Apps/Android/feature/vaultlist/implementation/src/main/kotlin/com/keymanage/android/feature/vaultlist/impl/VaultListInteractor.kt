@@ -4,6 +4,7 @@ import com.keymanage.android.domain.clipboard.ClipboardBurner
 import com.keymanage.android.domain.generator.GeneratorOptions
 import com.keymanage.android.domain.generator.PasswordGenerator
 import com.keymanage.android.domain.remote.ApiError
+import com.keymanage.android.domain.sync.SaveOutcome
 import com.keymanage.android.domain.sync.SyncError
 import com.keymanage.android.domain.vault.ItemFields
 import com.keymanage.android.domain.vault.ItemFieldsProblem
@@ -73,7 +74,7 @@ class VaultListInteractor(
             VaultListViewAction.RequestDelete -> if (!vault.isReadOnly) store.update { it.copy(isConfirmingDelete = true) }
             VaultListViewAction.ConfirmDelete -> coroutineScope.launch { delete() }
             VaultListViewAction.CancelDelete -> store.update { it.copy(isConfirmingDelete = false) }
-            VaultListViewAction.DismissError -> store.update { it.copy(errorMessage = null) }
+            VaultListViewAction.DismissError -> store.update { it.copy(errorMessage = null, errorTitle = null) }
         }
     }
 
@@ -105,18 +106,18 @@ class VaultListInteractor(
     }
 
     private suspend fun persist(next: VaultData): Boolean {
-        store.update { it.copy(isSaving = true, errorMessage = null) }
+        store.update { it.copy(isSaving = true, errorMessage = null, errorTitle = null) }
         val saved = try {
             withContext(workDispatcher) { saver.save(next) }
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
-            store.update { it.copy(isSaving = false, errorMessage = messageOf(error)) }
+            store.update { it.copy(isSaving = false, errorMessage = messageOf(error), errorTitle = titleOf(error)) }
             if (error is ApiError.Server && error.status == UNAUTHORIZED) listener.onResyncRequested()
             return false
         }
         vault = saved.vault
-        store.update { it.copy(isSaving = false) }
+        store.update { it.copy(isSaving = false, isPendingSync = saved.outcome == SaveOutcome.Pending) }
         refreshRows()
         return true
     }
@@ -188,6 +189,9 @@ class VaultListInteractor(
     private companion object {
         const val TICK_MILLIS = 1_000L
         const val UNAUTHORIZED = 401
+
+        fun titleOf(error: Exception): String? =
+            if (error is SyncError.RevisionRollback) VaultMessages.ROLLBACK_TITLE else null
 
         fun messageOf(error: Exception): String = when (error) {
             is SyncError.VaultTooLarge -> VaultMessages.TOO_LARGE
