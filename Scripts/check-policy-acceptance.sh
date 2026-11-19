@@ -305,8 +305,112 @@ if os.path.isdir(web_src_dir):
     check_invariants("Web", "10단계: 계정 삭제(SEC-005)", web_tests, web_account_deletion_rules)
 
 
+# ============================================================================
+# 3. Android 플랫폼 감사 (Apps/Android/**/src/test/**/*Test.kt + 표준 문구는 src/main 소스)
+#    Android 테스트는 문구를 상수(XxxMessages.*)로 비교하므로, 표준 문구 원문은 소스에서 확인한다.
+# ============================================================================
+android_dir = os.path.join(root, "Apps", "Android")
+if os.path.isdir(android_dir):
+    audited_platforms.append("Android")
+
+    def android_files(kind):
+        return sorted(
+            p for p in glob.glob(os.path.join(android_dir, "**", "src", kind, "**", "*.kt"), recursive=True)
+            if os.sep + "build" + os.sep not in p
+        )
+
+    android_tests = "\n".join(open(p, encoding="utf-8").read() for p in android_files("test") if p.endswith("Test.kt"))
+    android_sources = "\n".join(open(p, encoding="utf-8").read() for p in android_files("main"))
+
+    check_invariants("Android", "1단계: 암호 모듈(vault-spec)", android_tests, [
+        ("교차 플랫폼 테스트 벡터(keyDerivationCases) 검증", r"keyDerivationCases"),
+        ("PBKDF2 600,000회 하한 경계값(599_999) 검증", r"599_999"),
+        ("AES-GCM 변조 복호화 거부(CryptoError.AuthenticationFailed) 검증", r"CryptoError\.AuthenticationFailed"),
+        ("다른 플랫폼 암호문을 평문 볼트·백업까지 여는 교차 검증(CrossPlatformVaultTest)", r"class CrossPlatformVaultTest"),
+    ])
+    check_invariants("Android", "2단계: 볼트 동기화(VLT-001)", android_tests, [
+        ("상위 버전 읽기 전용(ReadOnlyVault) 검증", r"ReadOnlyVault"),
+        ("톰스톤(deletedAt) 삭제 및 병합 검증", r"\bdeletedAt\b"),
+        ("서버 revision 역행(RevisionRollback) 검증", r"RevisionRollback"),
+        ("409 충돌 재시도 소진(ConflictRetriesExhausted) 검증", r"ConflictRetriesExhausted"),
+        ("5MB 용량 상한(MAX_PAYLOAD_BYTES) 경계값 검증", r"MAX_PAYLOAD_BYTES"),
+    ])
+    check_invariants("Android", "2단계: 볼트 동기화 표준 문구(VLT-001)", android_sources, [
+        ("상위 버전 읽기 전용 표준 문구", r"새 버전 앱에서 저장한 볼트입니다\. 앱을 업데이트하기 전까지는 읽기만 할 수 있습니다\."),
+        ("409 동기화 충돌 표준 문구", r"다른 기기의 변경 사항과 충돌했습니다\. 잠시 후 다시 시도해 주세요\."),
+    ])
+    check_invariants("Android", "3단계: 잠금 해제와 생체 해제(SEC-003)", android_tests, [
+        ("생체 해제 14일 경계값(Duration.ofDays(14)) 검증", r"Duration\.ofDays\(14\)"),
+        ("생체 키 무효화(BiometricError.Invalidated) 검증", r"BiometricError\.Invalidated"),
+        ("14일 만료(BiometricError.Expired) 검증", r"BiometricError\.Expired"),
+        ("비밀번호 오류 문구(Messages.WRONG_PASSWORD) 검증", r"Messages\.WRONG_PASSWORD"),
+    ])
+    check_invariants("Android", "3단계: 잠금 해제 표준 문구(SEC-003)", android_sources, [
+        ("비밀번호 오류 표준 문구", r"마스터 비밀번호가 올바르지 않습니다\."),
+        ("빈 볼트 준비 실패 표준 문구", r"계정은 만들었지만 볼트를 준비하지 못했습니다\."),
+        ("가입 직후 생체 인증 안내 제목", r"생체 인증으로 잠금을 풀까요\?"),
+    ])
+    check_invariants("Android", "4단계: 비밀번호 생성기(GEN-001)", android_tests, [
+        ("길이 상한(64자) 검증", r"\b64\b"),
+        ("거부 샘플링 1,000회 반복 검증", r"\b1_?000\b"),
+        ("연속 숫자 감지(hasSequentialDigits) 검증", r"hasSequentialDigits"),
+        ("문자군 미선택(Messages.NO_CHARSET) 검증", r"Messages\.NO_CHARSET"),
+    ])
+    check_invariants("Android", "4단계: 비밀번호 생성기 표준 문구(GEN-001)", android_sources, [
+        ("표준 길이 에러 문구", r"비밀번호 길이는 최소 8자 이상 64자 이하이어야 합니다\."),
+        ("표준 문자군 에러 문구", r"최소 1개 이상의 문자 종류를 선택해야 합니다\."),
+    ])
+    check_invariants("Android", "5·6단계: 동기화 대기와 기기 볼트(VLT-002·003)", android_tests, [
+        ("오프라인 대기 재시도(retryPending) 검증", r"retryPending"),
+        ("대기 변경 표시(hasPending) 검증", r"hasPending"),
+        ("기기 볼트 기록(DeviceRecordStore) 검증", r"DeviceRecordStore"),
+    ])
+    check_invariants("Android", "5·6단계: 동기화 대기와 기기 볼트 표준 문구(VLT-002·003)", android_sources, [
+        ("대기 중 로그아웃 확인 제목", r"동기화되지 않은 변경 사항"),
+        ("마스터 비밀번호 변경 감지 표준 문구", r"마스터 비밀번호가 바뀌었습니다\. 새 비밀번호로 로그인해 주세요\."),
+    ])
+    check_invariants("Android", "7단계: 클립보드 자동 비우기(COM-001)", android_tests, [
+        ("클립보드 30초(30_000ms) 타이머 검증", r"30_000"),
+    ])
+    check_invariants("Android", "8단계: 암호화 백업(VLT-004)", android_tests, [
+        ("파일 이름(keymanage-backup-YYYYMMDD.json) 검증", r"keymanage-backup-\d{8}\.json"),
+        ("백업 형식 버전(formatVersion) 검증", r"formatVersion"),
+        ("파일 크기 한도(MAX_FILE_BYTES) 경계값 검증", r"MAX_FILE_BYTES"),
+        ("새 버전 백업 거절(NewerVersion) 검증", r"NewerVersion"),
+        ("비밀번호 오류·손상(CannotOpen) 검증", r"CannotOpen"),
+    ])
+    check_invariants("Android", "8단계: 암호화 백업 표준 문구(VLT-004)", android_sources, [
+        ("내보내기 전 안내 문구", r"이 파일은 내보낸 시점의 마스터 비밀번호로만 열 수 있습니다\."),
+        ("복원 전 안내 문구", r"백업에 있던 항목은 백업 시점 내용으로 돌아갑니다\."),
+        ("비밀번호 오류·손상 문구", r"백업을 열 수 없습니다\."),
+        ("형식 오류 문구", r"KeyManage 백업 파일이 아닙니다\."),
+        ("새 버전 백업 문구", r"더 새 버전의 앱에서 만든 백업입니다\."),
+    ])
+    check_invariants("Android", "9단계: 마스터 비밀번호 변경(SEC-004)", android_tests, [
+        ("현재와 같음 거절(Messages.SAME_PASSWORD) 검증", r"Messages\.SAME_PASSWORD"),
+        ("오프라인 거절(Messages.PASSWORD_OFFLINE) 검증", r"Messages\.PASSWORD_OFFLINE"),
+        ("SEC-002 미달 새 비밀번호 거절(WeakNewPassword) 검증", r"WeakNewPassword"),
+        ("완료 문구(Messages.PASSWORD_CHANGED) 검증", r"Messages\.PASSWORD_CHANGED"),
+    ])
+    check_invariants("Android", "9단계: 마스터 비밀번호 변경 표준 문구(SEC-004)", android_sources, [
+        ("현재와 같음 문구", r"새 비밀번호가 지금 비밀번호와 같습니다\."),
+        ("오프라인 문구", r"인터넷에 연결된 상태에서만 비밀번호를 바꿀 수 있습니다\."),
+        ("완료 문구", r"마스터 비밀번호를 바꿨습니다\."),
+    ])
+    check_invariants("Android", "10단계: 가입 강도·계정 삭제(SEC-002·005)", android_tests, [
+        ("SEC-002 강도 59/60 경계값 검증", r"\b59\b"),
+        ("SEC-005 오프라인 거절(Messages.DELETE_OFFLINE) 검증", r"Messages\.DELETE_OFFLINE"),
+        ("SEC-005 완료 문구(Messages.ACCOUNT_DELETED) 검증", r"Messages\.ACCOUNT_DELETED"),
+    ])
+    check_invariants("Android", "10단계: 가입 강도·계정 삭제 표준 문구(SEC-002·005)", android_sources, [
+        ("SEC-002 가입 비밀번호 취약 문구", r"마스터 비밀번호가 보안에 취약합니다\."),
+        ("SEC-005 오프라인 문구", r"인터넷에 연결된 상태에서만 계정을 삭제할 수 있습니다\."),
+        ("SEC-005 확인 문구 입력 칸 문구", r"확인을 위해 '계정 삭제'를 입력해 주세요\."),
+        ("SEC-005 완료 문구", r"계정을 삭제했습니다\."),
+    ])
+
 if not audited_platforms:
-    print("오류: 감사할 플랫폼 테스트 디렉터리(Apps/Apple 또는 Apps/Web)를 찾을 수 없습니다.", file=sys.stderr)
+    print("오류: 감사할 플랫폼 테스트 디렉터리(Apps/Apple, Apps/Web 또는 Apps/Android)를 찾을 수 없습니다.", file=sys.stderr)
     sys.exit(2)
 
 if violations:
