@@ -8,6 +8,7 @@ import com.keymanage.android.domain.crypto.KeySeparator
 import com.keymanage.android.domain.crypto.MasterKeyDeriver
 import com.keymanage.android.domain.crypto.SeparatedKeys
 import com.keymanage.android.domain.crypto.VaultCipher
+import com.keymanage.android.domain.lock.BiometricError
 import com.keymanage.android.domain.remote.ApiError
 import com.keymanage.android.domain.remote.AuthApi
 import com.keymanage.android.domain.remote.ChangePasswordRequest
@@ -198,6 +199,30 @@ class VaultSessionUseCaseTest {
         assertEquals(com.keymanage.android.domain.sync.SaveOutcome.Pending, saved.outcome)
         assertTrue(store.record!!.hasPending)
         assertEquals(1, vaultApi.saveCalls)
+    }
+
+    @Test
+    fun `생체 해제는 감싼 볼트 키로 기기 볼트를 열고 다시 로그인하지 않는다`() {
+        useCase.openAfterAuth(auth())
+        val opened = useCase.unlockWithKey(keyOf("password"), null)
+        assertEquals(0, authApi.loginCalls)
+        assertNull(opened.session)
+        assertNull(opened.offlineReason)
+    }
+
+    @Test
+    fun `생체 해제도 메모리 세션이 있으면 서버 볼트를 받는다`() {
+        vaultApi.server = RemoteVault(5, KeyTagCipher.encrypt(IdsSerializer.encode(vault("a", "b")), keyOf("password")))
+        useCase.openAfterAuth(auth())
+        val opened = useCase.unlockWithKey(keyOf("password"), session)
+        assertEquals(session, opened.session)
+        assertEquals(listOf("a", "b"), opened.vault.items.map { it.id })
+    }
+
+    @Test
+    fun `감싼 키로 기기 볼트가 열리지 않으면 생체 해제가 무효다`() {
+        useCase.openAfterAuth(auth())
+        assertFailsWith<BiometricError.Invalidated> { useCase.unlockWithKey(keyOf("other"), null) }
     }
 
     private fun vault(vararg ids: String) = VaultData(

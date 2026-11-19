@@ -110,3 +110,4 @@
 | 102 | 2026-11-18 | [Android 백업 화면과 목업 보강](102-android-backup-screen.md) |
 | 103 | 2026-11-18 | [Android 계정 삭제와 마스터 비밀번호 변경](103-android-account-delete-password-change.md) |
 | 104 | 2026-11-19 | [CI 잡을 바뀐 경로로 고르기](104-ci-path-filters.md) |
+| 105 | 2026-11-19 | [Android 생체 해제 판정과 Keystore 키 보관](105-android-biometric-domain-keystore.md) |
