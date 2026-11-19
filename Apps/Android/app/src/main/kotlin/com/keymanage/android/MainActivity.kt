@@ -67,7 +67,7 @@ class MainActivity : RibActivity() {
     }
 
     override fun createRouter(parentViewGroup: ViewGroup): ViewRouter<*, *> =
-        RootBuilder(AppRootDependency(applicationContext, events)).build(parentViewGroup)
+        RootBuilder(AppRootDependency(this, events)).build(parentViewGroup)
 
     override fun onStart() {
         super.onStart()
@@ -96,7 +96,10 @@ private class ActivityEvents : AppEvents {
 }
 
 /** 앱 조립. 포트 구현(:core:data)을 피처 의존성에 넘기는 곳은 여기뿐이다(ADR-AND-001). */
-private class AppRootDependency(context: Context, override val appEvents: AppEvents) : RootDependency {
+private class AppRootDependency(activity: MainActivity, override val appEvents: AppEvents) : RootDependency {
+    private val context: Context = activity.applicationContext
+    private val biometrics = AppBiometrics(activity, context.settingsPreferences())
+    override val biometricGateway = biometrics.gateway
     private val api by lazy { HttpApiClient(BuildConfig.SERVER_URL) }
     private val deriver = Pbkdf2MasterKeyDeriver()
     private val separator = HkdfKeySeparator()
@@ -123,7 +126,7 @@ private class AppRootDependency(context: Context, override val appEvents: AppEve
         burner
     }
 
-    override val autoLockStore = PreferencesAutoLockStore(context.getSharedPreferences("settings", Context.MODE_PRIVATE))
+    override val autoLockStore = PreferencesAutoLockStore(context.settingsPreferences())
     override val scheduler: Scheduler = MainLooperScheduler()
     override val monotonicClock: () -> Long = SystemClock::elapsedRealtime
 
@@ -136,7 +139,10 @@ private class AppRootDependency(context: Context, override val appEvents: AppEve
 
     override val unlockBuildable = UnlockBuilder(
         object : UnlockDependency {
-            override val unlocker = Unlocker { password, session -> sessions.unlock(password, session) }
+            override val unlocker = Unlocker { password, session ->
+                sessions.unlock(password, session).also { biometrics.unlock.onPasswordUnlock() }
+            }
+            override val biometricUnlocker by lazy { biometrics.unlocker(sessions, this@AppRootDependency.workDispatcher) }
             override val workDispatcher = this@AppRootDependency.workDispatcher
         },
     )
@@ -173,14 +179,25 @@ private class AppRootDependency(context: Context, override val appEvents: AppEve
 
     override val sessionGateway = object : VaultSessionGateway {
         override fun lockedAccountEmail() = sessions.lockedAccount()?.email
-        override fun openAfterAuth(result: AuthResult) = sessions.openAfterAuth(result)
-        override fun logout(session: Session?) = sessions.logout(session)
+        override fun openAfterAuth(result: AuthResult) =
+            sessions.openAfterAuth(result).also { biometrics.unlock.onPasswordUnlock() }
+        override fun logout(session: Session?) {
+            sessions.logout(session)
+            biometrics.unlock.disable()
+        }
         override fun save(opened: OpenedVault, vault: VaultData) = sessions.save(opened, vault)
         override fun exportBackup(opened: OpenedVault, vault: VaultData, now: Instant) = backupSession.export(opened, vault, now)
         override fun restoreBackup(opened: OpenedVault, current: VaultData, bytes: ByteArray, password: String, now: Instant) =
             backupSession.restore(opened, current, bytes, password, now)
+        // 볼트 키가 바뀌거나 사라지면 감싼 키는 쓸 수 없다(ADR-AND-002 결정 5)
         override fun changePassword(opened: OpenedVault, vault: VaultData, current: String, new: String, confirmation: String) =
-            accounts.changePassword(opened, vault, current, new, confirmation)
-        override fun deleteAccount(opened: OpenedVault, password: String) = accounts.deleteAccount(opened, password)
+            accounts.changePassword(opened, vault, current, new, confirmation).also {
+                biometrics.unlock.disable()
+                biometrics.unlock.onPasswordUnlock()
+            }
+        override fun deleteAccount(opened: OpenedVault, password: String) {
+            accounts.deleteAccount(opened, password)
+            biometrics.unlock.disable()
+        }
     }
 }

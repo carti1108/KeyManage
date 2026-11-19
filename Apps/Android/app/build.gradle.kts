@@ -28,4 +28,5 @@ dependencies {
     implementation(project(":feature:settings:implementation"))
     implementation(project(":feature:main:implementation"))
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.biometric)
 }
