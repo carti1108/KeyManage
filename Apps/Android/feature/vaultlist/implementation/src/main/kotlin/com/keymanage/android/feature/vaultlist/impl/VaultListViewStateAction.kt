@@ -27,6 +27,10 @@ data class VaultListViewState(
     val isSaving: Boolean = false,
     val isConfirmingDelete: Boolean = false,
     val errorMessage: String? = null,
+    /** [errorMessage]의 제목. 정책 문구 표에 제목이 있는 오류만 채운다. */
+    val errorTitle: String? = null,
+    /** 마지막 저장이 서버에 올라가지 못하고 대기 중이다(VLT-002). */
+    val isPendingSync: Boolean = false,
     /** 클립보드 자동 삭제까지 남은 초. 기다리는 값이 없으면 null(COM-001). */
     val burnSeconds: Int? = null,
 )
@@ -50,7 +54,7 @@ sealed interface VaultListViewAction {
     data object DismissError : VaultListViewAction
 }
 
-/** VLT-001·COM-001·COM-002·SEC-002·SEC-003 사용자 문구. */
+/** VLT-001·VLT-002·COM-001·COM-002·SEC-002·SEC-003 사용자 문구. */
 object VaultMessages {
     const val RESYNC_NOTICE = "서버와 동기화하려면 마스터 비밀번호를 다시 입력해 주세요."
     const val MISSING_SERVICE_NAME = "서비스 이름을 입력해 주세요."
@@ -58,6 +62,10 @@ object VaultMessages {
     const val DELETE_BODY = "이 항목을 삭제할까요? 다른 기기에서도 삭제됩니다."
     const val TOO_LARGE = "볼트 허용 용량(5MB)을 초과했거나 데이터 규격이 올바르지 않습니다."
     const val CONFLICT = "다른 기기의 변경 사항과 충돌했습니다. 잠시 후 다시 시도해 주세요."
+    const val ROLLBACK_TITLE = "서버 볼트가 이전 상태로 돌아감"
+    const val OFFLINE = "오프라인 상태입니다. 변경 사항이 서버에 동기화되지 않습니다."
+    const val CLIPBOARD_TITLE = "클립보드 보안 소각"
+    const val CLIPBOARD_BODY = "보안을 위해 복사된 내용이 30초 후 클립보드에서 자동 삭제됩니다."
     const val ROLLBACK = "서버의 볼트가 이 기기에서 마지막으로 본 상태보다 이전으로 돌아갔습니다. 서버를 복구한 경우가 아니라면 받아들이지 마세요."
     const val READ_ONLY = "새 버전 앱에서 저장한 볼트입니다. 앱을 업데이트하기 전까지는 읽기만 할 수 있습니다."
     const val SESSION_EXPIRED = "로그인이 만료되었습니다. 다시 로그인해 주세요."

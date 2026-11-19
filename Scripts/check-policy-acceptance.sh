@@ -338,6 +338,8 @@ if os.path.isdir(android_dir):
     check_invariants("Android", "2단계: 볼트 동기화 표준 문구(VLT-001)", android_sources, [
         ("상위 버전 읽기 전용 표준 문구", r"새 버전 앱에서 저장한 볼트입니다\. 앱을 업데이트하기 전까지는 읽기만 할 수 있습니다\."),
         ("409 동기화 충돌 표준 문구", r"다른 기기의 변경 사항과 충돌했습니다\. 잠시 후 다시 시도해 주세요\."),
+        ("5MB 용량 초과 표준 문구", r"볼트 허용 용량\(5MB\)을 초과했거나 데이터 규격이 올바르지 않습니다\."),
+        ("revision 역행 표준 제목", r"서버 볼트가 이전 상태로 돌아감"),
     ])
     check_invariants("Android", "3단계: 잠금 해제와 생체 해제(SEC-003)", android_tests, [
         ("생체 해제 14일 경계값(Duration.ofDays(14)) 검증", r"Duration\.ofDays\(14\)"),
@@ -367,10 +369,15 @@ if os.path.isdir(android_dir):
     ])
     check_invariants("Android", "5·6단계: 동기화 대기와 기기 볼트 표준 문구(VLT-002·003)", android_sources, [
         ("대기 중 로그아웃 확인 제목", r"동기화되지 않은 변경 사항"),
+        ("오프라인 경고 표준 문구", r"오프라인 상태입니다\. 변경 사항이 서버에 동기화되지 않습니다\."),
         ("마스터 비밀번호 변경 감지 표준 문구", r"마스터 비밀번호가 바뀌었습니다\. 새 비밀번호로 로그인해 주세요\."),
     ])
     check_invariants("Android", "7단계: 클립보드 자동 비우기(COM-001)", android_tests, [
         ("클립보드 30초(30_000ms) 타이머 검증", r"30_000"),
+    ])
+    check_invariants("Android", "7단계: 클립보드 자동 비우기 표준 문구(COM-001)", android_sources, [
+        ("복사 직후 표준 제목", r"클립보드 보안 소각"),
+        ("복사 직후 표준 본문", r"보안을 위해 복사된 내용이 30초 후 클립보드에서 자동 삭제됩니다\."),
     ])
     check_invariants("Android", "8단계: 암호화 백업(VLT-004)", android_tests, [
         ("파일 이름(keymanage-backup-YYYYMMDD.json) 검증", r"keymanage-backup-\d{8}\.json"),

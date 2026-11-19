@@ -114,3 +114,4 @@
 | 106 | 2026-11-19 | [Android 생체 해제 화면 연결](106-android-biometric-ui.md) |
 | 107 | 2026-11-19 | [Android 가입 직후 생체 인증 안내](107-android-biometric-signup-prompt.md) |
 | 108 | 2026-11-19 | [Android 교차 검증과 정적 감사 Kotlin 확장](108-android-cross-verify-static-gates.md) |
+| 109 | 2026-11-19 | [Android 누락 표준 문구 보강](109-android-standard-messages.md) |

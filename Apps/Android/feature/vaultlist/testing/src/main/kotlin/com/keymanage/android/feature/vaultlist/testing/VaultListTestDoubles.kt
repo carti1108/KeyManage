@@ -28,10 +28,13 @@ class RecordingVaultSaver : VaultSaver {
     val saved = mutableListOf<VaultData>()
     var failure: Exception? = null
 
+    /** 정하면 이 결과로 돌려준다. 없으면 동기화된 것으로 본다. */
+    var outcome: SaveOutcome? = null
+
     override fun save(vault: VaultData): SavedVault {
         failure?.let { throw it }
         saved += vault
-        return SavedVault(vault, SaveOutcome.Synced(saved.size))
+        return SavedVault(vault, outcome ?: SaveOutcome.Synced(saved.size))
     }
 }
 
