@@ -21,6 +21,11 @@ import com.keymanage.domain.vault.deleteItem
 import com.keymanage.domain.vault.parseVaultData
 import com.keymanage.feature.ClipboardPort
 import com.keymanage.feature.SessionPort
+import com.keymanage.feature.generator.testing.FakeGeneratorClipboard as FakeClipboard
+import com.keymanage.feature.generator.testing.FakeGeneratorView
+import com.keymanage.feature.vaultlist.testing.FakeVaultListView
+import com.keymanage.feature.vaultlist.testing.FakeVaultSession as FakeSession
+import com.keymanage.feature.vaultlist.testing.RecordingVaultListListener
 import com.keymanage.feature.generator.PasswordGeneratorPresentableListener
 import com.keymanage.feature.generator.PasswordGeneratorViewAction
 import com.keymanage.feature.generator.PasswordGeneratorViewContract
@@ -851,130 +856,4 @@ private class SingleDispatcher(dispatcher: CoroutineDispatcher) : RibDispatchers
     override val MainImmediate: CoroutineDispatcher = dispatcher
     override val Default: CoroutineDispatcher = dispatcher
     override val Unconfined: CoroutineDispatcher = dispatcher
-}
-
-private class RecordingVaultListListener : VaultListListener {
-    var saves = 0
-
-    override fun vaultListDidSave() {
-        saves += 1
-    }
-}
-
-private class FakeVaultListView : VaultListViewContract {
-    override var listener: VaultListPresentableListener? = null
-    val states = mutableListOf<VaultListViewState>()
-    val shownGenerators = mutableListOf<ViewControllable>()
-    val hiddenGenerators = mutableListOf<ViewControllable>()
-
-    override fun render(state: VaultListViewState) {
-        states += state
-    }
-
-    override fun showGenerator(view: ViewControllable) {
-        shownGenerators += view
-    }
-
-    override fun hideGenerator(view: ViewControllable) {
-        hiddenGenerators += view
-    }
-}
-
-private class FakeGeneratorView : PasswordGeneratorViewContract {
-    override var listener: PasswordGeneratorPresentableListener? = null
-    val states = mutableListOf<PasswordGeneratorViewState>()
-    override fun render(state: PasswordGeneratorViewState) {
-        states += state
-    }
-}
-
-private class FakeClipboard : ClipboardPort {
-    val copied = mutableListOf<String>()
-    var failure: Throwable? = null
-    override suspend fun copy(text: String) {
-        failure?.let { throw it }
-        copied += text
-    }
-}
-
-/** 저장이 끝나는 시점과 결과를 테스트가 정하는 세션. 쓰지 않는 기능은 부르면 실패한다 */
-private class FakeSession(initial: VaultData, private var readOnly: Boolean) : SessionPort {
-    var data: VaultData = initial
-        private set
-    var current: SessionState = unlocked()
-    val saved = mutableListOf<VaultData>()
-    var saveCalls = 0
-        private set
-    var failNext: Throwable? = null
-
-    /** 세션이 볼트를 반영한 뒤에 거절한다. 실제 세션은 서버 충돌 같은 거절을 기기 저장 뒤에 던질 수 있다 */
-    var applyThenFail: Throwable? = null
-
-    /** 저장을 보내는 사이 세션이 다른 볼트로 바뀐다(원격 병합). 있으면 보낸 볼트 대신 이것을 반영한다 */
-    var replaceOnSave: VaultData? = null
-    var gate: CompletableDeferred<Unit>? = null
-    val remoteListeners = mutableSetOf<() -> Unit>()
-    val syncListeners = mutableSetOf<SyncChangeListener>()
-
-    private fun unlocked() = SessionState.Unlocked(
-        email = "a@b.c",
-        vault = SyncedVault(revision = 1, data = data, readOnly = readOnly, payload = null),
-        pendingSync = false,
-        signedIn = true,
-        storedOnDevice = true,
-    )
-
-    /** 다른 기기의 변경이 병합된 것처럼 세션의 볼트를 바꾼다 */
-    fun replace(next: VaultData, readOnly: Boolean = this.readOnly) {
-        data = next
-        this.readOnly = readOnly
-        current = unlocked()
-    }
-
-    fun fireRemoteChange() = remoteListeners.toList().forEach { it() }
-    fun fireSyncChange(error: Throwable?) = syncListeners.toList().forEach { it(error) }
-
-    override fun state(): SessionState = current
-
-    override suspend fun save(data: VaultData) {
-        saveCalls++
-        gate?.await()
-        failNext?.let {
-            failNext = null
-            throw it
-        }
-        applyThenFail?.let {
-            applyThenFail = null
-            replace(replaceOnSave ?: data)
-            throw it
-        }
-        saved += data
-        replace(data)
-    }
-
-    override fun onRemoteChange(listener: () -> Unit): () -> Unit {
-        remoteListeners += listener
-        return { remoteListeners -= listener }
-    }
-
-    override fun onSyncChange(listener: SyncChangeListener): () -> Unit {
-        syncListeners += listener
-        return { syncListeners -= listener }
-    }
-
-    override suspend fun register(email: String, password: String): Unit = unused()
-    override suspend fun login(email: String, password: String, acceptRollback: Boolean): Unit = unused()
-    override fun lock(scope: LockScope): Unit = unused()
-    override suspend fun unlock(password: String, acceptRollback: Boolean): Boolean = unused()
-    override suspend fun reconnect(password: String, acceptRollback: Boolean): Unit = unused()
-    override suspend fun exportBackup(now: Instant, calendar: LocalCalendar): BackupFile = unused()
-    override suspend fun restoreBackup(backup: VaultBackup, password: String, now: Instant): Int = unused()
-    override suspend fun changeMasterPassword(currentPassword: String, newPassword: String): Unit = unused()
-    override suspend fun deleteAccount(password: String): Unit = unused()
-    override suspend fun logout(): Unit = unused()
-    override suspend fun pendingOnDevice(): Boolean = unused()
-    override fun onLock(listener: () -> Unit): () -> Unit = unused()
-    override fun onUnlock(listener: () -> Unit): () -> Unit = unused()
-
-    private fun unused(): Nothing = error("이 테스트에서 쓰지 않는 기능")
 }

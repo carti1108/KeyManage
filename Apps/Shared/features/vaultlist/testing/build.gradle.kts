@@ -7,6 +7,8 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":features:vaultlist:interface"))
+            // 폼 안의 생성기(자식 RIB)까지 띄우는 시나리오가 생성기의 더블을 쓴다
+            api(project(":features:generator:testing"))
             implementation(libs.kotlinx.coroutines.core)
         }
     }
