@@ -33,6 +33,7 @@ import com.keymanage.android.designsystem.component.KMButtonVariant
 import com.keymanage.android.designsystem.component.KMIcons
 import com.keymanage.android.designsystem.component.KMPasswordField
 import com.keymanage.android.designsystem.generated.DesignTokens
+import com.keymanage.feature.messages.BiometricUnlockMessages
 import com.keymanage.feature.messages.ErrorMessage
 import com.keymanage.feature.messages.PendingLogoutConfirm
 import com.keymanage.feature.messages.RollbackWarning
@@ -93,7 +94,7 @@ fun UnlockScreen(state: UnlockViewState, onAction: (UnlockViewAction) -> Unit) {
         )
         if (state.isBiometricsAvailable) {
             KMButton(
-                title = "생체 인증으로 잠금 해제",
+                title = BiometricUnlockMessages.ACTION,
                 onClick = { onAction(UnlockViewAction.UnlockWithBiometrics) },
                 modifier = Modifier.fillMaxWidth(),
                 variant = KMButtonVariant.OUTLINE,

@@ -7,9 +7,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -30,6 +32,7 @@ import com.carti.ribs.compose.ComposeRenderable
 import com.keymanage.android.designsystem.KeyManageTheme
 import com.keymanage.android.designsystem.component.KMScreen
 import com.keymanage.android.designsystem.generated.DesignTokens
+import com.keymanage.feature.messages.BiometricUnlockMessages
 import com.keymanage.feature.settings.SettingsModal
 import com.keymanage.feature.settings.SettingsNoticeKind
 import com.keymanage.feature.settings.SettingsPresentableListener
@@ -69,6 +72,7 @@ fun SettingsScreen(state: SettingsViewState, onAction: (SettingsViewAction) -> U
         }
         Section("보안") {
             SettingRow("자동 잠금", autoLockLabel(state.autoLockTimeout)) { isChoosingAutoLock = true }
+            if (state.showsBiometricToggle) BiometricRow(state, onAction)
             SettingRow("클립보드 자동 삭제", "30초")
             SettingRow("암호화 구조", "AES-256-GCM")
         }
@@ -161,6 +165,29 @@ private fun SettingRow(label: String, value: String?, color: Color = Color.Unspe
             color = if (enabled) color else MaterialTheme.colorScheme.onSurfaceVariant,
         )
         value?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+    }
+}
+
+/** 생체 인증 스위치(SEC-003 값 표: 기본 꺼짐). 켤 때 생체 인증 창이 뜬다 */
+@Composable
+private fun BiometricRow(state: SettingsViewState, onAction: (SettingsViewAction) -> Unit) {
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .toggleable(
+                    value = state.biometricEnabled,
+                    enabled = !state.inProgress,
+                    role = Role.Switch,
+                    onValueChange = { onAction(SettingsViewAction.SetBiometricUnlock(it)) },
+                )
+                .padding(vertical = DesignTokens.Spacing.space2),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(BiometricUnlockMessages.ACTION, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+            Switch(checked = state.biometricEnabled, onCheckedChange = null, enabled = !state.inProgress)
+        }
+        state.biometricError?.let { Message(it, isError = true) }
     }
 }
 
