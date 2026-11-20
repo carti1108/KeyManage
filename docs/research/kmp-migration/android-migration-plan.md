@@ -91,3 +91,20 @@ Android 앱에는 있고 공유 모듈에는 없는 동작이다. 전환 전에 
 1. 생체 해제는 보안 경계다. 규칙은 SEC-003과 ADR-AND-002를 그대로 옮기고 새로 정하지 않는다. 옮긴 뒤 독립 리뷰를 받는다.
 2. `feature`에 Android 대상을 넣으면 `ribs-core`의 Android 변형과 AGP 설정이 `Apps/Shared`와 `Apps/Android` 두 Gradle 프로젝트에 걸친다. Android 앱이 공유 모듈을 가져오는 방식(composite build 또는 한 프로젝트로 합치기)은 1단계에서 정하고 ADR로 남긴다.
 3. Android 피처 테스트(`tests` 모듈)는 uber/RIBs Interactor를 대상으로 한다. 행동 어설션은 공유 `feature` 테스트로 옮기고, Android에는 "상태를 그리는가, 입력을 보내는가"만 남긴다(웹과 같은 방식, domain-migration-plan 11.4).
+
+## 7. 진행 기록
+
+### 1단계: 공유 모듈의 Android 구현 (2026-11-20)
+
+| 항목 | 결과 |
+| :--- | :--- |
+| `feature` Android 대상 | 추가. `compileAndroidMain` 성공, JVM 테스트 그대로 통과 |
+| 기기 기록 저장소 | `device-store`에 `FileDeviceRecordStore`(도메인 `DeviceRecordStore` 구현) 추가. jvm·android 두 대상이 같은 소스 폴더(`src/fileMain`)를 쓴다. JVM 테스트 9/9 |
+| 새 모듈 `Apps/Shared/android-session` | `web-session`의 Android 짝. Android 쪽 포트 구현과 앱 진입점을 둔다. Android 대상만 있다 |
+| 자동 잠금 설정 저장소 | `android-session`의 `PreferencesAutoLockSettingStore`. 환경설정 `keymanage.settings`의 `autoLockMs`에 웹과 같은 밀리초 십진 문자열로 둔다. 에뮬레이터(API 37) 기기 테스트 7/7 |
+| Android 앱이 공유 모듈을 가져오는 방식 | composite build. `Apps/Android/settings.gradle.kts`가 `includeBuild("../Shared")`로 `android-session`을 가져온다. `:app:compileDebugKotlin` 성공 |
+
+- composite build를 고른 이유: `Apps/Shared`가 carti-RIBs-KMP를 가져오는 방식과 같고, 웹 CI처럼 공유 모듈만 따로 빌드·테스트할 수 있다. Gradle 프로젝트를 하나로 합치면 Android 앱의 `build-logic` 규칙(`FAIL_ON_PROJECT_REPOS`, 버전 카탈로그)을 공유 모듈과 웹 빌드에도 맞춰야 한다. 6단계의 ADR-AND-001 대체 ADR에 함께 적는다.
+- Kotlin 버전이 달라도(Android 앱 2.4.21, 공유 모듈·carti-RIBs-KMP 2.3.21) composite build는 빌드된다. 버전 맞추기는 6단계 그대로 둔다.
+- Android 저장소에서 빌드하려면 형제 폴더 `carti-RIBs-KMP`가 있어야 한다(없으면 `CARTI_RIBS_DIR`). CI Android 잡에는 아직 반영하지 않았다(5단계).
+- 순서 변경: 클립보드 포트는 2단계에서 인터페이스가 바뀌므로("다른 것을 복사했으면 비우지 않음") Android 구현도 2단계에서 만든다. 백업 파일(SAF)은 Activity가 필요해 4단계 진입점과 함께 만든다.
