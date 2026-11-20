@@ -17,6 +17,9 @@ import com.keymanage.domain.vault.RevisionRollbackException
 import com.keymanage.domain.vault.VaultData
 import com.keymanage.feature.SessionPort
 import com.keymanage.feature.messages.ErrorMessage
+import com.keymanage.feature.auth.testing.FakeAuthListener
+import com.keymanage.feature.auth.testing.FakeAuthSession
+import com.keymanage.feature.auth.testing.FakeAuthView
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -483,61 +486,4 @@ private class AuthTestDispatchers(dispatcher: CoroutineDispatcher) : RibDispatch
     override val MainImmediate: CoroutineDispatcher = dispatcher
     override val Default: CoroutineDispatcher = dispatcher
     override val Unconfined: CoroutineDispatcher = dispatcher
-}
-
-private class FakeAuthView : AuthViewContract {
-    override var listener: AuthPresentableListener? = null
-    val states = mutableListOf<AuthViewState>()
-    val state: AuthViewState get() = states.last()
-
-    override fun render(state: AuthViewState) {
-        states += state
-    }
-}
-
-private class FakeAuthListener : AuthListener {
-    var completions = 0
-
-    override fun authDidComplete() {
-        completions += 1
-    }
-}
-
-/** 로그인·가입만 쓴다. 나머지는 이 RIB이 부르지 않으므로 호출되면 실패한다. */
-private class FakeAuthSession : SessionPort {
-    data class LoginCall(val email: String, val password: String, val acceptRollback: Boolean)
-    data class RegisterCall(val email: String, val password: String)
-
-    val logins = mutableListOf<LoginCall>()
-    val registers = mutableListOf<RegisterCall>()
-    var loginHandler: suspend (String, String, Boolean) -> Unit = { _, _, _ -> }
-    var registerHandler: suspend (String, String) -> Unit = { _, _ -> }
-
-    override suspend fun login(email: String, password: String, acceptRollback: Boolean) {
-        logins += LoginCall(email, password, acceptRollback)
-        loginHandler(email, password, acceptRollback)
-    }
-
-    override suspend fun register(email: String, password: String) {
-        registers += RegisterCall(email, password)
-        registerHandler(email, password)
-    }
-
-    override fun state(): SessionState = SessionState.SignedOut
-    override fun lock(scope: LockScope) = unused()
-    override suspend fun unlock(password: String, acceptRollback: Boolean): Boolean = unused()
-    override suspend fun reconnect(password: String, acceptRollback: Boolean) = unused()
-    override suspend fun save(data: VaultData) = unused()
-    override suspend fun exportBackup(now: Instant, calendar: LocalCalendar): BackupFile = unused()
-    override suspend fun restoreBackup(backup: VaultBackup, password: String, now: Instant): Int = unused()
-    override suspend fun changeMasterPassword(currentPassword: String, newPassword: String) = unused()
-    override suspend fun deleteAccount(password: String) = unused()
-    override suspend fun logout() = unused()
-    override suspend fun pendingOnDevice(): Boolean = unused()
-    override fun onRemoteChange(listener: () -> Unit): () -> Unit = unused()
-    override fun onLock(listener: () -> Unit): () -> Unit = unused()
-    override fun onUnlock(listener: () -> Unit): () -> Unit = unused()
-    override fun onSyncChange(listener: SyncChangeListener): () -> Unit = unused()
-
-    private fun unused(): Nothing = throw UnsupportedOperationException("Auth RIB이 부르지 않는 세션 기능")
 }
