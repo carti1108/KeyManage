@@ -87,6 +87,18 @@ class ClipboardBurner(
         if (current.value != BurnState.Idle) burn()
     }
 
+    /**
+     * 이 앱이 아닌 곳에서 클립보드가 바뀌었을 때 부른다(바뀐 것을 알 수 있는 플랫폼만). 사용자가 복사한 값을 지우지 않도록
+     * 타이머와 다시 비우기를 그만둔다 (COM-001 규칙 2). 이 앱의 쓰기는 플랫폼 구현이 걸러서 알리지 않는다
+     */
+    fun onExternalChange() {
+        if (current.value == BurnState.Idle) return
+        stopTimer()
+        // 끝나지 않은 비우기가 뒤늦게 상태를 바꾸지 않게 한다
+        generation += 1
+        current.value = BurnState.Idle
+    }
+
     private fun stopTimer() {
         cancelTimer?.invoke()
         cancelTimer = null
