@@ -27,6 +27,8 @@ dependencies {
     implementation(project(":feature:generator:implementation"))
     implementation(project(":feature:settings:implementation"))
     implementation(project(":feature:main:implementation"))
+    // 공유 RIB·세션과 Android 쪽 포트 구현. 화면 연결 전이라 아직 쓰는 코드는 없다 (android-migration-plan 4장)
+    implementation("com.keymanage.shared:android-session")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.biometric)
 }

@@ -54,3 +54,10 @@ include(":feature:root:interface")
 include(":feature:root:implementation")
 include(":feature:root:testing")
 include(":feature:root:tests")
+
+// 공유 Kotlin 모듈(Apps/Shared). 화면 로직·도메인·플랫폼 구현을 여기서 가져온다 (android-migration-plan 4장 1단계)
+includeBuild("../Shared") {
+    dependencySubstitution {
+        substitute(module("com.keymanage.shared:android-session")).using(project(":android-session"))
+    }
+}
