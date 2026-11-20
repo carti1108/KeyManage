@@ -25,6 +25,7 @@ Figma 파일에 `KeyManage`의 **shadcn/ui 기반 시멘틱 디자인 시스템,
      5. `KMCard` (볼트 계정 카드)
 5. **`📱 Screens` 페이지 (화면 흐름: 플랫폼별 목업 + 이동 화살표)**: 화면 흐름 10단계(로그인 → 계정 만들기 → 잠금 해제 → 볼트 → 항목 상세 → 비밀번호 생성기 → 설정 → 백업 → 마스터 비밀번호 변경 → 계정 삭제 확인)를 **iPhone · Android · Web 세 줄**, 모두 30개 화면으로 그린다.
    * 색은 모두 `KeyManage` 변수에 바인딩된다. 크기·모서리·내비게이션(iPhone 탭 바, Android 내비게이션 바, Web 사이드바)은 각 플랫폼 관례를 따른다(`docs/design-system.md` 5.1절 🟥).
+   * Android 줄은 Material 3 규격으로 그린다(Filled 입력 칸, `TopAppBar`, `NavigationBar`, `AlertDialog`). 아이콘은 `code.js`의 `MATERIAL_ICONS`에 둔 Material Icons 경로이고 앱의 `KMIcons`와 같은 원본이다.
    * 화면은 기기 틀(iPhone·Android)과 브라우저 창(Web) 안에 놓인다. 기기·창 색은 하드웨어 색이라 고정값이다.
    * 한글은 `Noto Sans KR`로 그린다. 없으면 Inter로 내려가며 경고를 띄운다.
    * **기준이 플랫폼마다 다르다**([디자인 시스템](../../docs/design-system.md) 5.2절). Web 줄은 실제 웹 화면(`Apps/Web/src/ui`)을 그대로 옮긴 그림이고(백업·비밀번호 변경 단계의 Web 줄은 정책 문구로 그린 배치라 웹 화면과 다를 수 있다), iPhone·Android 줄은 앱이 따라야 할 시안이다. 정책 문구는 모든 줄에서 `docs/policies/`와 같다.
