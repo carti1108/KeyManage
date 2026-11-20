@@ -30,6 +30,7 @@ import com.keymanage.feature.testing.FakeEnvironment
 import com.keymanage.feature.testing.FakeRandomBytes
 import com.keymanage.feature.testing.FakeSession
 import com.keymanage.feature.main.testing.FakeMainViews as FakeViewFactory
+import com.keymanage.feature.main.testing.RecordingMainListener
 import com.keymanage.feature.testing.installTestDispatcher
 import com.keymanage.feature.testing.testVault
 import com.keymanage.feature.vaultlist.VaultItemFormField
@@ -814,21 +815,3 @@ class MainInteractorTest {
 }
 
 private const val TEST_EMAIL_FOR_MAIN = "user@test.com"
-
-private class RecordingMainListener : MainListener {
-    var locks = 0
-    val logouts = mutableListOf<String?>()
-    val signInRequests = mutableListOf<String>()
-
-    override fun didLock() {
-        locks += 1
-    }
-
-    override fun didLogout(notice: String?) {
-        logouts += notice
-    }
-
-    override fun didRequireSignIn(notice: String) {
-        signInRequests += notice
-    }
-}

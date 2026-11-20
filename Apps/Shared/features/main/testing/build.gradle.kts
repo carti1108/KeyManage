@@ -7,6 +7,8 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":features:main:interface"))
+            // 시나리오가 공용 가짜 세션·환경을 쓴다
+            api(project(":core:testing"))
             api(project(":features:vaultlist:testing"))
             api(project(":features:generator:testing"))
             api(project(":features:settings:testing"))
