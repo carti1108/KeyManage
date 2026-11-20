@@ -122,3 +122,27 @@ A~C는 [android-migration-plan.md](android-migration-plan.md)의 3단계(공유 
 - **부모가 자식의 구현을 얻는 방법**: 자식의 Builder는 부모의 Dependency가 준다(MusicSearch의 `musicDiggingBuilder`와 같다). 다만 Main은 세션을 감싼 Dependency를 자기가 만들어 자식에 넘기므로, 속성이 아니라 함수다: `MainDependency.vaultListBuilder(dependency)`, `passwordGeneratorBuilder(dependency)`, `settingsBuilder(dependency)`, `VaultListDependency.passwordGeneratorBuilder(dependency)`. 구현은 조립 모듈의 `RootComponent`가 넣는다.
 - **Routing에 올린 것**: 부모가 자식 Router에서 쓰던 기능만 계약으로 올렸다. `AuthRouting.showNotice`, `MainRouting.isFinishingSession`, `VaultListRouting.refreshFromSession`.
 - 아직 안 한 것: 각 피처의 시나리오(`XxxScenario`)와 Android `ui`·`example`. 테스트 파일 안에 남아 있는 피처 전용 가짜(가짜 세션·Listener)는 시나리오를 만들 때 `testing`으로 옮긴다.
+
+### C단계(시나리오와 Android): 피처 6개의 뷰와 Example 앱 (2026-11-20)
+
+| 피처 | 시나리오 | Android `ui` | Android `example`에서 확인한 것(에뮬레이터 API 37) |
+| :--- | :--- | :--- | :--- |
+| Unlock | 10개 | `ComposeUnlockView` | 목록 10개, 틀린 비밀번호 문구, 세션 만료 알림 |
+| Auth | 9개 | `ComposeAuthView` | 목록 9개, 세션 만료 안내와 함께 열림, 가입 모드 전환 |
+| PasswordGenerator | 3개 | `ComposePasswordGeneratorView` | 목록 3개, 생성기 탭에서 복사 |
+| VaultList | 7개 | `ComposeVaultListView` | 목록 → 상세 → 수정 → 폼 안의 생성기(자식 RIB) → 사용 → 저장 |
+| Settings | 8개 | `ComposeSettingsView` | 내보내기 안내와 저장, 자동 잠금 선택 창, 계정 삭제 대화상자 |
+| Main | 7개 | `ComposeMainView` | 세션 없이 연 시나리오에서 다시 연결 안내와 탭 3개(볼트·생성기·설정) 전환 |
+
+- 시나리오마다 다 눌러 보지는 않았다. 피처마다 위 표에 적은 흐름만 확인했다.
+- **Example 공통 틀**: `Apps/Android/core/example`의 `FeatureExample`. 시나리오 목록과 "RIB 하나 띄우기"를 맡고, 피처의 Example은 시나리오로 Dependency를 만드는 `launch` 함수만 쓴다(MusicSearch의 Example 템플릿 역할).
+- **테스트 더블**: 테스트 파일 안에 있던 피처 전용 가짜(가짜 세션·Listener·뷰)를 각 피처의 `testing` 모듈로 옮겼다. 테스트는 같은 이름으로 가져다 쓰며 어설션은 그대로다. 공유 피처 테스트는 합계 306건으로 변함없다.
+- **자식 RIB이 있는 피처**: VaultList(폼 안의 생성기)와 Main(탭 셋)의 Example은 자식의 구현 모듈과 `ui` 모듈도 함께 넣는다. 부모의 뷰는 자식 화면을 `ComposeRenderable`로 받아 그린다.
+- **공유 쪽에 더한 것**: 생성기의 취약·이어지는 숫자 안내 문구(`PasswordGeneratorMessages`). Android 뷰가 쓰던 문구와 같다.
+- **Android 뷰가 공유 상태에 맞춰 달라진 점**:
+  - 생성기의 길이는 슬라이더 값을 공유 상태의 길이 글자로 보낸다.
+  - 설정의 백업·비밀번호 변경·계정 삭제는 하위 화면 대신 대화상자다(공유 상태가 `modal` 하나다).
+  - 설정에 생체 토글이 없고 잠금 화면의 생체 버튼은 늘 숨는다(android-migration-plan 3단계에서 공유 RIB에 넣는다).
+  - 볼트 목록의 오프라인·읽기 전용 안내와 "잠금" 버튼은 Main과 Settings로 옮겨졌다.
+- 기존 Android 모듈(uber/RIBs 기반 `interface`·`implementation`·`testing`·`tests`)과 앱(`:app`)은 그대로다. 앱을 공유 RIB으로 바꾸는 일은 android-migration-plan 4단계다.
+- 남은 것: D(기존 모듈을 `core/` 아래로), E(웹 Example), F(iOS).
