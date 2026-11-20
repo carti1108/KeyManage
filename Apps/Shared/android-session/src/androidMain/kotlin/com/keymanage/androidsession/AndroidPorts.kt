@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.PersistableBundle
+import android.os.SystemClock
 import com.keymanage.domain.backup.LocalCalendar
 import com.keymanage.domain.backup.LocalDay
 import com.keymanage.domain.clipboard.ClipboardWriter
@@ -42,21 +43,19 @@ class CoroutineScheduler(private val scope: CoroutineScope) : Scheduler {
  * 이 앱이 아닌 곳에서 클립보드가 바뀌면 [onExternalChange]로 알려, 사용자가 복사한 다른 값을 지우지 않게 한다. 메인 스레드에서만 부른다
  */
 class AndroidClipboardWriter(private val manager: ClipboardManager, private val onExternalChange: () -> Unit) : ClipboardWriter {
-    private var writing = false
+    // 변경 알림은 쓰기가 끝난 뒤 메인 루퍼로 늦게 오고, 한 번 쓰면 여러 번 온다(에뮬레이터 API 37에서 3번).
+    // 그래서 "쓰는 중" 표시나 횟수로는 내 쓰기를 가릴 수 없어, 내가 쓴 직후 짧은 시간 안에 온 알림을 내 것으로 본다
+    private var ownChangeUntil = 0L
 
     init {
         manager.addPrimaryClipChangedListener {
-            if (!writing) onExternalChange()
+            if (SystemClock.uptimeMillis() > ownChangeUntil) onExternalChange()
         }
     }
 
     override suspend fun write(text: String) {
-        writing = true
-        try {
-            if (text.isEmpty()) clear() else copySecret(text)
-        } finally {
-            writing = false
-        }
+        ownChangeUntil = SystemClock.uptimeMillis() + OWN_CHANGE_WINDOW_MS
+        if (text.isEmpty()) clear() else copySecret(text)
     }
 
     private fun copySecret(text: String) {
@@ -75,6 +74,9 @@ class AndroidClipboardWriter(private val manager: ClipboardManager, private val 
 
     private companion object {
         const val LABEL = "KeyManage"
+
+        /** 내 쓰기의 알림으로 보는 시간. 그 뒤의 변경은 다른 곳에서 복사한 것이다 */
+        const val OWN_CHANGE_WINDOW_MS = 500L
     }
 }
 
