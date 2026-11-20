@@ -1,5 +1,5 @@
+// Kotlin·Android Gradle 플러그인은 build-logic(convention plugin)이 클래스패스에 올린다.
+// 그래서 모듈은 버전이 붙는 alias(libs.plugins.*) 대신 id("...")로 적용한다
 plugins {
-    alias(libs.plugins.kotlin.multiplatform) apply false
-    alias(libs.plugins.kotlin.serialization) apply false
-    alias(libs.plugins.android.kmp.library) apply false
+    id("km.kmp.library") apply false
 }

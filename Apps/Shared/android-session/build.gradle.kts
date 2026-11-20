@@ -1,8 +1,8 @@
 // Android 앱(Apps/Android)이 가져다 쓰는 모듈. 공유 RIB·세션에 넣을 Android 쪽 포트 구현과 앱 진입점을 둔다 (web-session의 Android 짝)
 // 설계: docs/research/kmp-migration/android-migration-plan.md 4장
 plugins {
-    alias(libs.plugins.kotlin.multiplatform)
-    alias(libs.plugins.android.kmp.library)
+    id("org.jetbrains.kotlin.multiplatform")
+    id("com.android.kotlin.multiplatform.library")
 }
 
 kotlin {

@@ -1,7 +1,7 @@
 // 기기 볼트 기록 저장소(VLT-002·VLT-003). 기록 형식은 공통, 저장 위치만 플랫폼별이다 (target-architecture.md)
 plugins {
-    alias(libs.plugins.kotlin.multiplatform)
-    alias(libs.plugins.android.kmp.library)
+    id("org.jetbrains.kotlin.multiplatform")
+    id("com.android.kotlin.multiplatform.library")
 }
 
 kotlin {

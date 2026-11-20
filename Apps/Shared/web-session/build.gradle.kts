@@ -1,7 +1,7 @@
 // 웹 앱(Apps/Web)이 가져다 쓰는 Kotlin/JS 내보내기 모듈. domain의 VaultSession과 server-http를 묶어 @JsExport 퍼사드로 낸다
 // 설계: docs/research/kmp-migration/domain-migration-plan.md 10·11장. 브라우저 포트(기기 저장소·탭 잠금·탭 채널·탭 기억)는 TypeScript 객체를 받는다
 plugins {
-    alias(libs.plugins.kotlin.multiplatform)
+    id("org.jetbrains.kotlin.multiplatform")
 }
 
 kotlin {

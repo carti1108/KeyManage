@@ -1,8 +1,8 @@
 // 볼트 암호 규격(docs/vault-spec.md 2장) 구현. 실제 연산은 cryptography-kotlin이 플랫폼 구현에 맡긴다
 plugins {
-    alias(libs.plugins.kotlin.multiplatform)
-    alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.android.kmp.library)
+    id("org.jetbrains.kotlin.multiplatform")
+    id("org.jetbrains.kotlin.plugin.serialization")
+    id("com.android.kotlin.multiplatform.library")
 }
 
 kotlin {
