@@ -36,6 +36,12 @@ class RecordingVaultSaver : VaultSaver {
         saved += vault
         return SavedVault(vault, outcome ?: SaveOutcome.Synced(saved.size))
     }
+
+    val acceptedRollbacks = mutableListOf<Int>()
+
+    override fun acceptRollback(serverRevision: Int) {
+        acceptedRollbacks += serverRevision
+    }
 }
 
 /** 메모리 클립보드. [failCopy]면 복사에 실패한다. */

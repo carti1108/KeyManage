@@ -68,6 +68,8 @@ class MainInteractor(
 
     override fun save(vault: VaultData): SavedVault = parentSaver.save(vault).also { this.vault = it.vault }
 
+    override fun acceptRollback(serverRevision: Int) = parentSaver.acceptRollback(serverRevision)
+
     override fun export(now: Instant): ByteArray = checkNotNull(parentBackup).export(now)
 
     /** 복원한 볼트를 들고 있다가 볼트 탭을 다시 붙일 때 쓴다. */

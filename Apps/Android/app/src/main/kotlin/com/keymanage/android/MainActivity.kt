@@ -139,8 +139,11 @@ private class AppRootDependency(activity: MainActivity, override val appEvents: 
 
     override val unlockBuildable = UnlockBuilder(
         object : UnlockDependency {
-            override val unlocker = Unlocker { password, session ->
-                sessions.unlock(password, session).also { biometrics.unlock.onPasswordUnlock() }
+            override val unlocker = object : Unlocker {
+                override fun unlock(password: String, session: Session?) =
+                    sessions.unlock(password, session).also { biometrics.unlock.onPasswordUnlock() }
+
+                override fun acceptRollback(serverRevision: Int) = sessions.acceptRollback(serverRevision)
             }
             override val biometricUnlocker by lazy { biometrics.unlocker(sessions, this@AppRootDependency.workDispatcher) }
             override val workDispatcher = this@AppRootDependency.workDispatcher
@@ -181,6 +184,7 @@ private class AppRootDependency(activity: MainActivity, override val appEvents: 
         override fun lockedAccountEmail() = sessions.lockedAccount()?.email
         override fun openAfterAuth(result: AuthResult) =
             sessions.openAfterAuth(result).also { biometrics.unlock.onPasswordUnlock() }
+        override fun acceptRollback(serverRevision: Int) = sessions.acceptRollback(serverRevision)
         override fun logout(session: Session?) {
             sessions.logout(session)
             biometrics.unlock.disable()

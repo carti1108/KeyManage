@@ -3,6 +3,7 @@ package com.keymanage.android.feature.root.impl
 import com.keymanage.android.domain.auth.AuthResult
 import com.keymanage.android.domain.remote.Session
 import com.keymanage.android.domain.session.OpenedVault
+import com.keymanage.android.domain.sync.SyncError
 import com.keymanage.android.feature.auth.AuthListener
 import com.keymanage.android.feature.root.VaultSessionGateway
 import com.keymanage.android.feature.unlock.UnlockListener
@@ -41,7 +42,10 @@ object RootMessages {
     const val BIOMETRIC_PROMPT_TITLE = "생체 인증으로 잠금을 풀까요?"
     const val BIOMETRIC_PROMPT_BODY = "잠금 화면에서 마스터 비밀번호 대신 생체 인증을 쓸 수 있습니다. 14일마다 한 번은 마스터 비밀번호를 입력해야 합니다. 설정에서 언제든 바꿀 수 있습니다."
     const val BIOMETRIC_UNAVAILABLE = "생체 인증을 켜지 못했습니다. 설정에서 다시 시도해 주세요."
-    const val UNKNOWN = "알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
+    const val ROLLBACK_TITLE = "서버 볼트가 이전 상태로 돌아감"
+    const val ROLLBACK_BODY = "서버의 볼트가 이 기기에서 마지막으로 본 상태보다 이전으로 돌아갔습니다. 서버를 복구한 경우가 아니라면 받아들이지 마세요."
+    const val ROLLBACK_ACCEPT = "서버 볼트 받아들이기"
+    const val UNKNOWN ="알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
 }
 
 /**
@@ -70,6 +74,11 @@ class RootInteractor(
     /** 잠금이 풀린 동안 마지막으로 저장한 볼트. 내보내기·복원의 기준이다. */
     private var latestVault: VaultData? = null
 
+    /** 로그인 직후 되돌림으로 열지 못한 인증 결과. 사용자가 답할 때까지 키를 쥐고 있다(VLT-001 규칙 9). */
+    private class PendingRollback(val result: AuthResult, val serverRevision: Int)
+
+    private var pendingRollback: PendingRollback? = null
+
     private val nav: RootRouting get() = routing ?: router
 
     override fun didBecomeActive(savedInstanceState: Bundle?) {
@@ -81,6 +90,8 @@ class RootInteractor(
 
     override fun willResignActive() {
         appEvents?.setListener(null)
+        pendingRollback?.result?.encryptionKey?.fill(0)
+        pendingRollback = null
         wipe()
         super.willResignActive()
     }
@@ -91,6 +102,7 @@ class RootInteractor(
             RootViewAction.ViewAppeared -> store.update { it.copy(hasAppeared = true) }
             RootViewAction.DismissNotice -> store.update { it.copy(notice = null) }
             is RootViewAction.AnswerBiometricPrompt -> coroutineScope.launch { answerBiometricPrompt(action.enable) }
+            is RootViewAction.AnswerRollback -> coroutineScope.launch { answerRollback(action.accept) }
         }
     }
 
@@ -117,6 +129,10 @@ class RootInteractor(
         } catch (error: CancellationException) {
             result.encryptionKey.fill(0)
             throw error
+        } catch (error: SyncError.RevisionRollback) {
+            pendingRollback = PendingRollback(result, error.serverRevision)
+            store.update { it.copy(isConfirmingRollback = true) }
+            return
         } catch (error: Exception) {
             result.encryptionKey.fill(0)
             store.update { it.copy(notice = RootMessages.VAULT_NOT_READY) }
@@ -125,6 +141,33 @@ class RootInteractor(
         }
         showVault(vault)
         if (result.isNewAccount && isAvailable && !isEnabled) store.update { it.copy(isAskingBiometrics = true) }
+    }
+
+    /**
+     * 로그인 직후 되돌림 경고의 답(VLT-001 규칙 9). 받아들이면 그 revision까지 허용하고 볼트를 다시 연다.
+     * 취소하면 키를 지우고 로그인 화면으로 간다. 테스트는 직접 부른다.
+     */
+    suspend fun answerRollback(accept: Boolean) {
+        val pending = pendingRollback ?: return
+        pendingRollback = null
+        store.update { it.copy(isConfirmingRollback = false) }
+        if (!accept) {
+            pending.result.encryptionKey.fill(0)
+            nav.showAuth(this)
+            return
+        }
+        try {
+            gateway?.let { withContext(workDispatcher) { it.acceptRollback(pending.serverRevision) } }
+        } catch (error: CancellationException) {
+            pending.result.encryptionKey.fill(0)
+            throw error
+        } catch (error: Exception) {
+            pending.result.encryptionKey.fill(0)
+            store.update { it.copy(notice = RootMessages.UNKNOWN) }
+            nav.showAuth(this)
+            return
+        }
+        openAfterAuth(pending.result)
     }
 
     /** 가입 직후 안내의 답. 켜기를 고르면 생체 인증 창을 거쳐 볼트 키를 감싼다. 테스트는 직접 부른다. */
@@ -192,6 +235,9 @@ class RootInteractor(
         val current = checkNotNull(opened) { "잠긴 동안에는 저장할 수 없다" }
         return checkNotNull(gateway).save(current, vault).also { latestVault = it.vault }
     }
+
+    /** 목록 RIB의 되돌림 수락. 메인 스레드 밖에서 불린다. */
+    override fun acceptRollback(serverRevision: Int) = checkNotNull(gateway).acceptRollback(serverRevision)
 
     /** 설정 탭의 백업 내보내기. 마지막으로 저장한 볼트(대기 중인 변경 포함)를 쓴다(VLT-004 규칙 2). */
     override fun export(now: Instant): ByteArray {

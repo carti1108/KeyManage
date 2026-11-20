@@ -90,6 +90,20 @@ class VaultSyncCoordinator(
         if (pendingVault == null) baseRevision = serverRevision
     }
 
+    /**
+     * 되돌림 경고를 사용자가 확인했다(VLT-001 규칙 9). 마지막으로 본 revision을 [serverRevision]으로 낮추고 기기 기록에도 쓴다.
+     * 올리지는 않으며, 서버가 그보다 낮은 값을 주면 다시 경고한다. 기기 기록을 쓰지 못하면 [DeviceStorageError]를 던진다.
+     */
+    fun acceptRollback(serverRevision: Int) {
+        val record = store.read()
+        if (record != null && record.lastSeenRevision > serverRevision) {
+            store.write(record.copy(lastSeenRevision = serverRevision))
+        }
+        if (serverRevision >= lastSeenRevision) return
+        lastSeenRevision = serverRevision
+        autoRetryBlocked = false
+    }
+
     /** 서버에서 받은 볼트를 대기 내용이 없을 때만 기기 사본으로 둔다(VLT-003 규칙 1·5). */
     fun keepServerCopy(vault: VaultData, key: ByteArray) {
         if (hasPending) return

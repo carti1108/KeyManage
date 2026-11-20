@@ -22,6 +22,12 @@ class FakeVaultSessionGateway(
 
     override fun openAfterAuth(result: AuthResult) = open(result)
 
+    val acceptedRollbacks = mutableListOf<Int>()
+
+    override fun acceptRollback(serverRevision: Int) {
+        acceptedRollbacks += serverRevision
+    }
+
     val saved = mutableListOf<VaultData>()
 
     override fun save(opened: OpenedVault, vault: VaultData): SavedVault {

@@ -21,6 +21,7 @@ import com.keymanage.android.domain.remote.VaultApi
 import com.keymanage.android.domain.sync.DeviceAccount
 import com.keymanage.android.domain.sync.DeviceRecord
 import com.keymanage.android.domain.sync.DeviceRecordStore
+import com.keymanage.android.domain.sync.SyncError
 import com.keymanage.android.domain.sync.VaultSyncCoordinator
 import com.keymanage.android.domain.vault.VaultData
 import com.keymanage.android.domain.vault.VaultItem
@@ -223,6 +224,23 @@ class VaultSessionUseCaseTest {
     fun `감싼 키로 기기 볼트가 열리지 않으면 생체 해제가 무효다`() {
         useCase.openAfterAuth(auth())
         assertFailsWith<BiometricError.Invalidated> { useCase.unlockWithKey(keyOf("other"), null) }
+    }
+
+    @Test
+    fun `잠금 해제 때 서버 볼트가 되돌아가 있으면 받아들인 뒤에만 연다`() {
+        // Given: revision 2까지 본 뒤 서버가 1로 돌아간다
+        val first = useCase.openAfterAuth(auth())
+        val old = vaultApi.server
+        useCase.save(first, vault("a"))
+        vaultApi.server = old
+        assertFailsWith<SyncError.RevisionRollback> { useCase.unlock("password", session) }
+
+        // When
+        useCase.acceptRollback(1)
+        val opened = useCase.unlock("password", session)
+
+        // Then
+        assertTrue(opened.vault.items.isEmpty())
     }
 
     private fun vault(vararg ids: String) = VaultData(

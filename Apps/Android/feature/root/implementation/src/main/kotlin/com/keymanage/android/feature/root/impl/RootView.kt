@@ -61,6 +61,19 @@ fun RootView(
                     dismissButton = { TextButton(onClick = { onAction(RootViewAction.AnswerBiometricPrompt(enable = false)) }) { Text("나중에") } },
                 )
             }
+            if (state.isConfirmingRollback) {
+                AlertDialog(
+                    onDismissRequest = { onAction(RootViewAction.AnswerRollback(accept = false)) },
+                    title = { Text(RootMessages.ROLLBACK_TITLE) },
+                    text = { Text(RootMessages.ROLLBACK_BODY) },
+                    confirmButton = {
+                        TextButton(onClick = { onAction(RootViewAction.AnswerRollback(accept = true)) }) {
+                            Text(RootMessages.ROLLBACK_ACCEPT, color = MaterialTheme.colorScheme.error)
+                        }
+                    },
+                    dismissButton = { TextButton(onClick = { onAction(RootViewAction.AnswerRollback(accept = false)) }) { Text("취소") } },
+                )
+            }
         }
     }
 }

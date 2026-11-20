@@ -237,6 +237,32 @@ class VaultSyncCoordinatorTest {
         assertFailsWith<DeviceStorageError> { coordinator.logout() }
     }
 
+    @Test
+    fun `되돌림은 받아들인 revision까지만 열고 기기 기록에도 남긴다`() {
+        // Given: 5까지 본 기기가 재시작한 뒤 서버가 2를 준다
+        start(revision = 5)
+        coordinator.keepServerCopy(vault("a"), key)
+        val restarted = VaultSyncCoordinator(api, PlainCipher, IdsSerializer, store)
+        restarted.onAuthenticated(account)
+        assertFailsWith<SyncError.RevisionRollback> { restarted.open(account, 2) }
+
+        // When
+        restarted.acceptRollback(2)
+        restarted.onAuthenticated(account)
+        restarted.open(account, 2)
+
+        // Then
+        assertEquals(2, store.record!!.lastSeenRevision)
+        assertFailsWith<SyncError.RevisionRollback> { restarted.open(account, 1) }
+    }
+
+    @Test
+    fun `받아들이기는 마지막으로 본 revision을 올리지 않는다`() {
+        start(revision = 5)
+        coordinator.acceptRollback(9)
+        assertFailsWith<SyncError.RevisionRollback> { coordinator.open(account, 4) }
+    }
+
     private object PlainCipher : VaultCipher {
         override fun encrypt(plaintext: ByteArray, key: ByteArray) =
             EncryptedVaultPayload(1, "AES-256-GCM", "", String(plaintext), "")

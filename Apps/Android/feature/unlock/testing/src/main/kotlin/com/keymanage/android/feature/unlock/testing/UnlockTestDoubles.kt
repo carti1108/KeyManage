@@ -16,6 +16,12 @@ class StubUnlocker(var result: () -> OpenedVault) : Unlocker {
         failure?.let { throw it }
         return result()
     }
+
+    val acceptedRollbacks = mutableListOf<Int>()
+
+    override fun acceptRollback(serverRevision: Int) {
+        acceptedRollbacks += serverRevision
+    }
 }
 
 /** 정한 결과를 돌려주거나 [failure]를 던지는 생체 해제. 받은 세션을 기록한다. */
