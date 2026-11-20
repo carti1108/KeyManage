@@ -102,7 +102,8 @@ fun assertWithinLimit(payload: EncryptedVaultPayload) {
 
 class VaultSync(
     private val api: VaultApi,
-    private val encryptionKey: EncryptionKey,
+    /** 세션이 생체 해제용으로 감쌀 때만 모듈 안에서 읽는다 */
+    internal val encryptionKey: EncryptionKey,
     private val clock: Clock,
     private val revisionMemory: RevisionMemory,
 ) {

@@ -9,7 +9,11 @@ import com.keymanage.domain.backup.VaultBackup
 import com.keymanage.domain.backup.createBackupFile
 import com.keymanage.domain.backup.restoreBackupInto
 import com.keymanage.domain.device.DeviceStorageException
+import com.keymanage.domain.crypto.EncryptionKey
+import com.keymanage.domain.crypto.VaultDecryptException
+import com.keymanage.domain.crypto.openVault
 import com.keymanage.domain.device.rememberedKdf
+import com.keymanage.domain.lock.BiometricError
 import com.keymanage.domain.server.NetworkError
 import com.keymanage.domain.tabs.TabLockName
 import com.keymanage.domain.tabs.TabMessage
@@ -17,6 +21,7 @@ import com.keymanage.domain.vault.SyncedVault
 import com.keymanage.domain.vault.VaultData
 import com.keymanage.domain.vault.isReadOnly
 import com.keymanage.domain.vault.isTransientSyncError
+import com.keymanage.domain.vault.parseVaultData
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Instant
 
@@ -43,10 +48,12 @@ class VaultSession(private val deps: VaultSessionDeps) : RestoreTarget {
     /** @throws VaultSetupException 가입은 됐지만 빈 볼트를 저장하지 못했을 때 */
     suspend fun register(email: String, password: String) {
         val normalized = normalizeEmail(email)
+        val previous = signedInEmail()
         val startedAt = beginSignIn(ctx, normalized)
         val result = deps.auth.register(email, password)
         try {
             signIn(ctx, normalized, startedAt, result, acceptRollback = false)
+            passwordSignedIn(previous, normalized)
         } catch (error: CancellationException) {
             throw error
         } catch (error: SessionStateException) {
@@ -62,8 +69,20 @@ class VaultSession(private val deps: VaultSessionDeps) : RestoreTarget {
      */
     suspend fun login(email: String, password: String, acceptRollback: Boolean = false) {
         val normalized = normalizeEmail(email)
+        val previous = signedInEmail()
         val startedAt = beginSignIn(ctx, normalized)
         signIn(ctx, normalized, startedAt, deps.auth.login(email, password), acceptRollback)
+        passwordSignedIn(previous, normalized)
+    }
+
+    /** 이 기기에 남아 있는 계정. 로그인 전 상태에서도 마지막으로 로그인한 계정을 기억한다 */
+    private fun signedInEmail(): String? = ctx.account?.email ?: ctx.lastEmail
+
+    /** 비밀번호로 로그인·가입했다. 다른 계정이면 감싸 둔 키는 그 계정 것이 아니므로 지운다 (ADR-AND-002 결정 5) */
+    private fun passwordSignedIn(previousEmail: String?, email: String) {
+        val biometric = deps.biometric ?: return
+        if (previousEmail != null && previousEmail != email) biometric.disable()
+        biometric.onPasswordUnlock()
     }
 
     /**
@@ -119,6 +138,95 @@ class VaultSession(private val deps: VaultSessionDeps) : RestoreTarget {
         val fresh = if (accessToken == null) null else syncAfterUnlock(ctx, sync, cached, locked.pendingSync, acceptRollback)
         ensureCurrent(ctx, startedAt)
         open(ctx, locked.email, accessToken, locked.kdf, sync, fresh ?: cached, fresh == null && locked.pendingSync)
+        deps.biometric?.onPasswordUnlock()
+        return UnlockResult(offline = fresh == null)
+    }
+
+    /** 생체 해제를 켰는지. 생체 인증이 없는 플랫폼은 늘 false */
+    val isBiometricUnlockEnabled: Boolean get() = deps.biometric?.isEnabled == true
+
+    /** 잠금 화면에 생체 해제를 보일지: 잠겨 있고, 켜져 있고, 감싼 키가 있고, 마지막 비밀번호 해제 뒤 14일 안 (SEC-003 규칙 4) */
+    fun canUnlockWithBiometrics(): Boolean = ctx.account != null && ctx.unlocked == null && deps.biometric?.canUseBiometrics() == true
+
+    /**
+     * 열린 볼트의 암호화 키를 생체 인증으로 감싸 이 기기에 두고 생체 해제를 켠다. 키는 세션 밖으로 나가지 않는다 (ADR-AND-002 결정 1)
+     * @throws BiometricError(취소, 사용 불가), SessionStateException(잠겨 있음, 인증 창이 떠 있는 사이 로그아웃·비밀번호 변경)
+     */
+    suspend fun enableBiometricUnlock() {
+        val biometric = deps.biometric ?: throw BiometricError.Unavailable()
+        val opened = ctx.unlocked ?: throw SessionStateException("잠금 해제 상태가 아님")
+        val startedGeneration = ctx.generation
+        val key = opened.sync.encryptionKey.bytes.copyOf()
+        try {
+            biometric.enable(key)
+        } finally {
+            key.fill(0)
+        }
+        // 그사이 로그아웃했거나 비밀번호를 바꿨으면 방금 감싼 키는 쓸 수 없는 옛 키다
+        if (ctx.generation != startedGeneration) {
+            biometric.disable()
+            throw SessionStateException("기다리는 사이 로그아웃되어 작업을 취소함")
+        }
+    }
+
+    /** 생체 해제를 끄고 감싼 키를 지운다 */
+    fun disableBiometricUnlock() {
+        deps.biometric?.disable()
+    }
+
+    /**
+     * 생체 인증으로 꺼낸 키로 이 기기의 볼트를 연다. 인증 해시가 없으므로 서버에 다시 로그인하지 않는다 (ADR-AND-002 결정 1).
+     * 세션 토큰이 남아 있으면 [unlock]처럼 서버와 맞추고, 없으면 세션 없이 연다. 그 뒤 연결은 [reconnect]가 한다
+     * @throws BiometricError(취소, 14일 지남, 꺼짐, 키 무효. 무효면 끄고 감싼 키를 지운다), MasterPasswordChangedException(로그아웃됨),
+     *   SessionExpiredException(로그아웃됨), RevisionRollbackException(잠긴 상태 유지), SessionStateException
+     */
+    suspend fun unlockWithBiometrics(acceptRollback: Boolean = false): UnlockResult {
+        val biometric = deps.biometric ?: throw BiometricError.Unavailable()
+        if (ctx.account == null) throw SessionStateException("로그인 전에는 잠금을 해제할 수 없음")
+        if (ctx.unlocked != null) return UnlockResult(offline = false)
+        val startedAt = ctx.epoch
+        if (refreshLockedFromDevice(ctx, replaceMemory = false) == LockedRefresh.PASSWORD_CHANGED) throw MasterPasswordChangedException()
+        ensureCurrent(ctx, startedAt)
+        if (ctx.account == null) throw SessionStateException("다른 탭에서 로그아웃됨")
+        if (ctx.unlocked != null) return UnlockResult(offline = false)
+
+        val keyBytes = try {
+            biometric.recoverKey()
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            // 인증 창이 떠 있는 사이 잠금·로그아웃됐으면 그 결과(지워진 키 등)가 아니라 취소로 알린다
+            ensureCurrent(ctx, startedAt)
+            throw error
+        }
+        // 인증 창이 떠 있는 사이 잠금·로그아웃됐으면 꺼낸 키를 버린다
+        val locked = ctx.account
+        if (ctx.epoch != startedAt || locked == null) {
+            keyBytes.fill(0)
+            ensureCurrent(ctx, startedAt)
+            throw SessionStateException("다른 탭에서 로그아웃됨")
+        }
+        val encryptionKey = EncryptionKey(keyBytes)
+        val data = try {
+            parseVaultData(openVault(encryptionKey, locked.payload))
+        } catch (error: VaultDecryptException) {
+            // 감싸 둔 키가 지금 볼트의 키가 아니다(앱을 다시 켠 뒤 바뀐 비밀번호로 로그인 등). 지우고 비밀번호를 요구한다
+            keyBytes.fill(0)
+            biometric.disable()
+            throw BiometricError.Invalidated()
+        } catch (error: Throwable) {
+            keyBytes.fill(0)
+            throw error
+        }
+        ensureCurrent(ctx, startedAt)
+
+        val accessToken = locked.accessToken
+        val sync = syncFor(ctx, accessToken ?: NO_TOKEN, encryptionKey)
+        val cached = SyncedVault(locked.revision, data, isReadOnly(data), locked.payload)
+        ctx.retryBlocked = false
+        val fresh = if (accessToken == null) null else syncAfterUnlock(ctx, sync, cached, locked.pendingSync, acceptRollback)
+        ensureCurrent(ctx, startedAt)
+        open(ctx, locked.email, accessToken, locked.kdf, sync, fresh ?: cached, fresh == null && locked.pendingSync)
         return UnlockResult(offline = fresh == null)
     }
 
@@ -133,6 +241,8 @@ class VaultSession(private val deps: VaultSessionDeps) : RestoreTarget {
         if (current.accessToken != null) return
         val startedAt = ctx.epoch
         val keys = verifyOrDetectChange(ctx, password, current).keys
+        // 마스터 비밀번호를 이 기기에서 확인했다. 서버에 닿지 못해도 생체 해제의 14일 기준은 새로 센다 (SEC-003 규칙 4)
+        deps.biometric?.onPasswordUnlock()
         val resumed = try {
             resumeSession(ctx, current, keys.authHash)
         } finally {

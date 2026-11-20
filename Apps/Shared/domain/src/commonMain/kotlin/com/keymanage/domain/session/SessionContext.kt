@@ -160,6 +160,8 @@ internal fun rememberKdf(ctx: SessionContext, email: String, kdf: UnlockKdf) {
  */
 internal fun signOutForChangedPassword(ctx: SessionContext, email: String, kdf: UnlockKdf) {
     clear(ctx)
+    // 감싸 둔 키는 옛 비밀번호의 키다 (ADR-AND-002 결정 5)
+    ctx.deps.biometric?.disable()
     ctx.lastSeen = null
     rememberKdf(ctx, email, kdf)
     notify(ctx.remoteListeners)
@@ -168,6 +170,8 @@ internal fun signOutForChangedPassword(ctx: SessionContext, email: String, kdf: 
 /** 로그인 상태를 지운다. 기기 기록은 부른 쪽이 정하고, 탭 기억은 지운다 */
 internal fun resetSignIn(ctx: SessionContext) {
     clear(ctx)
+    // 로그아웃·계정 삭제면 생체 해제용으로 감싼 키도 지운다 (ADR-AND-002 결정 5)
+    ctx.deps.biometric?.disable()
     ctx.deps.tabMemory?.clear()
     ctx.orphan = null
     ctx.deps.revisionMemory.reset(0)

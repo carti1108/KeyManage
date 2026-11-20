@@ -156,6 +156,8 @@ private suspend fun adopt(ctx: SessionContext, changed: ChangedPassword, creds: 
     ctx.generation += 1
     ctx.epoch += 1
     ctx.retryBlocked = false
+    // 볼트 키가 바뀌었으니 옛 키를 감싼 생체 해제는 끈다 (ADR-AND-002 결정 5)
+    ctx.deps.biometric?.disable()
     ctx.deps.revisionMemory.raise(changed.revision)
     ctx.account = Account(target.email, changed.accessToken, creds.kdf, vault.payload ?: creds.payload, changed.revision, pendingSync)
     if (ctx.unlocked != null) ctx.unlocked = Unlocked(syncFor(ctx, changed.accessToken, creds.encryptionKey), vault, pendingSync)

@@ -5,6 +5,7 @@ import com.keymanage.domain.auth.UnlockKdf
 import com.keymanage.domain.crypto.EncryptedVaultPayload
 import com.keymanage.domain.crypto.EncryptionKey
 import com.keymanage.domain.device.DeviceRecordStore
+import com.keymanage.domain.lock.BiometricUnlock
 import com.keymanage.domain.device.TabMemory
 import com.keymanage.domain.platform.RandomBytes
 import com.keymanage.domain.platform.SecureRandomBytes
@@ -69,6 +70,8 @@ class VaultSessionDeps(
     val tabMemory: TabMemory? = null,
     /** 비밀번호 변경의 새 salt. 원본은 crypto.getRandomValues를 직접 불렀다 */
     val random: RandomBytes = SecureRandomBytes,
+    /** 생체 해제 판정과 감싼 키 보관. 생체 인증이 없는 플랫폼(웹)은 null (SEC-003 규칙 4·8, ADR-AND-002) */
+    val biometric: BiometricUnlock? = null,
 )
 
 // 잠겨도 남는 값. 비밀이 아니거나(KDF 값) 암호화돼 있다(볼트). 원본처럼 같은 값인지는 객체 동일성(===)으로 본다
