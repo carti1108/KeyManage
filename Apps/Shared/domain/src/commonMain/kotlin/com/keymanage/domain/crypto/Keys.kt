@@ -23,9 +23,30 @@ class InvalidPasswordException(message: String) : IllegalArgumentException(messa
  * 볼트 암·복호화용 AES-256 키. 원본 WebCrypto 키처럼 밖으로 꺼내지 않는다.
  * 바이트는 이 모듈 안에서만 읽고, 문자열로 찍어도 내용이 나오지 않는다
  */
-class EncryptionKey internal constructor(internal val bytes: ByteArray) {
+class EncryptionKey internal constructor(private val material: ByteArray) {
+    private var wiped = false
+
+    /**
+     * 키 바이트. 암호 연산이 시작할 때 한 번 읽는다
+     * @throws EncryptionKeyWipedException 잠금으로 지운 뒤. 0으로 덮은 값으로 암호화하는 일을 막는다
+     */
+    internal val bytes: ByteArray
+        get() {
+            if (wiped) throw EncryptionKeyWipedException()
+            return material
+        }
+
+    /** 키를 0으로 덮고 더 쓰지 못하게 한다. 잠그거나 로그아웃할 때 부른다 (SEC-003 규칙 1·6) */
+    internal fun wipe() {
+        wiped = true
+        material.fill(0)
+    }
+
     override fun toString(): String = "EncryptionKey(***)"
 }
+
+/** 잠금·로그아웃으로 지운 키를 쓰려 함. 잠그기 전에 시작한 작업이 잠근 뒤 다시 암호화하려 할 때 난다 */
+class EncryptionKeyWipedException : IllegalStateException("잠금으로 지운 암호화 키")
 
 class DerivedKeys(
     val encryptionKey: EncryptionKey,

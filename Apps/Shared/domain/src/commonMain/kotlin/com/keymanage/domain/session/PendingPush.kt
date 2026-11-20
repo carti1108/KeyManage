@@ -1,5 +1,6 @@
 package com.keymanage.domain.session
 
+import com.keymanage.domain.crypto.EncryptionKeyWipedException
 import com.keymanage.domain.tabs.TabLockName
 import com.keymanage.domain.vault.SyncedVault
 import com.keymanage.domain.vault.VaultSyncConflictException
@@ -64,6 +65,8 @@ private suspend fun pushPending(ctx: SessionContext): PushResult {
         throw error
     } catch (error: Exception) {
         if (isTransientSyncError(error)) return PushResult.STILL_PENDING
+        // 보내는 사이 잠겨 키를 지웠다. 대기 내용은 암호화된 채 남아 다음 잠금 해제 때 보낸다 (SEC-003 규칙 1)
+        if (error is EncryptionKeyWipedException) return PushResult.STILL_PENDING
         // 그사이 로그아웃·다른 로그인이 있었으면 이전 세션의 실패를 지금 세션에 알리지 않는다
         if (ctx.generation != startedGeneration) return PushResult.IDLE
         if (isUnauthorized(error)) throw expire(ctx)

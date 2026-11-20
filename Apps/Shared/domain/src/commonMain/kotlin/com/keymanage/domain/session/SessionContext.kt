@@ -145,6 +145,7 @@ internal fun clear(ctx: SessionContext) {
     ctx.epoch += 1
     ctx.generation += 1
     ctx.account = null
+    wipeKey(ctx)
     ctx.unlocked = null
     if (wasUnlocked) notify(ctx.lockListeners)
 }
@@ -189,10 +190,16 @@ internal fun expire(ctx: SessionContext): SessionExpiredException {
     return error
 }
 
+/** 열린 볼트의 암호화 키를 메모리에서 지운다 (SEC-003 규칙 1·6) */
+private fun wipeKey(ctx: SessionContext) {
+    ctx.unlocked?.sync?.encryptionKey?.wipe()
+}
+
 /** 볼트가 열려 있으면 키와 평문 볼트를 버린다 */
 internal fun lockThisTab(ctx: SessionContext): Boolean {
     ctx.epoch += 1
     if (ctx.unlocked == null) return false
+    wipeKey(ctx)
     ctx.unlocked = null
     notify(ctx.lockListeners)
     return true
