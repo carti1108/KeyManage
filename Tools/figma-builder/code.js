@@ -1446,7 +1446,7 @@ const MOCK_STEPS = {
         const gw = add(box, row(0), true); gw.primaryAxisAlignItems = 'CENTER'; gw.appendChild(grab);
       } else if (p === 'a') {
         // M3 AlertDialog: 설정 화면 위에 스크림을 깔고 모서리 28, 여백 24인 대화상자를 띄운다
-        fill(b.parent, 'overlay');
+        b.parent.fills = [tok('background'), tok('overlay')];
         box = col(16); add(b, box, true); box.name = 'AlertDialog'; pad(box, 24, 24); box.cornerRadius = 28; fill(box, 'card');
       }
       box.appendChild(txt(WEB_TEXT.deleteTitle, p === 'a' ? 24 : 20, p === 'a' ? 'regular' : 'bold', 'destructive'));
