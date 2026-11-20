@@ -114,6 +114,49 @@ class BiometricUnlockTest {
     }
 
     @Test
+    fun `세션이 만료되면 마스터 비밀번호를 요구하고 키는 남긴다`() = runTest {
+        enabled()
+
+        unlock.requirePassword()
+
+        assertTrue(unlock.isPasswordRequired)
+        assertFalse(unlock.canUseBiometrics())
+        assertFailsWith<BiometricError.PasswordRequired> { unlock.recoverKey() }
+        assertTrue(unlock.isEnabled, "생체 해제는 켜 둔 채 비밀번호만 요구한다")
+        assertTrue(keys.hasKey())
+    }
+
+    @Test
+    fun `마스터 비밀번호로 풀면 다시 생체 해제를 쓴다`() = runTest {
+        enabled()
+        unlock.requirePassword()
+
+        unlock.onPasswordUnlock()
+
+        assertFalse(unlock.isPasswordRequired)
+        assertTrue(unlock.canUseBiometrics())
+        assertContentEquals(byteArrayOf(7, 7), unlock.recoverKey())
+    }
+
+    @Test
+    fun `생체 해제를 켜지 않았으면 세션이 만료돼도 요구할 것이 없다`() {
+        unlock.requirePassword()
+
+        assertFalse(unlock.isPasswordRequired)
+        assertFalse(settings.setting.passwordRequired)
+    }
+
+    @Test
+    fun `끄면 비밀번호 요구도 지운다`() = runTest {
+        enabled()
+        unlock.requirePassword()
+
+        unlock.disable()
+
+        assertFalse(settings.setting.passwordRequired)
+    }
+
+    @Test
     fun `저장한 설정은 다시 만들어도 남는다`() = runTest {
         enabled()
         val again = BiometricUnlock(keys, settings, clock)

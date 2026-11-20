@@ -341,6 +341,72 @@ class VaultSessionBiometricUnlockTest {
     }
 }
 
+// 세션이 만료되면 다음 잠금 해제는 마스터 비밀번호를 요구한다 (SEC-003 규칙 8)
+class VaultSessionBiometricSessionExpiryTest {
+    private val unauthorized = com.keymanage.domain.server.ServerError(401, com.keymanage.domain.server.ServerErrorCode.UNAUTHORIZED)
+
+    @Test
+    fun sessionExpiryRequiresTheMasterPasswordAndKeepsTheWrappedKey() = sessionTest {
+        val device = Device()
+        val session = lockedWithBiometrics(device)
+        device.vaultApi.getHook = { throw unauthorized }
+
+        assertFailsWith<SessionExpiredException> { session.unlockWithBiometrics() }
+
+        assertTrue(session.isBiometricPasswordRequired)
+        assertTrue(session.isBiometricUnlockEnabled)
+        assertNotNull(device.keys.sealed, "감싼 키는 지우지 않는다")
+    }
+
+    @Test
+    fun afterRestartBiometricUnlockIsNotOfferedUntilThePasswordIsUsed() = sessionTest {
+        val device = Device()
+        val session = lockedWithBiometrics(device)
+        device.vaultApi.getHook = { throw unauthorized }
+        assertFailsWith<SessionExpiredException> { session.unlockWithBiometrics() }
+        device.vaultApi.getHook = null
+        val restarted = device.restart(this)
+        assertIs<SessionState.Locked>(restarted.state())
+
+        assertFalse(restarted.canUnlockWithBiometrics())
+        assertFailsWith<BiometricError.PasswordRequired> { restarted.unlockWithBiometrics() }
+        assertIs<SessionState.Locked>(restarted.state())
+
+        restarted.unlock(PASSWORD)
+        restarted.lock()
+        assertFalse(restarted.isBiometricPasswordRequired)
+        assertTrue(restarted.canUnlockWithBiometrics())
+    }
+
+    @Test
+    fun loggingInAgainAlsoClearsTheRequirement() = sessionTest {
+        val device = Device()
+        val session = lockedWithBiometrics(device)
+        device.vaultApi.getHook = { throw unauthorized }
+        assertFailsWith<SessionExpiredException> { session.unlockWithBiometrics() }
+        device.vaultApi.getHook = null
+
+        session.login(EMAIL, PASSWORD)
+        session.lock()
+
+        assertTrue(session.canUnlockWithBiometrics())
+    }
+
+    @Test
+    fun withoutBiometricsEnabledSessionExpiryChangesNothing() = sessionTest {
+        val device = Device()
+        val session = device.start(this)
+        session.login(EMAIL, PASSWORD)
+        session.lock()
+        device.vaultApi.getHook = { throw unauthorized }
+
+        assertFailsWith<SessionExpiredException> { session.unlock(PASSWORD) }
+
+        assertFalse(session.isBiometricPasswordRequired)
+        assertFalse(device.settings.setting.passwordRequired)
+    }
+}
+
 class VaultSessionBiometricPasswordIntervalTest {
     @Test
     fun loginAndPasswordUnlockRecordTheLastPasswordUnlock() = sessionTest {

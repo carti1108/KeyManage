@@ -138,6 +138,9 @@ class VaultSession(private val deps: VaultSessionDeps) : RestoreTarget {
     /** 생체 해제를 켰는지. 생체 인증이 없는 플랫폼은 늘 false */
     val isBiometricUnlockEnabled: Boolean get() = deps.biometric?.isEnabled == true
 
+    /** 세션 만료로 생체 해제 대신 마스터 비밀번호를 기다리는 중인지 (SEC-003 규칙 8) */
+    val isBiometricPasswordRequired: Boolean get() = deps.biometric?.isPasswordRequired == true
+
     /** 잠금 화면에 생체 해제를 보일지: 잠겨 있고, 켜져 있고, 감싼 키가 있고, 마지막 비밀번호 해제 뒤 14일 안 (SEC-003 규칙 4) */
     fun canUnlockWithBiometrics(): Boolean = ctx.account != null && ctx.unlocked == null && deps.biometric?.canUseBiometrics() == true
 

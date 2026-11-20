@@ -68,6 +68,9 @@ class FakeUnlockSession : SessionPort {
     /** 잠금 화면에 생체 해제를 보일지 */
     var biometricsUsable = false
 
+    /** 세션 만료로 생체 해제 대신 마스터 비밀번호를 기다리는 중 */
+    var biometricPasswordRequired = false
+
     /** 생체 해제 호출마다 받은 acceptRollback */
     val biometricUnlocks = mutableListOf<Boolean>()
     var biometricUnlockHandler: suspend (Boolean) -> Boolean = { false }
@@ -90,6 +93,8 @@ class FakeUnlockSession : SessionPort {
     }
 
     override fun canUnlockWithBiometrics(): Boolean = biometricsUsable
+
+    override val isBiometricPasswordRequired: Boolean get() = biometricPasswordRequired
 
     override suspend fun unlockWithBiometrics(acceptRollback: Boolean): Boolean {
         biometricUnlocks += acceptRollback

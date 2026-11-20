@@ -185,6 +185,8 @@ internal fun expire(ctx: SessionContext): SessionExpiredException {
     val account = ctx.account
     if (account?.pendingSync == true) ctx.orphan = OrphanedPending(account.email, account.payload, account.revision)
     clear(ctx)
+    // 다른 곳에서 비밀번호를 바꿔 세션이 끝났을 수 있다. 다음 잠금 해제는 생체 인증 대신 마스터 비밀번호로 하게 한다 (SEC-003 규칙 8)
+    ctx.deps.biometric?.requirePassword()
     val error = SessionExpiredException()
     notifySync(ctx, error)
     return error

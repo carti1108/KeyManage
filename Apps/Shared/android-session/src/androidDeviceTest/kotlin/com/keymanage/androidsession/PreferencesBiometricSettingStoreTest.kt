@@ -35,6 +35,24 @@ class PreferencesBiometricSettingStoreTest {
     }
 
     @Test
+    fun read_returnsPasswordRequiredWrittenByAnotherInstance() {
+        val setting = BiometricSetting(enabled = true, lastPasswordUnlock = Instant.parse("2026-11-20T00:00:00Z"), passwordRequired = true)
+
+        store().write(setting)
+
+        assertEquals(setting, store().read())
+    }
+
+    @Test
+    fun write_clearsPasswordRequired() {
+        store().write(BiometricSetting(enabled = true, passwordRequired = true))
+
+        store().write(BiometricSetting(enabled = true, passwordRequired = false))
+
+        assertEquals(BiometricSetting(enabled = true), store().read())
+    }
+
+    @Test
     fun write_removesLastPasswordUnlockWhenNull() {
         store().write(BiometricSetting(enabled = true, lastPasswordUnlock = Instant.parse("2026-11-20T00:00:00Z")))
 

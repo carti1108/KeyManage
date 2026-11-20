@@ -48,6 +48,9 @@ interface SessionPort {
 
     val isBiometricUnlockEnabled: Boolean get() = false
 
+    /** 세션 만료로 생체 해제 대신 마스터 비밀번호를 기다리는 중인지 (SEC-003 규칙 8) */
+    val isBiometricPasswordRequired: Boolean get() = false
+
     /** 잠금 화면에 생체 해제를 보일지: 켜져 있고, 감싼 키가 있고, 마지막 비밀번호 해제 뒤 14일 안 */
     fun canUnlockWithBiometrics(): Boolean = false
 
@@ -87,6 +90,7 @@ class SessionPortAdapter(private val session: VaultSession) : SessionPort {
     override fun onSyncChange(listener: SyncChangeListener) = session.onSyncChange(listener)
     override val isBiometricUnlockAvailable: Boolean get() = session.isBiometricUnlockAvailable
     override val isBiometricUnlockEnabled: Boolean get() = session.isBiometricUnlockEnabled
+    override val isBiometricPasswordRequired: Boolean get() = session.isBiometricPasswordRequired
     override fun canUnlockWithBiometrics() = session.canUnlockWithBiometrics()
     override suspend fun unlockWithBiometrics(acceptRollback: Boolean) = session.unlockWithBiometrics(acceptRollback).offline
     override suspend fun enableBiometricUnlock() = session.enableBiometricUnlock()

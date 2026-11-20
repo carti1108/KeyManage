@@ -29,6 +29,7 @@ enum class UnlockScenario(val title: String) {
     BIOMETRIC_CANCELLED("생체 해제 (인증 창 취소)"),
     BIOMETRIC_EXPIRED("생체 해제 (14일 지나 비밀번호 요구)"),
     BIOMETRIC_INVALIDATED("생체 해제 (생체 정보가 바뀌어 꺼짐)"),
+    BIOMETRIC_PASSWORD_REQUIRED("생체 해제 (세션 만료로 비밀번호 요구)"),
     ;
 
     /** 이 상황을 만드는 가짜 세션 */
@@ -64,6 +65,7 @@ enum class UnlockScenario(val title: String) {
                     throw BiometricError.Expired()
                 }
             }
+            BIOMETRIC_PASSWORD_REQUIRED -> session.biometricPasswordRequired = true
             BIOMETRIC_INVALIDATED -> {
                 session.biometricsUsable = true
                 session.biometricUnlockHandler = {

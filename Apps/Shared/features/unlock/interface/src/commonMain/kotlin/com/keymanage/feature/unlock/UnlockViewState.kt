@@ -15,6 +15,8 @@ data class UnlockViewState(
     val isConfirmingLogout: Boolean = false,
     /** 생체 해제 버튼을 보일지: 켜져 있고 감싼 키가 있으며 마지막 비밀번호 해제 뒤 14일 안이다. 웹은 늘 false (SEC-003 규칙 4) */
     val isBiometricsAvailable: Boolean = false,
+    /** 생체 해제를 켜 두었는데 지금은 마스터 비밀번호가 필요한 이유(세션 만료). 없으면 null (SEC-003 규칙 8) */
+    val biometricNotice: String? = null,
 )
 
 /** 화면 입력 전부 */

@@ -8,6 +8,7 @@ import com.keymanage.domain.lock.BiometricError
 import com.keymanage.domain.session.SessionState
 import com.keymanage.domain.vault.RevisionRollbackException
 import com.keymanage.feature.SessionPort
+import com.keymanage.feature.messages.BiometricUnlockMessages
 import com.keymanage.feature.messages.ErrorMessage
 import com.keymanage.feature.messages.LOGOUT_CLEAR_FAILED
 import com.keymanage.feature.messages.biometricUnlockMessage
@@ -52,6 +53,7 @@ class UnlockInteractor(
         state = state.copy(
             email = (session.state() as? SessionState.Locked)?.email.orEmpty(),
             isBiometricsAvailable = session.canUnlockWithBiometrics(),
+            biometricNotice = if (session.isBiometricPasswordRequired) BiometricUnlockMessages.PASSWORD_REQUIRED else null,
         )
         render()
     }

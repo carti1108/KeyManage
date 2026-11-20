@@ -16,13 +16,14 @@ class PreferencesBiometricSettingStore(context: Context, name: String = PREFEREN
         BiometricSetting(
             enabled = preferences.getBoolean(ENABLED, false),
             lastPasswordUnlock = if (preferences.contains(LAST)) Instant.fromEpochMilliseconds(preferences.getLong(LAST, 0)) else null,
+            passwordRequired = preferences.getBoolean(PASSWORD_REQUIRED, false),
         )
     } catch (_: ClassCastException) {
         BiometricSetting()
     }
 
     override fun write(setting: BiometricSetting) {
-        val editor = preferences.edit().putBoolean(ENABLED, setting.enabled)
+        val editor = preferences.edit().putBoolean(ENABLED, setting.enabled).putBoolean(PASSWORD_REQUIRED, setting.passwordRequired)
         val last = setting.lastPasswordUnlock
         if (last == null) editor.remove(LAST) else editor.putLong(LAST, last.toEpochMilliseconds())
         editor.apply()
@@ -32,5 +33,6 @@ class PreferencesBiometricSettingStore(context: Context, name: String = PREFEREN
         const val PREFERENCES_NAME = "keymanage.settings"
         const val ENABLED = "biometricEnabled"
         const val LAST = "lastPasswordUnlockMs"
+        const val PASSWORD_REQUIRED = "biometricPasswordRequired"
     }
 }

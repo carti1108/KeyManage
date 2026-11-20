@@ -86,6 +86,34 @@ class UnlockBiometricTest {
     }
 
     @Test
+    fun afterSessionExpiryItExplainsThatTheMasterPasswordIsNeeded() {
+        session.biometricsUsable = false
+        session.biometricPasswordRequired = true
+        unlockTest {
+            assertFalse(view.state.isBiometricsAvailable)
+            assertEquals("보안을 위해 마스터 비밀번호를 입력해 주세요.", view.state.biometricNotice)
+        }
+    }
+
+    @Test
+    fun withoutThatRequirementThereIsNoNotice() = unlockTest {
+        assertNull(view.state.biometricNotice)
+    }
+
+    @Test
+    fun aPasswordRequiredErrorFromTheSessionShowsTheSameMessage() = unlockTest {
+        session.biometricUnlockHandler = {
+            session.biometricsUsable = false
+            throw BiometricError.PasswordRequired()
+        }
+
+        send(UnlockViewAction.UnlockWithBiometrics)
+
+        assertEquals("보안을 위해 마스터 비밀번호를 입력해 주세요.", view.state.error?.body)
+        assertFalse(view.state.isBiometricsAvailable)
+    }
+
+    @Test
     fun biometricUnlockOpensTheVaultAndTellsTheParent() = unlockTest {
         send(UnlockViewAction.UnlockWithBiometrics)
 

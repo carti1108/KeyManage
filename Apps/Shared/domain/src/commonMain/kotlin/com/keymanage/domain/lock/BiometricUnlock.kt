@@ -24,6 +24,9 @@ sealed class BiometricError(message: String) : Exception(message) {
 
     /** 생체 해제를 켜지 않았다 */
     class Disabled : BiometricError("생체 해제 꺼짐")
+
+    /** 세션이 만료돼 다음 잠금 해제는 마스터 비밀번호로 해야 한다. 키는 남긴다 (SEC-003 규칙 8) */
+    class PasswordRequired : BiometricError("세션 만료 뒤 마스터 비밀번호 요구")
 }
 
 /**
@@ -45,7 +48,12 @@ interface BiometricKeyStore {
 }
 
 /** 생체 해제 설정. 비밀이 아니라 일반 저장소에 둔다 */
-data class BiometricSetting(val enabled: Boolean = false, val lastPasswordUnlock: Instant? = null)
+data class BiometricSetting(
+    val enabled: Boolean = false,
+    val lastPasswordUnlock: Instant? = null,
+    /** 세션이 만료돼 마스터 비밀번호로 풀기 전에는 생체 해제를 쓰지 않는다 (SEC-003 규칙 8) */
+    val passwordRequired: Boolean = false,
+)
 
 /** 읽지 못하면 기본값(꺼짐)을 돌려준다 */
 interface BiometricSettingStore {
@@ -71,12 +79,25 @@ class BiometricUnlock(
     /** 잠금 화면에 생체 해제를 보일지 */
     fun canUseBiometrics(): Boolean {
         val setting = settings.read()
-        return setting.enabled && keys.hasKey() && isFresh(setting)
+        return setting.enabled && keys.hasKey() && !setting.passwordRequired && isFresh(setting)
+    }
+
+    /** 세션 만료로 마스터 비밀번호를 기다리는 중인지. 잠금 화면이 그 이유를 알린다 */
+    val isPasswordRequired: Boolean
+        get() = settings.read().let { it.enabled && it.passwordRequired && keys.hasKey() }
+
+    /**
+     * 세션이 만료됐다. 다른 곳에서 비밀번호를 바꿨을 수 있으므로 다음 잠금 해제는 마스터 비밀번호로 하게 한다.
+     * 감싼 키는 남겨, 비밀번호로 풀면 다시 쓴다. 생체 해제를 켜지 않았으면 아무것도 하지 않는다 (SEC-003 규칙 8)
+     */
+    fun requirePassword() {
+        val setting = settings.read()
+        if (setting.enabled) settings.write(setting.copy(passwordRequired = true))
     }
 
     /** 마스터 비밀번호로 잠금을 풀거나 로그인한 시각을 남긴다 */
     fun onPasswordUnlock() {
-        settings.write(settings.read().copy(lastPasswordUnlock = clock.now()))
+        settings.write(settings.read().copy(lastPasswordUnlock = clock.now(), passwordRequired = false))
     }
 
     /** 생체 인증을 거쳐 [encryptionKey]를 감싸 두고 켠다. 실패하면 켜지 않는다 */
@@ -88,7 +109,7 @@ class BiometricUnlock(
     /** 끄고 감싼 키를 지운다. 로그아웃·계정 삭제·비밀번호 변경 때도 부른다 */
     fun disable() {
         keys.clear()
-        settings.write(settings.read().copy(enabled = false))
+        settings.write(settings.read().copy(enabled = false, passwordRequired = false))
     }
 
     /** 생체 인증으로 볼트 암호화 키를 꺼낸다. 키가 무효면 지우고 끈다 */
@@ -99,6 +120,7 @@ class BiometricUnlock(
             disable()
             throw BiometricError.Invalidated()
         }
+        if (setting.passwordRequired) throw BiometricError.PasswordRequired()
         if (!isFresh(setting)) throw BiometricError.Expired()
         return try {
             keys.open()
