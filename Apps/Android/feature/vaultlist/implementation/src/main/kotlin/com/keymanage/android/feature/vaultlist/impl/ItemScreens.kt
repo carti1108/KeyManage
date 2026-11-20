@@ -8,9 +8,12 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import com.keymanage.android.designsystem.component.KMScreen
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.keymanage.android.designsystem.component.KMButton
@@ -18,6 +21,7 @@ import com.keymanage.android.designsystem.component.KMButtonVariant
 import com.keymanage.android.designsystem.component.KMCard
 import com.keymanage.android.designsystem.component.KMGaugeBar
 import com.keymanage.android.designsystem.component.KMPasswordField
+import com.keymanage.android.designsystem.component.KMTextField
 import com.keymanage.android.designsystem.generated.DesignTokens
 import com.keymanage.android.domain.generator.PasswordStrength
 
@@ -25,17 +29,15 @@ import com.keymanage.android.domain.generator.PasswordStrength
 @Composable
 internal fun ItemDetailScreen(screen: VaultScreen.Detail, state: VaultListViewState, onAction: (VaultListViewAction) -> Unit) {
     val fields = screen.fields
-    Column(
-        modifier = Modifier.verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(DesignTokens.Spacing.space3),
+    KMScreen(
+        title = fields.serviceName,
+        onBack = { onAction(VaultListViewAction.Back) },
+        actions = { if (!state.isReadOnly) TextButton(onClick = { onAction(VaultListViewAction.StartEdit) }) { Text("수정") } },
     ) {
-        TopBar(fields.serviceName, onBack = { onAction(VaultListViewAction.Back) }) {
-            if (!state.isReadOnly) TextButton(onClick = { onAction(VaultListViewAction.StartEdit) }) { Text("수정") }
-        }
-        KMCard {
-            Field("서비스 이름", fields.serviceName)
-            Field("아이디", fields.username.ifEmpty { "(아이디 없음)" })
-            if (fields.url.isNotEmpty()) Field("URL", fields.url)
+        Column {
+            DetailRow("서비스 이름", fields.serviceName)
+            DetailRow("아이디", fields.username.ifEmpty { "(아이디 없음)" })
+            if (fields.url.isNotEmpty()) DetailRow("URL", fields.url)
         }
         KMPasswordField(
             text = fields.password,
@@ -80,6 +82,27 @@ private fun StrengthNotes(password: String) {
     }
 }
 
+/** 이름표는 왼쪽, 값은 오른쪽에 두는 한 줄(목업 5단계). */
+@Composable
+private fun DetailRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = DesignTokens.Spacing.space3),
+        horizontalArrangement = Arrangement.spacedBy(DesignTokens.Spacing.space4),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyLarge)
+        Text(
+            value,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.End,
+        )
+    }
+}
+
+private const val MEMO_MIN_LINES = 3
+
 @Composable
 private fun Field(label: String, value: String) {
     Column {
@@ -93,11 +116,11 @@ private fun Field(label: String, value: String) {
 internal fun ItemFormScreen(screen: VaultScreen.Edit, state: VaultListViewState, onAction: (VaultListViewAction) -> Unit) {
     val fields = screen.fields
     fun change(next: com.keymanage.android.domain.vault.ItemFields) = onAction(VaultListViewAction.FormChanged(next))
-    Column(
-        modifier = Modifier.verticalScroll(rememberScrollState()).imePadding(),
-        verticalArrangement = Arrangement.spacedBy(DesignTokens.Spacing.space3),
+    KMScreen(
+        title = if (screen.id == null) "항목 추가" else "항목 수정",
+        onBack = { onAction(VaultListViewAction.Back) },
+        modifier = Modifier.imePadding(),
     ) {
-        TopBar(if (screen.id == null) "항목 추가" else "항목 수정", onBack = { onAction(VaultListViewAction.Back) })
         TextInput("서비스 이름", fields.serviceName, !state.isSaving) { change(fields.copy(serviceName = it)) }
         TextInput("아이디", fields.username, !state.isSaving) { change(fields.copy(username = it)) }
         KMPasswordField(
@@ -128,12 +151,12 @@ internal fun ItemFormScreen(screen: VaultScreen.Edit, state: VaultListViewState,
 
 @Composable
 private fun TextInput(label: String, value: String, enabled: Boolean, singleLine: Boolean = true, onChange: (String) -> Unit) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onChange,
-        modifier = Modifier.fillMaxWidth(),
-        label = { Text(label) },
+    KMTextField(
+        label = label,
+        text = value,
+        onTextChange = onChange,
+        readOnly = !enabled,
         singleLine = singleLine,
-        enabled = enabled,
+        minLines = if (singleLine) 1 else MEMO_MIN_LINES,
     )
 }

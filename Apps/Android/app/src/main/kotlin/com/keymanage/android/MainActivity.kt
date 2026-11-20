@@ -119,6 +119,9 @@ private class AppRootDependency(activity: MainActivity, override val appEvents: 
 
     override val workDispatcher: CoroutineDispatcher = Dispatchers.Default
 
+    // clipboard가 초기화 때 쓰므로 그보다 먼저 선언한다
+    override val scheduler: Scheduler = MainLooperScheduler()
+
     override val clipboard: ClipboardBurner = run {
         lateinit var burner: ClipboardBurner
         val port = AndroidClipboard(context.getSystemService(ClipboardManager::class.java)) { burner.onExternalChange() }
@@ -127,7 +130,6 @@ private class AppRootDependency(activity: MainActivity, override val appEvents: 
     }
 
     override val autoLockStore = PreferencesAutoLockStore(context.settingsPreferences())
-    override val scheduler: Scheduler = MainLooperScheduler()
     override val monotonicClock: () -> Long = SystemClock::elapsedRealtime
 
     override val authBuildable = AuthBuilder(

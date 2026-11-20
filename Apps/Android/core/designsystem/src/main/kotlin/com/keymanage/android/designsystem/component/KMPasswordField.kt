@@ -3,8 +3,9 @@ package com.keymanage.android.designsystem.component
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -13,8 +14,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -63,15 +62,14 @@ fun KMPasswordField(
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
         trailingIcon = {
             Row {
-                TextButton(
-                    onClick = { isSecured = !isSecured },
-                    modifier = Modifier.semantics { contentDescription = if (isSecured) "비밀번호 표시" else "비밀번호 숨김" },
-                ) { Text(if (isSecured) "보기" else "숨기기") }
+                IconButton(onClick = { isSecured = !isSecured }) {
+                    Icon(
+                        if (isSecured) KMIcons.Visibility else KMIcons.VisibilityOff,
+                        contentDescription = if (isSecured) "비밀번호 표시" else "비밀번호 숨김",
+                    )
+                }
                 if (showCopyAction) {
-                    TextButton(
-                        onClick = onCopy,
-                        modifier = Modifier.semantics { contentDescription = "비밀번호 복사" },
-                    ) { Text("복사") }
+                    IconButton(onClick = onCopy) { Icon(KMIcons.Copy, contentDescription = "비밀번호 복사") }
                 }
             }
         },

@@ -197,7 +197,9 @@
 | `Alert` (`KMAlert`) | 구현 | 미구현 | 미구현 |
 | `ConfirmPrompt` (`KMConfirmPrompt`) | 구현 | 미구현(시스템 확인 대화상자 사용) | 미구현(M3 `AlertDialog` 사용) |
 | `ModalDialog` (`KMModal`) | 구현 | 미구현(시스템 시트 사용) | 미구현(M3 다이얼로그·바텀 시트 사용) |
-| `TextField` (`KMTextField`) | 구현 | 미구현(시스템 `TextField` 사용) | 미구현(M3 `TextField` 사용) |
+| `TextField` (`KMTextField`) | 구현 | 미구현(시스템 `TextField` 사용) | 구현 |
+| `TopBar` (`KMTopBar`) | 미구현(페이지 머리글 사용) | 미구현(시스템 내비게이션 바 사용) | 구현 |
+| `ScreenScaffold` (`KMScreen`) | 미구현(페이지 레이아웃 사용) | 미구현(시스템 내비게이션 스택 사용) | 구현 |
 
 ### 6.2. `Button` (`KMButton`)
 
@@ -331,6 +333,18 @@
 
 - 접근성: 이름표를 입력 필드와 연결한다(웹 `label`의 `htmlFor`, Apple 시스템 `TextField`의 제목).
 - Apple은 시스템 `TextField`를 쓴다.
+
+### 6.11. `TopBar` (`KMTopBar`)·`ScreenScaffold` (`KMScreen`)
+
+Android 전용이다. `KMTopBar`는 M3 `TopAppBar`를 감싸 제목, 뒤로 가기, 오른쪽 액션을 둔다. `KMScreen`은 위쪽 바와 본문 여백(`space-4`)을 묶은 화면 틀이다. 내비게이션 바와 뒤로 가기는 플랫폼 컨트롤이므로(5.1) Web과 Apple은 각자의 것을 쓴다.
+
+| 속성 | 타입 | 기본값 | 뜻 |
+| :--- | :--- | :--- | :--- |
+| `title` | String | | 화면 제목 |
+| `onBack` | `() -> Void` (선택) | | 없으면 뒤로 가기를 그리지 않는다 |
+| `actions` | 슬롯 | 없음 | 위쪽 바 오른쪽 액션 |
+
+- 접근성: 제목은 머리글로 읽힌다. 뒤로 가기에는 접근성 레이블을 단다.
 
 ---
 

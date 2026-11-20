@@ -1,9 +1,8 @@
 package com.keymanage.android.feature.vaultlist.impl
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,18 +21,24 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import com.keymanage.android.designsystem.component.KMCard
+import com.keymanage.android.designsystem.component.KMCardPadding
+import com.keymanage.android.designsystem.component.KMIcons
+import com.keymanage.android.designsystem.component.KMScreen
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.keymanage.android.designsystem.KeyManageTheme
 import com.keymanage.android.designsystem.component.KMBurnBadge
+import com.keymanage.android.designsystem.component.KMTextField
 import com.keymanage.android.designsystem.generated.DesignTokens
 import com.keymanage.android.domain.vault.ItemFields
 
@@ -42,7 +47,7 @@ import com.keymanage.android.domain.vault.ItemFields
 fun VaultListView(state: VaultListViewState, onAction: (VaultListViewAction) -> Unit) {
     BackHandler(enabled = state.screen != VaultScreen.List) { onAction(VaultListViewAction.Back) }
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Column(modifier = Modifier.fillMaxSize().padding(horizontal = DesignTokens.Spacing.space4)) {
+        Column(modifier = Modifier.fillMaxSize()) {
             Banners(state, onAction)
             when (val screen = state.screen) {
                 VaultScreen.List -> VaultItemList(state, onAction)
@@ -57,6 +62,8 @@ fun VaultListView(state: VaultListViewState, onAction: (VaultListViewAction) -> 
                     .align(Alignment.BottomEnd)
                     .padding(DesignTokens.Spacing.space5)
                     .semantics { contentDescription = "항목 추가" },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
             ) { Text("+", style = MaterialTheme.typography.headlineSmall) }
         }
     }
@@ -77,7 +84,9 @@ fun VaultListView(state: VaultListViewState, onAction: (VaultListViewAction) -> 
 
 @Composable
 private fun Banners(state: VaultListViewState, onAction: (VaultListViewAction) -> Unit) {
-    Column(modifier = Modifier.padding(top = DesignTokens.Spacing.space3), verticalArrangement = Arrangement.spacedBy(DesignTokens.Spacing.space2)) {
+    Column(
+        modifier = Modifier.padding(horizontal = DesignTokens.Spacing.space4).padding(top = DesignTokens.Spacing.space3),
+        verticalArrangement = Arrangement.spacedBy(DesignTokens.Spacing.space2)) {
         if (state.isOffline) {
             Notice(VaultMessages.RESYNC_NOTICE, action = "동기화") { onAction(VaultListViewAction.Resync) }
         }
@@ -141,53 +150,51 @@ internal fun Notice(text: String, isError: Boolean = false, action: String? = nu
 }
 
 @Composable
-internal fun TopBar(title: String, onBack: (() -> Unit)?, trailing: @Composable () -> Unit = {}) {
-    Row(modifier = Modifier.fillMaxWidth().padding(top = DesignTokens.Spacing.space3), verticalAlignment = Alignment.CenterVertically) {
-        onBack?.let { TextButton(onClick = it) { Text("뒤로") } }
-        Text(title, modifier = Modifier.weight(1f).semantics { heading() }, style = MaterialTheme.typography.headlineSmall)
-        trailing()
-    }
-}
-
-@Composable
 private fun VaultItemList(state: VaultListViewState, onAction: (VaultListViewAction) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.Spacing.space3)) {
-        TopBar("볼트", onBack = null) { TextButton(onClick = { onAction(VaultListViewAction.Lock) }) { Text("잠금") } }
-        androidx.compose.material3.OutlinedTextField(
-            value = state.query,
-            onValueChange = { onAction(VaultListViewAction.QueryChanged(it)) },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("검색") },
-            placeholder = { Text("서비스 이름이나 아이디") },
-            singleLine = true,
+    KMScreen(
+        title = "볼트",
+        onBack = null,
+        scrollable = false,
+        actions = { TextButton(onClick = { onAction(VaultListViewAction.Lock) }) { Text("잠금") } },
+    ) {
+        KMTextField(
+            label = "검색",
+            text = state.query,
+            onTextChange = { onAction(VaultListViewAction.QueryChanged(it)) },
+            placeholder = "서비스 이름이나 아이디",
         )
-        Text("항목 ${state.totalCount}개", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         LazyColumn(verticalArrangement = Arrangement.spacedBy(DesignTokens.Spacing.space2)) {
-            items(state.rows, key = { it.id }) { row -> VaultRowItem(row) { onAction(VaultListViewAction.OpenItem(row.id)) } }
+            items(state.rows, key = { it.id }) { row ->
+                VaultRowItem(
+                    row,
+                    onCopy = { onAction(VaultListViewAction.CopyItemPassword(row.id)) },
+                    onClick = { onAction(VaultListViewAction.OpenItem(row.id)) },
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun VaultRowItem(row: VaultRow, onClick: () -> Unit) {
-    Surface(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        shape = RoundedCornerShape(DesignTokens.Radius.lg),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-    ) {
+private fun VaultRowItem(row: VaultRow, onCopy: () -> Unit, onClick: () -> Unit) {
+    KMCard(modifier = Modifier.fillMaxWidth(), padding = KMCardPadding.SM, onClick = onClick) {
         Row(
-            modifier = Modifier.padding(horizontal = DesignTokens.Spacing.space4, vertical = DesignTokens.Spacing.space3),
             horizontalArrangement = Arrangement.spacedBy(DesignTokens.Spacing.space3),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                modifier = Modifier.size(36.dp).background(MaterialTheme.colorScheme.background, CircleShape),
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(MaterialTheme.colorScheme.background, CircleShape)
+                    .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
                 contentAlignment = Alignment.Center,
             ) { Text(row.serviceName.take(1), style = MaterialTheme.typography.titleSmall) }
             Column(modifier = Modifier.weight(1f)) {
                 Text(row.serviceName, style = MaterialTheme.typography.titleSmall)
                 Text(row.username ?: "(아이디 없음)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            IconButton(onClick = onCopy) {
+                Icon(KMIcons.Copy, contentDescription = "${row.serviceName} 비밀번호 복사", tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
