@@ -49,8 +49,9 @@ jobs:
           }
           out() { if hit "$2"; then echo "$1=true"; else echo "$1=false"; fi >> "$GITHUB_OUTPUT"; }
           out backend 'Back/'
-          out android 'Apps/Android/|Tools/design-tokens/'
-          out web 'Apps/Web/|Tools/design-tokens/'
+          # Android와 웹은 화면 로직·도메인을 공유 Kotlin(Apps/Shared)에서 가져온다
+          out android 'Apps/Android/|Apps/Shared/|Tools/design-tokens/'
+          out web 'Apps/Web/|Apps/Shared/|Tools/design-tokens/'
           out apple 'Apps/Apple/|Tools/design-tokens/|Scripts/(verify-apple|check-apple-lint|check-swift-architecture)\.sh'
 
   backend:
@@ -91,7 +92,8 @@ jobs:
             Back/domain/build/reports/pitest
           if-no-files-found: ignore
 
-  # Android 클라이언트 (ADR-AND-001). 러너에 설치된 Android SDK를 쓰고, 없는 SDK 플랫폼은 AGP가 받는다
+  # Android 클라이언트. 뷰와 진입점만 있고 도메인·RIB은 공유 Kotlin(Apps/Shared)을 composite build로 가져온다 (android-migration-plan).
+  # 러너에 설치된 Android SDK를 쓰고, 없는 SDK 플랫폼은 AGP가 받는다
   android:
     needs: changes
     if: ${{ needs.changes.outputs.android == 'true' }}
@@ -109,7 +111,23 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # Apps/Shared가 공유 RIB 라이브러리(carti-RIBs-KMP)를 composite build로 가져온다. 워크스페이스 안에 받고 CARTI_RIBS_DIR로 알려 준다
+      - uses: actions/checkout@v4
+        with:
+          repository: carti1108/carti-RIBs-KMP
+          ref: main
+          path: carti-RIBs-KMP
+          token: ${{ secrets.CARTI_RIBS_TOKEN }}
+
+      - name: 공유 Kotlin 모듈 테스트 (도메인·RIB)
+        working-directory: Apps/Shared
+        env:
+          CARTI_RIBS_DIR: ${{ github.workspace }}/carti-RIBs-KMP
+        run: ./gradlew jvmTest --console=plain
+
       - name: 단위 테스트·lint·디버그 빌드
+        env:
+          CARTI_RIBS_DIR: ${{ github.workspace }}/carti-RIBs-KMP
         run: ./gradlew test lint assembleDebug --console=plain
 
       - name: 리포트 보관
@@ -119,6 +137,7 @@ jobs:
           name: android-reports
           path: |
             Apps/Android/**/build/reports/tests
+            Apps/Shared/**/build/reports/tests
             Apps/Android/**/build/reports/lint-results-*.html
           if-no-files-found: ignore
 
