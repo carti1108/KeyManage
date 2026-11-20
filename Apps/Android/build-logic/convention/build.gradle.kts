@@ -10,10 +10,6 @@ dependencies {
 
 gradlePlugin {
     plugins {
-        register("jvmLibrary") {
-            id = "km.jvm.library"
-            implementationClass = "JvmLibraryConventionPlugin"
-        }
         register("androidLibrary") {
             id = "km.android.library"
             implementationClass = "AndroidLibraryConventionPlugin"

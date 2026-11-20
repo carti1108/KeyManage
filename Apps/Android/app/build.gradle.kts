@@ -18,17 +18,8 @@ android {
     }
 }
 
-// 조립은 :app에서만 한다. 피처는 implementation, 나머지는 interface로 본다(ADR-AND-001)
+// 공유 진입점(android-session)에 Compose 뷰를 넘겨 조립한다. 도메인·RIB·플랫폼 구현은 Apps/Shared에 있다 (target-architecture 2장)
 dependencies {
-    implementation(project(":core:data"))
-    implementation(project(":feature:root:implementation"))
-    implementation(project(":feature:auth:implementation"))
-    implementation(project(":feature:unlock:implementation"))
-    implementation(project(":feature:vaultlist:implementation"))
-    implementation(project(":feature:generator:implementation"))
-    implementation(project(":feature:settings:implementation"))
-    implementation(project(":feature:main:implementation"))
-    // 공유 RIB·세션과 Android 쪽 포트 구현. 화면 연결 전이라 아직 쓰는 코드는 없다 (android-migration-plan 4장)
     implementation("com.keymanage.shared:android-session")
     implementation(project(":feature:auth:ui"))
     implementation(project(":feature:unlock:ui"))
@@ -40,6 +31,4 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.fragment)
     implementation(libs.kotlinx.coroutines.android)
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.biometric)
 }

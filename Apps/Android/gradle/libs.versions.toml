@@ -4,23 +4,15 @@ kotlin = "2.4.21"
 coroutines = "1.11.0"
 compose-bom = "2026.09.00"
 activity-compose = "1.13.0"
-core-ktx = "1.19.1"
-biometric = "1.1.0"
 fragment = "1.8.8"
-ribs = "0.17.0"
 junit4 = "4.13.2"
-org-json = "20260814"
 compile-sdk = "37"
 min-sdk = "26"
 target-sdk = "37"
 jvm-toolchain = "21"
 
 [libraries]
-kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
-kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
-androidx-biometric = { module = "androidx.biometric:biometric", version.ref = "biometric" }
 androidx-fragment = { module = "androidx.fragment:fragment-ktx", version.ref = "fragment" }
-androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "core-ktx" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "compose-bom" }
 compose-ui = { module = "androidx.compose.ui:ui" }
@@ -29,13 +21,7 @@ compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
 compose-material3 = { module = "androidx.compose.material3:material3" }
 compose-foundation = { module = "androidx.compose.foundation:foundation" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
-ribs-android = { module = "com.uber.rib:rib-android", version.ref = "ribs" }
-ribs-android-compose = { module = "com.uber.rib:rib-android-compose", version.ref = "ribs" }
-ribs-coroutines = { module = "com.uber.rib:rib-coroutines", version.ref = "ribs" }
-ribs-test = { module = "com.uber.rib:rib-test", version.ref = "ribs" }
-ribs-coroutines-test = { module = "com.uber.rib:rib-coroutines-test", version.ref = "ribs" }
 junit4 = { module = "junit:junit", version.ref = "junit4" }
-org-json = { module = "org.json:json", version.ref = "org-json" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 # build-logic 전용
 android-gradle-plugin = { module = "com.android.tools.build:gradle", version.ref = "agp" }
@@ -47,7 +33,6 @@ android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-km-jvm-library = { id = "km.jvm.library" }
 km-android-library = { id = "km.android.library" }
 km-android-compose = { id = "km.android.compose" }
 km-android-application = { id = "km.android.application" }
