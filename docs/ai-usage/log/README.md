@@ -116,3 +116,4 @@
 | 108 | 2026-11-19 | [Android 교차 검증과 정적 감사 Kotlin 확장](108-android-cross-verify-static-gates.md) |
 | 109 | 2026-11-19 | [Android 누락 표준 문구 보강](109-android-standard-messages.md) |
 | 110 | 2026-11-20 | [Android 되돌림 경고의 서버 볼트 받아들이기](110-android-accept-server-vault.md) |
+| 111 | 2026-11-20 | [Android 시작 오류 수정과 Material 3 화면 정리](111-android-startup-and-material-screens.md) |
