@@ -5,6 +5,7 @@ import com.carti.ribs.checkMainThread
 import com.keymanage.domain.auth.checkNewMasterPassword
 import com.keymanage.domain.backup.VaultBackup
 import com.keymanage.domain.backup.readBackupFile
+import com.keymanage.domain.lock.BiometricError
 import com.keymanage.domain.lock.isAutoLockOption
 import com.keymanage.domain.session.AccountDeletedDeviceNotClearedException
 import com.keymanage.domain.session.SessionState
@@ -13,6 +14,7 @@ import com.keymanage.feature.BackupFilesPort
 import com.keymanage.feature.SessionPort
 import com.keymanage.feature.messages.ACCOUNT_DELETED
 import com.keymanage.feature.messages.ACCOUNT_DELETION_OFFLINE
+import com.keymanage.feature.messages.BiometricUnlockMessages
 import com.keymanage.feature.messages.PASSWORD_CHANGE_DONE
 import com.keymanage.feature.messages.PASSWORD_CHANGE_OFFLINE
 import com.keymanage.feature.messages.SAME_MASTER_PASSWORD
@@ -82,6 +84,7 @@ class SettingsInteractor(
         if (!isActive) return
         when (action) {
             is SettingsViewAction.SelectAutoLock -> selectAutoLock(action.timeout)
+            is SettingsViewAction.SetBiometricUnlock -> setBiometricUnlock(action.enabled)
             SettingsViewAction.RequestLock -> listener.settingsDidRequestLock()
             SettingsViewAction.RequestLogout -> listener.settingsDidRequestLogout()
             SettingsViewAction.StartExport -> startExport()
@@ -135,6 +138,8 @@ class SettingsInteractor(
                 readOnly = unlocked?.vault?.readOnly ?: false,
                 accountOffline = networkOffline || !signedIn,
                 autoLockTimeout = environment.autoLockSetting.read(),
+                biometricAvailable = session.isBiometricUnlockAvailable,
+                biometricEnabled = session.isBiometricUnlockEnabled,
             )
         }
     }
@@ -192,6 +197,39 @@ class SettingsInteractor(
         if (!isAutoLockOption(timeout)) return
         environment.autoLockSetting.write(timeout)
         update { copy(autoLockTimeout = timeout) }
+    }
+
+    // --- 생체 해제 (SEC-003 규칙 4) ---
+
+    /**
+     * 켤 때는 세션이 생체 인증 창을 띄워 볼트 키를 감싼다. 취소는 조용히 끝내고, 쓸 수 없는 기기면 이유를 스위치 아래에 보인다.
+     * 끄면 감싼 키를 지운다
+     */
+    private fun setBiometricUnlock(enabled: Boolean) {
+        if (state.inProgress || enabled == state.biometricEnabled) return
+        if (!enabled) {
+            session.disableBiometricUnlock()
+            update { copy(biometricError = null) }
+            refreshInfo()
+            return
+        }
+        update { copy(inProgress = true, biometricError = null) }
+        coroutineScope.launch {
+            val message = try {
+                session.enableBiometricUnlock()
+                null
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: BiometricError.Cancelled) {
+                null
+            } catch (_: BiometricError) {
+                BiometricUnlockMessages.SETTING_UNAVAILABLE
+            } catch (error: Exception) {
+                describeError(error)
+            }
+            update { copy(inProgress = false, biometricError = message) }
+            refreshInfo()
+        }
     }
 
     // --- 백업 내보내기 (VLT-004) ---

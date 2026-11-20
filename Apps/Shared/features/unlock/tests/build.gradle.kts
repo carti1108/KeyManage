@@ -8,6 +8,7 @@ kotlin {
         commonTest.dependencies {
             implementation(project(":features:unlock:implementation"))
             implementation(project(":features:unlock:testing"))
+            implementation(project(":core:testing"))
             implementation(kotlin("test"))
             implementation(libs.kotlinx.coroutines.test)
         }

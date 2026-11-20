@@ -39,7 +39,16 @@ data class SettingsViewState(
     val notice: String? = null,
     /** [notice]의 성격. [notice]가 있을 때만 뜻이 있다 */
     val noticeKind: SettingsNoticeKind = SettingsNoticeKind.INFO,
+    /** 이 기기에서 생체 해제를 켤 수 있다. 웹은 늘 false (SEC-003 규칙 4) */
+    val biometricAvailable: Boolean = false,
+    /** 생체 해제를 켰다. 기본은 꺼짐 (SEC-003 값 표) */
+    val biometricEnabled: Boolean = false,
+    /** 생체 해제를 켜지 못한 이유. 스위치 아래에 보인다 */
+    val biometricError: String? = null,
 ) {
+    /** 생체 해제 스위치를 보일지. 켜 둔 뒤 기기에서 생체 정보를 지운 경우에도 끌 수 있게 보인다 */
+    val showsBiometricToggle: Boolean get() = biometricAvailable || biometricEnabled
+
     val canExportBackup: Boolean get() = !inProgress
     val canRestoreBackup: Boolean get() = !readOnly && !inProgress
     val canChangePassword: Boolean get() = !readOnly && !accountOffline && !inProgress
@@ -60,6 +69,9 @@ data class SettingsViewState(
 
 sealed interface SettingsViewAction {
     data class SelectAutoLock(val timeout: Duration) : SettingsViewAction
+
+    /** 생체 해제 스위치. 켤 때 생체 인증 창이 뜬다 */
+    data class SetBiometricUnlock(val enabled: Boolean) : SettingsViewAction
     data object RequestLock : SettingsViewAction
     data object RequestLogout : SettingsViewAction
 

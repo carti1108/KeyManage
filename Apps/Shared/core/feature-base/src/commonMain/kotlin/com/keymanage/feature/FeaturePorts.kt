@@ -5,6 +5,7 @@ import com.keymanage.domain.backup.BackupFileSource
 import com.keymanage.domain.backup.LocalCalendar
 import com.keymanage.domain.backup.VaultBackup
 import com.keymanage.domain.lock.AutoLockSettingStore
+import com.keymanage.domain.lock.BiometricError
 import com.keymanage.domain.session.LockScope
 import com.keymanage.domain.session.SessionState
 import com.keymanage.domain.session.SyncChangeListener
@@ -39,6 +40,31 @@ interface SessionPort {
     fun onLock(listener: () -> Unit): () -> Unit
     fun onUnlock(listener: () -> Unit): () -> Unit
     fun onSyncChange(listener: SyncChangeListener): () -> Unit
+
+    // 생체 해제 (SEC-003 규칙 4·8). 생체 인증이 없는 플랫폼(웹)은 기본 구현 그대로 두면 화면에 나오지 않는다
+
+    /** 이 기기에서 생체 해제를 켤 수 있는지 */
+    val isBiometricUnlockAvailable: Boolean get() = false
+
+    val isBiometricUnlockEnabled: Boolean get() = false
+
+    /** 잠금 화면에 생체 해제를 보일지: 켜져 있고, 감싼 키가 있고, 마지막 비밀번호 해제 뒤 14일 안 */
+    fun canUnlockWithBiometrics(): Boolean = false
+
+    /**
+     * 생체 인증으로 볼트를 연다
+     * @return 오프라인으로 열었으면 true
+     * @throws BiometricError 취소, 14일 지남, 키 무효, 사용 불가
+     */
+    suspend fun unlockWithBiometrics(acceptRollback: Boolean = false): Boolean = throw BiometricError.Unavailable()
+
+    /** 열린 볼트의 키를 생체 인증으로 감싸 두고 생체 해제를 켠다. @throws BiometricError 취소, 사용 불가 */
+    suspend fun enableBiometricUnlock() {
+        throw BiometricError.Unavailable()
+    }
+
+    /** 생체 해제를 끄고 감싼 키를 지운다 */
+    fun disableBiometricUnlock() = Unit
 }
 
 class SessionPortAdapter(private val session: VaultSession) : SessionPort {
@@ -59,6 +85,12 @@ class SessionPortAdapter(private val session: VaultSession) : SessionPort {
     override fun onLock(listener: () -> Unit) = session.onLock(listener)
     override fun onUnlock(listener: () -> Unit) = session.onUnlock(listener)
     override fun onSyncChange(listener: SyncChangeListener) = session.onSyncChange(listener)
+    override val isBiometricUnlockAvailable: Boolean get() = session.isBiometricUnlockAvailable
+    override val isBiometricUnlockEnabled: Boolean get() = session.isBiometricUnlockEnabled
+    override fun canUnlockWithBiometrics() = session.canUnlockWithBiometrics()
+    override suspend fun unlockWithBiometrics(acceptRollback: Boolean) = session.unlockWithBiometrics(acceptRollback).offline
+    override suspend fun enableBiometricUnlock() = session.enableBiometricUnlock()
+    override fun disableBiometricUnlock() = session.disableBiometricUnlock()
 }
 
 /** 복사하고 정해진 시간 뒤 비운다 (COM-001). 웹은 ClipboardBurner, iOS는 ClipboardManager */

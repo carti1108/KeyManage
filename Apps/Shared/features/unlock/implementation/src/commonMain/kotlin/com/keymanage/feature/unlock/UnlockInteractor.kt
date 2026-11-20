@@ -4,10 +4,13 @@ import com.carti.ribs.PresentableInteractor
 import com.carti.ribs.RibDispatchers
 import com.carti.ribs.checkMainThread
 import com.keymanage.domain.device.DeviceStorageException
+import com.keymanage.domain.lock.BiometricError
 import com.keymanage.domain.session.SessionState
 import com.keymanage.domain.vault.RevisionRollbackException
 import com.keymanage.feature.SessionPort
+import com.keymanage.feature.messages.ErrorMessage
 import com.keymanage.feature.messages.LOGOUT_CLEAR_FAILED
+import com.keymanage.feature.messages.biometricUnlockMessage
 import com.keymanage.feature.messages.describeError
 import com.keymanage.feature.messages.describeErrorMessage
 import com.keymanage.feature.messages.sendsToSignIn
@@ -30,6 +33,9 @@ class UnlockInteractor(
     /** 되돌림 경고를 받아들이면 다시 보낼 비밀번호. 입력 칸은 비우지만 처음 요청의 값을 쓴다 */
     private var rollbackPassword: String? = null
 
+    /** 되돌림 경고가 생체 해제에서 나왔다. 받아들이면 같은 방법으로 다시 연다 (VLT-001) */
+    private var rollbackViaBiometrics = false
+
     // 다른 탭의 대기 내용을 확인하는 동안 로그아웃을 다시 받지 않는다
     private var isCheckingLogout = false
 
@@ -43,13 +49,17 @@ class UnlockInteractor(
 
     override fun didBecomeActive() {
         presenter.listener = this
-        state = state.copy(email = (session.state() as? SessionState.Locked)?.email.orEmpty())
+        state = state.copy(
+            email = (session.state() as? SessionState.Locked)?.email.orEmpty(),
+            isBiometricsAvailable = session.canUnlockWithBiometrics(),
+        )
         render()
     }
 
     override fun willResignActive() {
         presenter.listener = null
         rollbackPassword = null
+        rollbackViaBiometrics = false
     }
 
     override fun handle(action: UnlockViewAction) {
@@ -58,11 +68,11 @@ class UnlockInteractor(
         when (action) {
             is UnlockViewAction.UpdatePassword -> update { copy(password = action.password) }
             UnlockViewAction.Unlock -> unlock(state.password, acceptRollback = false)
-            // 생체 해제는 아직 연결하지 않는다
-            UnlockViewAction.UnlockWithBiometrics -> Unit
+            UnlockViewAction.UnlockWithBiometrics -> if (state.isBiometricsAvailable) unlockWithBiometrics(acceptRollback = false)
             UnlockViewAction.AcceptRollback -> acceptRollback()
             UnlockViewAction.CancelRollback -> {
                 rollbackPassword = null
+                rollbackViaBiometrics = false
                 update { copy(isConfirmingRollback = false) }
             }
             UnlockViewAction.RequestLogout -> requestLogout()
@@ -83,13 +93,61 @@ class UnlockInteractor(
     }
 
     private fun acceptRollback() {
+        if (rollbackViaBiometrics) {
+            unlockWithBiometrics(acceptRollback = true)
+            return
+        }
         val password = rollbackPassword ?: return
         unlock(password, acceptRollback = true)
+    }
+
+    /**
+     * 생체 인증으로 연다. 취소는 조용히 끝내고, 14일이 지났거나 키가 무효면 마스터 비밀번호를 쓰라고 알린다 (SEC-003 규칙 4·8).
+     * 실패한 뒤에는 생체 해제를 계속 보일지 세션에 다시 묻는다(무효면 세션이 이미 껐다)
+     */
+    private fun unlockWithBiometrics(acceptRollback: Boolean) {
+        if (state.isLoading) return
+        rollbackPassword = null
+        rollbackViaBiometrics = false
+        update { copy(isLoading = true, error = null, isConfirmingRollback = false) }
+        coroutineScope.launch {
+            val result = try {
+                Result.success(session.unlockWithBiometrics(acceptRollback))
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Result.failure(error)
+            }
+            val failure = result.exceptionOrNull()
+            when {
+                failure == null -> {
+                    update { copy(isLoading = false, password = "") }
+                    listener.didUnlock(offline = result.getOrDefault(false))
+                }
+                failure is BiometricError -> update {
+                    copy(
+                        isLoading = false,
+                        error = biometricUnlockMessage(failure)?.let { ErrorMessage(body = it) },
+                        isBiometricsAvailable = session.canUnlockWithBiometrics(),
+                    )
+                }
+                failure is RevisionRollbackException && !acceptRollback -> {
+                    rollbackViaBiometrics = true
+                    update { copy(isLoading = false, isConfirmingRollback = true) }
+                }
+                sendsToSignIn(failure) -> {
+                    update { copy(isLoading = false, password = "") }
+                    listener.didRequireSignIn(describeError(failure))
+                }
+                else -> update { copy(isLoading = false, error = describeErrorMessage(failure)) }
+            }
+        }
     }
 
     private fun unlock(password: String, acceptRollback: Boolean) {
         if (state.isLoading) return
         rollbackPassword = null
+        rollbackViaBiometrics = false
         update { copy(isLoading = true, error = null, isConfirmingRollback = false) }
         coroutineScope.launch {
             val result = try {
@@ -115,7 +173,10 @@ class UnlockInteractor(
                     update { copy(isLoading = false, password = "") }
                     listener.didRequireSignIn(describeError(failure))
                 }
-                else -> update { copy(isLoading = false, password = "", error = describeErrorMessage(failure)) }
+                // 틀린 비밀번호를 거듭 넣는 사이 생체 해제가 꺼졌을 수 있으니 버튼을 보일지 다시 묻는다
+                else -> update {
+                    copy(isLoading = false, password = "", error = describeErrorMessage(failure), isBiometricsAvailable = session.canUnlockWithBiometrics())
+                }
             }
         }
     }

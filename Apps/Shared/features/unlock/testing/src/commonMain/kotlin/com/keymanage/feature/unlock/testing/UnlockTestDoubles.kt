@@ -65,6 +65,13 @@ class FakeUnlockSession : SessionPort {
     var logoutHandler: suspend () -> Unit = {}
     var pendingOnDeviceHandler: suspend () -> Boolean = { pendingOnDevice }
 
+    /** 잠금 화면에 생체 해제를 보일지 */
+    var biometricsUsable = false
+
+    /** 생체 해제 호출마다 받은 acceptRollback */
+    val biometricUnlocks = mutableListOf<Boolean>()
+    var biometricUnlockHandler: suspend (Boolean) -> Boolean = { false }
+
     override fun state(): SessionState = SessionState.Locked(email, pendingSync)
 
     override suspend fun unlock(password: String, acceptRollback: Boolean): Boolean {
@@ -80,6 +87,13 @@ class FakeUnlockSession : SessionPort {
     override suspend fun pendingOnDevice(): Boolean {
         pendingOnDeviceCalls += 1
         return pendingOnDeviceHandler()
+    }
+
+    override fun canUnlockWithBiometrics(): Boolean = biometricsUsable
+
+    override suspend fun unlockWithBiometrics(acceptRollback: Boolean): Boolean {
+        biometricUnlocks += acceptRollback
+        return biometricUnlockHandler(acceptRollback)
     }
 
     override suspend fun register(email: String, password: String) = unused()

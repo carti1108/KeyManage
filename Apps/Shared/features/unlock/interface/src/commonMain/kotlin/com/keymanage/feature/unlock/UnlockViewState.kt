@@ -13,7 +13,7 @@ data class UnlockViewState(
     val isConfirmingRollback: Boolean = false,
     /** 올리지 못한 변경 사항이 사라진다고 알리고 로그아웃할지 묻는 중 (VLT-002) */
     val isConfirmingLogout: Boolean = false,
-    /** 생체 해제를 쓸 수 있음. 아직 연결하지 않았으므로 항상 false다 (웹에는 없고 iOS만 쓰는 선택 기능) */
+    /** 생체 해제 버튼을 보일지: 켜져 있고 감싼 키가 있으며 마지막 비밀번호 해제 뒤 14일 안이다. 웹은 늘 false (SEC-003 규칙 4) */
     val isBiometricsAvailable: Boolean = false,
 )
 
@@ -22,7 +22,7 @@ sealed interface UnlockViewAction {
     data class UpdatePassword(val password: String) : UnlockViewAction
     data object Unlock : UnlockViewAction
 
-    /** 연결 전이라 아무 일도 하지 않는다 */
+    /** 생체 인증 창을 띄워 연다. [UnlockViewState.isBiometricsAvailable]이 아니면 무시한다 */
     data object UnlockWithBiometrics : UnlockViewAction
 
     /** 되돌림 경고를 받아들이고 처음 입력한 비밀번호로 다시 연다 */

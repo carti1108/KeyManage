@@ -72,6 +72,14 @@ class FakeSettingsSession(var current: SessionState = unlockedSettingsState()) :
     val syncListeners = mutableListOf<SyncChangeListener>()
     val remoteListeners = mutableListOf<() -> Unit>()
 
+    /** 이 기기에서 생체 해제를 켤 수 있는지 */
+    var biometricAvailable = false
+    var biometricEnabled = false
+    var biometricEnableCalls = 0
+    var biometricDisableCalls = 0
+    var biometricEnableError: Throwable? = null
+    var biometricEnableGate: CompletableDeferred<Unit>? = null
+
     fun fireSyncChange() = syncListeners.toList().forEach { it(null) }
     fun fireRemoteChange() = remoteListeners.toList().forEach { it() }
 
@@ -112,6 +120,21 @@ class FakeSettingsSession(var current: SessionState = unlockedSettingsState()) :
     override fun onRemoteChange(listener: () -> Unit): () -> Unit {
         remoteListeners += listener
         return { remoteListeners.remove(listener) }
+    }
+
+    override val isBiometricUnlockAvailable: Boolean get() = biometricAvailable
+    override val isBiometricUnlockEnabled: Boolean get() = biometricEnabled
+
+    override suspend fun enableBiometricUnlock() {
+        biometricEnableCalls += 1
+        biometricEnableGate?.await()
+        biometricEnableError?.let { throw it }
+        biometricEnabled = true
+    }
+
+    override fun disableBiometricUnlock() {
+        biometricDisableCalls += 1
+        biometricEnabled = false
     }
 
     override suspend fun register(email: String, password: String) = unused()

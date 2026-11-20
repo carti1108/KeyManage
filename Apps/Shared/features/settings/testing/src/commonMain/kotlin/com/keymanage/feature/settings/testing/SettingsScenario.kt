@@ -1,6 +1,7 @@
 package com.keymanage.feature.settings.testing
 
 import com.keymanage.domain.backup.BackupDecryptException
+import com.keymanage.domain.lock.BiometricError
 import com.keymanage.domain.server.NetworkError
 import com.keymanage.domain.session.SessionExpiredException
 import com.keymanage.domain.session.WrongMasterPasswordException
@@ -19,11 +20,23 @@ enum class SettingsScenario(val title: String) {
     SESSION_EXPIRED("세션 만료 (비밀번호 변경 → 로그인 화면으로)"),
     SLOW("지연 (요청이 끝나지 않음)"),
     NO_FILE_PICKED("복원: 파일 선택 취소"),
+    BIOMETRIC("생체 해제 켜기·끄기"),
+    BIOMETRIC_CANCELLED("생체 해제 켜기 (인증 창 취소)"),
+    BIOMETRIC_UNAVAILABLE("생체 해제 켜기 (생체 정보·화면 잠금 없음)"),
     ;
 
     /** 이 상황을 만드는 가짜 세션 */
     fun session(): FakeSettingsSession = when (this) {
         NORMAL, NO_FILE_PICKED -> FakeSettingsSession().also { it.restoreCount = 3 }
+        BIOMETRIC -> FakeSettingsSession().also { it.biometricAvailable = true }
+        BIOMETRIC_CANCELLED -> FakeSettingsSession().also {
+            it.biometricAvailable = true
+            it.biometricEnableError = BiometricError.Cancelled()
+        }
+        BIOMETRIC_UNAVAILABLE -> FakeSettingsSession().also {
+            it.biometricAvailable = true
+            it.biometricEnableError = BiometricError.Unavailable()
+        }
         OFFLINE -> FakeSettingsSession(unlockedSettingsState(signedIn = false))
         READ_ONLY -> FakeSettingsSession(unlockedSettingsState(readOnly = true))
         WRONG_PASSWORD -> FakeSettingsSession().also {
