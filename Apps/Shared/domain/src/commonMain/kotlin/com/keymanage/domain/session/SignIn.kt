@@ -88,6 +88,8 @@ private suspend fun prepareDeviceForSignIn(ctx: SessionContext, email: String, k
         // 다른 계정의 인증이 성공했다. 볼트를 준비하지 못하더라도 이전 계정의 기록을 남기지 않는다 (ADR-0019)
         ctx.lastSeen = null
         ctx.device.clear()
+        // 생체 해제용으로 감싼 키도 이전 계정 것이다 (ADR-AND-002 결정 5)
+        ctx.deps.biometric?.disable()
         // 이전 계정으로 열린 다른 탭은 모두 로그아웃한다
         ctx.deps.tabs.channel.post(TabMessage.LOGGED_OUT)
         return
@@ -96,6 +98,8 @@ private suspend fun prepareDeviceForSignIn(ctx: SessionContext, email: String, k
         // 비밀번호가 바뀌었다. 옛 키의 대기 내용은 열 수 없으니 버린다. 되돌림 검사는 그대로 해서,
         // 서버가 KDF 값만 바꿔 유실을 감추고 기기 사본을 덮어쓰게 하지 못한다. 기기 사본은 볼트를 연 뒤에야 바뀐다 (ADR-0019)
         ctx.orphan = null
+        // 생체 해제용으로 감싼 키도 옛 비밀번호의 키다 (ADR-AND-002 결정 5)
+        ctx.deps.biometric?.disable()
         return
     }
     ctx.deps.revisionMemory.raise(record.lastSeenRevision)

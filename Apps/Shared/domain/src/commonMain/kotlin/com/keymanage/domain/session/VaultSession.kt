@@ -14,6 +14,7 @@ import com.keymanage.domain.crypto.VaultDecryptException
 import com.keymanage.domain.crypto.openVault
 import com.keymanage.domain.device.rememberedKdf
 import com.keymanage.domain.lock.BiometricError
+import com.keymanage.domain.lock.BiometricUnlock
 import com.keymanage.domain.server.NetworkError
 import com.keymanage.domain.tabs.TabLockName
 import com.keymanage.domain.tabs.TabMessage
@@ -48,12 +49,11 @@ class VaultSession(private val deps: VaultSessionDeps) : RestoreTarget {
     /** @throws VaultSetupException 가입은 됐지만 빈 볼트를 저장하지 못했을 때 */
     suspend fun register(email: String, password: String) {
         val normalized = normalizeEmail(email)
-        val previous = signedInEmail()
         val startedAt = beginSignIn(ctx, normalized)
         val result = deps.auth.register(email, password)
         try {
             signIn(ctx, normalized, startedAt, result, acceptRollback = false)
-            passwordSignedIn(previous, normalized)
+            deps.biometric?.onPasswordUnlock()
         } catch (error: CancellationException) {
             throw error
         } catch (error: SessionStateException) {
@@ -69,20 +69,10 @@ class VaultSession(private val deps: VaultSessionDeps) : RestoreTarget {
      */
     suspend fun login(email: String, password: String, acceptRollback: Boolean = false) {
         val normalized = normalizeEmail(email)
-        val previous = signedInEmail()
         val startedAt = beginSignIn(ctx, normalized)
         signIn(ctx, normalized, startedAt, deps.auth.login(email, password), acceptRollback)
-        passwordSignedIn(previous, normalized)
-    }
-
-    /** 이 기기에 남아 있는 계정. 로그인 전 상태에서도 마지막으로 로그인한 계정을 기억한다 */
-    private fun signedInEmail(): String? = ctx.account?.email ?: ctx.lastEmail
-
-    /** 비밀번호로 로그인·가입했다. 다른 계정이면 감싸 둔 키는 그 계정 것이 아니므로 지운다 (ADR-AND-002 결정 5) */
-    private fun passwordSignedIn(previousEmail: String?, email: String) {
-        val biometric = deps.biometric ?: return
-        if (previousEmail != null && previousEmail != email) biometric.disable()
-        biometric.onPasswordUnlock()
+        // 마스터 비밀번호로 로그인한 시각. 생체 해제의 14일 기준이다 (SEC-003 규칙 4)
+        deps.biometric?.onPasswordUnlock()
     }
 
     /**
@@ -206,17 +196,33 @@ class VaultSession(private val deps: VaultSessionDeps) : RestoreTarget {
             ensureCurrent(ctx, startedAt)
             throw SessionStateException("다른 탭에서 로그아웃됨")
         }
-        val encryptionKey = EncryptionKey(keyBytes)
-        val data = try {
-            parseVaultData(openVault(encryptionKey, locked.payload))
-        } catch (error: VaultDecryptException) {
-            // 감싸 둔 키가 지금 볼트의 키가 아니다(앱을 다시 켠 뒤 바뀐 비밀번호로 로그인 등). 지우고 비밀번호를 요구한다
+        // 그사이 비밀번호로 열었으면 그 볼트를 그대로 둔다
+        if (ctx.unlocked != null) {
             keyBytes.fill(0)
-            biometric.disable()
-            throw BiometricError.Invalidated()
+            return UnlockResult(offline = false)
+        }
+        // 볼트를 열지 못하고 끝나는 모든 경로(되돌림, 세션 만료, 그사이 잠금, 취소)에서 꺼낸 키를 지운다
+        try {
+            return openWithRecoveredKey(biometric, EncryptionKey(keyBytes), locked, startedAt, acceptRollback)
         } catch (error: Throwable) {
             keyBytes.fill(0)
             throw error
+        }
+    }
+
+    private suspend fun openWithRecoveredKey(
+        biometric: BiometricUnlock,
+        encryptionKey: EncryptionKey,
+        locked: Account,
+        startedAt: Int,
+        acceptRollback: Boolean,
+    ): UnlockResult {
+        val data = try {
+            parseVaultData(openVault(encryptionKey, locked.payload))
+        } catch (error: VaultDecryptException) {
+            // 감싸 둔 키가 지금 볼트의 키가 아니다. 지우고 비밀번호를 요구한다
+            biometric.disable()
+            throw BiometricError.Invalidated()
         }
         ensureCurrent(ctx, startedAt)
 
@@ -226,6 +232,8 @@ class VaultSession(private val deps: VaultSessionDeps) : RestoreTarget {
         ctx.retryBlocked = false
         val fresh = if (accessToken == null) null else syncAfterUnlock(ctx, sync, cached, locked.pendingSync, acceptRollback)
         ensureCurrent(ctx, startedAt)
+        // 서버와 맞추는 사이 비밀번호로 열었으면 그 볼트를 덮어쓰지 않는다
+        if (ctx.unlocked != null) throw SessionStateException("이미 잠금 해제됨")
         open(ctx, locked.email, accessToken, locked.kdf, sync, fresh ?: cached, fresh == null && locked.pendingSync)
         return UnlockResult(offline = fresh == null)
     }

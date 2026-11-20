@@ -8,7 +8,9 @@ import com.keymanage.domain.lock.BiometricSetting
 import com.keymanage.domain.lock.BiometricSettingStore
 import com.keymanage.domain.lock.BiometricUnlock
 import com.keymanage.domain.tabs.SingleTab
+import com.keymanage.domain.vault.RemoteVault
 import com.keymanage.domain.vault.RevisionMemory
+import com.keymanage.domain.vault.RevisionRollbackException
 import com.keymanage.domain.vault.addItem
 import kotlinx.coroutines.test.TestScope
 import kotlin.test.Test
@@ -39,7 +41,11 @@ private class FakeBiometricKeys : BiometricKeyStore {
 
     override fun hasKey() = sealed != null
 
+    /** 설정하면 감싸기가 이 문이 열릴 때까지 기다린다 */
+    var sealGate: Gate? = null
+
     override suspend fun seal(key: ByteArray) {
+        sealGate?.pass()
         failure?.let { throw it }
         sealed = key.copyOf()
     }
@@ -493,5 +499,129 @@ class VaultSessionBiometricKeyWipeTest {
         assertTrue(session.canUnlockWithBiometrics())
         session.unlockWithBiometrics()
         assertEquals(listOf("a"), activeIds(session.state()))
+    }
+}
+
+// 독립 리뷰(2026-11-20)에서 나온 경우
+class VaultSessionBiometricReviewTest {
+    @Test
+    fun lockWhileThePromptIsShowingDoesNotOpenTheVault() = sessionTest {
+        val device = Device()
+        val session = lockedWithBiometrics(device)
+        val gate = Gate()
+        device.keys.openGate = gate
+        val pending = begin { session.unlockWithBiometrics() }
+        waitFor { gate.waiting == 1 }
+
+        session.lock()
+        gate.release()
+
+        assertFailsWith<SessionStateException> { pending.await() }
+        assertIs<SessionState.Locked>(session.state())
+        assertTrue(session.isBiometricUnlockEnabled)
+    }
+
+    @Test
+    fun passwordUnlockWhileThePromptIsShowingIsNotOverwritten() = sessionTest {
+        val device = Device()
+        val session = lockedWithBiometrics(device)
+        val gate = Gate()
+        device.keys.openGate = gate
+        val pending = begin { session.unlockWithBiometrics() }
+        waitFor { gate.waiting == 1 }
+        session.unlock(PASSWORD)
+        session.save(addItem(unlockedData(session), fields, NOW, "b"))
+
+        gate.release()
+        pending.await()
+
+        assertEquals(listOf("a", "b"), activeIds(session.state())?.sorted())
+    }
+
+    @Test
+    fun logoutWhileEnablingDoesNotLeaveAWrappedKey() = sessionTest {
+        val device = Device()
+        val session = device.start(this)
+        session.login(EMAIL, PASSWORD)
+        val gate = Gate()
+        device.keys.sealGate = gate
+        val pending = begin { session.enableBiometricUnlock() }
+        waitFor { gate.waiting == 1 }
+
+        session.logout()
+        gate.release()
+
+        assertFailsWith<SessionStateException> { pending.await() }
+        assertNull(device.keys.sealed)
+        assertFalse(session.isBiometricUnlockEnabled)
+    }
+
+    @Test
+    fun rollbackStaysLockedAndKeepsBiometricUnlockUntilAccepted() = sessionTest {
+        val device = Device()
+        val session = lockedWithBiometrics(device)
+        // 서버를 백업(revision 1)에서 되돌린 상황
+        val restored = RemoteVault(1, device.vaultApi.payload!!)
+        device.vaultApi.getHook = { restored }
+
+        assertFailsWith<RevisionRollbackException> { session.unlockWithBiometrics() }
+        assertIs<SessionState.Locked>(session.state())
+        assertTrue(session.canUnlockWithBiometrics())
+
+        session.unlockWithBiometrics(acceptRollback = true)
+        assertIs<SessionState.Unlocked>(session.state())
+    }
+
+    @Test
+    fun switchingAccountAfterAFailedAttemptWipesTheWrappedKey() = sessionTest {
+        val device = Device()
+        val session = lockedWithBiometrics(device)
+        device.authApi.offline = true
+        assertFailsWith<Exception> { session.login("other@example.com", PASSWORD) }
+        assertNotNull(device.keys.sealed, "다른 계정의 인증이 성공하기 전에는 그대로 둔다")
+        device.authApi.offline = false
+
+        session.login("other@example.com", PASSWORD)
+
+        assertNull(device.keys.sealed)
+        assertFalse(session.isBiometricUnlockEnabled)
+    }
+
+    @Test
+    fun loggingInWithAPasswordChangedElsewhereWipesTheWrappedKey() = sessionTest {
+        val device = Device()
+        lockedWithBiometrics(device)
+        // 다른 기기에서 비밀번호를 바꿨다
+        val other = VaultSession(
+            VaultSessionDeps(
+                auth = AuthService(device.authApi),
+                vaultSyncFor = vaultSyncFor(device.vaultApi),
+                revisionMemory = RevisionMemory(),
+                deviceStore = FakeDeviceStore(),
+                tabs = SingleTab(),
+                scope = backgroundScope,
+            ),
+        )
+        other.login(EMAIL, PASSWORD)
+        other.changeMasterPassword(PASSWORD, NEW_PASSWORD)
+        val restarted = device.restart(this)
+        assertNotNull(device.keys.sealed)
+
+        restarted.login(EMAIL, NEW_PASSWORD)
+
+        assertNull(device.keys.sealed)
+        assertFalse(restarted.isBiometricUnlockEnabled)
+    }
+
+    @Test
+    fun changingTheMasterPasswordRestartsTheFourteenDays() = sessionTest {
+        val device = Device()
+        val session = lockedWithBiometrics(device)
+        session.unlock(PASSWORD)
+        device.now = NOW + 3.days
+
+        session.changeMasterPassword(PASSWORD, NEW_PASSWORD)
+
+        assertEquals(NOW + 3.days, device.settings.setting.lastPasswordUnlock)
     }
 }
