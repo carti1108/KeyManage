@@ -16,6 +16,7 @@ import com.keymanage.android.domain.remote.VaultApi
 import com.keymanage.android.domain.sync.DeviceAccount
 import com.keymanage.android.domain.sync.RetryTrigger
 import com.keymanage.android.domain.sync.SaveOutcome
+import com.keymanage.android.domain.sync.SyncError
 import com.keymanage.android.domain.sync.VaultSyncCoordinator
 import com.keymanage.android.domain.vault.VaultData
 import com.keymanage.android.domain.vault.VaultSerializer
@@ -115,6 +116,9 @@ class VaultSessionUseCase(
                 }
             }
             return OpenedVault(account, vault, activeSession, keys.encryptionKey, offlineReason)
+        } catch (error: SyncError) {
+            keys.encryptionKey.fill(0)
+            throw error
         } finally {
             keys.authHash.fill(0)
         }
@@ -141,6 +145,12 @@ class VaultSessionUseCase(
             OpenedVault(record.account, local, session, encryptionKey, error)
         }
     }
+
+    /**
+     * 되돌림 경고(`SyncError.RevisionRollback`)를 사용자가 확인했다(VLT-001 규칙 9).
+     * 그 뒤 실패한 동작(열기·잠금 해제·저장)을 다시 부르면 [serverRevision]까지는 받아들인다.
+     */
+    fun acceptRollback(serverRevision: Int) = coordinator.acceptRollback(serverRevision)
 
     /** 서버에 올리지 못한 변경 사항이 있는지(VLT-002 규칙 11). */
     fun hasPendingChanges(): Boolean = coordinator.hasPending
