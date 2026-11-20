@@ -16,7 +16,7 @@
 | 피처 전용 계층 | `Shared/Domain`, `Shared/Data` | 그 피처만 쓰는 유스케이스와 구현 |
 | Core | `Domain`, `Infrastructure`, `DesignSystem`(Example 포함), `Util`, `Testing` | 여러 피처가 함께 쓰는 것 |
 | 템플릿 | `Tuist/ProjectDescriptionHelpers/Project+Templates.swift`의 `microFeatureTargets` | 타깃 5개를 같은 규칙으로 만든다 |
-| Example 앱 | 시나리오 목록(성공·빈 화면·에러·지연) → 고른 시나리오의 Dependency로 RIB 하나를 띄움 | 앱 전체를 거치지 않고 화면 하나를 바로 확인하고 UI 테스트한다 |
+| Example 앱 | 시나리오 목록(성공·빈 화면·에러·지연) → 고른 시나리오의 Dependency로 RIB 하나를 띄움 | 앱 전체를 거치지 않고 그 피처의 뷰만 시뮬레이터에 띄워, `Testing`의 목 데이터로 정해 둔 시나리오를 눈으로 확인한다 |
 
 ## 2. KMP에서의 대응
 
@@ -62,7 +62,7 @@ Apps/Web/src/features/<name>/         React 화면과 examples/<name>.html
 2. **`interface`에 두는 것**: `XxxDependency`, `XxxListener`, `XxxBuildable`, `XxxRouting`, `XxxViewContract`(Presentable·ViewControllable·ViewFactory), `XxxViewState`·`XxxViewAction`. 플랫폼 뷰는 이 모듈만 보고 만든다.
 3. **`testing`에 두는 것**: 가짜 뷰, 가짜 Listener, 그리고 **시나리오**. 시나리오는 이름(화면에 보일 제목)과 그 상황을 만드는 Dependency다. 테스트와 세 플랫폼의 Example이 같은 시나리오를 쓴다.
 4. **`tests`**: 별도 모듈의 `commonTest`에 둔다(Tuist의 Tests 타깃과 같은 단위). `implementation`의 `internal` 선언은 보이지 않으므로 테스트가 필요한 것은 공개하거나 `interface`로 옮긴다.
-5. **Example 앱**: 시나리오 목록 화면 하나와, 고른 시나리오로 그 피처의 RIB을 띄우는 화면으로만 이뤄진다. 실제 서버·세션을 쓰지 않는다.
+5. **Example 앱**: 시나리오 목록 화면 하나와, 고른 시나리오로 그 피처의 RIB을 띄우는 화면으로만 이뤄진다. 실제 서버·세션을 쓰지 않는다. 목적은 사람이 기기에서 화면을 빠르게 확인하는 것이다. 자동화한 UI 테스트(Compose UI 테스트 등)는 Example에 넣지 않는다.
 6. **피처 전용 Domain·Data**: 지금은 만들지 않는다. 세션이 도메인 대부분을 쓰고 있어 나누면 순환이 생긴다([domain-migration-plan.md](domain-migration-plan.md) 2장). 피처만 쓰는 유스케이스가 생기면 `features/<name>/domain`·`data`를 추가한다.
 7. **convention plugin**: 대상(jvm·js·android·iOS·macOS), 툴체인, 컴파일 옵션은 `build-logic`의 플러그인이 정한다. 모듈의 `build.gradle.kts`에는 의존성만 적는다.
 
@@ -86,3 +86,24 @@ Apps/Web/src/features/<name>/         React 화면과 examples/<name>.html
 | F | iOS(Mac): 묶음 프레임워크 2종, Tuist 피처 프로젝트와 Example 스킴 | Mac에서 확인 |
 
 A~C는 [android-migration-plan.md](android-migration-plan.md)의 3단계(공유 RIB 보강)보다 먼저 한다. 3단계가 Unlock·Settings·Root를 고치므로 나눈 뒤에 고친다.
+
+## 6. 진행 기록
+
+### A·B단계: Unlock 피처 (2026-11-20)
+
+| 항목 | 결과 |
+| :--- | :--- |
+| convention plugin | `Apps/Shared/build-logic`의 `km.kmp.library`. 대상·툴체인·컴파일 옵션을 정한다. 기존 모듈은 플러그인을 `alias` 대신 `id`로 적용하게 바꿨다(플러그인을 build-logic이 클래스패스에 올리기 때문) |
+| `core/feature-base` | 피처 공용 포트(`FeaturePorts.kt`)와 문구(`messages/`)를 옮겼다. 문구 테스트 15건 통과 |
+| `features/unlock/interface` | `UnlockDependency`·`UnlockListener`·화면 계약·화면 상태를 옮기고 `UnlockBuildable`·`UnlockRouting`을 추가했다 |
+| `features/unlock/implementation` | Builder·Interactor·Router. Root는 `UnlockBuildable`·`UnlockRouting`만 본다 |
+| `features/unlock/testing` | `FakeUnlockView`·`FakeUnlockListener`·`FakeUnlockSession`과 시나리오 10개(`UnlockScenario`) |
+| `features/unlock/tests` | 옮긴 테스트 29건 통과. 어설션 80개는 그대로다 |
+| 나머지 | `feature` 모듈 테스트 262건, 웹 `npm run check` 505건, 감사 스크립트 3종 통과. 정책 감사가 중첩된 공유 모듈의 테스트도 보게 경로를 바꿨다 |
+| Android `feature/unlock/ui` | `ComposeUnlockView`. 공유 `interface`와 디자인 시스템에만 의존한다 |
+| Android `feature/unlock/example` | 설치되는 앱(`com.keymanage.android.feature.unlock.example`). 에뮬레이터(API 37)에서 시나리오 목록 10개가 뜨고, "틀린 비밀번호"에서 표준 문구가, "세션 만료"에서 부모 알림(`didRequireSignIn`)이 뜨는 것을 확인했다 |
+
+- 실행: `Apps/Android`에서 `gradlew :feature:unlock:example:installDebug` 뒤 기기에서 "Unlock Example"을 연다.
+- `core/testing`(공용 테스트 더블)은 아직 만들지 않았다. Unlock은 자기 가짜 세션만 쓰기 때문이다. 여러 피처가 함께 쓰는 `ShellFakes.kt`는 C단계에서 옮긴다.
+- `ribs-compose` 치환은 `Apps/Shared/settings.gradle.kts`에 둔다. 같은 RIB 라이브러리 빌드를 `Apps/Android`에서 한 번 더 `includeBuild`하면 치환이 적용되지 않았다.
+- 기존 Android 모듈(`feature/unlock/{interface,implementation,testing,tests}`, uber/RIBs)은 앱이 아직 쓰므로 그대로 뒀다. 앱 전환(android-migration-plan 4단계) 때 지운다.
