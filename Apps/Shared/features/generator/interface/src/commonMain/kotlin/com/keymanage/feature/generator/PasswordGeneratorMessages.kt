@@ -7,4 +7,10 @@ object PasswordGeneratorMessages {
     /** 원문을 읽어 주지 않고 바뀌었다는 사실만 보조 기술에 알린다 */
     const val REGENERATED_ANNOUNCEMENT: String = "새 비밀번호를 만들었습니다."
     const val COPY_FAILED: String = "클립보드에 복사하지 못했습니다."
+
+    /** 강도가 취약일 때 안내. 사용은 막지 않는다 (GEN-001) */
+    const val WEAK_WARNING: String = "현재 비밀번호는 보안에 취약합니다. 80점 이상의 강력한 비밀번호로 재생성하세요."
+
+    /** 이어지는 숫자가 있을 때 안내. 점수와 별개다 (GEN-001) */
+    const val SEQUENTIAL_DIGITS_NOTICE: String = "123처럼 이어지는 숫자가 들어 있어 추측하기 쉽습니다."
 }

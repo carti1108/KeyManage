@@ -8,6 +8,10 @@ import com.keymanage.domain.generator.SYMBOLS
 import com.keymanage.domain.generator.WEAK_BELOW
 import com.keymanage.domain.platform.RandomBytes
 import com.keymanage.feature.ClipboardPort
+import com.keymanage.feature.generator.testing.FakeGeneratorClipboard as FakeClipboard
+import com.keymanage.feature.generator.testing.FakeGeneratorView
+import com.keymanage.feature.generator.testing.RecordingGeneratorListener as RecordingListener
+import com.keymanage.feature.generator.testing.SeededRandomBytes as CountingRandomBytes
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -301,45 +305,4 @@ private class SingleDispatcher(dispatcher: CoroutineDispatcher) : RibDispatchers
     override val MainImmediate: CoroutineDispatcher = dispatcher
     override val Default: CoroutineDispatcher = dispatcher
     override val Unconfined: CoroutineDispatcher = dispatcher
-}
-
-private class FakeGeneratorView : PasswordGeneratorViewContract {
-    override var listener: PasswordGeneratorPresentableListener? = null
-    val states = mutableListOf<PasswordGeneratorViewState>()
-    override fun render(state: PasswordGeneratorViewState) {
-        states += state
-    }
-}
-
-private class FakeClipboard : ClipboardPort {
-    val copied = mutableListOf<String>()
-    var failure: Throwable? = null
-    override suspend fun copy(text: String) {
-        failure?.let { throw it }
-        copied += text
-    }
-}
-
-private class RecordingListener : PasswordGeneratorListener {
-    val used = mutableListOf<String>()
-    var closed = 0
-    override fun didUsePassword(password: String) {
-        used += password
-    }
-
-    override fun didClosePasswordGenerator() {
-        closed++
-    }
-}
-
-/** 시드를 고정한 난수. 몇 번 불렸는지 센다 */
-private class CountingRandomBytes : RandomBytes {
-    private val random = Random(42)
-    var calls = 0
-        private set
-
-    override fun nextBytes(size: Int): ByteArray {
-        calls++
-        return random.nextBytes(size)
-    }
 }
