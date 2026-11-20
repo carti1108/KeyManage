@@ -24,8 +24,8 @@ export function AuthRibScreen({ view }: { view: WebAuthView }) {
     <main className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card padding="lg" className="flex w-full max-w-sm flex-col gap-4">
         <header className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold">KeyManage</h1>
-          <p className="text-sm text-muted-foreground">{registering ? '새 계정 만들기' : '볼트에 로그인'}</p>
+          <h1 className="text-display font-bold">KeyManage</h1>
+          <p className="text-label text-muted-foreground">{registering ? '새 계정 만들기' : '볼트에 로그인'}</p>
         </header>
         {state.notice && <Alert variant="info">{state.notice}</Alert>}
         <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
@@ -58,7 +58,7 @@ export function AuthRibScreen({ view }: { view: WebAuthView }) {
           {registering && (
             <div role="status">
               {state.showsWeakPasswordWarning && (
-                <p className="text-sm text-muted-foreground">{state.weakPasswordWarning}</p>
+                <p className="text-label text-muted-foreground">{state.weakPasswordWarning}</p>
               )}
             </div>
           )}

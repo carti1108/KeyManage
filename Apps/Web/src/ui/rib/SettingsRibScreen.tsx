@@ -10,23 +10,23 @@ import { AutoLockSelect } from '../vault/AutoLockSelect'
 import { ChangePasswordDialog, DeleteAccountDialog, RestoreDialog } from './SettingsRibDialogs'
 import { useViewStore } from './ribsReact'
 
-const ENTRY_BUTTON = 'w-full justify-start gap-2 h-7 px-2 text-xs font-normal whitespace-nowrap'
+const ENTRY_BUTTON = 'w-full justify-start gap-2 h-7 px-2 text-caption font-normal whitespace-nowrap'
 
 function SettingsSection({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+      <div className="flex items-center gap-2 text-label font-semibold text-foreground">
         {icon}
         <h3>{title}</h3>
       </div>
-      <div className="rounded-lg border border-border bg-card divide-y divide-border text-sm">{children}</div>
+      <div className="rounded-lg border border-border bg-card divide-y divide-border text-label">{children}</div>
     </div>
   )
 }
 
 function SettingsRow({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="flex items-center justify-between p-3.5 gap-4">
+    <div className="flex items-center justify-between p-4 gap-4">
       <span className="text-muted-foreground">{label}</span>
       <span className="font-medium text-foreground truncate">{value}</span>
     </div>
@@ -65,10 +65,10 @@ export function SettingsRibScreen({ view }: { view: WebSettingsView }) {
   return (
     <section aria-labelledby="settings-heading" className="flex flex-col gap-6">
       <div>
-        <h2 id="settings-heading" className="text-xl font-bold">
+        <h2 id="settings-heading" className="text-title font-bold">
           설정
         </h2>
-        <p className="text-sm text-muted-foreground">계정 및 보안 정책 상태를 확인합니다.</p>
+        <p className="text-label text-muted-foreground">계정 및 보안 정책 상태를 확인합니다.</p>
       </div>
 
       <div className="flex flex-col gap-4">
@@ -78,7 +78,7 @@ export function SettingsRibScreen({ view }: { view: WebSettingsView }) {
         </SettingsSection>
 
         <SettingsSection title="보안 정책" icon={<Shield aria-hidden className="size-4 text-primary" />}>
-          <div className="p-3.5">
+          <div className="p-4">
             <AutoLockSelect timeoutMs={state.autoLockTimeoutMs} optionsMs={state.autoLockOptionsMs} onChange={(ms) => view.selectAutoLock(ms)} />
           </div>
           <SettingsRow label={state.securityPolicy.clipboardLabel} value={state.securityPolicy.clipboardValue} />
@@ -90,7 +90,7 @@ export function SettingsRibScreen({ view }: { view: WebSettingsView }) {
         </SettingsSection>
 
         <Card className="p-4 flex flex-col gap-3 bg-muted/20">
-          <section className="flex flex-col gap-1.5" aria-label="백업">
+          <section className="flex flex-col gap-2" aria-label="백업">
             <Button
               ref={exportButton}
               variant="outline"
@@ -136,7 +136,7 @@ export function SettingsRibScreen({ view }: { view: WebSettingsView }) {
             {state.modal === 'restorePassword' && <RestoreDialog view={view} state={state} />}
           </section>
 
-          <section className="flex flex-col gap-1.5" aria-label="계정 관리">
+          <section className="flex flex-col gap-2" aria-label="계정 관리">
             {/* 오프라인이어도 눌러 안내를 받아야 하므로, 켜고 끄는 판단은 State(canStart...)가 한다 */}
             <Button
               ref={changePasswordButton}
@@ -168,8 +168,8 @@ export function SettingsRibScreen({ view }: { view: WebSettingsView }) {
 
         <Card className="p-4 flex flex-col sm:flex-row items-center justify-between gap-3 bg-muted/20">
           <div>
-            <h4 className="text-sm font-medium">세션 제어</h4>
-            <p className="text-xs text-muted-foreground">볼트를 잠그거나 계정에서 로그아웃합니다.</p>
+            <h4 className="text-label font-medium">세션 제어</h4>
+            <p className="text-caption text-muted-foreground">볼트를 잠그거나 계정에서 로그아웃합니다.</p>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
             <Button variant="outline" size="sm" className="flex-1 sm:flex-initial" icon={<Lock aria-hidden className="size-4" />} onClick={() => view.requestLock()}>

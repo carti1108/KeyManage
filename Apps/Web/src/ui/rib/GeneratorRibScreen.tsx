@@ -32,13 +32,13 @@ export function GeneratorRibScreen({ view }: { view: WebGeneratorView }) {
       {/* 옵션이 잘못된 동안에는 옵션과 맞지 않는 이전 결과를 보이지 않는다(상태가 null을 준다) */}
       {state.generatedText != null && (
         <>
-          <p data-testid="generated-password" className="break-all font-mono text-sm">
+          <p data-testid="generated-password" className="break-all font-mono text-label">
             {state.generatedText}
           </p>
           <EntropyGauge score={state.generatedScore} label="생성된 비밀번호 강도" />
         </>
       )}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-label">
         <label htmlFor={lengthId} className="flex items-center gap-2">
           길이
           <input
@@ -54,7 +54,7 @@ export function GeneratorRibScreen({ view }: { view: WebGeneratorView }) {
           />
         </label>
         {CHARSETS.map(([key, label]) => (
-          <label key={key} className="flex items-center gap-1.5">
+          <label key={key} className="flex items-center gap-2">
             <input type="checkbox" checked={state[key]} onChange={(e) => view.setCharset(key, e.target.checked)} />
             {label}
           </label>

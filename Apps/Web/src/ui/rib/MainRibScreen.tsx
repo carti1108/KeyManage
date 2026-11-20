@@ -27,8 +27,8 @@ export function MainRibScreen({ view }: { view: WebMainView }) {
       <aside aria-label="사이드바" className="w-full lg:w-60 lg:shrink-0 border-b lg:border-b-0 lg:border-r border-border bg-card/60 flex flex-col justify-between p-4 gap-4">
         <div className="flex flex-col gap-4">
           <div className="min-w-0">
-            <h1 className="text-lg font-bold tracking-tight">KeyManage</h1>
-            <p className="truncate text-xs text-muted-foreground">{state.email}</p>
+            <h1 className="text-heading font-bold tracking-tight">KeyManage</h1>
+            <p className="truncate text-caption text-muted-foreground">{state.email}</p>
           </div>
           <nav aria-label="메인 메뉴" className="flex lg:flex-col gap-1">
             {TABS.map(({ key, label, Icon }) => {
@@ -41,7 +41,7 @@ export function MainRibScreen({ view }: { view: WebMainView }) {
                   aria-selected={selected}
                   onClick={() => view.selectTab(key)}
                   className={cn(
-                    'flex flex-1 lg:flex-initial items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                    'flex flex-1 lg:flex-initial items-center gap-3 rounded-md px-3 py-2 text-label font-medium transition-colors',
                     selected ? 'bg-accent text-accent-foreground font-semibold' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                   )}
                 >
@@ -58,7 +58,7 @@ export function MainRibScreen({ view }: { view: WebMainView }) {
             <Button
               variant="outline"
               size="sm"
-              className="w-full justify-center text-xs px-2 whitespace-nowrap h-8"
+              className="w-full justify-center text-caption px-2 whitespace-nowrap h-8"
               icon={<Lock aria-hidden className="size-3.5 shrink-0" />}
               onClick={() => view.requestLock()}
             >
@@ -67,7 +67,7 @@ export function MainRibScreen({ view }: { view: WebMainView }) {
             <Button
               variant="ghost"
               size="sm"
-              className="w-full justify-center text-xs px-2 whitespace-nowrap h-8 text-muted-foreground hover:text-destructive"
+              className="w-full justify-center text-caption px-2 whitespace-nowrap h-8 text-muted-foreground hover:text-destructive"
               icon={<LogOut aria-hidden className="size-3.5 shrink-0" />}
               onClick={() => view.requestLogout()}
             >
@@ -77,7 +77,7 @@ export function MainRibScreen({ view }: { view: WebMainView }) {
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col min-w-0 p-4 md:p-6 lg:p-8 gap-4 overflow-y-auto">
+      <main className="flex-1 flex flex-col min-w-0 p-4 md:p-6 gap-4 overflow-y-auto">
         {state.offline && state.offlineNotice !== null && (
           <Alert variant="info">
             <WifiOff aria-hidden className="mr-1 inline size-4" />
@@ -124,7 +124,7 @@ function ReconnectForm({ view, state }: { view: WebMainView; state: WebMainState
 
   return (
     <form className="flex flex-col gap-3 rounded-md border border-border p-3" onSubmit={submit} noValidate>
-      <p className="text-sm">{state.reconnectPrompt.body}</p>
+      <p className="text-label">{state.reconnectPrompt.body}</p>
       {/* 비밀번호 관리자가 계정을 알아보도록 숨은 사용자 이름을 둔다 */}
       <input type="email" autoComplete="username" value={state.email} readOnly hidden />
       <PasswordField

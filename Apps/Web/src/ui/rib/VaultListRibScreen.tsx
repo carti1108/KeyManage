@@ -77,7 +77,7 @@ function ListPane({ view, state }: PaneProps) {
         )}
       </div>
       {state.items.length === 0 ? (
-        state.emptyMessage != null && <p className="py-8 text-center text-sm text-muted-foreground">{state.emptyMessage}</p>
+        state.emptyMessage != null && <p className="py-6 text-center text-label text-muted-foreground">{state.emptyMessage}</p>
       ) : (
         <ul aria-label="항목 목록" className="flex flex-col gap-2">
           {state.items.map((item) => (
@@ -91,7 +91,7 @@ function ListPane({ view, state }: PaneProps) {
                 ref={item.id === state.focusItemId ? returnTarget : undefined}
               >
                 <span className="block font-medium">{item.serviceName}</span>
-                {item.username !== '' && <span className="block truncate text-sm text-muted-foreground">{item.username}</span>}
+                {item.username !== '' && <span className="block truncate text-label text-muted-foreground">{item.username}</span>}
               </Card>
               {item.password !== '' && (
                 <Button
@@ -119,19 +119,19 @@ function DetailPane({ view, state }: PaneProps) {
 
   // 데스크톱에서 아직 항목을 선택하지 않았을 때의 빈 상태 안내
   return (
-    <div className="flex h-64 flex-col items-center justify-center rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground">
+    <div className="flex h-64 flex-col items-center justify-center rounded-lg border border-dashed border-border p-6 text-center text-muted-foreground">
       <Shield aria-hidden className="mb-2 size-8 text-muted-foreground/40" />
-      <p className="text-sm font-medium">선택된 항목이 없습니다</p>
-      <p className="text-xs text-muted-foreground">목록에서 항목을 선택하거나 새 항목을 추가해 주세요.</p>
+      <p className="text-label font-medium">선택된 항목이 없습니다</p>
+      <p className="text-caption text-muted-foreground">목록에서 항목을 선택하거나 새 항목을 추가해 주세요.</p>
     </div>
   )
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-0.5">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="break-words text-sm">{children}</dd>
+    <div className="flex flex-col gap-1">
+      <dt className="text-caption text-muted-foreground">{label}</dt>
+      <dd className="break-words text-label">{children}</dd>
     </div>
   )
 }
@@ -179,7 +179,7 @@ function ItemDetailPane({ view, state, item }: PaneProps & { item: WebVaultItem 
       )}
       {state.saveError != null && <Alert title={state.saveError.title ?? undefined}>{state.saveError.body}</Alert>}
       <Card className="flex flex-col gap-4">
-        <h2 ref={heading} tabIndex={-1} className="text-lg font-semibold outline-none">
+        <h2 ref={heading} tabIndex={-1} className="text-heading font-semibold outline-none">
           {item.serviceName}
         </h2>
         {item.username !== '' && (
@@ -242,7 +242,7 @@ function ItemFormPane({ view, state }: PaneProps) {
   return (
     <Card padding="lg">
       <div role="group" aria-labelledby={titleId} className="flex flex-col gap-4" onKeyDown={onKeyDown}>
-        <h2 id={titleId} className="text-lg font-semibold">
+        <h2 id={titleId} className="text-heading font-semibold">
           {state.screen === 'edit' ? '항목 수정' : '항목 추가'}
         </h2>
         <TextField label="서비스 이름" value={form.serviceName} onChange={(e) => view.editForm('serviceName', e.target.value)} required autoFocus />
@@ -267,7 +267,7 @@ function ItemFormPane({ view, state }: PaneProps) {
           )}
           {/* 점수와 별개로 안내만 한다. 점수가 높아도 보인다 (GEN-001) */}
           {state.showsFormSequentialDigitsNotice && (
-            <p className="mt-1 text-sm text-muted-foreground">{state.sequentialDigitsNotice}</p>
+            <p className="mt-1 text-label text-muted-foreground">{state.sequentialDigitsNotice}</p>
           )}
         </div>
         {state.isGeneratorOpen ? (
@@ -278,8 +278,8 @@ function ItemFormPane({ view, state }: PaneProps) {
           </Button>
         )}
         <TextField label="URL" type="url" value={form.url} onChange={(e) => view.editForm('url', e.target.value)} {...PRIVATE_TEXT} />
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor={notesId} className="text-sm font-medium">
+        <div className="flex flex-col gap-2">
+          <label htmlFor={notesId} className="text-label font-medium">
             메모
           </label>
           <textarea
@@ -288,7 +288,7 @@ function ItemFormPane({ view, state }: PaneProps) {
             onChange={(e) => view.editForm('notes', e.target.value)}
             rows={3}
             {...PRIVATE_TEXT}
-            className="rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="rounded-md border border-input bg-transparent px-3 py-2 text-label outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         </div>
         {state.saveError != null && <Alert title={state.saveError.title ?? undefined}>{state.saveError.body}</Alert>}

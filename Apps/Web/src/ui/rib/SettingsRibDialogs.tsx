@@ -38,7 +38,7 @@ function submitWith(action: () => void) {
 
 function ProgressStatus({ text }: { text: string }) {
   return (
-    <p role="status" className="text-sm text-muted-foreground">
+    <p role="status" className="text-label text-muted-foreground">
       {text}
     </p>
   )
@@ -51,10 +51,10 @@ export function RestoreDialog({ view, state }: DialogProps) {
   return (
     <div role="dialog" aria-labelledby={titleId} aria-describedby={bodyId} className="rounded-md border border-border p-3" onKeyDown={closeOnEscape(view)}>
       <form className="flex flex-col gap-3" onSubmit={submitWith(() => view.submitRestore())} noValidate>
-        <p id={titleId} className="text-sm font-semibold">
+        <p id={titleId} className="text-label font-semibold">
           {state.restoreDialog.title}
         </p>
-        <p id={bodyId} className="text-sm text-muted-foreground">
+        <p id={bodyId} className="text-label text-muted-foreground">
           {state.restoreDialog.body}
         </p>
         <PasswordField
@@ -90,10 +90,10 @@ export function ChangePasswordDialog({ view, state }: DialogProps) {
   return (
     <ModalDialog labelledBy={titleId} describedBy={bodyId} onKeyDown={closeOnEscape(view)}>
       <form className="flex flex-col gap-3" onSubmit={submitWith(() => view.submitChangePassword())} noValidate>
-        <p id={titleId} className="text-sm font-semibold">
+        <p id={titleId} className="text-label font-semibold">
           {state.changePasswordDialog.title}
         </p>
-        <p id={bodyId} className="text-sm text-muted-foreground">
+        <p id={bodyId} className="text-label text-muted-foreground">
           {state.changePasswordDialog.body}
         </p>
         <PasswordField
@@ -115,7 +115,7 @@ export function ChangePasswordDialog({ view, state }: DialogProps) {
           disabled={state.inProgress}
           aria-describedby={ruleId}
         />
-        <p id={ruleId} className="text-xs text-muted-foreground">
+        <p id={ruleId} className="text-caption text-muted-foreground">
           {state.changePasswordDialog.newPasswordRule}
         </p>
         <PasswordField
@@ -148,10 +148,10 @@ export function DeleteAccountDialog({ view, state }: DialogProps) {
   return (
     <ModalDialog labelledBy={titleId} describedBy={bodyId} onKeyDown={closeOnEscape(view)}>
       <form className="flex flex-col gap-3" onSubmit={submitWith(() => view.submitDeleteAccount())} noValidate>
-        <p id={titleId} className="text-sm font-semibold text-destructive">
+        <p id={titleId} className="text-label font-semibold text-destructive">
           {state.deleteAccountDialog.title}
         </p>
-        <p id={bodyId} className="text-sm text-muted-foreground">
+        <p id={bodyId} className="text-label text-muted-foreground">
           {state.deleteAccountDialog.body}
         </p>
         <PasswordField
