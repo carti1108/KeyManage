@@ -1,4 +1,4 @@
 <resources>
-    <!-- RibActivity가 AppCompatActivity라 AppCompat 계열 테마여야 시작된다 -->
-    <style name="Theme.KeyManage" parent="Theme.AppCompat.DayNight.NoActionBar" />
+    <!-- 화면은 Compose가 그린다. 여기서는 창 배경과 시스템 바만 정한다. 어두운 설정은 values-night가 맡는다 -->
+    <style name="Theme.KeyManage" parent="android:Theme.Material.Light.NoActionBar" />
 </resources>
