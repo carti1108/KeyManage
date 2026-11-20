@@ -332,6 +332,7 @@ if os.path.isdir(android_dir):
         ("상위 버전 읽기 전용(ReadOnlyVault) 검증", r"ReadOnlyVault"),
         ("톰스톤(deletedAt) 삭제 및 병합 검증", r"\bdeletedAt\b"),
         ("서버 revision 역행(RevisionRollback) 검증", r"RevisionRollback"),
+        ("사용자 확인 뒤에만 되돌림 수락(acceptRollback) 검증", r"acceptRollback\("),
         ("409 충돌 재시도 소진(ConflictRetriesExhausted) 검증", r"ConflictRetriesExhausted"),
         ("5MB 용량 상한(MAX_PAYLOAD_BYTES) 경계값 검증", r"MAX_PAYLOAD_BYTES"),
     ])
@@ -340,6 +341,7 @@ if os.path.isdir(android_dir):
         ("409 동기화 충돌 표준 문구", r"다른 기기의 변경 사항과 충돌했습니다\. 잠시 후 다시 시도해 주세요\."),
         ("5MB 용량 초과 표준 문구", r"볼트 허용 용량\(5MB\)을 초과했거나 데이터 규격이 올바르지 않습니다\."),
         ("revision 역행 표준 제목", r"서버 볼트가 이전 상태로 돌아감"),
+        ("revision 역행 수락 버튼 표준 문구", r"서버 볼트 받아들이기"),
     ])
     check_invariants("Android", "3단계: 잠금 해제와 생체 해제(SEC-003)", android_tests, [
         ("생체 해제 14일 경계값(Duration.ofDays(14)) 검증", r"Duration\.ofDays\(14\)"),
