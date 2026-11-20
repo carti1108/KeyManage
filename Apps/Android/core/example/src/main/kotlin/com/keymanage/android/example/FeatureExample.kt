@@ -32,10 +32,10 @@ import com.keymanage.android.designsystem.generated.DesignTokens
 
 /**
  * 피처 Example 앱의 공통 틀(MusicSearch의 DemoListViewController에 해당한다).
- * 시나리오 목록을 보여 주고, 고르면 [launch]가 만든 RIB 하나의 화면을 띄운다. 화면 아래에는 RIB이 부모에 알린 마지막 내용을 보인다.
+ * 시나리오 목록을 보여 주고, 고르면 [launch]가 만든 RIB 하나의 화면을 띄운다. 화면 아래에는 RIB이 부모에 알린 내용 같은 마지막 결과를 보인다.
  * 서버와 실제 세션은 쓰지 않는다. 사람이 기기에서 화면을 확인하는 용도다 (modularization-plan 3장 5번)
  *
- * @param launch 고른 시나리오로 RIB을 만들어 붙인다. `onEvent`로 넘긴 문자열이 "부모에 알림"으로 보인다
+ * @param launch 고른 시나리오로 RIB을 만들어 붙인다. `onEvent`로 넘긴 문자열이 "결과"로 보인다
  */
 @Composable
 fun <S> FeatureExample(
@@ -93,7 +93,7 @@ private fun <S> ScenarioScreen(scenario: S, launch: (S, (String) -> Unit) -> Run
         if (events.isNotEmpty()) {
             HorizontalDivider()
             Text(
-                "부모에 알림: " + events.last(),
+                "결과: " + events.last(),
                 modifier = Modifier.fillMaxWidth().padding(DesignTokens.Spacing.space4),
                 style = MaterialTheme.typography.bodySmall,
             )
