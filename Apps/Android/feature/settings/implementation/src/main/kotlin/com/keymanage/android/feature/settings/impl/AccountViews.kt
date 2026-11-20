@@ -12,9 +12,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import com.keymanage.android.designsystem.component.KMTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
+import com.keymanage.android.designsystem.component.KMScreen
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,50 +54,52 @@ internal fun PasswordChangeView(state: PasswordChangeState, onAction: (SettingsV
     }
 }
 
-/** 계정 삭제 화면(목업 10단계, SEC-005). 확인 문구가 정확히 같아야 삭제 버튼이 켜진다. */
+/** 계정 삭제 대화상자(목업 10단계, SEC-005). 설정 화면 위에 M3 대화상자로 띄우고, 확인 문구가 정확히 같아야 삭제 버튼이 켜진다. */
 @Composable
 internal fun DeleteAccountView(state: DeleteAccountState, onAction: (SettingsViewAction) -> Unit) {
-    SubScreen(SettingsMessages.DELETE_TITLE, enabled = !state.isWorking, onBack = { onAction(SettingsViewAction.Back) }) {
-        Text(SettingsMessages.DELETE_BODY, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Secret("마스터 비밀번호", state.password, state.isWorking) { onAction(SettingsViewAction.DeleteFieldsChanged(it, state.phrase)) }
-        OutlinedTextField(
-            value = state.phrase,
-            onValueChange = { onAction(SettingsViewAction.DeleteFieldsChanged(state.password, it)) },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text(SettingsMessages.DELETE_PHRASE_LABEL) },
-            singleLine = true,
-            enabled = !state.isWorking,
-        )
-        KMButton(
-            title = "삭제",
-            onClick = { onAction(SettingsViewAction.SubmitDeleteAccount) },
-            modifier = Modifier.fillMaxWidth(),
-            variant = KMButtonVariant.DESTRUCTIVE,
-            isLoading = state.isWorking,
-            isDisabled = !state.canDelete,
-        )
-        state.message?.let { Message(it, MaterialTheme.colorScheme.error) }
-    }
+    AlertDialog(
+        onDismissRequest = { if (!state.isWorking) onAction(SettingsViewAction.Back) },
+        title = { Text(SettingsMessages.DELETE_TITLE, color = MaterialTheme.colorScheme.error) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(DesignTokens.Spacing.space4),
+            ) {
+                Text(SettingsMessages.DELETE_BODY)
+                Secret("마스터 비밀번호", state.password, state.isWorking) { onAction(SettingsViewAction.DeleteFieldsChanged(it, state.phrase)) }
+                KMTextField(
+                    label = SettingsMessages.DELETE_PHRASE_LABEL,
+                    text = state.phrase,
+                    onTextChange = { onAction(SettingsViewAction.DeleteFieldsChanged(state.password, it)) },
+                    readOnly = state.isWorking,
+                )
+                state.message?.let { Message(it, MaterialTheme.colorScheme.error) }
+            }
+        },
+        confirmButton = {
+            KMButton(
+                title = "삭제",
+                onClick = { onAction(SettingsViewAction.SubmitDeleteAccount) },
+                variant = KMButtonVariant.DESTRUCTIVE,
+                isLoading = state.isWorking,
+                isDisabled = !state.canDelete,
+            )
+        },
+        dismissButton = {
+            KMButton(
+                title = "취소",
+                onClick = { onAction(SettingsViewAction.Back) },
+                variant = KMButtonVariant.OUTLINE,
+                isDisabled = state.isWorking,
+            )
+        },
+    )
 }
 
 @Composable
 private fun SubScreen(title: String, enabled: Boolean, onBack: () -> Unit, content: @Composable () -> Unit) {
     BackHandler(enabled = enabled, onBack = onBack)
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState())
-            .imePadding()
-            .padding(DesignTokens.Spacing.space4),
-        verticalArrangement = Arrangement.spacedBy(DesignTokens.Spacing.space3),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onBack, enabled = enabled) { Text("뒤로") }
-            Text(title, modifier = Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineSmall)
-        }
-        content()
-    }
+    KMScreen(title = title, onBack = { if (enabled) onBack() }, modifier = Modifier.imePadding()) { content() }
 }
 
 @Composable

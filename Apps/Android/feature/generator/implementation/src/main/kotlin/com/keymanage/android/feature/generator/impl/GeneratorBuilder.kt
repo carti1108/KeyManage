@@ -13,6 +13,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import com.keymanage.android.designsystem.component.KMCard
+import com.keymanage.android.designsystem.component.KMScreen
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
@@ -27,7 +29,6 @@ import com.keymanage.android.designsystem.KeyManageTheme
 import com.keymanage.android.designsystem.component.KMBurnBadge
 import com.keymanage.android.designsystem.component.KMButton
 import com.keymanage.android.designsystem.component.KMButtonVariant
-import com.keymanage.android.designsystem.component.KMCard
 import com.keymanage.android.designsystem.component.KMGaugeBar
 import com.keymanage.android.designsystem.generated.DesignTokens
 import com.keymanage.android.domain.generator.GeneratorOptions
@@ -62,16 +63,8 @@ class GeneratorBuilder(private val dependency: GeneratorDependency) : GeneratorB
 /** 생성기 화면(목업 6단계). */
 @Composable
 fun GeneratorView(state: GeneratorViewState, onAction: (GeneratorViewAction) -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState())
-            .padding(DesignTokens.Spacing.space4),
-        verticalArrangement = Arrangement.spacedBy(DesignTokens.Spacing.space4),
-    ) {
-        Text("생성기", modifier = Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineSmall)
-        KMCard {
+    KMScreen(title = "생성기", onBack = null) {
+        KMCard(modifier = Modifier.fillMaxWidth()) {
             Text(state.password.ifEmpty { " " }, style = DesignTokens.Typography.bodyMono)
             if (state.password.isNotEmpty()) KMGaugeBar(score = state.score)
         }

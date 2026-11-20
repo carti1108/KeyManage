@@ -6,6 +6,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.keymanage.android.designsystem.component.KMIcons
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
@@ -42,7 +45,7 @@ class MainPresenter(
                     NavigationBarItem(
                         selected = tab == state.tab,
                         onClick = { actions.send(MainViewAction.SelectTab(tab)) },
-                        icon = {},
+                        icon = { Icon(tab.icon, contentDescription = null) },
                         label = { Text(tab.label) },
                     )
                 }
@@ -50,6 +53,14 @@ class MainPresenter(
         }
     }
 }
+
+/** 탭 아이콘(platform-bindings.md 아이콘 표). */
+private val MainTab.icon: ImageVector
+    get() = when (this) {
+        MainTab.VAULT -> KMIcons.Lock
+        MainTab.GENERATOR -> KMIcons.Key
+        MainTab.SETTINGS -> KMIcons.Settings
+    }
 
 /** 탭마다 하위 RIB을 하나만 붙인다. */
 class MainRouter(

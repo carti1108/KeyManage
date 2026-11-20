@@ -71,6 +71,7 @@ class VaultListInteractor(
             VaultListViewAction.Back -> back()
             VaultListViewAction.CopyUsername -> copy { it.username }
             VaultListViewAction.CopyPassword -> copy { it.password }
+            is VaultListViewAction.CopyItemPassword -> copyItemPassword(action.id)
             VaultListViewAction.StartAdd -> if (!vault.isReadOnly) show(VaultScreen.Edit(null, ItemFields("", "", "")))
             VaultListViewAction.StartEdit -> startEdit()
             is VaultListViewAction.FormChanged -> updateForm(action.fields)
@@ -188,8 +189,18 @@ class VaultListInteractor(
 
     private fun copy(select: (ItemFields) -> String) {
         val detail = store.current.screen as? VaultScreen.Detail ?: return
+        copyToClipboard(select(detail.fields))
+    }
+
+    private fun copyItemPassword(id: String) {
+        val item = vault.visibleItems.firstOrNull { it.id == id } ?: return
+        copyToClipboard(ItemFields.of(item).password)
+    }
+
+    /** 복사하고 30초 뒤 비우는 타이머를 시작한다(COM-001). */
+    private fun copyToClipboard(value: String) {
         try {
-            clipboard.copy(select(detail.fields))
+            clipboard.copy(value)
         } catch (error: Exception) {
             store.update { it.copy(errorMessage = VaultMessages.COPY_FAILED) }
             return

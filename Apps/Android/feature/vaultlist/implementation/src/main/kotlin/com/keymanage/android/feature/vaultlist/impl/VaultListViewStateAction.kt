@@ -45,6 +45,9 @@ sealed interface VaultListViewAction {
     data object Back : VaultListViewAction
     data object CopyUsername : VaultListViewAction
     data object CopyPassword : VaultListViewAction
+
+    /** 목록 줄의 "복사". 상세를 열지 않고 그 항목의 비밀번호를 복사한다. */
+    data class CopyItemPassword(val id: String) : VaultListViewAction
     data object StartAdd : VaultListViewAction
     data object StartEdit : VaultListViewAction
     data class FormChanged(val fields: ItemFields) : VaultListViewAction

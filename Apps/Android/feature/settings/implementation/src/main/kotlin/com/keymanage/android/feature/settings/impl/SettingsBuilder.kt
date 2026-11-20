@@ -18,6 +18,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import com.keymanage.android.designsystem.component.KMScreen
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
@@ -32,7 +33,6 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import com.keymanage.android.designsystem.KeyManageTheme
-import com.keymanage.android.designsystem.component.KMCard
 import com.keymanage.android.designsystem.generated.DesignTokens
 import com.keymanage.android.domain.lock.AutoLockOption
 import com.keymanage.android.feature.settings.AccountPort
@@ -76,18 +76,10 @@ fun SettingsView(state: SettingsViewState, onAction: (SettingsViewAction) -> Uni
     when (state.screen) {
         SettingsScreen.BACKUP -> return BackupView(state.backup, onAction)
         SettingsScreen.PASSWORD -> return PasswordChangeView(state.password, onAction)
-        SettingsScreen.DELETE -> return DeleteAccountView(state.delete, onAction)
+        SettingsScreen.DELETE -> Unit
         SettingsScreen.MAIN -> Unit
     }
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState())
-            .padding(DesignTokens.Spacing.space4),
-        verticalArrangement = Arrangement.spacedBy(DesignTokens.Spacing.space4),
-    ) {
-        Text("설정", modifier = Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineSmall)
+    KMScreen(title = "설정", onBack = null) {
         Section("계정") { SettingRow("이메일", state.email) }
         Section("보안") {
             SettingRow("자동 잠금", state.autoLock.label) { onAction(SettingsViewAction.OpenAutoLock) }
@@ -96,7 +88,8 @@ fun SettingsView(state: SettingsViewState, onAction: (SettingsViewAction) -> Uni
             SettingRow("암호화 구조", "AES-256-GCM")
         }
         Section("백업") {
-            SettingRow("백업 내보내기·복원", null) { onAction(SettingsViewAction.OpenBackup) }
+            SettingRow("백업 내보내기", null) { onAction(SettingsViewAction.OpenBackup) }
+            SettingRow("백업에서 복원", null) { onAction(SettingsViewAction.OpenBackup) }
         }
         Section("세션 제어") {
             SettingRow("마스터 비밀번호 변경", null) { onAction(SettingsViewAction.OpenPasswordChange) }
@@ -104,6 +97,7 @@ fun SettingsView(state: SettingsViewState, onAction: (SettingsViewAction) -> Uni
             SettingRow("계정 삭제", null, color = MaterialTheme.colorScheme.error) { onAction(SettingsViewAction.OpenDeleteAccount) }
         }
     }
+    if (state.screen == SettingsScreen.DELETE) DeleteAccountView(state.delete, onAction)
     if (state.isChoosingAutoLock) {
         AlertDialog(
             onDismissRequest = { onAction(SettingsViewAction.DismissDialog) },
@@ -146,8 +140,13 @@ fun SettingsView(state: SettingsViewState, onAction: (SettingsViewAction) -> Uni
 @Composable
 internal fun Section(title: String, content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.Spacing.space2)) {
-        Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        KMCard { content() }
+        Text(
+            title,
+            modifier = Modifier.semantics { heading() },
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Column { content() }
     }
 }
 
@@ -157,7 +156,7 @@ private fun SettingRow(label: String, value: String?, color: Color = Color.Unspe
         modifier = Modifier
             .fillMaxWidth()
             .let { if (onClick != null) it.clickable(onClick = onClick) else it }
-            .padding(vertical = DesignTokens.Spacing.space2),
+            .padding(vertical = DesignTokens.Spacing.space3),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = color)

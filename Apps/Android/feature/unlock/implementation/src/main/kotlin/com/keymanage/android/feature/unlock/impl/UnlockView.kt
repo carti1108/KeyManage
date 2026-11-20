@@ -7,9 +7,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -23,8 +25,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import com.keymanage.android.designsystem.KeyManageTheme
 import com.keymanage.android.designsystem.component.KMButton
-import com.keymanage.android.designsystem.component.KMButtonSize
 import com.keymanage.android.designsystem.component.KMButtonVariant
+import com.keymanage.android.designsystem.component.KMIcons
 import com.keymanage.android.designsystem.component.KMPasswordField
 import com.keymanage.android.designsystem.generated.DesignTokens
 
@@ -37,10 +39,11 @@ fun UnlockView(state: UnlockViewState, onAction: (UnlockViewAction) -> Unit) {
             .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
             .imePadding()
-            .padding(horizontal = DesignTokens.Spacing.space5, vertical = DesignTokens.Spacing.space6),
+            .padding(horizontal = DesignTokens.Spacing.space4, vertical = DesignTokens.Spacing.space4),
         verticalArrangement = Arrangement.spacedBy(DesignTokens.Spacing.space4, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        Icon(KMIcons.Lock, contentDescription = null, modifier = Modifier.size(DesignTokens.Spacing.space6 * 2), tint = MaterialTheme.colorScheme.primary)
         Text("볼트가 잠겼습니다", modifier = Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineSmall)
         Text(state.email, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         KMPasswordField(
@@ -63,7 +66,6 @@ fun UnlockView(state: UnlockViewState, onAction: (UnlockViewAction) -> Unit) {
             title = "잠금 해제",
             onClick = { onAction(UnlockViewAction.Submit) },
             modifier = Modifier.fillMaxWidth(),
-            size = KMButtonSize.LG,
             isLoading = state.isSubmitting,
             isDisabled = !state.canSubmit,
         )
@@ -73,8 +75,7 @@ fun UnlockView(state: UnlockViewState, onAction: (UnlockViewAction) -> Unit) {
                 onClick = { onAction(UnlockViewAction.UnlockWithBiometrics) },
                 modifier = Modifier.fillMaxWidth(),
                 variant = KMButtonVariant.OUTLINE,
-                size = KMButtonSize.LG,
-                isDisabled = state.isSubmitting,
+                    isDisabled = state.isSubmitting,
             )
         }
         TextButton(onClick = { onAction(UnlockViewAction.Logout) }, enabled = !state.isSubmitting) {

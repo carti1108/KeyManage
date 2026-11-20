@@ -17,6 +17,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import com.keymanage.android.designsystem.component.KMScreen
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,19 +42,7 @@ internal fun BackupView(state: BackupState, onAction: (SettingsViewAction) -> Un
     val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { onAction(SettingsViewAction.RestoreFilePicked(it.toString())) }
     }
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState())
-            .imePadding()
-            .padding(DesignTokens.Spacing.space4),
-        verticalArrangement = Arrangement.spacedBy(DesignTokens.Spacing.space3),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { onAction(SettingsViewAction.Back) }) { Text("뒤로") }
-            Text("백업", modifier = Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineSmall)
-        }
+    KMScreen(title = "백업", onBack = { onAction(SettingsViewAction.Back) }, modifier = Modifier.imePadding()) {
         Text(SettingsMessages.EXPORT_TITLE, style = MaterialTheme.typography.titleMedium)
         Text(SettingsMessages.EXPORT_BODY, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(state.fileName, style = DesignTokens.Typography.captionMono, color = MaterialTheme.colorScheme.onSurfaceVariant)
