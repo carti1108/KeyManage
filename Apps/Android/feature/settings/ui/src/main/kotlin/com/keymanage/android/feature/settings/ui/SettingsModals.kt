@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import com.keymanage.android.designsystem.component.KMPasswordField
 import com.keymanage.android.designsystem.component.KMTextField
 import com.keymanage.android.designsystem.generated.DesignTokens
+import com.keymanage.feature.messages.ACCOUNT_DELETION_PHRASE
 import com.keymanage.feature.messages.ChangePasswordDialog
 import com.keymanage.feature.messages.DeleteAccountDialog
 import com.keymanage.feature.messages.ExportNotice
@@ -80,8 +81,11 @@ internal fun SettingsModalDialog(state: SettingsViewState, onAction: (SettingsVi
             onCancel = cancel,
         ) {
             Secret(DeleteAccountDialog.PASSWORD_LABEL, state.deletionPassword, state.inProgress) { onAction(SettingsViewAction.EditDeletionPassword(it)) }
+            // 안내가 길어 칸 안의 이름표로 두면 두 줄로 넘친다. 안내는 칸 위에 두고, 칸에는 짧은 이름표와 입력할 문구를 보인다
+            Text(DeleteAccountDialog.PHRASE_LABEL, style = MaterialTheme.typography.bodyMedium)
             KMTextField(
-                label = DeleteAccountDialog.PHRASE_LABEL,
+                label = "확인 문구",
+                placeholder = ACCOUNT_DELETION_PHRASE,
                 text = state.deletionPhrase,
                 // 한글 자모가 나뉘어 들어오면(NFD) 확인 문구와 비교할 수 있게 NFC로 맞춰 보낸다
                 onTextChange = { onAction(SettingsViewAction.EditDeletionPhrase(Normalizer.normalize(it, Normalizer.Form.NFC))) },
