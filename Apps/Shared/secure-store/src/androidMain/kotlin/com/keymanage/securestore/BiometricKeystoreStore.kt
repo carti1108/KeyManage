@@ -23,7 +23,9 @@ class BiometricKeystoreStore(
 
     override suspend fun loadProtected(account: String, reason: String): ByteArray? {
         val sealed = prefs.readSealed(account) ?: return null
-        val cipher = authorize(KeystoreCipher.decryptCipher(protectedKey(), sealed), reason)
+        // 키가 사라졌으면(기기 암호를 끔) 새로 만들지 않는다. 새 키로는 열 수 없고 인증 창만 뜬다
+        val key = KeystoreCipher.existingKey(alias) ?: return null
+        val cipher = authorize(KeystoreCipher.decryptCipher(key, sealed), reason)
         return KeystoreCipher.open(cipher, sealed)
     }
 

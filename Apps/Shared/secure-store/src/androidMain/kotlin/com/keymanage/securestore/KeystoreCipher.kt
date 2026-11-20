@@ -18,9 +18,12 @@ internal object KeystoreCipher {
     private const val IV_SIZE = 12
     private const val TAG_BITS = 128
 
+    /** 이미 만든 키. 없으면 null */
+    fun existingKey(alias: String): SecretKey? =
+        KeyStore.getInstance(KEYSTORE).apply { load(null) }.getKey(alias, null) as SecretKey?
+
     fun key(alias: String, configure: KeyGenParameterSpec.Builder.() -> Unit = {}): SecretKey {
-        val store = KeyStore.getInstance(KEYSTORE).apply { load(null) }
-        (store.getKey(alias, null) as SecretKey?)?.let { return it }
+        existingKey(alias)?.let { return it }
         val spec = KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
             .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
             .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)

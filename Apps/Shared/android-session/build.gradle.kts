@@ -27,12 +27,15 @@ kotlin {
             api(project(":device-store"))
             api(project(":secure-store"))
             implementation(libs.kotlinx.coroutines.android)
+            implementation(libs.androidx.fragment)
+            implementation(libs.androidx.biometric)
         }
         getByName("androidDeviceTest").dependencies {
             implementation(kotlin("test"))
             implementation(libs.androidx.test.runner)
             implementation(libs.androidx.test.core)
             implementation(libs.androidx.test.junit)
+            implementation(libs.androidx.fragment.testing.manifest)
         }
     }
 }
