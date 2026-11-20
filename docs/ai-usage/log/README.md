@@ -118,3 +118,4 @@
 | 110 | 2026-11-20 | [Android 되돌림 경고의 서버 볼트 받아들이기](110-android-accept-server-vault.md) |
 | 111 | 2026-11-20 | [Android 시작 오류 수정과 Material 3 화면 정리](111-android-startup-and-material-screens.md) |
 | 112 | 2026-11-20 | [Figma 목업 Android 줄을 Material 3 모양으로 수정](112-figma-android-material-mockup.md) |
+| 113 | 2026-11-20 | [Android 기기 확인 목록을 에뮬레이터에서 확인](113-android-emulator-device-checklist.md) |
