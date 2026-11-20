@@ -1,5 +1,7 @@
 package com.keymanage.domain.crypto
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.keymanage.crypto.KeySeparator
 import com.keymanage.crypto.PasswordKeyDeriver
 import com.keymanage.crypto.PasswordPreprocessor
@@ -83,7 +85,9 @@ suspend fun deriveKeys(password: String, salt: ByteArray, iterations: Int): Deri
     if (hasLoneSurrogate(password)) throw InvalidPasswordException("비밀번호에 깨진 유니코드 문자가 있음")
     val passwordBytes = PasswordPreprocessor.preprocess(password)
     val masterKey = try {
-        PasswordKeyDeriver.deriveMasterKey(passwordBytes, salt, iterations)
+        // PBKDF2 60만 회는 JVM·Android·Apple에서 호출한 스레드를 몇 초 막는다. 화면 스레드에서 불러도 멈추지 않게 계산용 스레드로 넘긴다.
+        // JS는 WebCrypto가 원래 비동기라 달라지는 것이 없다
+        withContext(Dispatchers.Default) { PasswordKeyDeriver.deriveMasterKey(passwordBytes, salt, iterations) }
     } finally {
         // 비밀번호 바이트도 키로 넘긴 뒤 지운다. 문자열 원본은 지울 수 없으므로 화면 쪽에서 오래 들고 있지 않는다
         passwordBytes.fill(0)
