@@ -29,6 +29,7 @@ kotlin {
             implementation(libs.kotlinx.coroutines.android)
             implementation(libs.androidx.fragment)
             implementation(libs.androidx.biometric)
+            implementation(libs.androidx.activity)
         }
         getByName("androidDeviceTest").dependencies {
             implementation(kotlin("test"))
