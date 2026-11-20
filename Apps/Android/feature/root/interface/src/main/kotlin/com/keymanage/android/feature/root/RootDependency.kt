@@ -67,6 +67,9 @@ interface VaultSessionGateway {
     /** 인증 직후 볼트를 연다. */
     fun openAfterAuth(result: AuthResult): OpenedVault
 
+    /** 되돌림 경고를 사용자가 확인했다(VLT-001 규칙 9). 그 뒤 막혔던 열기·저장을 다시 부른다. */
+    fun acceptRollback(serverRevision: Int)
+
     /** 로그아웃. 기기 기록을 지우지 못하면 `DeviceStorageError`를 던진다. */
     fun logout(session: Session?)
 

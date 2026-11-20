@@ -9,6 +9,8 @@ data class RootViewState(
     val notice: String? = null,
     /** 가입 직후 생체 인증을 켤지 묻는 중(SEC-003 값 표). */
     val isAskingBiometrics: Boolean = false,
+    /** 로그인 직후 서버 볼트가 되돌아가 있어 받아들일지 묻는 중(VLT-001 규칙 9). */
+    val isConfirmingRollback: Boolean = false,
 )
 
 /** Root 화면에서 View가 보내는 동작. */
@@ -16,4 +18,5 @@ sealed interface RootViewAction {
     data object ViewAppeared : RootViewAction
     data object DismissNotice : RootViewAction
     data class AnswerBiometricPrompt(val enable: Boolean) : RootViewAction
+    data class AnswerRollback(val accept: Boolean) : RootViewAction
 }

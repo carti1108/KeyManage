@@ -85,11 +85,39 @@ private fun Banners(state: VaultListViewState, onAction: (VaultListViewAction) -
         if (state.isReadOnly) Notice(VaultMessages.READ_ONLY)
         state.errorMessage?.let { message ->
             val text = state.errorTitle?.let { "$it\n$message" } ?: message
-            Notice(text, isError = true, action = "닫기") { onAction(VaultListViewAction.DismissError) }
+            if (state.canAcceptRollback) {
+                RollbackNotice(text, isEnabled = !state.isSaving, onAction)
+            } else {
+                Notice(text, isError = true, action = "닫기") { onAction(VaultListViewAction.DismissError) }
+            }
         }
         state.burnSeconds?.let {
             Notice("${VaultMessages.CLIPBOARD_TITLE}\n${VaultMessages.CLIPBOARD_BODY}")
             KMBurnBadge(remainingSeconds = it)
+        }
+    }
+}
+
+/** 되돌림 경고. 사용자가 받아들이기를 고른 경우에만 서버 볼트를 받아들인다(VLT-001 규칙 9). */
+@Composable
+private fun RollbackNotice(text: String, isEnabled: Boolean, onAction: (VaultListViewAction) -> Unit) {
+    Surface(
+        color = MaterialTheme.colorScheme.errorContainer,
+        shape = RoundedCornerShape(DesignTokens.Radius.md),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(DesignTokens.Spacing.space3)) {
+            Text(
+                text,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = { onAction(VaultListViewAction.DismissError) }) { Text("취소") }
+                TextButton(onClick = { onAction(VaultListViewAction.AcceptRollback) }, enabled = isEnabled) {
+                    Text(VaultMessages.ROLLBACK_ACCEPT, color = MaterialTheme.colorScheme.error)
+                }
+            }
         }
     }
 }

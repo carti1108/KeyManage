@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -79,6 +80,19 @@ fun UnlockView(state: UnlockViewState, onAction: (UnlockViewAction) -> Unit) {
         TextButton(onClick = { onAction(UnlockViewAction.Logout) }, enabled = !state.isSubmitting) {
             Text("로그아웃", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+    }
+    if (state.isConfirmingRollback) {
+        AlertDialog(
+            onDismissRequest = { onAction(UnlockViewAction.CancelRollback) },
+            title = { Text(UnlockMessages.ROLLBACK_TITLE) },
+            text = { Text(UnlockMessages.ROLLBACK_BODY) },
+            confirmButton = {
+                TextButton(onClick = { onAction(UnlockViewAction.AcceptRollback) }) {
+                    Text(UnlockMessages.ROLLBACK_ACCEPT, color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { onAction(UnlockViewAction.CancelRollback) }) { Text("취소") } },
+        )
     }
 }
 

@@ -15,6 +15,12 @@ interface UnlockBuildable {
 /** 마스터 비밀번호로 기기 볼트를 연다. 실패는 `UnlockError`·`ApiError`로 던진다. */
 fun interface Unlocker {
     fun unlock(password: String, session: Session?): OpenedVault
+
+    /**
+     * 되돌림 경고(`SyncError.RevisionRollback`)를 사용자가 확인했다(VLT-001 규칙 9). 그 뒤 잠금 해제를 다시 부른다.
+     * 기본 구현은 받아들이지 않아 다음 잠금 해제도 같은 경고로 끝난다.
+     */
+    fun acceptRollback(serverRevision: Int) = Unit
 }
 
 /**

@@ -27,6 +27,12 @@ interface VaultListBuildable {
 /** 수정한 볼트를 저장한다. 실패는 `SyncError`·`ApiError`로 던진다. 메인 스레드 밖에서 부른다. */
 fun interface VaultSaver {
     fun save(vault: VaultData): SavedVault
+
+    /**
+     * 되돌림 경고를 사용자가 확인했다(VLT-001 규칙 9). 그 뒤 같은 저장을 다시 부른다.
+     * 기본 구현은 받아들이지 않아 다음 저장도 같은 경고로 끝난다.
+     */
+    fun acceptRollback(serverRevision: Int) = Unit
 }
 
 interface VaultListDependency {

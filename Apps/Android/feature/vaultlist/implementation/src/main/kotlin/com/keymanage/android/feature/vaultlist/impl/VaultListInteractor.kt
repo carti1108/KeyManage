@@ -44,6 +44,11 @@ class VaultListInteractor(
 ) : BasicInteractor<VaultListPresenter, BasicComposeRouter<VaultListInteractor>>(presenter) {
     private var ticker: Job? = null
 
+    /** 되돌림으로 막힌 저장. 사용자가 받아들이면 다시 한다(VLT-001 규칙 9). */
+    private class RollbackRetry(val vault: VaultData, val serverRevision: Int, val onSaved: () -> Unit)
+
+    private var rollbackRetry: RollbackRetry? = null
+
     init {
         store.update { it.copy(isReadOnly = vault.isReadOnly) }
         refreshRows()
@@ -74,8 +79,29 @@ class VaultListInteractor(
             VaultListViewAction.RequestDelete -> if (!vault.isReadOnly) store.update { it.copy(isConfirmingDelete = true) }
             VaultListViewAction.ConfirmDelete -> coroutineScope.launch { delete() }
             VaultListViewAction.CancelDelete -> store.update { it.copy(isConfirmingDelete = false) }
-            VaultListViewAction.DismissError -> store.update { it.copy(errorMessage = null, errorTitle = null) }
+            VaultListViewAction.DismissError -> {
+                rollbackRetry = null
+                store.update { it.copy(errorMessage = null, errorTitle = null, canAcceptRollback = false) }
+            }
+            VaultListViewAction.AcceptRollback -> coroutineScope.launch { acceptRollback() }
         }
+    }
+
+    /** 되돌림 경고에서 "서버 볼트 받아들이기"를 눌렀다. 받아들인 뒤 막혔던 저장을 다시 한다. 테스트는 직접 부른다. */
+    suspend fun acceptRollback() {
+        val retry = rollbackRetry ?: return
+        if (store.current.isSaving) return
+        rollbackRetry = null
+        store.update { it.copy(isSaving = true, canAcceptRollback = false) }
+        try {
+            withContext(workDispatcher) { saver.acceptRollback(retry.serverRevision) }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            store.update { it.copy(isSaving = false, errorMessage = VaultMessages.UNKNOWN, errorTitle = null) }
+            return
+        }
+        persist(retry.vault, retry.onSaved)
     }
 
     /** 폼을 저장한다. 서비스 이름이 비었거나 바뀐 것이 없으면 서버에 보내지 않는다. 테스트는 직접 부른다. */
@@ -95,31 +121,37 @@ class VaultListInteractor(
             val updated = VaultEditing.update(vault, id, screen.fields, now) ?: return openDetail(id)
             updated to id
         }
-        if (persist(next)) openDetail(savedId)
+        persist(next) { openDetail(savedId) }
     }
 
     /** 삭제 확인 뒤 지운다. 테스트는 직접 부른다. */
     suspend fun delete() {
         val screen = store.current.screen as? VaultScreen.Detail ?: return
         store.update { it.copy(isConfirmingDelete = false) }
-        if (persist(VaultEditing.delete(vault, screen.id, clock()))) show(VaultScreen.List)
+        persist(VaultEditing.delete(vault, screen.id, clock())) { show(VaultScreen.List) }
     }
 
-    private suspend fun persist(next: VaultData): Boolean {
-        store.update { it.copy(isSaving = true, errorMessage = null, errorTitle = null) }
+    /** 저장하고 성공하면 [onSaved]로 화면을 옮긴다. 되돌림으로 막히면 받아들인 뒤 다시 할 수 있게 남겨 둔다. */
+    private suspend fun persist(next: VaultData, onSaved: () -> Unit) {
+        rollbackRetry = null
+        store.update { it.copy(isSaving = true, errorMessage = null, errorTitle = null, canAcceptRollback = false) }
         val saved = try {
             withContext(workDispatcher) { saver.save(next) }
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
-            store.update { it.copy(isSaving = false, errorMessage = messageOf(error), errorTitle = titleOf(error)) }
+            val rollback = error as? SyncError.RevisionRollback
+            rollbackRetry = rollback?.let { RollbackRetry(next, it.serverRevision, onSaved) }
+            store.update {
+                it.copy(isSaving = false, errorMessage = messageOf(error), errorTitle = titleOf(error), canAcceptRollback = rollback != null)
+            }
             if (error is ApiError.Server && error.status == UNAUTHORIZED) listener.onResyncRequested()
-            return false
+            return
         }
         vault = saved.vault
         store.update { it.copy(isSaving = false, isPendingSync = saved.outcome == SaveOutcome.Pending) }
         refreshRows()
-        return true
+        onSaved()
     }
 
     private fun openDetail(id: String) {
