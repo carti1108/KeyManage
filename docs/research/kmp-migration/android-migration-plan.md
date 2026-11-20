@@ -242,4 +242,19 @@ Android 앱에는 있고 공유 모듈에는 없는 동작이다. 전환 전에 
 - **찾은 문제**: 에뮬레이터에서 마스터 비밀번호를 바꾸는 중 앱이 "응답 없음"이 됐다(프레임 585개 건너뜀). 키 유도(PBKDF2 60만 회)가 호출한 스레드에서 돌아, 세션을 화면 스레드에서 쓰는 Android에서 화면을 막았다. 가입·로그인·잠금 해제도 같은 경로라 그동안 1~3초씩 화면이 멈췄을 것이다.
 - **고친 것**: 공유 `deriveKeys`가 PBKDF2를 `Dispatchers.Default`에서 돌린다. JS는 WebCrypto가 원래 비동기라 달라지는 것이 없다. `domain` JVM 470건, JS 일부(43건), 웹 `npm run check` 505건이 그대로 통과한다. 볼트 암·복호화(AES-GCM)는 그대로 호출한 스레드에서 돈다(작은 볼트에서는 짧다. 5MB 볼트에서의 시간은 재지 않았다).
 - **다시 확인한 것**: 비밀번호 변경이 멈춤 없이 끝나고 "마스터 비밀번호를 바꿨습니다."가 보인다. 생체 해제가 꺼지고, 잠근 뒤 옛 비밀번호는 "마스터 비밀번호가 올바르지 않습니다.", 새 비밀번호로는 열린다.
-- 계정 삭제는 확인 문구가 한글이라 아직 기기에서 눌러 보지 못했다.
+- 계정 삭제는 확인 문구가 한글이라 adb로는 눌러 보지 못했고, 사람이 에뮬레이터에서 직접 해 보아 삭제되는 것을 확인했다. 그때 확인 문구 입력 칸의 긴 이름표가 두 줄로 넘치는 것이 보여, 안내를 칸 위로 옮기고 칸에는 짧은 이름표를 두었다.
+
+### 4단계(끝): 옛 Android 구현 삭제 (2026-11-20)
+
+| 항목 | 내용 |
+| :--- | :--- |
+| 지운 것 | 피처 6개의 `interface`·`implementation`·`testing`·`tests` 모듈, `feature/root`, `core/domain`, `core/data`, `core/rib`, 앱의 옛 진입 코드(`AppBiometrics`, `ContentResolverDocuments`, 보관해 둔 옛 `MainActivity`). 파일 176개 |
+| 남은 것 | `app`, `core/designsystem`, `core/example`, 피처마다 `ui`와 `example`. 동작과 테스트는 `Apps/Shared`에 있다 |
+| 빌드 설정 | 버전 카탈로그에서 uber/RIBs, `androidx.biometric`, `core-ktx`, `org.json`, 코루틴 core·test를 지웠다(생체 인증은 공유 `android-session`이 갖는다). 쓰는 곳이 없어진 JVM 관례 플러그인(`km.jvm.library`)도 지웠다 |
+| 테마 | `Theme.DeviceDefault.DayNight`가 API 29부터라 린트가 막았다. `values`와 `values-night`에 Material 테마를 따로 두었다 |
+| 정책 감사 | Android 구역이 공유 Kotlin 테스트(`Apps/Shared`의 `*Test` 소스, JS 전용 제외)와 공유·Android 소스를 읽는다. 규칙 14개를 공유 모듈의 이름으로 바꿨고 확인하는 정책 내용은 그대로다 |
+| CI | Android·Web 작업이 `Apps/Shared` 변경에도 돈다. Android 작업은 carti-RIBs-KMP를 받아(`CARTI_RIBS_TOKEN` 비밀 값 필요) 공유 모듈 JVM 테스트를 먼저 돌린다 |
+
+- 확인: `Apps/Android`에서 `./gradlew test lint assembleDebug` 통과, 문서 검사와 감사 스크립트 통과. 에뮬레이터에 새 빌드를 올려 로그인 화면까지 뜨는 것을 보았다(삭제 뒤에는 그 이상 눌러 보지 않았다).
+- 확인하지 못한 것: CI 변경은 로컬에서 돌려 볼 수 없었다. 저장소에 `CARTI_RIBS_TOKEN`이 없으면 Android 작업이 실패한다.
+- 남은 문서 일: ADR-AND-001이 정한 구조(단독 프로젝트, uber/RIBs, `core/domain`·`core/data`)가 바뀌었으므로 이를 대체하는 ADR이 필요하다. `platform-bindings.md`, `README.md`, `device-checklist.md`도 새 구조에 맞춰야 한다.
