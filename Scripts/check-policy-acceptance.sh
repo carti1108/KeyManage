@@ -332,34 +332,46 @@ if os.path.isdir(web_src_dir):
 
 
 # ============================================================================
-# 3. Android 플랫폼 감사 (Apps/Android/**/src/test/**/*Test.kt + 표준 문구는 src/main 소스)
-#    Android 테스트는 문구를 상수(XxxMessages.*)로 비교하므로, 표준 문구 원문은 소스에서 확인한다.
+# 3. Android 플랫폼 감사
+#    Android 앱은 뷰와 진입점만 있고 도메인·화면 로직·플랫폼 구현은 공유 Kotlin(Apps/Shared)에 있다 (android-migration-plan 4단계).
+#    그래서 테스트 근거는 공유 모듈의 테스트(Apps/Shared/**/src/*Test), 표준 문구 원문은 공유 모듈과 Android 뷰의 소스에서 확인한다.
 # ============================================================================
 android_dir = os.path.join(root, "Apps", "Android")
+shared_kotlin_dir = os.path.join(root, "Apps", "Shared")
 if os.path.isdir(android_dir):
     audited_platforms.append("Android")
 
-    def android_files(kind):
+    def kotlin_files(base, source_set_pattern):
         return sorted(
-            p for p in glob.glob(os.path.join(android_dir, "**", "src", kind, "**", "*.kt"), recursive=True)
+            p for p in glob.glob(os.path.join(base, "**", "src", source_set_pattern, "**", "*.kt"), recursive=True)
             if os.sep + "build" + os.sep not in p
         )
 
-    android_tests = "\n".join(open(p, encoding="utf-8").read() for p in android_files("test") if p.endswith("Test.kt"))
-    android_sources = "\n".join(open(p, encoding="utf-8").read() for p in android_files("main"))
+    def read_all(paths):
+        return "\n".join(open(p, encoding="utf-8").read() for p in paths)
+
+    # 웹 전용 소스셋(jsMain·jsTest)은 Android가 쓰지 않으므로 뺀다
+    android_tests = read_all(
+        p for p in kotlin_files(shared_kotlin_dir, "*Test") + kotlin_files(android_dir, "*est")
+        if os.sep + "jsTest" + os.sep not in p
+    )
+    android_sources = read_all(
+        p for p in kotlin_files(shared_kotlin_dir, "*Main") + kotlin_files(android_dir, "main")
+        if os.sep + "jsMain" + os.sep not in p
+    )
 
     check_invariants("Android", "1단계: 암호 모듈(vault-spec)", android_tests, [
         ("교차 플랫폼 테스트 벡터(keyDerivationCases) 검증", r"keyDerivationCases"),
         ("PBKDF2 600,000회 하한 경계값(599_999) 검증", r"599_999"),
-        ("AES-GCM 변조 복호화 거부(CryptoError.AuthenticationFailed) 검증", r"CryptoError\.AuthenticationFailed"),
-        ("다른 플랫폼 암호문을 평문 볼트·백업까지 여는 교차 검증(CrossPlatformVaultTest)", r"class CrossPlatformVaultTest"),
+        ("AES-GCM 변조 복호화 거부(VaultDecryptException) 검증", r"VaultDecryptException"),
+        ("다른 플랫폼과 같은 암호문 테스트 벡터(encryptionCases)를 여는 교차 검증", r"encryptionCases"),
     ])
     check_invariants("Android", "2단계: 볼트 동기화(VLT-001)", android_tests, [
         ("상위 버전 읽기 전용(ReadOnlyVault) 검증", r"ReadOnlyVault"),
         ("톰스톤(deletedAt) 삭제 및 병합 검증", r"\bdeletedAt\b"),
         ("서버 revision 역행(RevisionRollback) 검증", r"RevisionRollback"),
-        ("사용자 확인 뒤에만 되돌림 수락(acceptRollback) 검증", r"acceptRollback\("),
-        ("409 충돌 재시도 소진(ConflictRetriesExhausted) 검증", r"ConflictRetriesExhausted"),
+        ("사용자 확인 뒤에만 되돌림 수락(acceptRollback = true) 검증", r"acceptRollback\s*=\s*true"),
+        ("409 충돌 재시도 소진(VaultSyncConflictException) 검증", r"VaultSyncConflictException"),
         ("5MB 용량 상한(MAX_PAYLOAD_BYTES) 경계값 검증", r"MAX_PAYLOAD_BYTES"),
     ])
     check_invariants("Android", "2단계: 볼트 동기화 표준 문구(VLT-001)", android_sources, [
@@ -370,10 +382,10 @@ if os.path.isdir(android_dir):
         ("revision 역행 수락 버튼 표준 문구", r"서버 볼트 받아들이기"),
     ])
     check_invariants("Android", "3단계: 잠금 해제와 생체 해제(SEC-003)", android_tests, [
-        ("생체 해제 14일 경계값(Duration.ofDays(14)) 검증", r"Duration\.ofDays\(14\)"),
+        ("생체 해제 14일 경계값(14.days) 검증", r"14\.days"),
         ("생체 키 무효화(BiometricError.Invalidated) 검증", r"BiometricError\.Invalidated"),
         ("14일 만료(BiometricError.Expired) 검증", r"BiometricError\.Expired"),
-        ("비밀번호 오류 문구(Messages.WRONG_PASSWORD) 검증", r"Messages\.WRONG_PASSWORD"),
+        ("비밀번호 오류 문구('마스터 비밀번호가 올바르지 않습니다.') 검증", r"마스터 비밀번호가 올바르지 않습니다\."),
     ])
     check_invariants("Android", "3단계: 잠금 해제 표준 문구(SEC-003)", android_sources, [
         ("비밀번호 오류 표준 문구", r"마스터 비밀번호가 올바르지 않습니다\."),
@@ -392,7 +404,7 @@ if os.path.isdir(android_dir):
     ])
     check_invariants("Android", "5·6단계: 동기화 대기와 기기 볼트(VLT-002·003)", android_tests, [
         ("오프라인 대기 재시도(retryPending) 검증", r"retryPending"),
-        ("대기 변경 표시(hasPending) 검증", r"hasPending"),
+        ("대기 변경 표시(pendingSync) 검증", r"pendingSync"),
         ("기기 볼트 기록(DeviceRecordStore) 검증", r"DeviceRecordStore"),
     ])
     check_invariants("Android", "5·6단계: 동기화 대기와 기기 볼트 표준 문구(VLT-002·003)", android_sources, [
@@ -410,7 +422,7 @@ if os.path.isdir(android_dir):
     check_invariants("Android", "8단계: 암호화 백업(VLT-004)", android_tests, [
         ("파일 이름(keymanage-backup-YYYYMMDD.json) 검증", r"keymanage-backup-\d{8}\.json"),
         ("백업 형식 버전(formatVersion) 검증", r"formatVersion"),
-        ("파일 크기 한도(MAX_FILE_BYTES) 경계값 검증", r"MAX_FILE_BYTES"),
+        ("파일 크기 한도(MAX_BACKUP_FILE_BYTES) 경계값 검증", r"MAX_BACKUP_FILE_BYTES"),
         ("새 버전 백업 거절(NewerVersion) 검증", r"NewerVersion"),
         ("비밀번호 오류·손상(CannotOpen) 검증", r"CannotOpen"),
     ])
@@ -422,10 +434,10 @@ if os.path.isdir(android_dir):
         ("새 버전 백업 문구", r"더 새 버전의 앱에서 만든 백업입니다\."),
     ])
     check_invariants("Android", "9단계: 마스터 비밀번호 변경(SEC-004)", android_tests, [
-        ("현재와 같음 거절(Messages.SAME_PASSWORD) 검증", r"Messages\.SAME_PASSWORD"),
-        ("오프라인 거절(Messages.PASSWORD_OFFLINE) 검증", r"Messages\.PASSWORD_OFFLINE"),
-        ("SEC-002 미달 새 비밀번호 거절(WeakNewPassword) 검증", r"WeakNewPassword"),
-        ("완료 문구(Messages.PASSWORD_CHANGED) 검증", r"Messages\.PASSWORD_CHANGED"),
+        ("현재와 같음 거절(SAME_MASTER_PASSWORD) 검증", r"SAME_MASTER_PASSWORD"),
+        ("오프라인 거절(PASSWORD_CHANGE_OFFLINE) 검증", r"PASSWORD_CHANGE_OFFLINE"),
+        ("SEC-002 미달 새 비밀번호 거절('마스터 비밀번호는 12자 이상이어야 합니다.') 검증", r"마스터 비밀번호는 12자 이상이어야 합니다\.|NewMasterPasswordProblem\.TOO_SHORT"),
+        ("완료 문구(PASSWORD_CHANGE_DONE) 검증", r"PASSWORD_CHANGE_DONE"),
     ])
     check_invariants("Android", "9단계: 마스터 비밀번호 변경 표준 문구(SEC-004)", android_sources, [
         ("현재와 같음 문구", r"새 비밀번호가 지금 비밀번호와 같습니다\."),
@@ -434,8 +446,8 @@ if os.path.isdir(android_dir):
     ])
     check_invariants("Android", "10단계: 가입 강도·계정 삭제(SEC-002·005)", android_tests, [
         ("SEC-002 강도 59/60 경계값 검증", r"\b59\b"),
-        ("SEC-005 오프라인 거절(Messages.DELETE_OFFLINE) 검증", r"Messages\.DELETE_OFFLINE"),
-        ("SEC-005 완료 문구(Messages.ACCOUNT_DELETED) 검증", r"Messages\.ACCOUNT_DELETED"),
+        ("SEC-005 오프라인 거절(ACCOUNT_DELETION_OFFLINE) 검증", r"ACCOUNT_DELETION_OFFLINE"),
+        ("SEC-005 완료 문구(ACCOUNT_DELETED) 검증", r"ACCOUNT_DELETED"),
     ])
     check_invariants("Android", "10단계: 가입 강도·계정 삭제 표준 문구(SEC-002·005)", android_sources, [
         ("SEC-002 가입 비밀번호 취약 문구", r"마스터 비밀번호가 보안에 취약합니다\."),
