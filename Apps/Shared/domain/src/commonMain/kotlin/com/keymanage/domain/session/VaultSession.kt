@@ -132,6 +132,9 @@ class VaultSession(private val deps: VaultSessionDeps) : RestoreTarget {
         return UnlockResult(offline = fresh == null)
     }
 
+    /** 이 기기에서 생체 해제를 켤 수 있는지. 생체 인증이 없는 플랫폼은 늘 false */
+    val isBiometricUnlockAvailable: Boolean get() = deps.biometric?.isAvailable == true
+
     /** 생체 해제를 켰는지. 생체 인증이 없는 플랫폼은 늘 false */
     val isBiometricUnlockEnabled: Boolean get() = deps.biometric?.isEnabled == true
 

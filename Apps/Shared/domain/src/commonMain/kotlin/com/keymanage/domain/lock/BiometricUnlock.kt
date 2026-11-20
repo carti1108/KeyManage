@@ -31,6 +31,9 @@ sealed class BiometricError(message: String) : Exception(message) {
  * [seal]·[open]은 생체 인증 창을 띄우고, 실패는 [BiometricError]로 던진다
  */
 interface BiometricKeyStore {
+    /** 이 기기에서 지금 생체 인증을 쓸 수 있는지(강한 생체 인증이 등록돼 있고 기기 암호가 켜져 있다) */
+    fun isAvailable(): Boolean
+
     fun hasKey(): Boolean
 
     suspend fun seal(key: ByteArray)
@@ -60,6 +63,9 @@ class BiometricUnlock(
     private val settings: BiometricSettingStore,
     private val clock: Clock,
 ) {
+    /** 생체 해제를 켤 수 있는 기기인지. 설정 화면이 켜기 스위치를 보일지 정한다 */
+    val isAvailable: Boolean get() = keys.isAvailable()
+
     val isEnabled: Boolean get() = settings.read().enabled
 
     /** 잠금 화면에 생체 해제를 보일지 */

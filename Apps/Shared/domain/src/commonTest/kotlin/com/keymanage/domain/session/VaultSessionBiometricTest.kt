@@ -39,6 +39,10 @@ private class FakeBiometricKeys : BiometricKeyStore {
     /** 설정하면 꺼내기가 이 문이 열릴 때까지 기다린다(생체 인증 창이 떠 있는 동안) */
     var openGate: Gate? = null
 
+    var available = true
+
+    override fun isAvailable() = available
+
     override fun hasKey() = sealed != null
 
     /** 설정하면 감싸기가 이 문이 열릴 때까지 기다린다 */
@@ -132,6 +136,18 @@ class VaultSessionBiometricEnableTest {
         assertFalse(session.canUnlockWithBiometrics(), "열려 있는 동안에는 제안하지 않는다")
         session.lock()
         assertTrue(session.canUnlockWithBiometrics())
+    }
+
+    @Test
+    fun availabilityFollowsTheDevice() = sessionTest {
+        val device = Device()
+        val session = device.start(this)
+        assertTrue(session.isBiometricUnlockAvailable)
+
+        device.keys.available = false
+
+        assertFalse(session.isBiometricUnlockAvailable)
+        assertFalse(device.start(this, withBiometrics = false).isBiometricUnlockAvailable)
     }
 
     @Test

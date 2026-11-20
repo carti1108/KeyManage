@@ -30,6 +30,13 @@ class BiometricUnlockTest {
     }
 
     @Test
+    fun `기기에서 생체 인증을 쓸 수 있는지는 키 저장소가 정한다`() {
+        assertTrue(unlock.isAvailable)
+        keys.available = false
+        assertFalse(unlock.isAvailable)
+    }
+
+    @Test
     fun `기본은 꺼져 있고 생체 해제를 제안하지 않는다`() {
         assertFalse(unlock.isEnabled)
         assertFalse(unlock.canUseBiometrics())
@@ -117,6 +124,9 @@ class BiometricUnlockTest {
     private class FakeKeyStore : BiometricKeyStore {
         var sealed: ByteArray? = null
         var failure: BiometricError? = null
+        var available = true
+
+        override fun isAvailable() = available
 
         override fun hasKey() = sealed != null
 
