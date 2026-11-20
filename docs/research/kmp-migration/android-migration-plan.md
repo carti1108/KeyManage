@@ -50,7 +50,7 @@ Android 앱에는 있고 공유 모듈에는 없는 동작이다. 전환 전에 
 | 생체용 감싼 키 | Keystore 별칭 `keymanage.biometric.vaultKey`, `noBackupFilesDir/biometric-key.json` | 별칭 `keymanage.biometric.<service>`, SharedPreferences | 아니오. Keystore 키는 꺼낼 수 없어 옮길 수도 없다 |
 | 설정 | `settings` 환경설정의 `autoLockMillis`(Long), `biometricEnabled`, `lastPasswordUnlockMillis` | 자동 잠금은 밀리초 십진 문자열. Android 저장소 구현 없음 | 아니오 |
 
-**정해야 할 것**: 옛 형식을 읽어 옮기는 코드를 둘지 여부다. 추천은 "옮기지 않는다"이다. Android 앱은 아직 배포하지 않았고 에뮬레이터 확인만 했으므로 지킬 사용자 데이터가 없다. 공유 기기 기록 형식은 웹과 같아진다. 저장 데이터 형식 결정이라 사용자 확인을 받는다.
+**결정(2026-11-20, 사용자)**: 옛 형식을 읽어 옮기는 코드는 두지 않는다. 전환 뒤 Android 앱은 공유 형식(웹과 같은 기기 기록 버전 1)만 읽고 쓴다. 옛 앱이 남긴 `device-record.json`, `biometric-key.json`, `settings` 환경설정은 읽지 않으며, 전환한 앱에서는 다시 로그인하고 생체 해제를 다시 켠다.
 
 ## 4. 순서
 
