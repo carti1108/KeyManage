@@ -100,6 +100,12 @@ class SessionPortAdapter(private val session: VaultSession) : SessionPort {
 /** 복사하고 정해진 시간 뒤 비운다 (COM-001). 웹은 ClipboardBurner, iOS는 ClipboardManager */
 fun interface ClipboardPort {
     suspend fun copy(text: String)
+
+    /** 복사한 값을 비울 시각. 기다리는 값이 없으면 null. 알 수 없는 플랫폼은 늘 null이다 */
+    val burnAt: Instant? get() = null
+
+    /** 비울 시각이 바뀌면 알린다(복사하면 시각, 비웠거나 다른 것을 복사했으면 null). 복사 뒤 안내와 남은 시간 표시에 쓴다 (COM-001) */
+    fun subscribeBurn(listener: (Instant?) -> Unit): () -> Unit = {}
 }
 
 /** 백업 파일을 저장(다운로드)하고 고른다 (VLT-004) */

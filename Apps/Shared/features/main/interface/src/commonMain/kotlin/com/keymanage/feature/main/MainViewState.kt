@@ -1,5 +1,7 @@
 package com.keymanage.feature.main
 
+import com.keymanage.feature.messages.ClipboardBurnNotice
+import kotlin.time.Instant
 import com.keymanage.feature.messages.DEVICE_STORAGE_FAILED
 import com.keymanage.feature.messages.ErrorMessage
 import com.keymanage.feature.messages.OFFLINE_NOTICE
@@ -29,7 +31,16 @@ data class MainViewState(
     /** 올리지 못한 변경 사항이 사라진다고 알리고 로그아웃할지 묻는 중 (VLT-002) */
     val isConfirmingLogout: Boolean = false,
     val isLoggingOut: Boolean = false,
+    /** 복사한 값을 클립보드에서 비울 시각. 뷰가 남은 초를 센다. 기다리는 값이 없으면 null (COM-001) */
+    val clipboardBurnAt: Instant? = null,
+    /** 가입 직후 생체 해제를 켤지 묻는 중 (SEC-003 값 표) */
+    val isOfferingBiometricUnlock: Boolean = false,
+    /** 그 안내에서 켜지 못한 이유. 다른 탭으로 가면 지운다 */
+    val biometricOfferError: String? = null,
 ) {
+    /** 복사 직후 안내. 비울 값이 없으면 null */
+    val clipboardNotice: ErrorMessage?
+        get() = if (clipboardBurnAt != null) ErrorMessage(ClipboardBurnNotice.TITLE, ClipboardBurnNotice.BODY) else null
     val offlineNotice: String? get() = if (offline) OFFLINE_NOTICE else null
     val readOnlyNotice: String? get() = if (readOnly) READ_ONLY_NOTICE else null
     val deviceStorageWarning: String? get() = if (showsDeviceStorageWarning) DEVICE_STORAGE_FAILED else null
@@ -51,4 +62,10 @@ sealed interface MainViewAction {
     /** 되돌림 경고를 받아들이고 처음 입력한 비밀번호로 다시 연결한다 */
     data object AcceptReconnectRollback : MainViewAction
     data object CancelReconnectRollback : MainViewAction
+
+    /** 가입 직후 안내에서 켜기. 생체 인증 창이 뜬다 */
+    data object AcceptBiometricOffer : MainViewAction
+
+    /** 가입 직후 안내에서 나중에 */
+    data object DeclineBiometricOffer : MainViewAction
 }

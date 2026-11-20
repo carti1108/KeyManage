@@ -81,11 +81,11 @@ class RootRouter(
         unlock = child
     }
 
-    fun routeToMain(offline: Boolean) {
+    fun routeToMain(offline: Boolean, offerBiometricUnlock: Boolean = false) {
         if (main != null) return
         removeAuth()
         removeUnlock()
-        val child = mainBuilder.build(interactor, offline)
+        val child = mainBuilder.build(interactor, offline, offerBiometricUnlock)
         attachChild(child)
         viewController.showScreen(child.viewControllable)
         main = child

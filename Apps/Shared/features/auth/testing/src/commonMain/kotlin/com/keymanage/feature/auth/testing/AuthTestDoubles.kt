@@ -17,9 +17,13 @@ import kotlin.time.Instant
 class FakeAuthListener(private val onEvent: (String) -> Unit = {}) : AuthListener {
     var completions = 0
 
-    override fun authDidComplete() {
+    /** 끝날 때마다 가입이었는지 */
+    val registrations = mutableListOf<Boolean>()
+
+    override fun authDidComplete(registered: Boolean) {
         completions += 1
-        onEvent("authDidComplete()")
+        registrations += registered
+        onEvent("authDidComplete(registered = $registered)")
     }
 }
 

@@ -73,7 +73,7 @@ class RootInteractor(
      * @param fromChild 자식이 요청 결과를 알렸다. 아니면 세션 알림이라, 로그인·잠금 해제 화면이 결과를 알리기 전에는 볼트 화면으로 가지 않는다
      * @param offline 잠금 해제를 서버에 닿지 못해 기기에 저장한 볼트로 열었다
      */
-    private fun refresh(fromChild: Boolean, offline: Boolean = false) {
+    private fun refresh(fromChild: Boolean, offline: Boolean = false, offerBiometricUnlock: Boolean = false) {
         if (!isActive) return
         val router = router ?: return
         val current = router.current
@@ -81,7 +81,7 @@ class RootInteractor(
             is SessionState.Unlocked -> {
                 if (current == RootScreen.MAIN) return
                 if (!fromChild && current != null) return
-                router.routeToMain(offline)
+                router.routeToMain(offline, offerBiometricUnlock)
             }
             else -> {
                 if (router.isFinishingSession) return
@@ -98,9 +98,10 @@ class RootInteractor(
 
     // --- AuthListener ---
 
-    override fun authDidComplete() {
+    override fun authDidComplete(registered: Boolean) {
         pendingNotice = null
-        refresh(fromChild = true)
+        // 가입 직후에만 생체 해제를 켤지 묻는다 (SEC-003 값 표)
+        refresh(fromChild = true, offerBiometricUnlock = registered)
     }
 
     // --- UnlockListener ---

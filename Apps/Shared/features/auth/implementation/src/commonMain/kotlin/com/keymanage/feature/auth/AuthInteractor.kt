@@ -138,8 +138,9 @@ class AuthInteractor(
             when {
                 failure == null -> {
                     // 비밀번호를 화면에 남기지 않는다. 부모가 이 RIB을 내릴 수 있으므로 알림은 마지막에 한다
+                    val registered = state.isRegistering
                     update { copy(isLoading = false, password = "", confirmation = "") }
-                    listener.authDidComplete()
+                    listener.authDidComplete(registered)
                 }
                 failure is RevisionRollbackException && rollbackRetry != null -> {
                     this@AuthInteractor.rollbackRetry = rollbackRetry

@@ -7,6 +7,7 @@ import com.carti.ribs.ViewHost
 import com.keymanage.devicestore.FileDeviceRecordStore
 import com.keymanage.domain.auth.AuthService
 import com.keymanage.domain.auth.MasterPasswordChangedException
+import com.keymanage.domain.clipboard.BurnState
 import com.keymanage.domain.clipboard.ClipboardBurner
 import com.keymanage.domain.lock.AutoLock
 import com.keymanage.domain.lock.AutoLockSettingStore
@@ -40,6 +41,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 import kotlin.time.Clock
 import kotlin.time.Duration
+import kotlin.time.Instant
 
 /**
  * Android 앱의 진입점(web-session의 WebKeyManageApp에 해당한다). 공유 세션과 Android 쪽 포트를 조립해 RIB 트리를 띄운다.
@@ -86,6 +88,20 @@ class AndroidKeyManageApp(
         burner
     }
 
+    /** 복사하고 30초 뒤 비운다. 화면에는 비울 시각을 알려 안내와 남은 초를 보이게 한다 (COM-001) */
+    private val clipboardPort = object : ClipboardPort {
+        override suspend fun copy(text: String) = clipboardBurner.copy(text)
+
+        override val burnAt: Instant? get() = burnAtOf(clipboardBurner.state.value)
+
+        override fun subscribeBurn(listener: (Instant?) -> Unit): () -> Unit {
+            val job = scope.launch { clipboardBurner.state.collect { listener(burnAtOf(it)) } }
+            return { job.cancel() }
+        }
+
+        private fun burnAtOf(state: BurnState): Instant? = (state as? BurnState.Counting)?.expiresAt
+    }
+
     /** 설정 화면이 시간을 바꾸면 그때부터 새 시간으로 잰다 (SEC-003 값 표) */
     private val autoLockSetting = object : AutoLockSettingStore {
         private val stored = PreferencesAutoLockSettingStore(appContext)
@@ -129,7 +145,7 @@ class AndroidKeyManageApp(
         val created = KeyManageApp(
             viewFactory = viewFactory,
             session = SessionPortAdapter(session),
-            clipboard = ClipboardPort { text -> clipboardBurner.copy(text) },
+            clipboard = clipboardPort,
             backupFiles = backupFiles,
             environment = AndroidAppEnvironment(appContext, autoLockSetting, baseUrl),
             randomBytes = SecureRandomBytes,

@@ -40,10 +40,10 @@ class MainBuilder(dependency: MainDependency) : Builder<MainDependency>(dependen
     /**
      * @param offline 잠금 해제를 서버에 닿지 못해 기기에 저장한 볼트로 열었다. 동기화에 성공하면 이 RIB이 걷는다 (VLT-002)
      */
-    override fun build(listener: MainListener, offline: Boolean): MainRouter {
+    override fun build(listener: MainListener, offline: Boolean, offerBiometricUnlock: Boolean): MainRouter {
         val component = MainComponent(dependency)
         val view = dependency.mainViewFactory.makeMainView()
-        val interactor = MainInteractor(view, component.trackedSession, dependency.environment, listener, offline)
+        val interactor = MainInteractor(view, component.trackedSession, dependency.environment, dependency.clipboard, listener, offline, offerBiometricUnlock)
         return MainRouter(
             interactor = interactor,
             view = view,

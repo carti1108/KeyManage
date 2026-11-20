@@ -1,5 +1,8 @@
 package com.keymanage.feature.main
 
+import com.keymanage.domain.lock.BiometricError
+import com.keymanage.feature.ClipboardPort
+import com.keymanage.feature.messages.BiometricUnlockMessages
 import com.carti.ribs.PresentableInteractor
 import com.carti.ribs.RibDispatchers
 import com.carti.ribs.checkMainThread
@@ -26,9 +29,12 @@ class MainInteractor(
     presenter: MainPresentable,
     private val session: MainSessionPort,
     private val environment: AppEnvironment,
+    private val clipboard: ClipboardPort,
     private val listener: MainListener,
     /** 잠금 해제를 오프라인으로 열었는지. 동기화·재연결에 성공하면 내린다 */
     private var openedOffline: Boolean,
+    /** 가입 직후라 생체 해제를 켤지 한 번 묻는다 (SEC-003 값 표) */
+    private var offerBiometricUnlock: Boolean = false,
 ) : PresentableInteractor<MainPresentable>(presenter), MainPresentableListener, VaultListListener, SettingsListener {
     /** Router가 만들어질 때 자신을 넣는다 */
     var router: MainRouter? = null
@@ -55,7 +61,15 @@ class MainInteractor(
             session.onSyncChange { error -> post { handleSyncChange(error) } },
             session.onRemoteChange { post { refreshSession() } },
             environment.subscribeNetwork { post { refreshSession() } },
+            // 복사하면 비울 시각을, 비웠거나 다른 것을 복사했으면 null을 받는다 (COM-001)
+            clipboard.subscribeBurn { at -> post { update { copy(clipboardBurnAt = at) } } },
         )
+        state = state.copy(
+            clipboardBurnAt = clipboard.burnAt,
+            isOfferingBiometricUnlock = offerBiometricUnlock && session.isBiometricUnlockAvailable && !session.isBiometricUnlockEnabled,
+        )
+        // 화면이 다시 붙어도 다시 묻지 않는다
+        offerBiometricUnlock = false
         refreshSession()
         router?.routeTo(MainTab.VAULT)
     }
@@ -75,7 +89,12 @@ class MainInteractor(
         // 내려간 뒤 뷰가 남긴 입력은 무시한다 (옛 Presenter가 onAction을 비우던 동작)
         if (!isActive) return
         when (action) {
-            is MainViewAction.SelectTab -> selectTab(action.tab)
+            is MainViewAction.SelectTab -> {
+                if (state.biometricOfferError != null) update { copy(biometricOfferError = null) }
+                selectTab(action.tab)
+            }
+            MainViewAction.AcceptBiometricOffer -> acceptBiometricOffer()
+            MainViewAction.DeclineBiometricOffer -> update { copy(isOfferingBiometricUnlock = false) }
             MainViewAction.RequestLock -> lock()
             MainViewAction.RequestLogout -> requestLogout()
             MainViewAction.ConfirmLogout -> if (state.isConfirmingLogout) logout()
@@ -87,6 +106,27 @@ class MainInteractor(
                 rollbackPassword = null
                 update { copy(isConfirmingReconnectRollback = false) }
             }
+        }
+    }
+
+    // --- 가입 직후 생체 해제 제안 (SEC-003 값 표) ---
+
+    /** 세션이 생체 인증 창을 띄워 볼트 키를 감싼다. 창을 닫으면 조용히 끝내고, 켜지 못하면 설정에서 다시 하라고 알린다 */
+    private fun acceptBiometricOffer() {
+        if (!state.isOfferingBiometricUnlock) return
+        update { copy(isOfferingBiometricUnlock = false, biometricOfferError = null) }
+        coroutineScope.launch {
+            val message = try {
+                session.enableBiometricUnlock()
+                null
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: BiometricError.Cancelled) {
+                null
+            } catch (_: Exception) {
+                BiometricUnlockMessages.OFFER_FAILED
+            }
+            if (message != null) update { copy(biometricOfferError = message) }
         }
     }
 

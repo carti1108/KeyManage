@@ -75,6 +75,12 @@ class FakeSession : SessionPort {
     var deleteAccountHandler: suspend (String) -> Unit = {}
     var pendingOnDeviceHandler: suspend () -> Boolean = { false }
 
+    /** 이 기기에서 생체 해제를 켤 수 있는지 */
+    var biometricAvailable = false
+    var biometricEnabled = false
+    var biometricEnableCalls = 0
+    var biometricEnableHandler: suspend () -> Unit = {}
+
     /** 저장을 반영한 뒤 부른다. 던지면 실제 세션처럼 "반영한 뒤 거절"이 된다 */
     var saveHandler: suspend (VaultData) -> Unit = {}
 
@@ -154,6 +160,19 @@ class FakeSession : SessionPort {
     }
 
     override fun state(): SessionState = current
+
+    override val isBiometricUnlockAvailable: Boolean get() = biometricAvailable
+    override val isBiometricUnlockEnabled: Boolean get() = biometricEnabled
+
+    override suspend fun enableBiometricUnlock() {
+        biometricEnableCalls += 1
+        biometricEnableHandler()
+        biometricEnabled = true
+    }
+
+    override fun disableBiometricUnlock() {
+        biometricEnabled = false
+    }
 
     override suspend fun register(email: String, password: String) {
         this.email = email

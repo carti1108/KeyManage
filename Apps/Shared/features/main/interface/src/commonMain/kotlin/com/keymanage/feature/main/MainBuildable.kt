@@ -7,8 +7,9 @@ import com.carti.ribs.ViewableRouting
 interface MainBuildable : Buildable {
     /**
      * @param offline 잠금 해제를 서버에 닿지 못해 기기에 저장한 볼트로 열었다. 동기화에 성공하면 이 RIB이 걷는다 (VLT-002)
+     * @param offerBiometricUnlock 가입 직후라 생체 해제를 켤지 묻는다. 켤 수 없는 기기거나 이미 켰으면 묻지 않는다 (SEC-003 값 표)
      */
-    fun build(listener: MainListener, offline: Boolean = false): MainRouting
+    fun build(listener: MainListener, offline: Boolean = false, offerBiometricUnlock: Boolean = false): MainRouting
 }
 
 /** 부모 RIB이 붙이고 떼는 Main의 Router */
