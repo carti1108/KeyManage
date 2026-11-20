@@ -227,6 +227,15 @@ if os.path.isdir(web_src_dir):
     ]
     check_invariants("Web", "3단계: 자동 잠금 및 인증(SEC-003)", web_tests, web_autolock_rules)
 
+    # SEC-003 규칙 8: 세션 만료 뒤에는 생체 해제 대신 마스터 비밀번호를 요구한다. 규칙은 공유 Kotlin 세션에 있어 생체 해제를 제공하는 모든 클라이언트가 따른다
+    shared_biometric_rules = [
+        ("SEC-003 세션 만료 뒤 생체 해제 대신 마스터 비밀번호 요구(requirePassword / PasswordRequired) 검증", r"requirePassword\(\)|BiometricError\.PasswordRequired"),
+        ("SEC-003 세션 만료 뒤 감싼 키를 남기는지(isBiometricPasswordRequired) 검증", r"isBiometricPasswordRequired"),
+        ("SEC-003 세션 만료 뒤 잠금 화면 표준 문구('보안을 위해 마스터 비밀번호를 입력해 주세요.') 검증", r"보안을 위해 마스터 비밀번호를 입력해 주세요\."),
+        ("SEC-003 14일 경과 시 마스터 비밀번호 재요구(14.days) 검증", r"14\.days"),
+    ]
+    check_invariants("Web", "3단계: 생체 해제(SEC-003, 공유 Kotlin)", web_tests, shared_biometric_rules)
+
     web_generator_rules = [
         ("길이 하한(8자)·상한(64자) 및 범위 밖(7, 65) 거부 검증", r"\b64\b"),
         ("거부 샘플링 1,000회 반복 검증", r"\b1000\b"),
