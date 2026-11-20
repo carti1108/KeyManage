@@ -122,7 +122,7 @@
 
 ## 화면 모양
 
-목업(`Tools/figma-builder/code.js`의 Android 줄)은 어떤 정보를 어느 화면에 어떤 순서로 두는지의 기준이다(design-system.md 5.1 "화면 정보 구조", 5.2). 모양과 컨트롤은 목업의 그림이 아니라 Material 3를 따른다(design-system.md 5장). 목업은 M3 컴포넌트를 도형으로 흉내 낸 것이라 떠오르는 이름표, 위쪽 바, 아이콘 같은 것은 M3와 다르게 그려져 있다.
+목업(`Tools/figma-builder/code.js`의 Android 줄)은 어떤 정보를 어느 화면에 어떤 순서로 두는지의 기준이다(design-system.md 5.1 "화면 정보 구조", 5.2). 모양과 컨트롤은 목업의 그림이 아니라 Material 3를 따른다(design-system.md 5장). 목업의 Android 줄도 M3 규격(Filled 입력 칸, `TopAppBar`, `NavigationBar`, `AlertDialog`)으로 그리고, 아이콘은 `KMIcons`와 같은 Material Icons 경로를 쓴다. 그래도 목업은 도형으로 그린 그림이므로 둘이 다르면 M3 컴포넌트의 실제 모양이 우선이다.
 
 | 요소 | 구현 |
 | :--- | :--- |

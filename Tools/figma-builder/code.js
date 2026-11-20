@@ -675,7 +675,8 @@ function txt(chars, size, weight, color, width, mono) {
   if (width) { t.resize(width, t.height); t.textAutoResize = 'HEIGHT'; }
   return t;
 }
-function fixedRow(height, gap) { const r = row(gap); r.resize(10, height); r.counterAxisSizingMode = 'FIXED'; return r; }
+// resize()는 자동 배치 프레임의 두 축을 모두 FIXED로 바꾼다. 너비는 내용에 맞게 AUTO로 되돌린다
+function fixedRow(height, gap) { const r = row(gap); r.resize(10, height); r.counterAxisSizingMode = 'FIXED'; r.primaryAxisSizingMode = 'AUTO'; return r; }
 function solid(hex) { return solidPaint(hex); }
 function rect(w, h, r, hex, x, y, name) {
   const n = figma.createRectangle();
@@ -692,20 +693,66 @@ function chevron(color, direction) {
   return v;
 }
 
+// Android 줄이 쓰는 Material Icons 24px 경로(Apache-2.0, google/material-design-icons).
+// 앱의 KMIcons(Apps/Android/core/designsystem)와 같은 원본이다. 한쪽을 바꾸면 다른 쪽도 맞춘다
+const MATERIAL_ICONS = {
+  arrow_back: 'M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z',
+  lock: 'M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z',
+  visibility: 'M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z',
+  content_copy: 'M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z',
+  vpn_key: 'M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z',
+  settings: 'M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z',
+  add: 'M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z',
+};
+function mIcon(name, color, size) {
+  const f = figma.createNodeFromSvg(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="${MATERIAL_ICONS[name]}"/></svg>`);
+  f.name = 'Icon · ' + name;
+  f.fills = [];
+  for (const v of f.findAll((n) => n.type === 'VECTOR')) fill(v, color || 'foreground');
+  if (size && size !== 24) f.rescale(size / 24);
+  return f;
+}
+// M3 아이콘 버튼. 터치 영역 48, 아이콘 24
+function mIconButton(name, color) {
+  const b = fixedRow(48, 0); b.resize(48, 48); b.primaryAxisSizingMode = 'FIXED'; b.primaryAxisAlignItems = 'CENTER';
+  b.name = 'Icon button · ' + name;
+  b.appendChild(mIcon(name, color));
+  return b;
+}
+// M3 Filled text field. 이름표는 칸 안에 있고, 값이 있으면 위로 떠올라 작아진다.
+// 비밀번호 칸은 뒤쪽에 보기 아이콘 버튼을 둔다(o.trailing으로 바꿀 수 있다)
+function m3Field(label, value, o) {
+  const secret = value.startsWith('•');
+  const trailing = o.trailing || (secret ? ['visibility'] : []);
+  const box = fixedRow(56, 0);
+  box.name = 'Input · ' + label;
+  box.paddingLeft = 16; box.paddingRight = trailing.length ? 0 : 16;
+  box.topLeftRadius = 4; box.topRightRadius = 4;
+  fill(box, 'muted');
+  stroke(box, o.focus ? 'primary' : 'muted-foreground');
+  box.strokeTopWeight = 0; box.strokeLeftWeight = 0; box.strokeRightWeight = 0; box.strokeBottomWeight = o.focus ? 2 : 1;
+  const texts = col(0);
+  if (o.placeholder) texts.appendChild(txt(label, 16, 'regular', 'muted-foreground'));
+  else {
+    texts.appendChild(txt(label, 12, 'regular', o.focus ? 'primary' : 'muted-foreground'));
+    texts.appendChild(txt(value, 16, 'regular', 'foreground', null, secret || o.mono));
+  }
+  box.appendChild(texts); texts.layoutGrow = 1;
+  for (const name of trailing) box.appendChild(mIconButton(name, 'muted-foreground'));
+  return box;
+}
+
 // ---------- 공용 요소 (플랫폼마다 모양만 다르다) ----------
 function input(p, label, value, opts) {
   const o = opts || {};
+  if (p === 'a') return m3Field(label, value, o);
   const wrap = col(6);
-  wrap.appendChild(txt(label, p === 'a' ? 12 : p === 'i' ? 13 : 14, 'medium', p === 'w' ? 'foreground' : 'muted-foreground'));
-  const box = fixedRow(o.height || (p === 'i' ? 48 : p === 'a' ? 56 : 40), 8);
+  wrap.appendChild(txt(label, p === 'i' ? 13 : 14, 'medium', p === 'w' ? 'foreground' : 'muted-foreground'));
+  const box = fixedRow(o.height || (p === 'i' ? 48 : 40), 8);
   box.name = 'Input · ' + label;
   if (o.height) { box.counterAxisAlignItems = 'MIN'; box.paddingTop = 10; }
   if (p === 'i') { box.paddingLeft = 14; box.cornerRadius = 14; fill(box, 'muted'); if (o.focus) stroke(box, 'ring', 0.7, 1.5); }
-  else if (p === 'a') {
-    box.paddingLeft = 16; box.topLeftRadius = 4; box.topRightRadius = 4; fill(box, 'muted', 0.6);
-    stroke(box, o.focus ? 'primary' : 'muted-foreground');
-    box.strokeTopWeight = 0; box.strokeLeftWeight = 0; box.strokeRightWeight = 0; box.strokeBottomWeight = o.focus ? 2 : 1;
-  } else { box.paddingLeft = 12; box.cornerRadius = TOKEN_RADIUS.md; fill(box, 'background'); stroke(box, o.focus ? 'ring' : 'input', null, o.focus ? 2 : 1); }
+  else { box.paddingLeft = 12; box.cornerRadius = TOKEN_RADIUS.md; fill(box, 'background'); stroke(box, o.focus ? 'ring' : 'input', null, o.focus ? 2 : 1); }
   const secret = value.startsWith('•');
   box.appendChild(txt(value, 16, 'regular', o.placeholder ? 'muted-foreground' : 'foreground', null, secret || o.mono));
   add(wrap, box, true);
@@ -793,11 +840,11 @@ function gauge(level, label) {
   return g;
 }
 function secretField(p) {
-  const box = fixedRow(p === 'i' ? 48 : p === 'a' ? 56 : 40, 8);
+  const box = fixedRow(p === 'i' ? 48 : 40, 8);
   box.name = 'PasswordInputField';
   box.primaryAxisAlignItems = 'SPACE_BETWEEN';
   box.paddingLeft = 14; box.paddingRight = 14;
-  box.cornerRadius = p === 'i' ? 14 : p === 'a' ? 4 : TOKEN_RADIUS.md;
+  box.cornerRadius = p === 'i' ? 14 : TOKEN_RADIUS.md;
   fill(box, p === 'w' ? 'background' : 'muted'); if (p === 'w') stroke(box, 'input');
   box.appendChild(txt('••••••••••••••••', 16, 'regular', 'foreground', null, true));
   box.appendChild(txt('보기', 13, 'medium', 'muted-foreground'));
@@ -829,6 +876,7 @@ function statusBar(parent, p) {
   sb.appendChild(txt(p === 'i' ? 'LTE' : '5G', 13, 'bold'));
 }
 const TABS = ['볼트', '생성기', '설정'];
+const TAB_ICONS = { '볼트': 'lock', '생성기': 'vpn_key', '설정': 'settings' };
 function tabBar(parent, active) {
   const wrap = add(parent, row(0), true);
   wrap.paddingLeft = 20; wrap.paddingRight = 20; wrap.paddingBottom = 28; wrap.paddingTop = 8;
@@ -846,14 +894,13 @@ function navBar(parent, active) {
   nav.name = 'Navigation bar';
   nav.primaryAxisAlignItems = 'SPACE_BETWEEN';
   nav.paddingLeft = 36; nav.paddingRight = 36;
-  fill(nav, 'card'); stroke(nav, 'border'); nav.strokeBottomWeight = 0; nav.strokeLeftWeight = 0; nav.strokeRightWeight = 0;
+  fill(nav, 'card');
   for (const l of TABS) {
     const on = l === active;
     const it = col(4); it.counterAxisAlignItems = 'CENTER';
     const pill = fixedRow(32, 0); pill.resize(64, 32); pill.primaryAxisSizingMode = 'FIXED'; pill.primaryAxisAlignItems = 'CENTER'; pill.cornerRadius = 16;
     if (on) fill(pill, 'muted');
-    const dot = figma.createEllipse(); dot.resize(14, 14); fill(dot, on ? 'foreground' : 'muted-foreground');
-    pill.appendChild(dot); it.appendChild(pill);
+    pill.appendChild(mIcon(TAB_ICONS[l], on ? 'foreground' : 'muted-foreground')); it.appendChild(pill);
     it.appendChild(txt(l, 12, on ? 'bold' : 'medium', on ? 'foreground' : 'muted-foreground'));
     nav.appendChild(it);
   }
@@ -902,7 +949,7 @@ function wrapBrowser(page, screen, name, path) {
   return win;
 }
 
-// o: { title, back, tab, center, bottom }
+// o: { title, back, action, tab, center, bottom }
 function phone(page, p, s, index, o) {
   const f = figma.createFrame();
   f.name = `${PLATFORM_NAME[p]} · ${s.name}`;
@@ -923,9 +970,12 @@ function phone(page, p, s, index, o) {
     nb.appendChild(chevron('foreground', 'left')); nb.appendChild(txt(o.back, 17, 'regular', 'foreground'));
   }
   if (p === 'a' && (o.title || o.back)) {
-    const bar = add(f, row(16), true); bar.name = 'Top app bar'; pad(bar, 16, 12);
-    if (o.back) bar.appendChild(chevron('foreground', 'left'));
-    if (o.title) bar.appendChild(txt(o.title, 22, 'regular'));
+    // M3 small TopAppBar: 높이 64, 뒤로 가기는 48 아이콘 버튼, 제목은 왼쪽 정렬 22
+    const bar = fixedRow(64, 4); add(f, bar, true); bar.name = 'Top app bar';
+    bar.paddingLeft = o.back ? 4 : 16; bar.paddingRight = 4;
+    if (o.back) bar.appendChild(mIconButton('arrow_back', 'foreground'));
+    const title = txt(o.title || '', 22, 'regular'); bar.appendChild(title); title.layoutGrow = 1;
+    if (o.action) { const act = row(0); pad(act, 12, 10); act.appendChild(txt(o.action, 14, 'medium', 'primary')); bar.appendChild(act); }
   }
   const body = add(f, col(16), true);
   body.name = 'Body';
@@ -1079,7 +1129,7 @@ function webApp(page, s, index, active) {
 function webVaultList(main, selected) {
   const split = add(main, row(24), true); split.counterAxisAlignItems = 'MIN'; split.layoutGrow = 1;
   const list = col(12); list.name = 'ItemList'; split.appendChild(list);
-  list.resize(384, 10); list.counterAxisSizingMode = 'FIXED';
+  list.resize(384, 10); list.counterAxisSizingMode = 'FIXED'; list.primaryAxisSizingMode = 'AUTO';
   const top = add(list, row(8), true); top.counterAxisAlignItems = 'MAX';
   add(top, webField('항목 검색', '', { placeholder: true })).layoutGrow = 1;
   top.appendChild(webButton('항목 추가'));
@@ -1112,6 +1162,25 @@ function webDetailField(parent, label, value, opts) {
   t.appendChild(txt(value, 14, 'regular', 'foreground', null, o.secret));
   const acts = row(8); r.appendChild(acts);
   for (const a of o.actions || []) acts.appendChild(webButton(a, 'outline', 'sm'));
+}
+
+// 볼트 화면 위에 뜨는 모달 (ModalDialog, max-w-md 448px). 제목과 본문까지 그린 대화상자를 돌려준다
+function webModal(page, s, i, title, titleColor, body) {
+  const { frame, main } = webApp(page, s, i, '볼트');
+  webEmptyDetail(webVaultList(main, null));
+  const overlay = figma.createRectangle(); overlay.name = 'Overlay'; overlay.resize(1280, 800); fill(overlay, 'overlay');
+  frame.appendChild(overlay); overlay.layoutPositioning = 'ABSOLUTE'; overlay.x = 0; overlay.y = 0;
+  const dlg = webCard(16); dlg.name = 'ModalDialog · ' + title;
+  frame.appendChild(dlg); dlg.layoutPositioning = 'ABSOLUTE';
+  dlg.resize(448, 10); dlg.counterAxisSizingMode = 'FIXED'; dlg.primaryAxisSizingMode = 'AUTO'; pad(dlg, 24, 24);
+  dlg.x = (1280 - 448) / 2; dlg.y = 160;
+  dlg.appendChild(txt(title, 18, 'bold', titleColor));
+  add(dlg, txt(body, 14, 'regular', 'muted-foreground', 400), true);
+  return dlg;
+}
+function webModalActions(dlg, confirm, kind) {
+  const acts = add(dlg, row(8), true);
+  acts.appendChild(webButton('취소', 'outline', 'sm')); acts.appendChild(webButton(confirm, kind, 'sm'));
 }
 
 const WEB_SCREENS = {
@@ -1163,7 +1232,7 @@ const WEB_SCREENS = {
     const { main } = webApp(page, s, i, '생성기');
     main.counterAxisAlignItems = 'CENTER';
     const card = webCard(16); main.appendChild(card);
-    card.resize(576, 10); card.counterAxisSizingMode = 'FIXED'; pad(card, 24, 24);
+    card.resize(576, 10); card.counterAxisSizingMode = 'FIXED'; card.primaryAxisSizingMode = 'AUTO'; pad(card, 24, 24);
     card.appendChild(txt('비밀번호 생성기', 20, 'bold'));
     const result = add(card, col(8), true); pad(result, 12, 12); result.cornerRadius = TOKEN_RADIUS.md; fill(result, 'muted');
     result.appendChild(txt('k7#Qv2!mR9$wLx4&Tz8p', 18, 'regular', 'foreground', null, true));
@@ -1180,7 +1249,7 @@ const WEB_SCREENS = {
     const { main } = webApp(page, s, i, '설정');
     main.counterAxisAlignItems = 'CENTER';
     const view = col(24); main.appendChild(view);
-    view.resize(576, 10); view.counterAxisSizingMode = 'FIXED';
+    view.resize(576, 10); view.counterAxisSizingMode = 'FIXED'; view.primaryAxisSizingMode = 'AUTO';
     const head = add(view, col(4), true);
     head.appendChild(txt('설정', 20, 'bold'));
     head.appendChild(txt('계정 및 보안 정책 상태를 확인합니다.', 14, 'regular', 'muted-foreground'));
@@ -1207,22 +1276,28 @@ const WEB_SCREENS = {
     const cb = row(8); cr.appendChild(cb);
     cb.appendChild(webButton('잠그기', 'outline', 'sm')); cb.appendChild(webButton('로그아웃', 'destructive', 'sm'));
   },
-  // 계정 삭제는 볼트 화면 위에 뜨는 모달이다 (DeleteAccountDialog, max-w-md 448px)
+  // 백업에서 복원 (BackupActions의 RestoreDialog). 실제 웹은 이 대화상자를 사이드바 안에 펼치지만,
+  // 목업은 읽기 쉽게 다른 대화상자와 같은 모달 틀로 그린다. 문구는 RESTORE_DIALOG와 같다
+  backup(page, s, i) {
+    const dlg = webModal(page, s, i, '백업에서 복원', 'foreground', WEB_TEXT.backupRestoreBody);
+    add(dlg, webField('백업 파일 비밀번호', '••••••••••••', { secret: true }), true);
+    webModalActions(dlg, '복원', 'primary');
+  },
+  // 마스터 비밀번호 변경 (ChangePasswordDialog)
+  password(page, s, i) {
+    const dlg = webModal(page, s, i, '마스터 비밀번호 변경', 'foreground', WEB_TEXT.passwordChangeBody);
+    add(dlg, webField('현재 마스터 비밀번호', '••••••••••••', { secret: true }), true);
+    add(dlg, webField('새 마스터 비밀번호', '••••••••••••••••', { secret: true }), true);
+    add(dlg, txt('마스터 비밀번호는 12자 이상이어야 합니다.', 12, 'regular', 'muted-foreground', 400), true);
+    add(dlg, webField('새 마스터 비밀번호 확인', '••••••••••••••••', { secret: true }), true);
+    webModalActions(dlg, '변경', 'primary');
+  },
+  // 계정 삭제 (DeleteAccountDialog)
   delete(page, s, i) {
-    const { frame, main } = webApp(page, s, i, '볼트');
-    webEmptyDetail(webVaultList(main, null));
-    const overlay = figma.createRectangle(); overlay.name = 'Overlay'; overlay.resize(1280, 800); fill(overlay, 'overlay');
-    frame.appendChild(overlay); overlay.layoutPositioning = 'ABSOLUTE'; overlay.x = 0; overlay.y = 0;
-    const dlg = webCard(16); dlg.name = 'ModalDialog · 계정 삭제';
-    frame.appendChild(dlg); dlg.layoutPositioning = 'ABSOLUTE';
-    dlg.resize(448, 10); dlg.counterAxisSizingMode = 'FIXED'; pad(dlg, 24, 24);
-    dlg.appendChild(txt(WEB_TEXT.deleteTitle, 18, 'bold', 'destructive'));
-    add(dlg, txt(WEB_TEXT.deleteBody, 14, 'regular', 'muted-foreground', 400), true);
+    const dlg = webModal(page, s, i, WEB_TEXT.deleteTitle, 'destructive', WEB_TEXT.deleteBody);
     add(dlg, webField('마스터 비밀번호', '••••••••••••', { secret: true }), true);
     add(dlg, webField(WEB_TEXT.deletePhrase, '계정 삭제'), true);
-    const acts = add(dlg, row(8), true);
-    acts.appendChild(webButton('취소', 'outline', 'sm')); acts.appendChild(webButton('삭제', 'destructive', 'sm'));
-    dlg.x = (1280 - 448) / 2; dlg.y = 160;
+    webModalActions(dlg, '삭제', 'destructive');
   },
 };
 
@@ -1253,7 +1328,7 @@ const MOCK_STEPS = {
   unlock(page) {
     screen3(page, 'unlock', { center: true }, { auth: true }, (p, b) => {
       b.counterAxisAlignItems = 'CENTER';
-      b.appendChild(lockIcon());
+      b.appendChild(p === 'a' ? mIcon('lock', 'primary', 48) : lockIcon());
       b.appendChild(txt('볼트가 잠겼습니다', p === 'i' ? 28 : p === 'a' ? 24 : 22, p === 'a' ? 'regular' : 'bold'));
       b.appendChild(txt('dev@example.com', 14, 'regular', 'muted-foreground'));
       add(b, input(p, '마스터 비밀번호', '••••••••••••', { focus: true }), true);
@@ -1263,7 +1338,7 @@ const MOCK_STEPS = {
   },
   vault(page) {
     const items = [['GitHub', 'dev@example.com'], ['Google', 'dev@gmail.com'], ['AWS 콘솔', 'admin'], ['Notion', 'dev@example.com'], ['은행', '(아이디 없음)']];
-    screen3(page, 'vault', (p) => ({ title: '볼트', tab: p === 'i' ? '볼트' : '볼트' }),
+    screen3(page, 'vault', (p) => ({ title: '볼트', tab: '볼트', action: p === 'a' ? '잠금' : null }),
       { active: '볼트', title: '볼트', subtitle: '항목 5개 · 모든 값은 이 기기에서만 복호화됩니다.', width: 720 }, (p, b) => {
       const top = add(b, row(8), true);
       const search = add(top, input(p, '검색', '서비스 이름이나 아이디', { placeholder: true }), false);
@@ -1285,11 +1360,12 @@ const MOCK_STEPS = {
         texts.appendChild(txt(name, p === 'i' ? 17 : 15, 'medium'));
         texts.appendChild(txt(user, 13, 'regular', 'muted-foreground'));
         if (p === 'i') it.appendChild(chevron('muted-foreground', 'right'));
+        else if (p === 'a') it.appendChild(mIconButton('content_copy', 'muted-foreground'));
         else it.appendChild(txt('복사', 13, 'medium', 'muted-foreground'));
       });
       if (p === 'a') {
         const fab = fixedRow(56, 0); fab.resize(56, 56); fab.primaryAxisSizingMode = 'FIXED'; fab.primaryAxisAlignItems = 'CENTER';
-        fab.cornerRadius = 16; fill(fab, 'primary'); fab.appendChild(txt('+', 24, 'medium', 'primary-foreground'));
+        fab.cornerRadius = 16; fill(fab, 'primary'); fab.appendChild(mIcon('add', 'primary-foreground'));
         const fr = add(b, row(0), true); fr.primaryAxisAlignItems = 'MAX'; fr.appendChild(fab);
       }
     });
@@ -1303,9 +1379,12 @@ const MOCK_STEPS = {
       } else {
         add(b, group(p, null, [['서비스 이름', 'GitHub'], ['아이디', 'dev@example.com']]), true);
       }
-      const pw = col(6); add(b, pw, true);
-      pw.appendChild(txt('비밀번호', p === 'a' ? 12 : 13, 'medium', p === 'w' ? 'foreground' : 'muted-foreground'));
-      add(pw, secretField(p), true);
+      if (p === 'a') add(b, input(p, '비밀번호', '••••••••••••••••', { trailing: ['visibility', 'content_copy'] }), true);
+      else {
+        const pw = col(6); add(b, pw, true);
+        pw.appendChild(txt('비밀번호', 13, 'medium', p === 'w' ? 'foreground' : 'muted-foreground'));
+        add(pw, secretField(p), true);
+      }
       add(b, gauge('strong'), true);
       if (p === 'w') add(b, input(p, '메모', '2FA 복구 코드는 종이에 보관', { height: 72 }), true);
       else b.appendChild(burnBadge());
@@ -1325,7 +1404,7 @@ const MOCK_STEPS = {
       { active: '비밀번호 생성기', title: '비밀번호 생성기', subtitle: '생성은 이 기기 안에서만 이루어집니다.' }, (p, b) => {
       const result = col(12); add(b, result, true);
       pad(result, 16, 16); result.cornerRadius = p === 'i' ? 20 : TOKEN_RADIUS.lg;
-      fill(result, p === 'w' ? 'card' : 'muted'); if (p === 'w') stroke(result, 'border');
+      fill(result, p === 'i' ? 'muted' : 'card'); if (p !== 'i') stroke(result, 'border');
       result.appendChild(txt('k7#Qv2!mR9$wLx4&Tz8p', p === 'w' ? 22 : 20, 'regular', 'foreground', null, true));
       add(result, gauge('strong'), true);
       const len = add(b, row(0), true); len.primaryAxisAlignItems = 'SPACE_BETWEEN';
@@ -1392,9 +1471,11 @@ const MOCK_STEPS = {
         const grab = figma.createRectangle(); grab.resize(36, 5); grab.cornerRadius = 3; fill(grab, 'muted-foreground', 0.6);
         const gw = add(box, row(0), true); gw.primaryAxisAlignItems = 'CENTER'; gw.appendChild(grab);
       } else if (p === 'a') {
-        box = col(16); add(b, box, true); pad(box, 24, 24); box.cornerRadius = 28; fill(box, 'card'); stroke(box, 'border');
+        // M3 AlertDialog: 설정 화면 위에 스크림을 깔고 모서리 28, 여백 24인 대화상자를 띄운다
+        b.parent.fills = [tok('background'), tok('overlay')];
+        box = col(16); add(b, box, true); box.name = 'AlertDialog'; pad(box, 24, 24); box.cornerRadius = 28; fill(box, 'card');
       }
-      box.appendChild(txt(WEB_TEXT.deleteTitle, p === 'a' ? 22 : 20, p === 'a' ? 'regular' : 'bold', 'destructive'));
+      box.appendChild(txt(WEB_TEXT.deleteTitle, p === 'a' ? 24 : 20, p === 'a' ? 'regular' : 'bold', 'destructive'));
       add(box, txt(WEB_TEXT.deleteBody, 14, 'regular', 'muted-foreground', 320), true);
       add(box, input(p, '마스터 비밀번호', '••••••••••••'), true);
       add(box, input(p, WEB_TEXT.deletePhrase, '계정 삭제', { focus: true }), true);

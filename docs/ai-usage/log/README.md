@@ -117,3 +117,4 @@
 | 109 | 2026-11-19 | [Android 누락 표준 문구 보강](109-android-standard-messages.md) |
 | 110 | 2026-11-20 | [Android 되돌림 경고의 서버 볼트 받아들이기](110-android-accept-server-vault.md) |
 | 111 | 2026-11-20 | [Android 시작 오류 수정과 Material 3 화면 정리](111-android-startup-and-material-screens.md) |
+| 112 | 2026-11-20 | [Figma 목업 Android 줄을 Material 3 모양으로 수정](112-figma-android-material-mockup.md) |
