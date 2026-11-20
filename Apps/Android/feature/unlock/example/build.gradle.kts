@@ -15,10 +15,9 @@ android {
 
 dependencies {
     implementation(project(":feature:unlock:ui"))
-    implementation(project(":core:designsystem"))
+    implementation(project(":core:example"))
     implementation("com.keymanage.shared:unlock-implementation")
     implementation("com.keymanage.shared:unlock-testing")
     implementation(libs.androidx.activity.compose)
     implementation(libs.kotlinx.coroutines.android)
-
 }
