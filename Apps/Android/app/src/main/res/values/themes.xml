@@ -1,3 +1,4 @@
 <resources>
-    <style name="Theme.KeyManage" parent="android:Theme.Material.NoActionBar" />
+    <!-- RibActivity가 AppCompatActivity라 AppCompat 계열 테마여야 시작된다 -->
+    <style name="Theme.KeyManage" parent="Theme.AppCompat.DayNight.NoActionBar" />
 </resources>
