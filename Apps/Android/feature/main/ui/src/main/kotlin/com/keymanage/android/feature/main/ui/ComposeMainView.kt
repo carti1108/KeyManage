@@ -16,6 +16,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -30,6 +33,7 @@ import com.carti.ribs.compose.ComposeRenderable
 import com.carti.ribs.compose.ComposeScreenSlot
 import com.carti.ribs.compose.RibSlot
 import com.keymanage.android.designsystem.KeyManageTheme
+import com.keymanage.android.designsystem.component.KMBurnBadge
 import com.keymanage.android.designsystem.component.KMButton
 import com.keymanage.android.designsystem.component.KMIcons
 import com.keymanage.android.designsystem.component.KMPasswordField
@@ -39,10 +43,14 @@ import com.keymanage.feature.main.MainTab
 import com.keymanage.feature.main.MainViewAction
 import com.keymanage.feature.main.MainViewContract
 import com.keymanage.feature.main.MainViewState
+import com.keymanage.feature.messages.BiometricUnlockMessages
 import com.keymanage.feature.messages.ErrorMessage
 import com.keymanage.feature.messages.PendingLogoutConfirm
 import com.keymanage.feature.messages.ReconnectPrompt
 import com.keymanage.feature.messages.RollbackWarning
+import kotlinx.coroutines.delay
+import kotlin.time.Clock
+import kotlin.time.Instant
 
 /**
  * 볼트를 연 뒤의 화면 틀(탭, 안내, 다시 연결)의 Compose 뷰. 공유 Main RIB이 [render]로 상태를 넘기고, 입력은 [listener]로 돌려보낸다.
@@ -94,6 +102,16 @@ fun MainScreen(state: MainViewState, onAction: (MainViewAction) -> Unit, tabCont
             onCancel = { onAction(MainViewAction.CancelReconnectRollback) },
         )
     }
+    // 가입 직후 생체 해제를 켤지 묻는다 (SEC-003 값 표)
+    if (state.isOfferingBiometricUnlock) {
+        AlertDialog(
+            onDismissRequest = { onAction(MainViewAction.DeclineBiometricOffer) },
+            title = { Text(BiometricUnlockMessages.OFFER_TITLE) },
+            text = { Text(BiometricUnlockMessages.OFFER_BODY) },
+            confirmButton = { TextButton(onClick = { onAction(MainViewAction.AcceptBiometricOffer) }) { Text(BiometricUnlockMessages.OFFER_ACCEPT) } },
+            dismissButton = { TextButton(onClick = { onAction(MainViewAction.DeclineBiometricOffer) }) { Text(BiometricUnlockMessages.OFFER_DECLINE) } },
+        )
+    }
     // 올리지 못한 변경 사항이 있을 때 로그아웃 전에 묻는다 (VLT-002)
     if (state.isConfirmingLogout) {
         ConfirmDialog(
@@ -110,7 +128,7 @@ fun MainScreen(state: MainViewState, onAction: (MainViewAction) -> Unit, tabCont
 @Composable
 private fun Notices(state: MainViewState, onAction: (MainViewAction) -> Unit) {
     val hasNotice = state.offlineNotice != null || state.readOnlyNotice != null || state.deviceStorageWarning != null ||
-        state.syncError != null || state.needsReconnect
+        state.syncError != null || state.needsReconnect || state.clipboardBurnAt != null || state.biometricOfferError != null
     if (!hasNotice) return
     Column(
         modifier = Modifier.padding(horizontal = DesignTokens.Spacing.space4).padding(top = DesignTokens.Spacing.space3),
@@ -120,9 +138,34 @@ private fun Notices(state: MainViewState, onAction: (MainViewAction) -> Unit) {
         state.readOnlyNotice?.let { Notice(it) }
         state.deviceStorageWarning?.let { Notice(it, isError = true) }
         state.syncError?.let { Notice(it.text(), isError = true) }
+        state.biometricOfferError?.let { Notice(it, isError = true) }
+        ClipboardNotice(state)
         if (state.needsReconnect) ReconnectCard(state, onAction)
     }
 }
+
+/** 복사 직후 안내와 비울 때까지 남은 초 (COM-001). 남은 초는 공유 상태의 비울 시각에서 화면이 센다 */
+@Composable
+private fun ClipboardNotice(state: MainViewState) {
+    val burnAt = state.clipboardBurnAt ?: return
+    val notice = state.clipboardNotice ?: return
+    var remaining by remember(burnAt) { mutableIntStateOf(secondsUntil(burnAt)) }
+    LaunchedEffect(burnAt) {
+        while (remaining > 0) {
+            delay(250)
+            remaining = secondsUntil(burnAt)
+        }
+    }
+    NoticeSurface(isError = false) {
+        Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.Spacing.space2)) {
+            Text(notice.text(), modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }, style = MaterialTheme.typography.bodySmall)
+            KMBurnBadge(remainingSeconds = remaining)
+        }
+    }
+}
+
+/** 남은 초(올림). 지났으면 0 */
+private fun secondsUntil(time: Instant): Int = ((time - Clock.System.now()).inWholeMilliseconds + 999).floorDiv(1000).toInt().coerceAtLeast(0)
 
 /** 세션 없이 연 볼트를 마스터 비밀번호로 다시 연결한다 (SEC-003, ADR-0019) */
 @Composable
