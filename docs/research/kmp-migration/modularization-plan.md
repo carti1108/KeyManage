@@ -107,3 +107,18 @@ A~C는 [android-migration-plan.md](android-migration-plan.md)의 3단계(공유 
 - `core/testing`(공용 테스트 더블)은 아직 만들지 않았다. Unlock은 자기 가짜 세션만 쓰기 때문이다. 여러 피처가 함께 쓰는 `ShellFakes.kt`는 C단계에서 옮긴다.
 - `ribs-compose` 치환은 `Apps/Shared/settings.gradle.kts`에 둔다. 같은 RIB 라이브러리 빌드를 `Apps/Android`에서 한 번 더 `includeBuild`하면 치환이 적용되지 않았다.
 - 기존 Android 모듈(`feature/unlock/{interface,implementation,testing,tests}`, uber/RIBs)은 앱이 아직 쓰므로 그대로 뒀다. 앱 전환(android-migration-plan 4단계) 때 지운다.
+
+### C단계(공유 쪽): 나머지 피처 5개 (2026-11-20)
+
+| 항목 | 결과 |
+| :--- | :--- |
+| 나눈 피처 | `auth`, `generator`(PasswordGenerator), `vaultlist`, `settings`, `main`. 각각 `interface`·`implementation`·`testing`·`tests` |
+| `core/testing` | 공용 테스트 더블(`FakeSession`, `FakeEnvironment`, `FakeClipboard`, `FakeBackupFiles`, `FakeRandomBytes`, 테스트 디스패처)을 옮겼다 |
+| 피처의 `testing` | 가짜 뷰(`FakeAuthView` 등)를 옮겼다. `main/testing`에는 자식 화면까지 만드는 `FakeMainViews`가 있다 |
+| 조립 모듈(`feature`) | Root RIB과 `KeyManageApp`, 그 테스트만 남았다. MusicSearch에서 Root가 App 타깃에 있는 것과 같다 |
+| 테스트 | 모듈별 JVM 테스트 합계 306건으로 나누기 전과 같다(조립 47, 문구 15, unlock 29, auth 29, generator 19, vaultlist 50, settings 63, main 54). 옮긴 테스트의 어설션 수도 그대로다 |
+| 나머지 | 웹 `npm run check` 505건, 감사 스크립트 3종, `web-session` JS 빌드, Android 앱 컴파일과 Unlock Example 빌드 통과 |
+
+- **부모가 자식의 구현을 얻는 방법**: 자식의 Builder는 부모의 Dependency가 준다(MusicSearch의 `musicDiggingBuilder`와 같다). 다만 Main은 세션을 감싼 Dependency를 자기가 만들어 자식에 넘기므로, 속성이 아니라 함수다: `MainDependency.vaultListBuilder(dependency)`, `passwordGeneratorBuilder(dependency)`, `settingsBuilder(dependency)`, `VaultListDependency.passwordGeneratorBuilder(dependency)`. 구현은 조립 모듈의 `RootComponent`가 넣는다.
+- **Routing에 올린 것**: 부모가 자식 Router에서 쓰던 기능만 계약으로 올렸다. `AuthRouting.showNotice`, `MainRouting.isFinishingSession`, `VaultListRouting.refreshFromSession`.
+- 아직 안 한 것: 각 피처의 시나리오(`XxxScenario`)와 Android `ui`·`example`. 테스트 파일 안에 남아 있는 피처 전용 가짜(가짜 세션·Listener)는 시나리오를 만들 때 `testing`으로 옮긴다.
