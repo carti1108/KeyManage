@@ -38,9 +38,6 @@ import com.keymanage.feature.root.RootViewControllable
 import com.keymanage.feature.settings.SettingsViewContract
 import com.keymanage.feature.settings.SettingsPresentableListener
 import com.keymanage.feature.settings.SettingsViewState
-import com.keymanage.feature.unlock.UnlockViewContract
-import com.keymanage.feature.unlock.UnlockPresentableListener
-import com.keymanage.feature.unlock.UnlockViewState
 import com.keymanage.feature.vaultlist.VaultListViewContract
 import com.keymanage.feature.vaultlist.VaultListPresentableListener
 import com.keymanage.feature.vaultlist.VaultListViewState
@@ -357,15 +354,8 @@ class FakeAuthView : AuthViewContract {
     }
 }
 
-class FakeUnlockView : UnlockViewContract {
-    override var listener: UnlockPresentableListener? = null
-    val states = mutableListOf<UnlockViewState>()
-    val state: UnlockViewState get() = states.last()
-
-    override fun render(state: UnlockViewState) {
-        states += state
-    }
-}
+/** Unlock 피처의 testing 모듈에 있다 */
+typealias FakeUnlockView = com.keymanage.feature.unlock.testing.FakeUnlockView
 
 class FakeMainView : MainViewContract {
     override var listener: MainPresentableListener? = null

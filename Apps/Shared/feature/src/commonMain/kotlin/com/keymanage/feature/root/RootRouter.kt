@@ -7,19 +7,19 @@ import com.keymanage.feature.auth.AuthBuilder
 import com.keymanage.feature.auth.AuthRouter
 import com.keymanage.feature.main.MainBuilder
 import com.keymanage.feature.main.MainRouter
-import com.keymanage.feature.unlock.UnlockBuilder
-import com.keymanage.feature.unlock.UnlockRouter
+import com.keymanage.feature.unlock.UnlockBuildable
+import com.keymanage.feature.unlock.UnlockRouting
 
 class RootRouter(
     interactor: RootInteractor,
     view: RootViewControllable,
     private val authBuilder: AuthBuilder,
-    private val unlockBuilder: UnlockBuilder,
+    private val unlockBuilder: UnlockBuildable,
     private val mainBuilder: MainBuilder,
 ) : LaunchRouter<RootInteractor, RootViewControllable>(interactor, view) {
     private var auth: AuthRouter? = null
     private var authNotice: String? = null
-    private var unlock: UnlockRouter? = null
+    private var unlock: UnlockRouting? = null
     private var main: MainRouter? = null
 
     init {
@@ -36,7 +36,7 @@ class RootRouter(
 
     /** 볼트 화면이나 잠금 화면이 세션을 끝내는 작업(로그아웃, 계정 삭제)을 하는 중인지. 이 동안은 화면을 내리지 않는다 */
     val isFinishingSession: Boolean
-        get() = (main?.interactor?.isFinishingSession ?: false) || (unlock?.interactor?.isFinishingSession ?: false)
+        get() = (main?.interactor?.isFinishingSession ?: false) || (unlock?.isFinishingSession ?: false)
 
     /** 끝낼 때 [RootInteractor]가 부른다. 붙어 있던 화면을 내리고 필드를 비운다. 자식 RIB은 트리를 끝내며 이어서 떼어진다 */
     fun clearScreens() {

@@ -1,0 +1,51 @@
+package com.keymanage.feature.unlock.testing
+
+import com.keymanage.domain.auth.MasterPasswordChangedException
+import com.keymanage.domain.device.DeviceStorageException
+import com.keymanage.domain.server.NetworkError
+import com.keymanage.domain.session.SessionExpiredException
+import com.keymanage.domain.session.WrongMasterPasswordException
+import com.keymanage.domain.vault.RevisionRollbackException
+import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.seconds
+
+/**
+ * 잠금 화면을 한 가지 상황으로 띄우는 시나리오. Android·iOS·웹의 Example 앱이 같은 목록을 보여 주고,
+ * 고른 시나리오의 [session]으로 Unlock RIB을 만든다 (modularization-plan 3장 3번)
+ */
+enum class UnlockScenario(val title: String) {
+    SUCCESS("성공 (잠금 해제)"),
+    OFFLINE("오프라인 (기기에 저장한 볼트로 엶)"),
+    WRONG_PASSWORD("틀린 비밀번호"),
+    SLOW("지연 (2초 뒤 잠금 해제)"),
+    NETWORK_ERROR("서버 오류 문구"),
+    ROLLBACK("되돌림 경고 (받아들이면 열림)"),
+    SESSION_EXPIRED("세션 만료 (로그인 화면으로)"),
+    PASSWORD_CHANGED("다른 기기에서 비밀번호 변경 (로그인 화면으로)"),
+    LOGOUT_WITH_PENDING("로그아웃 확인 (올리지 못한 변경 있음)"),
+    LOGOUT_CLEAR_FAILED("로그아웃 (기기 기록을 지우지 못함)"),
+    ;
+
+    /** 이 상황을 만드는 가짜 세션 */
+    fun session(): FakeUnlockSession = FakeUnlockSession().also { session ->
+        session.email = "user@example.com"
+        when (this) {
+            SUCCESS -> Unit
+            OFFLINE -> session.unlockResult = true
+            WRONG_PASSWORD -> session.unlockHandler = { _, _ -> throw WrongMasterPasswordException() }
+            SLOW -> session.unlockHandler = { _, _ ->
+                delay(2.seconds)
+                false
+            }
+            NETWORK_ERROR -> session.unlockHandler = { _, _ -> throw NetworkError() }
+            ROLLBACK -> session.unlockHandler = { _, acceptRollback ->
+                if (!acceptRollback) throw RevisionRollbackException(lastSeenRevision = 7, serverRevision = 5)
+                false
+            }
+            SESSION_EXPIRED -> session.unlockHandler = { _, _ -> throw SessionExpiredException() }
+            PASSWORD_CHANGED -> session.unlockHandler = { _, _ -> throw MasterPasswordChangedException() }
+            LOGOUT_WITH_PENDING -> session.pendingSync = true
+            LOGOUT_CLEAR_FAILED -> session.logoutHandler = { throw DeviceStorageException() }
+        }
+    }
+}

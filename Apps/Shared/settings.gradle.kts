@@ -2,6 +2,7 @@
 rootProject.name = "keymanage-shared"
 
 pluginManagement {
+    includeBuild("build-logic")
     repositories {
         gradlePluginPortal()
         mavenCentral()
@@ -23,6 +24,15 @@ include(":domain")
 include(":server-http")
 include(":web-session")
 include(":feature")
+
+// 피처가 함께 쓰는 것 (modularization-plan 2장)
+include(":core:feature-base")
+
+// 마이크로 피처: interface · implementation · testing · tests
+include(":features:unlock:interface")
+include(":features:unlock:implementation")
+include(":features:unlock:testing")
+include(":features:unlock:tests")
 include(":android-session")
 
 // 공유 RIB 라이브러리(carti-RIBs-KMP). 기본은 이 저장소와 같은 상위 폴더의 형제 폴더다 (domain-migration-plan 11.2).

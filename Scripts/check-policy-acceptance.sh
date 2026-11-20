@@ -185,7 +185,7 @@ if os.path.isdir(apple_tests_dir):
 
 
 # ============================================================================
-# 2. Web 플랫폼 감사 (Apps/Web/src/**/*.test.ts*, Apps/Shared/*/src/*Test/**/*.kt)
+# 2. Web 플랫폼 감사 (Apps/Web/src/**/*.test.ts*, Apps/Shared/**/src/*Test/**/*.kt)
 # ============================================================================
 web_src_dir = os.path.join(root, "Apps", "Web", "src")
 if os.path.isdir(web_src_dir):
@@ -194,7 +194,7 @@ if os.path.isdir(web_src_dir):
         glob.glob(os.path.join(web_src_dir, "**", "*.test.ts"), recursive=True)
         + glob.glob(os.path.join(web_src_dir, "**", "*.test.tsx"), recursive=True)
         # 웹 화면 로직은 공유 RIB(Kotlin)으로 옮겼다. 그 테스트도 웹 정책 근거로 본다 (domain-migration-plan 11.4)
-        + glob.glob(os.path.join(root, "Apps", "Shared", "*", "src", "*Test", "**", "*.kt"), recursive=True)
+        + glob.glob(os.path.join(root, "Apps", "Shared", "**", "src", "*Test", "**", "*.kt"), recursive=True)
     )
     web_tests = "\n".join(open(p, encoding="utf-8").read() for p in web_test_files)
 

@@ -19,6 +19,9 @@ import com.keymanage.domain.vault.RevisionRollbackException
 import com.keymanage.domain.vault.VaultData
 import com.keymanage.feature.SessionPort
 import com.keymanage.feature.messages.LOGOUT_CLEAR_FAILED
+import com.keymanage.feature.unlock.testing.FakeUnlockListener
+import com.keymanage.feature.unlock.testing.FakeUnlockSession
+import com.keymanage.feature.unlock.testing.FakeUnlockView
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -450,82 +453,4 @@ private class UnlockTestDispatchers(dispatcher: CoroutineDispatcher) : RibDispat
     override val MainImmediate: CoroutineDispatcher = dispatcher
     override val Default: CoroutineDispatcher = dispatcher
     override val Unconfined: CoroutineDispatcher = dispatcher
-}
-
-private class FakeUnlockView : UnlockViewContract {
-    override var listener: UnlockPresentableListener? = null
-    val states = mutableListOf<UnlockViewState>()
-    val state: UnlockViewState get() = states.last()
-
-    override fun render(state: UnlockViewState) {
-        states += state
-    }
-}
-
-private class FakeUnlockListener : UnlockListener {
-    val unlocked = mutableListOf<Boolean>()
-    val loggedOut = mutableListOf<String?>()
-    val signInRequests = mutableListOf<String>()
-
-    override fun didUnlock(offline: Boolean) {
-        unlocked += offline
-    }
-
-    override fun didLogout(notice: String?) {
-        loggedOut += notice
-    }
-
-    override fun didRequireSignIn(notice: String) {
-        signInRequests += notice
-    }
-}
-
-/** 잠금 해제·로그아웃에 쓰는 기능만 구현한다. 나머지는 이 RIB이 부르지 않으므로 호출되면 실패한다. */
-private class FakeUnlockSession : SessionPort {
-    data class UnlockCall(val password: String, val acceptRollback: Boolean)
-
-    var email = "user@test.com"
-    var pendingSync = false
-    var pendingOnDevice = false
-    var unlockResult = false
-    val unlocks = mutableListOf<UnlockCall>()
-    var logoutCalls = 0
-    var pendingOnDeviceCalls = 0
-
-    var unlockHandler: suspend (String, Boolean) -> Boolean = { _, _ -> unlockResult }
-    var logoutHandler: suspend () -> Unit = {}
-    var pendingOnDeviceHandler: suspend () -> Boolean = { pendingOnDevice }
-
-    override fun state(): SessionState = SessionState.Locked(email, pendingSync)
-
-    override suspend fun unlock(password: String, acceptRollback: Boolean): Boolean {
-        unlocks += UnlockCall(password, acceptRollback)
-        return unlockHandler(password, acceptRollback)
-    }
-
-    override suspend fun logout() {
-        logoutCalls += 1
-        logoutHandler()
-    }
-
-    override suspend fun pendingOnDevice(): Boolean {
-        pendingOnDeviceCalls += 1
-        return pendingOnDeviceHandler()
-    }
-
-    override suspend fun register(email: String, password: String) = unused()
-    override suspend fun login(email: String, password: String, acceptRollback: Boolean) = unused()
-    override fun lock(scope: LockScope) = unused()
-    override suspend fun reconnect(password: String, acceptRollback: Boolean) = unused()
-    override suspend fun save(data: VaultData) = unused()
-    override suspend fun exportBackup(now: Instant, calendar: LocalCalendar): BackupFile = unused()
-    override suspend fun restoreBackup(backup: VaultBackup, password: String, now: Instant): Int = unused()
-    override suspend fun changeMasterPassword(currentPassword: String, newPassword: String) = unused()
-    override suspend fun deleteAccount(password: String) = unused()
-    override fun onRemoteChange(listener: () -> Unit): () -> Unit = unused()
-    override fun onLock(listener: () -> Unit): () -> Unit = unused()
-    override fun onUnlock(listener: () -> Unit): () -> Unit = unused()
-    override fun onSyncChange(listener: SyncChangeListener): () -> Unit = unused()
-
-    private fun unused(): Nothing = throw UnsupportedOperationException("Unlock RIB이 부르지 않는 세션 기능")
 }
