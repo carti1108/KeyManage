@@ -236,6 +236,16 @@ if os.path.isdir(web_src_dir):
     ]
     check_invariants("Web", "3단계: 생체 해제(SEC-003, 공유 Kotlin)", web_tests, shared_biometric_rules)
 
+    # 공유 RIB이 보이는 안내 문구. 뷰만 있는 플랫폼(Android 등)은 이 문구를 그대로 그린다
+    shared_notice_rules = [
+        ("SEC-003 가입 직후 생체 해제 안내 제목('생체 인증으로 잠금을 풀까요?') 검증", r"생체 인증으로 잠금을 풀까요\?"),
+        ("SEC-003 가입 직후에만 생체 해제를 묻는지(offerBiometricUnlock) 검증", r"offerBiometricUnlock"),
+        ("COM-001 복사 직후 표준 제목('클립보드 보안 소각') 검증", r"클립보드 보안 소각"),
+        ("COM-001 복사 직후 표준 본문('보안을 위해 복사된 내용이 30초 후 클립보드에서 자동 삭제됩니다.') 검증", r"보안을 위해 복사된 내용이 30초 후 클립보드에서 자동 삭제됩니다\."),
+        ("COM-001 다른 텍스트를 복사하면 타이머 무효(onExternalChange) 검증", r"onExternalChange\(\)"),
+    ]
+    check_invariants("Web", "공유 RIB 안내 문구(SEC-003, COM-001)", web_tests, shared_notice_rules)
+
     web_generator_rules = [
         ("길이 하한(8자)·상한(64자) 및 범위 밖(7, 65) 거부 검증", r"\b64\b"),
         ("거부 샘플링 1,000회 반복 검증", r"\b1000\b"),
