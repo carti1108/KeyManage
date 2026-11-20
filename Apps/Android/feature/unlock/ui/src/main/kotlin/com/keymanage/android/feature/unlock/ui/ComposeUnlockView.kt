@@ -84,6 +84,10 @@ fun UnlockScreen(state: UnlockViewState, onAction: (UnlockViewAction) -> Unit) {
             showCopyAction = false,
             readOnly = state.isLoading,
         )
+        // 생체 해제를 켜 두었는데 마스터 비밀번호가 필요한 이유(세션 만료)
+        state.biometricNotice?.let {
+            Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         state.error?.let { ErrorText(it) }
         KMButton(
             title = "잠금 해제",
