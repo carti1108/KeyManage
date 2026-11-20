@@ -180,3 +180,19 @@ Android 앱에는 있고 공유 모듈에는 없는 동작이다. 전환 전에 
 | 전체 | `domain` JVM 470건, Unlock 45건, 웹 `npm run check` 505건, 감사 스크립트 3종 통과. Unlock Example에서 안내를 확인했다 |
 
 - 데스크톱(Tauri)의 생체 해제(Windows Hello, Touch ID)는 아직 없다. SEC-003은 데스크톱 패키징 단계에서 정한다고 적어 두었다. 붙이게 되면 같은 세션 규칙이 그대로 적용된다.
+
+### Android 플랫폼 구현 (2026-11-20)
+
+`Apps/Shared/android-session`에 공유 세션·RIB이 쓰는 Android 쪽 구현과 앱 진입점을 만들었다. 앱(`Apps/Android`)은 아직 이것을 쓰지 않는다(4단계).
+
+| 항목 | 내용 | 확인 |
+| :--- | :--- | :--- |
+| `KeystoreBiometricKeyStore` | 볼트 키를 Keystore 생체 전용 키로 감싼다. `secure-store`의 구현을 공유 도메인의 `BiometricKeyStore`에 잇고, 실패를 `BiometricError`로 바꾼다. 화면이 없으면 인증 창을 띄우지 않는다 | 에뮬레이터(API 37) 기기 테스트 5건. 실제 지문 일치로 감싸기 → 꺼내기 → 지우기를 확인했다 |
+| `secure-store` 보완 | 인증 창 없이 하는 일(`BiometricKeystoreEntries`: 있는지 보기, 지우기, 사용 가능 여부). 꺼낼 때 Keystore 키가 없으면 새로 만들지 않는다 | `secure-store` 기기 테스트 12건 그대로 통과(지문 포함) |
+| `AndroidClipboardWriter` | 민감한 값으로 표시해 복사하고, 이 앱이 아닌 곳의 변경을 알린다 | 컴파일만. 포그라운드 화면이 필요해 앱 전환 뒤 기기에서 확인한다 |
+| `AndroidBackupFiles` | 저장 위치 선택 창(SAF)으로 저장·선택 | 컴파일만 |
+| `AndroidAppEnvironment` | 시각, 현지 날짜, 자동 잠금 설정, 서버 주소, 네트워크 끊김(`ACCESS_NETWORK_STATE` 필요) | 컴파일만 |
+| `AndroidKeyManageApp` | 세션(파일 기기 기록, 단일 탭, 생체 해제)과 포트를 조립해 RIB 트리를 띄운다. 잠기면 클립보드를 비우고, 자동 잠금 타이머를 생명주기에 잇고, 화면이 다시 보이면 대기 내용을 다시 보낸다 | 컴파일만 |
+
+- 에뮬레이터에는 화면 잠금(PIN 1111)과 지문 1개를 등록해 두었다. 생체 테스트는 logcat의 `KM_BIOMETRIC_PROMPT`가 찍힐 때 `adb emu finger touch 1`을 보내야 통과한다.
+- 다음: `:app`이 `AndroidKeyManageApp`과 `ui` 모듈의 뷰로 뜨게 바꾸고(루트 뷰와 뷰 팩토리는 `:app`에 둔다), 기존 uber/RIBs 모듈과 `core:domain`·`core:data`·`core:rib`을 지운다.
