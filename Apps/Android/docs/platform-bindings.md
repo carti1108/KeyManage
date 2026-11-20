@@ -91,10 +91,11 @@
 | 토큰 | ColorScheme 슬롯 |
 | :--- | :--- |
 | `background` / `foreground` | `background` / `onBackground` |
-| `card` / `card-foreground` | `surface` / `onSurface` |
-| `muted` / `muted-foreground` | `surfaceVariant`·`surfaceContainerHighest` / `onSurfaceVariant` |
-| `primary` / `primary-foreground` | `primary` / `onPrimary` |
-| `accent` / `accent-foreground` | `secondary` / `onSecondary` |
+| `card` / `card-foreground` | `surface`·`surfaceBright`·`surfaceContainerLow`·`surfaceContainer`·`surfaceContainerHigh` / `onSurface` |
+| `muted` / `muted-foreground` | `surfaceVariant`·`surfaceContainerHighest`·`primaryContainer`·`secondaryContainer`·`tertiaryContainer` / `onSurfaceVariant` |
+| `background` / `foreground` (보조 자리) | `surfaceDim`·`surfaceContainerLowest`·`inverseOnSurface` / `surfaceTint`·`inverseSurface`·`on*Container` |
+| `primary` / `primary-foreground` | `primary` / `onPrimary`·`inversePrimary` |
+| `accent` / `accent-foreground` | `secondary`·`tertiary` / `onSecondary`·`onTertiary` |
 | `destructive` / `destructive-foreground` | `error` / `onError` |
 | `border` / `input` | `outline` / `outlineVariant` |
 | `overlay` | `scrim` |
@@ -119,17 +120,41 @@
 | UI 레이블·헤더 | `Roboto` (시스템) |
 | 비밀번호 | `FontFamily.Monospace` |
 
+## 화면 모양
+
+목업(`Tools/figma-builder/code.js`의 Android 줄)은 어떤 정보를 어느 화면에 어떤 순서로 두는지의 기준이다(design-system.md 5.1 "화면 정보 구조", 5.2). 모양과 컨트롤은 목업의 그림이 아니라 Material 3를 따른다(design-system.md 5장). 목업은 M3 컴포넌트를 도형으로 흉내 낸 것이라 떠오르는 이름표, 위쪽 바, 아이콘 같은 것은 M3와 다르게 그려져 있다.
+
+| 요소 | 구현 |
+| :--- | :--- |
+| 화면 틀 | `KMScreen`. M3 `TopAppBar`(`KMTopBar`)와 본문(좌우 `space-4`, 간격 `space-4`)을 묶는다. 뒤로 가기는 M3 표준 화살표다. 탭 첫 화면(볼트·생성기·설정)은 뒤로 가기 없이 제목만 둔다. |
+| 입력 칸 | `KMTextField`·`KMPasswordField`. M3 Filled `TextField`이고 이름표는 M3 방식대로 칸 안에서 위로 떠오른다. 비밀번호 칸의 보기·복사는 아이콘 버튼이다. |
+| 버튼 | `KMButton` 기본 크기(높이 40, M3 기본 모양). |
+| 대화상자 | M3 `AlertDialog`. 계정 삭제도 설정 화면 위에 대화상자로 띄운다(design-system.md 6.9). |
+| 아래 탭 | M3 `NavigationBar` 기본 모양에 탭마다 아이콘을 둔다. |
+| 볼트 목록 | 줄은 `KMCard`다. 원 안의 첫 글자, 이름·아이디, 오른쪽 복사 아이콘을 둔다. 복사는 상세를 열지 않고 그 항목의 비밀번호를 복사하며 COM-001 타이머를 시작한다. 추가 버튼은 M3 FAB에 `primary` 색을 입힌다. |
+| 항목 상세·설정 | 목업대로 이름표 왼쪽·값 오른쪽의 줄(위아래 `space-3`)로 그린다. |
+| 간격·모서리·글자 | 화면 코드는 토큰과 M3 기본값만 쓴다. 목업의 숫자를 직접 옮기지 않고, 글자는 위 글자 역할 6개를 굵기까지 그대로 쓴다. |
+| 목업에 없는 요소 | 기능에 닿는 길이라 남긴다: 볼트 목록 "잠금", 상세 "수정"·비밀번호 복사, 설정의 생체 인증 스위치, 안내 띠, 되돌림 경고. |
+
 ## 아이콘
 
-아이콘은 Material Icons를 쓴다.
+모양은 Material Icons를 쓴다(design-system.md 7장). 아이콘 라이브러리 의존성은 두지 않고, 필요한 것만 `KMIcons`에 Material Icons의 24dp 경로 데이터로 둔다(design-system.md 1.2 컴포넌트 소유).
+
+| 용도 | 아이콘 | `KMIcons` |
+| :--- | :--- | :--- |
+| 뒤로 가기 | `arrow_back` | `Back` |
+| 볼트 잠금, 볼트 탭 | `lock` | `Lock` |
+| 비밀번호 보기 | `visibility` | `Visibility` |
+| 비밀번호 숨김 | `visibility_off` | `VisibilityOff` |
+| 클립보드 복사 | `content_copy` | `Copy` |
+| 생성기 탭 | `vpn_key` | `Key` |
+| 설정 탭 | `settings` | `Settings` |
+
+아래는 아직 `KMIcons`에 없는 용도다. 넣을 때 쓸 Material Icons 이름이다.
 
 | 용도 | 아이콘 |
 | :--- | :--- |
-| 비밀번호 보기 | `Icons.Default.Visibility` |
-| 비밀번호 숨김 | `Icons.Default.VisibilityOff` |
-| 클립보드 복사 | `Icons.Default.ContentCopy` |
-| 복사 완료 | `Icons.Default.CheckCircle` |
-| 암호 재생성 | `Icons.Default.Refresh` |
-| 볼트 잠금 | `Icons.Default.Lock` |
-| 경고·취약 | `Icons.Default.Warning` |
-| 오프라인 배너 | `Icons.Default.WifiOff` |
+| 복사 완료 | `check_circle` |
+| 암호 재생성 | `refresh` |
+| 경고·취약 | `warning` |
+| 오프라인 배너 | `wifi_off` |
