@@ -42,5 +42,7 @@ includeBuild(cartiRibsDir) {
     dependencySubstitution {
         substitute(module("com.carti.ribs:ribs-core")).using(project(":ribs-core"))
         substitute(module("com.carti.ribs:ribs-web")).using(project(":ribs-web"))
+        // Android 앱(Apps/Android)의 Compose 뷰가 쓴다. 이 빌드를 composite로 가져간 쪽에도 같은 치환이 적용된다
+        substitute(module("com.carti.ribs:ribs-compose")).using(project(":ribs-compose"))
     }
 }

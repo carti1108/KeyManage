@@ -26,6 +26,7 @@ compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview"
 compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
 compose-material3 = { module = "androidx.compose.material3:material3" }
 compose-foundation = { module = "androidx.compose.foundation:foundation" }
+kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 ribs-android = { module = "com.uber.rib:rib-android", version.ref = "ribs" }
 ribs-android-compose = { module = "com.uber.rib:rib-android-compose", version.ref = "ribs" }
 ribs-coroutines = { module = "com.uber.rib:rib-coroutines", version.ref = "ribs" }

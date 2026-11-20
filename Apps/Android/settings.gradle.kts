@@ -34,6 +34,9 @@ include(":feature:unlock:interface")
 include(":feature:unlock:implementation")
 include(":feature:unlock:testing")
 include(":feature:unlock:tests")
+// 공유 Unlock RIB에 붙는 Compose 뷰와 Example 앱 (modularization-plan 2장)
+include(":feature:unlock:ui")
+include(":feature:unlock:example")
 include(":feature:vaultlist:interface")
 include(":feature:vaultlist:implementation")
 include(":feature:vaultlist:testing")
@@ -59,5 +62,8 @@ include(":feature:root:tests")
 includeBuild("../Shared") {
     dependencySubstitution {
         substitute(module("com.keymanage.shared:android-session")).using(project(":android-session"))
+        substitute(module("com.keymanage.shared:unlock-interface")).using(project(":features:unlock:interface"))
+        substitute(module("com.keymanage.shared:unlock-implementation")).using(project(":features:unlock:implementation"))
+        substitute(module("com.keymanage.shared:unlock-testing")).using(project(":features:unlock:testing"))
     }
 }
