@@ -28,7 +28,7 @@ Figma 파일에 `KeyManage`의 **shadcn/ui 기반 시멘틱 디자인 시스템,
    * Android 줄은 Material 3 규격으로 그린다(Filled 입력 칸, `TopAppBar`, `NavigationBar`, `AlertDialog`). 아이콘은 `code.js`의 `MATERIAL_ICONS`에 둔 Material Icons 경로이고 앱의 `KMIcons`와 같은 원본이다.
    * 화면은 기기 틀(iPhone·Android)과 브라우저 창(Web) 안에 놓인다. 기기·창 색은 하드웨어 색이라 고정값이다.
    * 한글은 `Noto Sans KR`로 그린다. 없으면 Inter로 내려가며 경고를 띄운다.
-   * **기준이 플랫폼마다 다르다**([디자인 시스템](../../docs/design-system.md) 5.2절). Web 줄은 실제 웹 화면(`Apps/Web/src/ui`)을 그대로 옮긴 그림이고(백업·비밀번호 변경 단계의 Web 줄은 정책 문구로 그린 배치라 웹 화면과 다를 수 있다), iPhone·Android 줄은 앱이 따라야 할 시안이다. 정책 문구는 모든 줄에서 `docs/policies/`와 같다.
+   * **기준이 플랫폼마다 다르다**([디자인 시스템](../../docs/design-system.md) 5.2절). Web 줄은 실제 웹 화면(`Apps/Web/src/ui`)을 그대로 옮긴 그림이고(백업 단계의 Web 줄은 복원 대화상자를 모달로 그린다. 실제 웹은 같은 내용을 사이드바 안에 펼친다), iPhone·Android 줄은 앱이 따라야 할 시안이다. 정책 문구는 모든 줄에서 `docs/policies/`와 같다.
    * **라이트 구역과 다크 구역**을 위아래로 그린다(각 30개, 모두 60개). 무료 플랜처럼 모드가 하나면 다크 구역은 `KeyManage Dark` 컬렉션 변수에, 모드를 쓸 수 있으면 같은 변수에 Dark 모드를 지정해 그린다.
    * 화면 위로 **이동 화살표**를 그린다(예: 로그인 → 볼트 "로그인 성공", 볼트 → 설정 "설정 탭"). 플랫폼 줄마다 같은 흐름이 반복된다.
 

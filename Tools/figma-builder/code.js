@@ -675,7 +675,8 @@ function txt(chars, size, weight, color, width, mono) {
   if (width) { t.resize(width, t.height); t.textAutoResize = 'HEIGHT'; }
   return t;
 }
-function fixedRow(height, gap) { const r = row(gap); r.resize(10, height); r.counterAxisSizingMode = 'FIXED'; return r; }
+// resize()는 자동 배치 프레임의 두 축을 모두 FIXED로 바꾼다. 너비는 내용에 맞게 AUTO로 되돌린다
+function fixedRow(height, gap) { const r = row(gap); r.resize(10, height); r.counterAxisSizingMode = 'FIXED'; r.primaryAxisSizingMode = 'AUTO'; return r; }
 function solid(hex) { return solidPaint(hex); }
 function rect(w, h, r, hex, x, y, name) {
   const n = figma.createRectangle();
@@ -1128,7 +1129,7 @@ function webApp(page, s, index, active) {
 function webVaultList(main, selected) {
   const split = add(main, row(24), true); split.counterAxisAlignItems = 'MIN'; split.layoutGrow = 1;
   const list = col(12); list.name = 'ItemList'; split.appendChild(list);
-  list.resize(384, 10); list.counterAxisSizingMode = 'FIXED';
+  list.resize(384, 10); list.counterAxisSizingMode = 'FIXED'; list.primaryAxisSizingMode = 'AUTO';
   const top = add(list, row(8), true); top.counterAxisAlignItems = 'MAX';
   add(top, webField('항목 검색', '', { placeholder: true })).layoutGrow = 1;
   top.appendChild(webButton('항목 추가'));
@@ -1161,6 +1162,25 @@ function webDetailField(parent, label, value, opts) {
   t.appendChild(txt(value, 14, 'regular', 'foreground', null, o.secret));
   const acts = row(8); r.appendChild(acts);
   for (const a of o.actions || []) acts.appendChild(webButton(a, 'outline', 'sm'));
+}
+
+// 볼트 화면 위에 뜨는 모달 (ModalDialog, max-w-md 448px). 제목과 본문까지 그린 대화상자를 돌려준다
+function webModal(page, s, i, title, titleColor, body) {
+  const { frame, main } = webApp(page, s, i, '볼트');
+  webEmptyDetail(webVaultList(main, null));
+  const overlay = figma.createRectangle(); overlay.name = 'Overlay'; overlay.resize(1280, 800); fill(overlay, 'overlay');
+  frame.appendChild(overlay); overlay.layoutPositioning = 'ABSOLUTE'; overlay.x = 0; overlay.y = 0;
+  const dlg = webCard(16); dlg.name = 'ModalDialog · ' + title;
+  frame.appendChild(dlg); dlg.layoutPositioning = 'ABSOLUTE';
+  dlg.resize(448, 10); dlg.counterAxisSizingMode = 'FIXED'; dlg.primaryAxisSizingMode = 'AUTO'; pad(dlg, 24, 24);
+  dlg.x = (1280 - 448) / 2; dlg.y = 160;
+  dlg.appendChild(txt(title, 18, 'bold', titleColor));
+  add(dlg, txt(body, 14, 'regular', 'muted-foreground', 400), true);
+  return dlg;
+}
+function webModalActions(dlg, confirm, kind) {
+  const acts = add(dlg, row(8), true);
+  acts.appendChild(webButton('취소', 'outline', 'sm')); acts.appendChild(webButton(confirm, kind, 'sm'));
 }
 
 const WEB_SCREENS = {
@@ -1212,7 +1232,7 @@ const WEB_SCREENS = {
     const { main } = webApp(page, s, i, '생성기');
     main.counterAxisAlignItems = 'CENTER';
     const card = webCard(16); main.appendChild(card);
-    card.resize(576, 10); card.counterAxisSizingMode = 'FIXED'; pad(card, 24, 24);
+    card.resize(576, 10); card.counterAxisSizingMode = 'FIXED'; card.primaryAxisSizingMode = 'AUTO'; pad(card, 24, 24);
     card.appendChild(txt('비밀번호 생성기', 20, 'bold'));
     const result = add(card, col(8), true); pad(result, 12, 12); result.cornerRadius = TOKEN_RADIUS.md; fill(result, 'muted');
     result.appendChild(txt('k7#Qv2!mR9$wLx4&Tz8p', 18, 'regular', 'foreground', null, true));
@@ -1229,7 +1249,7 @@ const WEB_SCREENS = {
     const { main } = webApp(page, s, i, '설정');
     main.counterAxisAlignItems = 'CENTER';
     const view = col(24); main.appendChild(view);
-    view.resize(576, 10); view.counterAxisSizingMode = 'FIXED';
+    view.resize(576, 10); view.counterAxisSizingMode = 'FIXED'; view.primaryAxisSizingMode = 'AUTO';
     const head = add(view, col(4), true);
     head.appendChild(txt('설정', 20, 'bold'));
     head.appendChild(txt('계정 및 보안 정책 상태를 확인합니다.', 14, 'regular', 'muted-foreground'));
@@ -1256,22 +1276,28 @@ const WEB_SCREENS = {
     const cb = row(8); cr.appendChild(cb);
     cb.appendChild(webButton('잠그기', 'outline', 'sm')); cb.appendChild(webButton('로그아웃', 'destructive', 'sm'));
   },
-  // 계정 삭제는 볼트 화면 위에 뜨는 모달이다 (DeleteAccountDialog, max-w-md 448px)
+  // 백업에서 복원 (BackupActions의 RestoreDialog). 실제 웹은 이 대화상자를 사이드바 안에 펼치지만,
+  // 목업은 읽기 쉽게 다른 대화상자와 같은 모달 틀로 그린다. 문구는 RESTORE_DIALOG와 같다
+  backup(page, s, i) {
+    const dlg = webModal(page, s, i, '백업에서 복원', 'foreground', WEB_TEXT.backupRestoreBody);
+    add(dlg, webField('백업 파일 비밀번호', '••••••••••••', { secret: true }), true);
+    webModalActions(dlg, '복원', 'primary');
+  },
+  // 마스터 비밀번호 변경 (ChangePasswordDialog)
+  password(page, s, i) {
+    const dlg = webModal(page, s, i, '마스터 비밀번호 변경', 'foreground', WEB_TEXT.passwordChangeBody);
+    add(dlg, webField('현재 마스터 비밀번호', '••••••••••••', { secret: true }), true);
+    add(dlg, webField('새 마스터 비밀번호', '••••••••••••••••', { secret: true }), true);
+    add(dlg, txt('마스터 비밀번호는 12자 이상이어야 합니다.', 12, 'regular', 'muted-foreground', 400), true);
+    add(dlg, webField('새 마스터 비밀번호 확인', '••••••••••••••••', { secret: true }), true);
+    webModalActions(dlg, '변경', 'primary');
+  },
+  // 계정 삭제 (DeleteAccountDialog)
   delete(page, s, i) {
-    const { frame, main } = webApp(page, s, i, '볼트');
-    webEmptyDetail(webVaultList(main, null));
-    const overlay = figma.createRectangle(); overlay.name = 'Overlay'; overlay.resize(1280, 800); fill(overlay, 'overlay');
-    frame.appendChild(overlay); overlay.layoutPositioning = 'ABSOLUTE'; overlay.x = 0; overlay.y = 0;
-    const dlg = webCard(16); dlg.name = 'ModalDialog · 계정 삭제';
-    frame.appendChild(dlg); dlg.layoutPositioning = 'ABSOLUTE';
-    dlg.resize(448, 10); dlg.counterAxisSizingMode = 'FIXED'; pad(dlg, 24, 24);
-    dlg.appendChild(txt(WEB_TEXT.deleteTitle, 18, 'bold', 'destructive'));
-    add(dlg, txt(WEB_TEXT.deleteBody, 14, 'regular', 'muted-foreground', 400), true);
+    const dlg = webModal(page, s, i, WEB_TEXT.deleteTitle, 'destructive', WEB_TEXT.deleteBody);
     add(dlg, webField('마스터 비밀번호', '••••••••••••', { secret: true }), true);
     add(dlg, webField(WEB_TEXT.deletePhrase, '계정 삭제'), true);
-    const acts = add(dlg, row(8), true);
-    acts.appendChild(webButton('취소', 'outline', 'sm')); acts.appendChild(webButton('삭제', 'destructive', 'sm'));
-    dlg.x = (1280 - 448) / 2; dlg.y = 160;
+    webModalActions(dlg, '삭제', 'destructive');
   },
 };
 
