@@ -262,7 +262,7 @@ Android는 컴파일만 확인했다. iOS·macOS는 Windows라 확인하지 않�
 
 ### 6단계: 서버 HTTP 구현 (2026-11-12)
 
-[ADR-0026](../../adr/ADR-0026-ktor-client-for-shared-kotlin.md)에 따라 새 모듈 `Apps/Shared/server-http`를 만들었다. Ktor Client 3.3.1이고, 엔진은 JS fetch, Android OkHttp, iOS·macOS Darwin, JVM CIO다.
+[ADR-0028](../../adr/ADR-0028-ktor-client-for-shared-kotlin.md)에 따라 새 모듈 `Apps/Shared/server-http`를 만들었다. Ktor Client 3.3.1이고, 엔진은 JS fetch, Android OkHttp, iOS·macOS Darwin, JVM CIO다.
 
 | 옮긴 것 | 원본(`Apps/Web/src/adapters/http/`) | Kotlin(`server-http`, 패키지 `com.keymanage.serverhttp`) |
 | :--- | :--- | :--- |

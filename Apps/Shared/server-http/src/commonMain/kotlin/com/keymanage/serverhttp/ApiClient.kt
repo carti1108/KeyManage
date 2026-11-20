@@ -26,7 +26,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlin.coroutines.cancellation.CancellationException
 
-// Ktor 기반 API 클라이언트 (api-spec 1장, ADR-0026). 원본: Apps/Web/src/adapters/http/apiClient.ts
+// Ktor 기반 API 클라이언트 (api-spec 1장, ADR-0028). 원본: Apps/Web/src/adapters/http/apiClient.ts
 
 private const val API_PREFIX = "/api/v1"
 

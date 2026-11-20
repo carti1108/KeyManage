@@ -1,4 +1,4 @@
-// 공유 domain의 서버 포트(AuthApi·VaultApi)를 Ktor Client로 구현한다 (ADR-0026)
+// 공유 domain의 서버 포트(AuthApi·VaultApi)를 Ktor Client로 구현한다 (ADR-0028)
 // 원본: 옛 웹 TS 어댑터(Apps/Web/src/adapters/http, 삭제됨 — git 이력). 엔진은 대상마다 다르고(JS fetch, OkHttp, Darwin, JVM은 CIO), 공통 코드는 엔진을 모른다
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
