@@ -57,6 +57,10 @@ include(":features:main:tests")
 // 공용 테스트 더블 (modularization-plan 2장)
 include(":core:testing")
 include(":android-session")
+// iOS 앱의 포트 구현과 운영용 묶음 프레임워크 (modularization-plan F단계)
+include(":apple-session")
+// iOS Example·뷰 테스트용 묶음 프레임워크. 앱에는 들어가지 않는다
+include(":apple-example")
 // 웹 피처 Example용 번들. 배포 번들(web-session)에는 들어가지 않는다 (modularization-plan E단계)
 include(":web-example")
 

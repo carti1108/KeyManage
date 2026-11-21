@@ -175,3 +175,17 @@ A~C는 [android-migration-plan.md](android-migration-plan.md)의 3단계(공유 
 - 웹 잠금 화면은 생체 해제를 그리지 않으므로 Unlock의 생체 시나리오는 웹에서 보통 잠금 화면으로 보인다.
 - 배포 빌드(`vite build`)의 입력은 `index.html`뿐이라 Example 페이지는 들어가지 않는다.
 - 남은 것: F(iOS).
+
+### F단계 설계: iOS (2026-11-21)
+
+Mac에서 진행한다. 출발점은 `origin/research/kmp-migration`(`1c8aa3b`)이다. 11/13~14에 이 Mac에서 따로 해 둔 iOS 전환 커밋 14개(`../KeyManage-kmp`의 로컬 브랜치)는 원격이 리베이스되고 RIB API가 바뀌기 전 것이라 옮기지 않고 참고만 한다.
+
+| 항목 | 결정 |
+| :--- | :--- |
+| Apple 쪽 Kotlin 모듈 | `Apps/Shared/apple-session`을 새로 둔다(`android-session`의 짝). 공유 세션에 넣을 iOS 포트 구현(클립보드, 네트워크 상태, 기기 기록 파일, 자동 잠금·생체 설정, 키체인 생체 키, 백업 파일 선택 창)과 진입점 `AppleKeyManageApp`을 둔다 |
+| 묶음 프레임워크 2종 | 운영용은 `apple-session`이, 테스트용은 `apple-example`(새 모듈)이 만든다. 둘 다 프레임워크 이름(`baseName`)을 `KeyManageShared`로 같게 하고 정적 프레임워크로 낸다. 테스트용은 운영용 내용에 피처 구현·`testing` 모듈(가짜 세션, 시나리오)을 더 export한다. Swift 뷰 코드는 어느 쪽이든 `import KeyManageShared` 한 줄로 컴파일된다. 계획 4장의 `KeyManageSharedTesting`은 이름이 아니라 이 테스트용 묶음을 가리킨다 |
+| Tuist 피처 프로젝트 | 피처마다 `Sources`(SwiftUI 뷰), `Tests`(뷰 테스트), `Example`(시나리오 목록 → RIB 하나)을 둔다. 뷰는 Kotlin 프레임워크를 링크한 프레임워크 타깃으로 만들지 않고, 쓰는 곳(앱, Example, 테스트)이 `Sources`를 직접 컴파일한다. 앱은 운영용, Example·테스트는 테스트용 묶음을 링크한다. 정적 Kotlin 프레임워크를 여러 Swift 프레임워크가 링크해 런타임이 중복되는 일을 피한다 |
+| 공용 Swift | 디자인 시스템(`Core/DesignSystem`)은 Kotlin에 의존하지 않아 그대로 프레임워크로 쓴다. RIB 화면 자리(`RIBScreenSlot`)는 carti-RIBs-KMP의 `RIBsKMPSwiftUI` 패키지를 형제 폴더에서 가져온다 |
+| 최소 iOS | 15.0 → 17.0. 뷰가 `@Observable`을 쓴다(`RIBsKMPSwiftUI`와 같다) |
+| macOS 앱 | 이번 단계는 iOS만 옮긴다. macOS 앱은 iOS 뷰를 옮긴 뒤 같은 묶음 프레임워크로 따로 정한다. 그때까지 옛 Swift 도메인과 MicroRIBs를 지우지 않는다 |
+| 순서 | ① `apple-session`과 묶음 2종 ② Unlock 뷰·Example(B단계의 iOS 짝) ③ 나머지 피처 6개 ④ 앱을 공유 Root로 전환 ⑤ 옛 Swift RIB·도메인·MicroRIBs 삭제 |
