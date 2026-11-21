@@ -9,5 +9,6 @@ let project = Project.makeFeature(
 	implementationDependencies: [
 		.project(target: "KeyManageDomain", path: "../../Core/Domain"),
 		.project(target: "KeyManageDesignSystem", path: "../../Core/DesignSystem")
-	]
+	],
+	extraTargets: SharedFeature.targets(name: "Auth")
 )

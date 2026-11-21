@@ -43,12 +43,11 @@ struct SwiftUIUnlockViewTests {
 
 	@Test
 	func scenarios_launchEachWithoutCrash() {
-		for scenario in UnlockScenario.entries {
+		for index in AppleExampleFeature.unlock.scenarios.indices {
 			let view = SwiftUIUnlockView()
-			let dependency = TestUnlockDependency(view: view, session: scenario.session())
-			let mount = UnlockBuilder(dependency: dependency).build(unlockListener: FakeUnlockListener { _ in }).mount(savedInstanceState: nil)
+			let mount = AppleExamples.shared.launchUnlock(index: Int32(index), view: view) { _ in }
 
-			#expect(view.state.email == "user@example.com", "\(scenario.title)")
+			#expect(view.state.email == "user@example.com")
 			mount.unmount()
 		}
 	}
@@ -59,21 +58,5 @@ private final class UnlockListenerSpy: NSObject, UnlockPresentableListener {
 
 	func handle(unlockAction action: UnlockViewAction) {
 		received.append(action)
-	}
-}
-
-private final class TestUnlockDependency: NSObject, UnlockDependency {
-	let unlockViewFactory: any UnlockViewFactory
-	let session: any SessionPort
-
-	init(view: SwiftUIUnlockView, session: any SessionPort) {
-		self.unlockViewFactory = ViewFactory(view: view)
-		self.session = session
-	}
-
-	private final class ViewFactory: NSObject, UnlockViewFactory {
-		let view: SwiftUIUnlockView
-		init(view: SwiftUIUnlockView) { self.view = view }
-		func makeUnlockView() -> any UnlockViewContract { view }
 	}
 }

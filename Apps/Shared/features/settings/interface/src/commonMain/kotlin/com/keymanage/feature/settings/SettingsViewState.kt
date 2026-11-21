@@ -49,6 +49,11 @@ data class SettingsViewState(
     /** 생체 해제 스위치를 보일지. 켜 둔 뒤 기기에서 생체 정보를 지운 경우에도 끌 수 있게 보인다 */
     val showsBiometricToggle: Boolean get() = biometricAvailable || biometricEnabled
 
+    /** 자동 잠금 선택 창이 그릴 선택지와 지금 값의 글자 */
+    val autoLockChoices: List<AutoLockChoice>
+        get() = autoLockOptions.map { AutoLockChoice(autoLockLabel(it), it, it == autoLockTimeout) }
+    val autoLockTimeoutLabel: String get() = autoLockLabel(autoLockTimeout)
+
     val canExportBackup: Boolean get() = !inProgress
     val canRestoreBackup: Boolean get() = !readOnly && !inProgress
     val canChangePassword: Boolean get() = !readOnly && !accountOffline && !inProgress

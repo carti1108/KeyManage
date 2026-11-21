@@ -204,3 +204,20 @@ Mac에서 진행한다. 출발점은 `origin/research/kmp-migration`(`1c8aa3b`)�
 - 시뮬레이터에 맥의 텍스트를 붙여 넣을 수 없어 입력은 화면 키보드로 했다. 나머지 시나리오 14개는 뷰 테스트가 띄우는 것만 확인했다.
 - Mac에 기본 Java가 없다. Homebrew `openjdk@21`을 `JAVA_HOME`으로 지정해 빌드했다.
 - 남은 것: ③ 나머지 피처 6개 ④ 앱 전환 ⑤ 옛 Swift 삭제.
+
+### F단계 ③: 나머지 피처 5개의 뷰와 Example (2026-11-21)
+
+| 피처 | Swift 뷰 | 뷰 테스트 | 시뮬레이터 확인 |
+| :--- | :--- | :--- | :--- |
+| PasswordGenerator | `SwiftUIPasswordGeneratorView` | 3건 | — |
+| Auth | `SwiftUIAuthView` | 2건 | — |
+| VaultList | `SwiftUIVaultListView`(폼 안의 생성기는 `RIBScreenSlot`) | 2건 | — |
+| Settings | `SwiftUISettingsView`(복원·비밀번호 변경·계정 삭제는 시트, 내보내기는 알림) | 3건 | Main Example 안에서 |
+| Main | `SwiftUIMainView`(탭 화면은 `RIBScreenSlot`) | 2건 | "정상 (탭 전환)": 볼트 목록 → 설정 탭 |
+
+- **Example 조립은 Kotlin**: `apple-example`의 `AppleExamples`가 시나리오 번호로 가짜 의존성과 Listener를 만들어 Swift 뷰에 RIB을 붙인다(`web-example`과 같은 조립). Swift Example은 뷰를 만들고 받은 `RibMount`를 내리기만 한다. 웹과 조립 코드가 겹치지만 웹 쪽은 JS 전용 소스라 이번에는 합치지 않았다.
+- **공유 쪽에 더한 것**: Settings `interface`에 `AutoLockChoice`·`autoLockLabel`과 상태의 `autoLockChoices`·`autoLockTimeoutLabel`. `Duration`은 Swift에서 해석할 수 없는 `Int64`로 나오므로, Swift는 글자를 이 값으로 그리고 시간 값은 그대로 돌려보낸다. JVM 테스트 2건.
+- **공용 Swift 조각**: `Core/SharedUI`(오류 문구, 공유 상태가 여닫는 대화상자 바인딩). Kotlin 타입을 써서 피처 뷰와 함께 직접 컴파일한다.
+- 뷰 테스트 합계 16건 통과. 각 테스트는 그 피처의 시나리오 전부를 띄운다.
+- Main Example은 가짜 클립보드라 복사 뒤 남은 초 배지가 뜨지 않는다(웹·Android Example과 같다). 배지는 앱 전환(④) 뒤 실제 클립보드로 확인한다.
+- 남은 것: ④ 앱을 공유 Root로 전환(Root 뷰는 앱에 둔다) ⑤ 옛 Swift 삭제.

@@ -21,8 +21,9 @@ public enum SharedFeature {
 		.external(name: "RIBsKMPSwiftUI")
 	]
 
-	/// `<name>Example`(시나리오 목록 앱)과 `<name>ViewTests`(뷰 테스트)
-	public static func targets(name: String) -> [Target] {
+	/// `<name>Example`(시나리오 목록 앱)과 `<name>ViewTests`(뷰 테스트).
+	/// - Parameter childFeatures: 자식 RIB을 띄우는 피처가 함께 컴파일할 자식 피처 폴더 이름(VaultList → PasswordGenerator 등)
+	public static func targets(name: String, childFeatures: [String] = []) -> [Target] {
 		let lower = name.lowercased()
 		let example = Target.target(
 			name: "\(name)Example",
@@ -31,7 +32,7 @@ public enum SharedFeature {
 			bundleId: "com.keymanage.\(lower).example",
 			deploymentTargets: .iOS(iOSVersion),
 			infoPlist: .extendingDefault(with: ["UILaunchScreen": [:]]),
-			sources: ["Sources/**", "Example/**"],
+			sources: .sourceFilesList(globs: ["Sources/**", "Example/**", "../../Core/SharedUI/Sources/**"] + childFeatures.map { "../\($0)/Sources/**" }),
 			dependencies: viewDependencies + [
 				testingFramework,
 				.project(target: "KeyManageFeatureExample", path: .relativeToRoot("Projects/Core/FeatureExample"))

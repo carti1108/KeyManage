@@ -15,5 +15,6 @@ let project = Project.makeFeature(
 		.project(target: "VaultListFeatureInterface", path: "../VaultList"),
 		.project(target: "SettingsFeatureInterface", path: "../Settings"),
 		.project(target: "PasswordGeneratorFeatureInterface", path: "../PasswordGenerator")
-	]
+	],
+	extraTargets: SharedFeature.targets(name: "Main", childFeatures: ["VaultList", "PasswordGenerator", "Settings"])
 )

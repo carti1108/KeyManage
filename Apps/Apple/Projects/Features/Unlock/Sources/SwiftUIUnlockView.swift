@@ -56,7 +56,7 @@ private struct UnlockScreen: View {
 						.frame(maxWidth: .infinity, alignment: .leading)
 				}
 				if let error = state.error {
-					ErrorText(error: error)
+					ErrorText(error: error, identifier: "unlock.error")
 				}
 				KMButton(
 					"잠금 해제",
@@ -92,14 +92,14 @@ private struct UnlockScreen: View {
 			.frame(maxWidth: .infinity)
 		}
 		.background(DesignToken.View.background)
-		.alert(RollbackWarning.shared.TITLE, isPresented: binding(state.isConfirmingRollback, cancel: UnlockViewActionCancelRollback.shared)) {
+		.alert(RollbackWarning.shared.TITLE, isPresented: sharedStateBinding(state.isConfirmingRollback) { view.send(UnlockViewActionCancelRollback.shared) }) {
 			Button(RollbackWarning.shared.ACCEPT, role: .destructive) { view.send(UnlockViewActionAcceptRollback.shared) }
 			Button(RollbackWarning.shared.CANCEL, role: .cancel) { view.send(UnlockViewActionCancelRollback.shared) }
 		} message: {
 			Text(RollbackWarning.shared.BODY)
 		}
 		// 올리지 못한 변경 사항이 있을 때 로그아웃 전에 묻는다 (VLT-002)
-		.alert(PendingLogoutConfirm.shared.TITLE, isPresented: binding(state.isConfirmingLogout, cancel: UnlockViewActionCancelLogout.shared)) {
+		.alert(PendingLogoutConfirm.shared.TITLE, isPresented: sharedStateBinding(state.isConfirmingLogout) { view.send(UnlockViewActionCancelLogout.shared) }) {
 			Button(PendingLogoutConfirm.shared.CONFIRM, role: .destructive) { view.send(UnlockViewActionConfirmLogout.shared) }
 			Button(PendingLogoutConfirm.shared.CANCEL, role: .cancel) { view.send(UnlockViewActionCancelLogout.shared) }
 		} message: {
@@ -123,27 +123,5 @@ private struct UnlockScreen: View {
 		}
 		.padding(.top, DesignToken.Spacing.space6)
 		.padding(.bottom, DesignToken.Spacing.space2)
-	}
-
-	/// 대화상자를 닫으면(바깥 누름 등) 취소 입력으로 알린다. 보일지 말지는 공유 상태가 정한다
-	private func binding(_ isPresented: Bool, cancel: UnlockViewAction) -> Binding<Bool> {
-		Binding(get: { isPresented }, set: { if !$0 && isPresented { view.send(cancel) } })
-	}
-}
-
-private struct ErrorText: View {
-	let error: ErrorMessage
-
-	var body: some View {
-		VStack(alignment: .leading, spacing: DesignToken.Spacing.space1) {
-			if let title = error.title {
-				Text(title).font(DesignToken.Typography.label.weight(.semibold))
-			}
-			Text(error.body).font(DesignToken.Typography.caption)
-		}
-		.foregroundColor(DesignToken.View.destructive)
-		.frame(maxWidth: .infinity, alignment: .leading)
-		.accessibilityElement(children: .combine)
-		.accessibilityIdentifier("unlock.error")
 	}
 }
