@@ -6,7 +6,8 @@ import ProjectDescription
 
 let packageSettings = PackageSettings(
 	productTypes: [
-		"MicroRIBs": .framework
+		"MicroRIBs": .framework,
+		"RIBsKMPSwiftUI": .staticFramework
 	],
 	targetSettings: [
 		"AsyncAlgorithms": ["MACOSX_DEPLOYMENT_TARGET": "14.0", "IPHONEOS_DEPLOYMENT_TARGET": "15.0"],
@@ -22,6 +23,8 @@ let packageSettings = PackageSettings(
 let package = Package(
 	name: "KeyManagePackageDependencies",
 	dependencies: [
-		.package(url: "https://github.com/carti1108/MicroRIBs.git", branch: "main")
+		.package(url: "https://github.com/carti1108/MicroRIBs.git", branch: "main"),
+		// 공유 Kotlin RIB 화면 자리. carti-RIBs-KMP 형제 폴더에서 가져온다 (modularization-plan F단계)
+		.package(path: "../../../../carti-RIBs-KMP/swift/RIBsKMPSwiftUI")
 	]
 )

@@ -1,17 +1,21 @@
+@file:OptIn(ExperimentalObjCName::class)
+
 package com.keymanage.feature.settings
 
+import kotlin.experimental.ExperimentalObjCName
+import kotlin.native.ObjCName
 import com.carti.ribs.Presentable
 import com.carti.ribs.ViewControllable
 
 interface SettingsPresentableListener {
-    fun handle(action: SettingsViewAction)
+    fun handle(@ObjCName("settingsAction") action: SettingsViewAction)
 }
 
 /** Interactor가 쓰는 화면 계약 (RIBs-iOS Presentable, carti ADR-0010) */
 interface SettingsPresentable : Presentable {
     /** 활성 구간에만 설정된다. 비활성이면 null이라 입력이 무시된다 */
     var listener: SettingsPresentableListener?
-    fun render(state: SettingsViewState)
+    fun render(@ObjCName("settingsState") state: SettingsViewState)
 }
 
 /** Router가 쓰는 화면 계약. 자식 RIB이 없어 붙일 메서드는 없다 */

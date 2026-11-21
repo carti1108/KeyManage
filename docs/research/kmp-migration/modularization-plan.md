@@ -189,3 +189,18 @@ Mac에서 진행한다. 출발점은 `origin/research/kmp-migration`(`1c8aa3b`)�
 | 최소 iOS | 15.0 → 17.0. 뷰가 `@Observable`을 쓴다(`RIBsKMPSwiftUI`와 같다) |
 | macOS 앱 | 이번 단계는 iOS만 옮긴다. macOS 앱은 iOS 뷰를 옮긴 뒤 같은 묶음 프레임워크로 따로 정한다. 그때까지 옛 Swift 도메인과 MicroRIBs를 지우지 않는다 |
 | 순서 | ① `apple-session`과 묶음 2종 ② Unlock 뷰·Example(B단계의 iOS 짝) ③ 나머지 피처 6개 ④ 앱을 공유 Root로 전환 ⑤ 옛 Swift RIB·도메인·MicroRIBs 삭제 |
+
+### F단계 ①②: 묶음 프레임워크와 Unlock 뷰·Example (2026-11-21)
+
+| 항목 | 내용 |
+| :--- | :--- |
+| `apple-session` | iOS 포트 6종과 `AppleKeyManageApp`. 기기 기록은 Application Support 파일(백업 제외, 기기 잠김 동안 보호), 생체 키는 현재 등록된 생체로만 열리는 키체인 항목이다. 감싼 키가 있는지는 인증 창 없이 알 수 없어 UserDefaults 표시로 본다. 시뮬레이터 테스트 9건(설정 저장소, 기기 기록) |
+| 묶음 2종 | `:apple-session:assembleKeyManageSharedDebugXCFramework`(운영용), `:apple-example:assembleKeyManageSharedDebugXCFramework`(테스트용). 둘 다 `KeyManageShared` |
+| Swift 이름 | 피처마다 같은 이름의 `render`·`handle`·`build`가 Objective-C로 내보내질 때 `render(state____:)`처럼 선언 순서에 따라 바뀌는 이름이 됐다. 피처 `interface`의 매개변수에 `@ObjCName`을 붙여 `render(unlockState:)`, `handle(unlockAction:)`, `build(unlockListener:)`로 고정했다. Apple 내보내기에만 영향이 있다 |
+| Tuist | `SharedFeature.targets(name:)`가 `<Name>Example`과 `<Name>ViewTests`를 만든다. `Core/FeatureExample`은 시나리오 목록 틀(Kotlin 의존 없음), `RIBsKMPSwiftUI`는 형제 폴더의 로컬 패키지다. 옛 Swift RIB 타깃은 그대로 둔다 |
+| Unlock | `SwiftUIUnlockView`. 뷰 테스트 4건(상태 그리기, 입력 보내기, 시나리오 15개 띄우기). 시뮬레이터(iPhone 17, iOS 26)에서 Example의 시나리오 목록과 "틀린 비밀번호"(입력 → 잠금 해제 → 정책 문구, 입력 비움)를 확인했다 |
+
+- 확인: 공유 `jvmTest`, JS 컴파일, 문서·Swift 아키텍처·Apple 린트·정책·API 계약 검사 통과.
+- 시뮬레이터에 맥의 텍스트를 붙여 넣을 수 없어 입력은 화면 키보드로 했다. 나머지 시나리오 14개는 뷰 테스트가 띄우는 것만 확인했다.
+- Mac에 기본 Java가 없다. Homebrew `openjdk@21`을 `JAVA_HOME`으로 지정해 빌드했다.
+- 남은 것: ③ 나머지 피처 6개 ④ 앱 전환 ⑤ 옛 Swift 삭제.

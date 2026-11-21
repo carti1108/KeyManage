@@ -1,11 +1,15 @@
+@file:OptIn(ExperimentalObjCName::class)
+
 package com.keymanage.feature.vaultlist
 
+import kotlin.experimental.ExperimentalObjCName
+import kotlin.native.ObjCName
 import com.carti.ribs.Buildable
 import com.carti.ribs.ViewableRouting
 
 /** 부모 RIB이 VaultList를 만들 때 쓰는 계약. 구현(VaultListBuilder)은 조립하는 곳이 넣는다 */
 interface VaultListBuildable : Buildable {
-    fun build(listener: VaultListListener): VaultListRouting
+    fun build(@ObjCName("vaultListListener") listener: VaultListListener): VaultListRouting
 }
 
 /** 부모 RIB이 붙이고 떼는 VaultList의 Router */

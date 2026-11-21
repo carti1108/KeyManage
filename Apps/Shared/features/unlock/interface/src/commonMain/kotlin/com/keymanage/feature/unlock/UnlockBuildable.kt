@@ -1,11 +1,15 @@
+@file:OptIn(ExperimentalObjCName::class)
+
 package com.keymanage.feature.unlock
 
+import kotlin.experimental.ExperimentalObjCName
+import kotlin.native.ObjCName
 import com.carti.ribs.Buildable
 import com.carti.ribs.ViewableRouting
 
 /** 부모 RIB이 Unlock을 만들 때 쓰는 계약. 구현(UnlockBuilder)은 조립하는 곳이 넣는다 */
 interface UnlockBuildable : Buildable {
-    fun build(listener: UnlockListener): UnlockRouting
+    fun build(@ObjCName("unlockListener") listener: UnlockListener): UnlockRouting
 }
 
 /** 부모 RIB이 붙이고 떼는 Unlock의 Router */

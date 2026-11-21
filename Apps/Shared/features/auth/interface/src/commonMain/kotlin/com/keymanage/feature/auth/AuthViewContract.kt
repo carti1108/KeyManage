@@ -1,17 +1,21 @@
+@file:OptIn(ExperimentalObjCName::class)
+
 package com.keymanage.feature.auth
 
+import kotlin.experimental.ExperimentalObjCName
+import kotlin.native.ObjCName
 import com.carti.ribs.Presentable
 import com.carti.ribs.ViewControllable
 
 interface AuthPresentableListener {
-    fun handle(action: AuthViewAction)
+    fun handle(@ObjCName("authAction") action: AuthViewAction)
 }
 
 /** Interactor가 쓰는 화면 계약 (RIBs-iOS Presentable, carti ADR-0010) */
 interface AuthPresentable : Presentable {
     /** 활성 구간에만 설정된다. 비활성이면 null이라 입력이 무시된다 */
     var listener: AuthPresentableListener?
-    fun render(state: AuthViewState)
+    fun render(@ObjCName("authState") state: AuthViewState)
 }
 
 /** Router가 쓰는 화면 계약 */

@@ -16,7 +16,8 @@ public extension Project {
 		interfaceDependencies: [TargetDependency] = [],
 		implementationDependencies: [TargetDependency] = [],
 		destinations: Destinations = [.iPhone, .iPad, .mac],
-		hasExample: Bool = false
+		hasExample: Bool = false,
+		extraTargets: [Target] = []
 	) -> Project {
 		// DIP 방어: 타 피처의 Implementation 직접 참조 금지 (tuist-modularization 표준)
 		for dependency in implementationDependencies {
@@ -110,7 +111,7 @@ public extension Project {
 		return Project(
 			name: name,
 			settings: .swift6Settings,
-			targets: targets
+			targets: targets + extraTargets
 		)
 	}
 }

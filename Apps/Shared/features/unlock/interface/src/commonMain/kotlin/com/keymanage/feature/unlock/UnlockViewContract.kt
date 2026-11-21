@@ -1,17 +1,21 @@
+@file:OptIn(ExperimentalObjCName::class)
+
 package com.keymanage.feature.unlock
 
+import kotlin.experimental.ExperimentalObjCName
+import kotlin.native.ObjCName
 import com.carti.ribs.Presentable
 import com.carti.ribs.ViewControllable
 
 interface UnlockPresentableListener {
-    fun handle(action: UnlockViewAction)
+    fun handle(@ObjCName("unlockAction") action: UnlockViewAction)
 }
 
 /** Interactor가 쓰는 화면 계약 (RIBs-iOS Presentable, carti ADR-0010) */
 interface UnlockPresentable : Presentable {
     /** 활성 구간에만 설정된다. 비활성이면 null이라 입력이 무시된다 */
     var listener: UnlockPresentableListener?
-    fun render(state: UnlockViewState)
+    fun render(@ObjCName("unlockState") state: UnlockViewState)
 }
 
 /** Router가 쓰는 화면 계약 */
