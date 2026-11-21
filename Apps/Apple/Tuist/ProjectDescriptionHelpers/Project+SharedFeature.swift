@@ -16,6 +16,16 @@ public enum SharedFeature {
 		path: .relativeToRoot("../Shared/apple-example/build/XCFrameworks/debug/KeyManageShared.xcframework")
 	)
 
+	/// Example·뷰 테스트의 빌드 결과 폴더. 테스트용 묶음은 운영용과 이름이 같아, 앱과 한 번에 빌드하면 같은 자리에
+	/// `KeyManageShared.framework`를 두 번 만들게 된다. 그래서 테스트용 묶음을 쓰는 타깃만 따로 두고,
+	/// 디자인 시스템·패키지 같은 공용 결과물은 원래 폴더에서 찾게 한다
+	static let testingBundleSettings: Settings = .settings(base: [
+		"CONFIGURATION_BUILD_DIR": "$(BUILD_DIR)/SharedTesting/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)",
+		"FRAMEWORK_SEARCH_PATHS": ["$(inherited)", "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)"],
+		"SWIFT_INCLUDE_PATHS": ["$(inherited)", "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)"],
+		"LIBRARY_SEARCH_PATHS": ["$(inherited)", "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)"]
+	])
+
 	static let viewDependencies: [TargetDependency] = [
 		.project(target: "KeyManageDesignSystem", path: .relativeToRoot("Projects/Core/DesignSystem")),
 		.external(name: "RIBsKMPSwiftUI")
@@ -36,7 +46,8 @@ public enum SharedFeature {
 			dependencies: viewDependencies + [
 				testingFramework,
 				.project(target: "KeyManageFeatureExample", path: .relativeToRoot("Projects/Core/FeatureExample"))
-			]
+			],
+			settings: testingBundleSettings
 		)
 		let tests = Target.target(
 			name: "\(name)ViewTests",
@@ -45,7 +56,8 @@ public enum SharedFeature {
 			bundleId: "com.keymanage.\(lower).viewtests",
 			deploymentTargets: .iOS(iOSVersion),
 			sources: ["ViewTests/**"],
-			dependencies: [.target(name: "\(name)Example")]
+			dependencies: [.target(name: "\(name)Example")],
+			settings: testingBundleSettings
 		)
 		return [example, tests]
 	}

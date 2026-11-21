@@ -221,3 +221,18 @@ Mac에서 진행한다. 출발점은 `origin/research/kmp-migration`(`1c8aa3b`)�
 - 뷰 테스트 합계 16건 통과. 각 테스트는 그 피처의 시나리오 전부를 띄운다.
 - Main Example은 가짜 클립보드라 복사 뒤 남은 초 배지가 뜨지 않는다(웹·Android Example과 같다). 배지는 앱 전환(④) 뒤 실제 클립보드로 확인한다.
 - 남은 것: ④ 앱을 공유 Root로 전환(Root 뷰는 앱에 둔다) ⑤ 옛 Swift 삭제.
+
+### F단계 ④: iOS 앱을 공유 Root로 전환 (2026-11-21)
+
+| 항목 | 내용 |
+| :--- | :--- |
+| 앱 타깃 | `KeyManageIOS`는 운영용 묶음, 디자인 시스템, `RIBsKMPSwiftUI`만 링크하고 피처 뷰(`Features/*/Sources`)와 `Core/SharedUI`를 함께 컴파일한다. 진입점(`Sources/iOSShared`)은 `AppleKeyManageApp`을 만들어 루트 뷰를 창에 붙이고, 화면 상태(활성·백그라운드)와 터치를 알린다. 최소 iOS는 17.0이다 |
+| 서버 주소 | 빌드 설정 `KEYMANAGE_SERVER_URL`(기본 `http://localhost:8080`, Android와 같다)을 Info.plist로 넘긴다. 로컬 주소만 HTTP를 허용한다(`NSAllowsLocalNetworking`) |
+| 사용자 조작 | 처음에는 루트에 SwiftUI 탭 제스처를 걸었는데, 설정 화면(List)의 버튼 탭을 가로채 "잠그기"가 눌리지 않았다. 창에 터치를 보기만 하고 바로 실패하는 인식기를 달아 고쳤다 |
+| 빌드 폴더 | 앱(운영용)과 Example·뷰 테스트(테스트용)를 한 번에 빌드하면 같은 이름의 `KeyManageShared.framework`가 같은 결과 폴더에 두 번 만들어졌다. 테스트용 묶음을 쓰는 타깃만 `SharedTesting/` 결과 폴더를 쓰게 했다 |
+| 스킴 | `KeyManageIOS` 스킴은 앱과 앱 UI 테스트만 빌드한다. 옛 Swift 피처 타깃은 macOS 앱이 옮겨 갈 때까지 남는다 |
+| UI 테스트 | `SharedSessionFlowUITests`: 가입 → 항목 추가(저장하면 상세로 감) → 설정에서 잠그기 → 잠금 해제 → 목록 → 복사 안내. 로컬 백엔드가 없으면 건너뛴다. 앞선 실행의 기기 기록이 있으면 잠금 화면에서 로그아웃하고 시작한다 |
+
+- 확인: 로컬 백엔드(`Back`의 `bootRun`, 저장 폴더는 임시 폴더)로 UI 테스트 통과. 뷰 테스트 16건을 앱과 같은 DerivedData에서 다시 통과.
+- 확인하지 못한 것: 생체 해제(시뮬레이터에 등록된 생체가 없어 가입 직후 안내도 뜨지 않음), 백업 내보내기·복원의 파일 선택 창, 자동 잠금 시간 경과, 오프라인, 실기기.
+- 남은 것: ⑤ 옛 Swift 삭제는 macOS 앱을 옮긴 뒤에 한다(F단계 설계의 macOS 줄).
