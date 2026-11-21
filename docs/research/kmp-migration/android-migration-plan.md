@@ -257,4 +257,4 @@ Android 앱에는 있고 공유 모듈에는 없는 동작이다. 전환 전에 
 
 - 확인: `Apps/Android`에서 `./gradlew test lint assembleDebug` 통과, 문서 검사와 감사 스크립트 통과. 에뮬레이터에 새 빌드를 올려 로그인 화면까지 뜨는 것을 보았다(삭제 뒤에는 그 이상 눌러 보지 않았다).
 - 확인하지 못한 것: CI 변경은 로컬에서 돌려 볼 수 없었다. 저장소에 `CARTI_RIBS_TOKEN`이 없으면 Android 작업이 실패한다.
-- 남은 문서 일: ADR-AND-001이 정한 구조(단독 프로젝트, uber/RIBs, `core/domain`·`core/data`)가 바뀌었으므로 이를 대체하는 ADR이 필요하다. `platform-bindings.md`, `README.md`, `device-checklist.md`도 새 구조에 맞춰야 한다.
+- 문서(2026-11-21): 구조가 바뀐 것을 ADR-AND-003으로 남기고 ADR-AND-001을 대체됨으로 표시했다. `Apps/Android/docs`의 `README.md`, `platform-bindings.md`, `device-checklist.md`를 새 구조에 맞췄다.
