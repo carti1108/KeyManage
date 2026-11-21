@@ -258,3 +258,26 @@ Android 앱에는 있고 공유 모듈에는 없는 동작이다. 전환 전에 
 - 확인: `Apps/Android`에서 `./gradlew test lint assembleDebug` 통과, 문서 검사와 감사 스크립트 통과. 에뮬레이터에 새 빌드를 올려 로그인 화면까지 뜨는 것을 보았다(삭제 뒤에는 그 이상 눌러 보지 않았다).
 - 확인하지 못한 것: CI 변경은 로컬에서 돌려 볼 수 없었다. 저장소에 `CARTI_RIBS_TOKEN`이 없으면 Android 작업이 실패한다.
 - 문서(2026-11-21): 구조가 바뀐 것을 ADR-AND-003으로 남기고 ADR-AND-001을 대체됨으로 표시했다. `Apps/Android/docs`의 `README.md`, `platform-bindings.md`, `device-checklist.md`를 새 구조에 맞췄다.
+
+### 마무리와 Mac 인수인계 (2026-11-21)
+
+| 항목 | 내용 |
+| :--- | :--- |
+| Kotlin 버전 | `Apps/Shared`를 Kotlin 2.4.21, 코루틴 1.11.0으로 올려 `Apps/Android`와 맞췄다. 공유 JVM 테스트, `web-session`·`web-example` JS 빌드, 웹 `npm run check` 505건, Android `test lint assembleDebug`가 통과했다 |
+| carti-RIBs-KMP 버전 | 라이브러리 자체는 아직 Kotlin 2.3.21이다. composite build라 각 빌드가 자기 Kotlin으로 컴파일하므로 함께 빌드된다. 라이브러리 저장소는 소유자 확인 뒤에만 푸시하는 규칙이 있어 이번에는 건드리지 않았다 |
+| carti-RIBs-KMP 고정 | CI 두 곳(`ci.yml`의 android 작업, `build-web-session` action)이 `main` 대신 커밋 `b2b652c`를 받는다. 로컬은 그대로 옆 폴더 소스를 쓴다 |
+| 웹 번들 크기 | 배포 빌드의 메인 JS가 1.40MB(gzip 390KB)다. RIB을 옮기기 전 기록(1.21MB, gzip 344KB)보다 늘었다. 줄이는 일은 하지 않았다 |
+
+**Mac에서 이어 할 때**
+
+1. 이 브랜치(`research/kmp-migration`)를 받는다. carti-RIBs-KMP는 저장소 옆 폴더(`../carti-RIBs-KMP`)에 두거나 `CARTI_RIBS_DIR`로 위치를 알린다. 원격 `main`(`b2b652c`)이면 된다.
+2. 이 PC의 carti-RIBs-KMP에는 푸시하지 않은 커밋 3개가 있다(샘플과 문서만 바꾼 것이라 KeyManage 빌드에는 영향이 없다).
+3. 먼저 `Apps/Shared`에서 `./gradlew jvmTest`로 환경을 확인한다.
+4. 할 일은 [modularization-plan.md](modularization-plan.md)의 F단계다: 묶음 프레임워크 2종(`KeyManageShared`, `KeyManageSharedTesting`), Tuist 피처 프로젝트와 Example 스킴, SwiftUI 뷰 연결, MicroRIBs와 Swift 도메인 삭제.
+5. 조립 진입점은 `Apps/Shared/app`의 `KeyManageApp`이고, 플랫폼 구현을 묶은 예는 `android-session`의 `AndroidKeyManageApp`이다. iOS 쪽 Keychain·생체 구현은 `core/secure-store`의 `appleMain`에 있다.
+
+**아직 남은 것**
+
+- 공통 ADR(ADR-0004가 기각했던 클라이언트 간 Kotlin 공유를 채택하는 결정)은 main에 올리기로 할 때 쓴다.
+- CI 변경은 한 번도 돌지 않았다. 저장소 비밀 값 `CARTI_RIBS_TOKEN`이 필요하다.
+- Android에서 확인하지 못한 동작: 오프라인 저장·재전송, 뒤로 보낸 사이의 자동 잠금, 최근 앱 화면 가림, 지문 새 등록 시 무효화, 항목 수정·삭제·검색, 화면 회전, 실기기.
