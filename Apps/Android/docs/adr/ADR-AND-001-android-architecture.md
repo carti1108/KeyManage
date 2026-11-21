@@ -1,5 +1,5 @@
 ### ADR-AND-001 Android 클라이언트는 단독 Gradle 프로젝트로 만들고, Clean Architecture·uber/RIBs·마이크로 피처 구조에 ViewState/ViewAction 패턴을 쓴다
-- 상태: 채택
+- 상태: 대체됨 (→ ADR-AND-003)
 - 날짜: 2026-11-18
 - 영역: Android
 

@@ -12,5 +12,6 @@ Android 클라이언트에만 해당하는 기술·구조 결정을 모은다. �
 
 | 번호 | 제목 | 상태 | 날짜 |
 |---|---|---|---|
-| [ADR-AND-001](ADR-AND-001-android-architecture.md) | Android 클라이언트는 단독 Gradle 프로젝트로 만들고, Clean Architecture·uber/RIBs·마이크로 피처 구조에 ViewState/ViewAction 패턴을 쓴다 | 채택 | 2026-11-18 |
+| [ADR-AND-001](ADR-AND-001-android-architecture.md) | Android 클라이언트는 단독 Gradle 프로젝트로 만들고, Clean Architecture·uber/RIBs·마이크로 피처 구조에 ViewState/ViewAction 패턴을 쓴다 | 대체됨 (→ ADR-AND-003) | 2026-11-18 |
 | [ADR-AND-002](ADR-AND-002-biometric-unlock-keystore.md) | Android 생체 해제는 볼트 암호화 키를 Keystore 생체 전용 키로 감싸 기기에 두고, androidx.biometric으로 인증한다 | 채택 | 2026-11-19 |
+| [ADR-AND-003](ADR-AND-003-shared-kotlin-ribs.md) | Android 클라이언트는 Compose 뷰와 진입점만 두고, 나머지는 carti-RIBs-KMP 기반 공유 Kotlin 모듈을 쓴다 | 채택 | 2026-11-21 |
