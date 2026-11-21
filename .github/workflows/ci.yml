@@ -115,7 +115,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: carti1108/carti-RIBs-KMP
-          ref: main
+          # 버전 고정: 검증한 커밋만 받는다. 라이브러리를 올릴 때 두 곳(ci.yml, build-web-session/action.yml)을 함께 바꾼다
+          ref: b2b652c790c9d9d70be8baed293b1c2b3bc175f8
           path: carti-RIBs-KMP
           token: ${{ secrets.CARTI_RIBS_TOKEN }}
 
