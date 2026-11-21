@@ -34,7 +34,7 @@ Apps/Shared/                          Gradle, Kotlin 공유
     implementation/                   Builder·Interactor·Router·피처 문구
     testing/                          가짜 뷰·가짜 Listener·시나리오
     tests/                            Interactor·Router·Builder 테스트
-  feature/                            Root에서 트리를 조립하는 진입점(KeyManageApp). 피처를 다 옮기면 app 조립 모듈로 이름을 바꾼다
+  app/                                Root에서 트리를 조립하는 진입점(KeyManageApp)
   android-session/ web-session/       플랫폼 포트 구현과 앱 진입점
 
 Apps/Android/feature/<name>/
@@ -145,4 +145,17 @@ A~C는 [android-migration-plan.md](android-migration-plan.md)의 3단계(공유 
   - 설정에 생체 토글이 없고 잠금 화면의 생체 버튼은 늘 숨는다(android-migration-plan 3단계에서 공유 RIB에 넣는다).
   - 볼트 목록의 오프라인·읽기 전용 안내와 "잠금" 버튼은 Main과 Settings로 옮겨졌다.
 - 기존 Android 모듈(uber/RIBs 기반 `interface`·`implementation`·`testing`·`tests`)과 앱(`:app`)은 그대로다. 앱을 공유 RIB으로 바꾸는 일은 android-migration-plan 4단계다.
-- 남은 것: D(기존 모듈을 `core/` 아래로), E(웹 Example), F(iOS).
+- 남은 것: D(기존 모듈을 `core/` 아래로), E(웹 Example), F(iOS). D는 아래 기록대로 끝났다.
+
+### D단계: 기존 모듈을 `core/` 아래로 (2026-11-21)
+
+| 항목 | 내용 |
+| :--- | :--- |
+| 옮긴 것 | `crypto`·`domain`·`secure-store`·`device-store`·`server-http`를 `core/` 아래로 옮겼다. Gradle 경로는 `:core:<이름>`이다. 패키지 이름과 파일 내용은 그대로다 |
+| 이름을 바꾼 것 | 조립 모듈 `feature`를 `app`으로 바꿨다(`:app`). 피처를 다 옮겨 Root RIB과 `KeyManageApp`만 남았기 때문이다 |
+| 그대로 둔 것 | `android-session`, `web-session`. 웹이 읽는 번들 경로(`web-session/build/dist/...`)와 Android의 치환 좌표(`com.keymanage.shared:*`)가 바뀌지 않는다 |
+| 맞춘 경로 | `Scripts/check-api-contract.sh`가 `core/domain`·`core/server-http`를 읽는다. 호환 픽스처 생성기(`core/domain/compat`)의 웹 소스 경로와 웹 문서·주석의 경로도 맞췄다. 정책 감사는 `Apps/Shared` 전체를 훑어 고칠 것이 없었다 |
+
+- 이 문서와 다른 조사 문서의 앞선 기록에 나오는 `Apps/Shared/domain`, `Apps/Shared/feature` 같은 경로는 그때의 위치다. 고치지 않았다.
+- `Scripts/check-api-contract.sh`의 Android 구역은 지운 옛 Android 어댑터 경로를 본다. 파일이 없으면 건너뛰므로 지금은 아무것도 검사하지 않는다. Android가 쓰는 서버 통신은 공유 `core/server-http`라 같은 스크립트의 공유 Kotlin 검사가 대신한다.
+- 남은 것: E(웹 Example), F(iOS).
