@@ -16,6 +16,7 @@ import com.keymanage.domain.lock.LockCause
 import com.keymanage.domain.lock.createAutoLock
 import com.keymanage.domain.platform.SecureRandomBytes
 import com.keymanage.domain.session.LockScope
+import com.keymanage.domain.session.PendingSyncRetry
 import com.keymanage.domain.session.SessionState
 import com.keymanage.domain.session.VaultSession
 import com.keymanage.domain.session.VaultSessionDeps
@@ -107,6 +108,15 @@ class AppleKeyManageApp(
         override fun subscribe(listener: (Duration) -> Unit): () -> Unit = stored.subscribe(listener)
     }
     private val backupFiles = platform.backupFiles
+    private val environment = AppleAppEnvironment(autoLockSetting, baseUrl)
+
+    /** 동기화 대기 내용을 재연결 때와 30초마다 다시 보낸다 (VLT-002 규칙 6) */
+    private val pendingSyncRetry = PendingSyncRetry(
+        retry = { scope.launch { session.retryPendingSync() } },
+        isOffline = environment::isNetworkOffline,
+        subscribeNetwork = environment::subscribeNetwork,
+        scheduler = scheduler,
+    )
     private var autoLock: AutoLock = newAutoLock()
     private var isForeground = true
     private var app: KeyManageApp? = null
@@ -131,12 +141,13 @@ class AppleKeyManageApp(
                 session = SessionPortAdapter(session),
                 clipboard = clipboardPort,
                 backupFiles = backupFiles,
-                environment = AppleAppEnvironment(autoLockSetting, baseUrl),
+                environment = environment,
                 randomBytes = SecureRandomBytes,
                 initialNotice = notice,
             )
             app = created
             created.start(host)
+        pendingSyncRetry.start()
         }
     }
 
@@ -154,6 +165,7 @@ class AppleKeyManageApp(
 
     /** RIB 트리를 내린다. 세션은 끝내지 않는다 */
     fun stop() {
+        pendingSyncRetry.stop()
         app?.stop()
         app = null
     }

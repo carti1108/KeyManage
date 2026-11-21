@@ -63,7 +63,12 @@ class DocumentPickerBackupFiles(private val presenter: () -> UIViewController?) 
             val delegate = PickerDelegate { url -> if (continuation.isActive) continuation.resume(url) }
             picker.delegate = delegate
             continuation.invokeOnCancellation { picker.dismissViewControllerAnimated(true, completion = null) }
-            host.presentViewController(picker, animated = true, completion = null)
+            host.presentViewController(picker, animated = true) {
+                // 다른 화면이 닫히는 중이면 띄우지 못하고 조용히 끝난다. 그때는 기다리지 않고 실패로 알린다
+                if (picker.presentingViewController == null && continuation.isActive) {
+                    continuation.resumeWith(Result.failure(IllegalStateException("백업 파일 선택 창을 띄우지 못함")))
+                }
+            }
             retained = delegate
         }
 

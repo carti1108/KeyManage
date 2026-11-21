@@ -37,6 +37,17 @@ private struct SettingsScreen: View {
 
 	private func content(_ state: SettingsViewState) -> some View {
 		List {
+			// 결과 안내·오류는 맨 위에 둔다. 목록 아래에 두면 화면 밖이라 보이지 않는다. 모달이 열려 있으면 오류는 모달 안에 보인다
+			if state.modal == .none, state.error != nil || state.notice != nil {
+				Section {
+					if let error = state.error {
+						message(error, isError: true)
+					}
+					if let notice = state.notice {
+						message(notice, isError: state.noticeKind == .error)
+					}
+				}
+			}
 			Section("계정") {
 				row("이메일", state.email)
 				if !state.serverAddress.isEmpty {
@@ -83,15 +94,6 @@ private struct SettingsScreen: View {
 				action("로그아웃", id: "logout") { view.send(SettingsViewActionRequestLogout.shared) }
 				action("계정 삭제", enabled: state.canStartDeleteAccount, isDestructive: true, id: "deleteAccount") {
 					view.send(SettingsViewActionStartDeleteAccount.shared)
-				}
-			}
-			// 모달이 열려 있으면 오류는 모달 안에 보인다
-			if state.modal == .none {
-				if let error = state.error {
-					message(error, isError: true)
-				}
-				if let notice = state.notice {
-					message(notice, isError: state.noticeKind == .error)
 				}
 			}
 		}

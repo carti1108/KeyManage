@@ -16,6 +16,7 @@ import com.keymanage.domain.lock.LockCause
 import com.keymanage.domain.lock.createAutoLock
 import com.keymanage.domain.platform.SecureRandomBytes
 import com.keymanage.domain.session.LockScope
+import com.keymanage.domain.session.PendingSyncRetry
 import com.keymanage.domain.session.SessionState
 import com.keymanage.domain.session.VaultSession
 import com.keymanage.domain.session.VaultSessionDeps
@@ -112,6 +113,15 @@ class AndroidKeyManageApp(
         }
         override fun subscribe(listener: (Duration) -> Unit): () -> Unit = stored.subscribe(listener)
     }
+    private val environment = AndroidAppEnvironment(appContext, autoLockSetting, baseUrl)
+
+    /** 동기화 대기 내용을 재연결 때와 30초마다 다시 보낸다 (VLT-002 규칙 6) */
+    private val pendingSyncRetry = PendingSyncRetry(
+        retry = { scope.launch { session.retryPendingSync() } },
+        isOffline = environment::isNetworkOffline,
+        subscribeNetwork = environment::subscribeNetwork,
+        scheduler = scheduler,
+    )
     private var autoLock: AutoLock = newAutoLock()
     private var isForeground = false
     private var app: KeyManageApp? = null
@@ -147,18 +157,20 @@ class AndroidKeyManageApp(
             session = SessionPortAdapter(session),
             clipboard = clipboardPort,
             backupFiles = backupFiles,
-            environment = AndroidAppEnvironment(appContext, autoLockSetting, baseUrl),
+            environment = environment,
             randomBytes = SecureRandomBytes,
             initialNotice = notice,
         )
         app = created
         created.start(host)
+        pendingSyncRetry.start()
     }
 
     private val backupFiles = AndroidBackupFiles(activity)
 
     /** RIB 트리를 내린다. 세션은 끝내지 않는다(화면 회전 등으로 Activity만 다시 만들 때) */
     fun stop() {
+        pendingSyncRetry.stop()
         app?.stop()
         app = null
     }

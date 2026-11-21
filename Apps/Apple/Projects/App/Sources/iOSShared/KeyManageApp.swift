@@ -78,7 +78,8 @@ final class AppLauncher: NSObject, @preconcurrency ViewHost {
 	private static func topViewController() -> UIViewController? {
 		let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first { $0.activationState == .foregroundActive }
 		var top = scene?.keyWindow?.rootViewController
-		while let presented = top?.presentedViewController {
+		// 방금 누른 확인 알림처럼 닫히는 중인 화면 위에는 띄울 수 없다(띄우면 아무 일도 일어나지 않는다)
+		while let presented = top?.presentedViewController, !presented.isBeingDismissed {
 			top = presented
 		}
 		return top
