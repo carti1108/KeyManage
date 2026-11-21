@@ -2,7 +2,6 @@ package com.keymanage.applesession
 
 import com.keymanage.domain.backup.LocalCalendar
 import com.keymanage.domain.backup.LocalDay
-import com.keymanage.domain.clipboard.ClipboardWriter
 import com.keymanage.domain.lock.AutoLockSettingStore
 import com.keymanage.domain.lock.BiometricSetting
 import com.keymanage.domain.lock.BiometricSettingStore
@@ -21,7 +20,6 @@ import platform.Foundation.NSCalendarUnitMonth
 import platform.Foundation.NSCalendarUnitYear
 import platform.Foundation.NSDate
 import platform.Foundation.NSUserDefaults
-import platform.Foundation.dateByAddingTimeInterval
 import platform.Foundation.dateWithTimeIntervalSince1970
 import platform.Network.nw_path_get_status
 import platform.Network.nw_path_monitor_cancel
@@ -31,16 +29,12 @@ import platform.Network.nw_path_monitor_set_update_handler
 import platform.Network.nw_path_monitor_start
 import platform.Network.nw_path_monitor_t
 import platform.Network.nw_path_status_satisfied
-import platform.UIKit.UIPasteboard
-import platform.UIKit.UIPasteboardOptionExpirationDate
-import platform.UIKit.UIPasteboardOptionLocalOnly
-import platform.UniformTypeIdentifiers.UTTypeUTF8PlainText
 import platform.darwin.dispatch_get_main_queue
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Instant
 
-// 공유 세션·RIB에 넣는 iOS 쪽 포트 구현. 앱(Apps/Apple)은 이것들을 구현하지 않고 화면 정보만 넘긴다 (android-session/AndroidPorts.kt의 짝)
+// 공유 세션·RIB에 넣는 iOS 쪽 포트 구현. iOS·macOS 앱(Apps/Apple)은 이것들을 구현하지 않고 화면 정보만 넘긴다 (android-session/AndroidPorts.kt의 짝)
 
 /** 코루틴으로 도는 지연 실행. 세션과 같은 메인 스레드 범위에서 돌린다 */
 class CoroutineScheduler(private val scope: CoroutineScope) : Scheduler {
@@ -50,37 +44,6 @@ class CoroutineScheduler(private val scope: CoroutineScope) : Scheduler {
             run()
         }
         return { job.cancel() }
-    }
-}
-
-/**
- * 시스템 클립보드에 쓴다 (COM-001). 복사한 값은 이 기기에만 두고(유니버설 클립보드로 다른 기기에 넘기지 않음),
- * 앱이 꺼져 타이머가 돌지 못해도 iOS가 비울 시각을 함께 건다.
- * 비울 때는 마지막으로 쓴 뒤 클립보드가 바뀌지 않았을 때만 비워, 사용자가 다른 앱에서 복사한 값을 지우지 않는다. 메인 스레드에서만 부른다
- */
-class PasteboardClipboardWriter(
-    private val pasteboard: UIPasteboard = UIPasteboard.generalPasteboard,
-    private val lifetime: Duration,
-) : ClipboardWriter {
-    private var ownChangeCount: Long? = null
-
-    override suspend fun write(text: String) {
-        if (text.isEmpty()) clear() else copySecret(text)
-    }
-
-    private fun copySecret(text: String) {
-        val expiresAt = NSDate().dateByAddingTimeInterval(lifetime.inWholeMilliseconds / MILLIS_PER_SECOND)
-        pasteboard.setItems(
-            listOf(mapOf(UTTypeUTF8PlainText.identifier to text)),
-            options = mapOf<Any?, Any?>(UIPasteboardOptionLocalOnly to true, UIPasteboardOptionExpirationDate to expiresAt),
-        )
-        ownChangeCount = pasteboard.changeCount
-    }
-
-    private fun clear() {
-        val mine = ownChangeCount ?: return
-        ownChangeCount = null
-        if (pasteboard.changeCount == mine) pasteboard.setItems(emptyList<Map<Any?, Any?>>(), options = emptyMap<Any?, Any?>())
     }
 }
 
@@ -133,7 +96,7 @@ class UserDefaultsBiometricSettingStore(private val defaults: NSUserDefaults = N
  * 앱 쪽 상태: 시각, 기기의 현지 날짜, 자동 잠금 설정, 서버 주소, 네트워크 끊김.
  * 네트워크 상태는 NWPathMonitor가 메인 큐로 알린다. 첫 알림 전에는 연결된 것으로 본다
  */
-class IosAppEnvironment(
+class AppleAppEnvironment(
     override val autoLockSetting: AutoLockSettingStore,
     override val serverAddress: String,
 ) : AppEnvironment {
@@ -180,7 +143,7 @@ class IosAppEnvironment(
     }
 }
 
-private const val MILLIS_PER_SECOND = 1000.0
+internal const val MILLIS_PER_SECOND = 1000.0
 private const val AUTO_LOCK_KEY = "autoLockMs"
 private const val BIOMETRIC_ENABLED_KEY = "biometricEnabled"
 private const val BIOMETRIC_LAST_KEY = "lastPasswordUnlockMs"

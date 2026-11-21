@@ -1,9 +1,12 @@
 package com.keymanage.applesession
 
 import com.carti.ribs.ViewHost
+import com.keymanage.domain.clipboard.ClipboardWriter
+import com.keymanage.domain.device.DeviceRecordStore
+import com.keymanage.domain.lock.BiometricKeyStore
+import com.keymanage.feature.BackupFilesPort
 import com.keymanage.domain.auth.AuthService
 import com.keymanage.domain.auth.MasterPasswordChangedException
-import com.keymanage.domain.clipboard.BURN_AFTER
 import com.keymanage.domain.clipboard.BurnState
 import com.keymanage.domain.clipboard.ClipboardBurner
 import com.keymanage.domain.lock.AutoLock
@@ -35,14 +38,21 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import platform.UIKit.UIViewController
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Instant
 
+/** iOS와 macOS가 다르게 구현하는 포트. [iosPlatformPorts]·[macosPlatformPorts]로 만든다 */
+class ApplePlatformPorts(
+    val clipboardWriter: ClipboardWriter,
+    val backupFiles: BackupFilesPort,
+    val biometricKeys: BiometricKeyStore,
+    val deviceStore: DeviceRecordStore,
+)
+
 /**
- * iOS 앱의 진입점(AndroidKeyManageApp의 짝). 공유 세션과 iOS 쪽 포트를 조립해 RIB 트리를 띄운다.
- * 앱(Apps/Apple)은 화면을 만드는 [viewFactory]와 선택 창을 띄울 화면([presenter])만 넘기고,
+ * iOS·macOS 앱의 진입점(AndroidKeyManageApp의 짝). 공유 세션과 Apple 쪽 포트를 조립해 RIB 트리를 띄운다.
+ * 앱(Apps/Apple)은 화면을 만드는 [viewFactory]와 플랫폼 포트([platform])만 넘기고,
  * 생명주기를 [onForeground]·[onBackground]·[onUserInteraction]으로 알린다. 모든 호출은 메인 스레드에서 한다
  *
  * @param serverUrl 서버 주소. localhost가 아니면 HTTPS만 받는다
@@ -51,7 +61,7 @@ import kotlin.time.Instant
 class AppleKeyManageApp(
     serverUrl: String,
     private val viewFactory: KeyManageViewFactory,
-    presenter: () -> UIViewController?,
+    platform: ApplePlatformPorts,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val baseUrl = resolveBaseUrl(serverUrl)
@@ -62,15 +72,15 @@ class AppleKeyManageApp(
             auth = AuthService(HttpAuthApi(client)),
             vaultSyncFor = { token, key, memory -> VaultSync(HttpVaultApi(client, token), key, Clock.System, memory) },
             revisionMemory = RevisionMemory(),
-            deviceStore = FileDeviceRecordStore(),
+            deviceStore = platform.deviceStore,
             tabs = SingleTab(),
             scope = scope,
-            biometric = BiometricUnlock(KeychainBiometricKeyStore(), UserDefaultsBiometricSettingStore(), Clock.System),
+            biometric = BiometricUnlock(platform.biometricKeys, UserDefaultsBiometricSettingStore(), Clock.System),
         ),
     )
 
     private val scheduler = CoroutineScheduler(scope)
-    private val clipboardBurner = ClipboardBurner(PasteboardClipboardWriter(lifetime = BURN_AFTER), Clock.System, scheduler, scope)
+    private val clipboardBurner = ClipboardBurner(platform.clipboardWriter, Clock.System, scheduler, scope)
 
     /** 복사하고 30초 뒤 비운다. 화면에는 비울 시각을 알려 안내와 남은 초를 보이게 한다 (COM-001) */
     private val clipboardPort = object : ClipboardPort {
@@ -96,7 +106,7 @@ class AppleKeyManageApp(
         }
         override fun subscribe(listener: (Duration) -> Unit): () -> Unit = stored.subscribe(listener)
     }
-    private val backupFiles = DocumentPickerBackupFiles(presenter)
+    private val backupFiles = platform.backupFiles
     private var autoLock: AutoLock = newAutoLock()
     private var isForeground = true
     private var app: KeyManageApp? = null
@@ -121,7 +131,7 @@ class AppleKeyManageApp(
                 session = SessionPortAdapter(session),
                 clipboard = clipboardPort,
                 backupFiles = backupFiles,
-                environment = IosAppEnvironment(autoLockSetting, baseUrl),
+                environment = AppleAppEnvironment(autoLockSetting, baseUrl),
                 randomBytes = SecureRandomBytes,
                 initialNotice = notice,
             )

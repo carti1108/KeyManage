@@ -29,3 +29,36 @@ struct ErrorText: View {
 func sharedStateBinding(_ isPresented: Bool, onDismiss: @escaping () -> Void) -> Binding<Bool> {
 	Binding(get: { isPresented }, set: { if !$0 && isPresented { onDismiss() } })
 }
+
+// iOS에만 있는 입력 수정자를 macOS에서도 같은 뷰 코드로 쓰게 한다
+extension View {
+	/// 아이디·URL처럼 자동 대문자·자동 수정을 끄는 입력 칸
+	@ViewBuilder
+	func plainTextInput() -> some View {
+		#if os(iOS)
+		textInputAutocapitalization(.never).autocorrectionDisabled()
+		#else
+		autocorrectionDisabled()
+		#endif
+	}
+
+	/// 이메일 입력 칸
+	@ViewBuilder
+	func emailInput() -> some View {
+		#if os(iOS)
+		keyboardType(.emailAddress).textContentType(.username).plainTextInput()
+		#else
+		textContentType(.username).plainTextInput()
+		#endif
+	}
+
+	/// 시트 안 내비게이션 제목을 작게 보인다. macOS는 제목 모양이 하나다
+	@ViewBuilder
+	func inlineNavigationTitle() -> some View {
+		#if os(iOS)
+		navigationBarTitleDisplayMode(.inline)
+		#else
+		self
+		#endif
+	}
+}

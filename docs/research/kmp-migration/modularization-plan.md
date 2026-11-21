@@ -236,3 +236,18 @@ Mac에서 진행한다. 출발점은 `origin/research/kmp-migration`(`1c8aa3b`)�
 - 확인: 로컬 백엔드(`Back`의 `bootRun`, 저장 폴더는 임시 폴더)로 UI 테스트 통과. 뷰 테스트 16건을 앱과 같은 DerivedData에서 다시 통과.
 - 확인하지 못한 것: 생체 해제(시뮬레이터에 등록된 생체가 없어 가입 직후 안내도 뜨지 않음), 백업 내보내기·복원의 파일 선택 창, 자동 잠금 시간 경과, 오프라인, 실기기.
 - 남은 것: ⑤ 옛 Swift 삭제는 macOS 앱을 옮긴 뒤에 한다(F단계 설계의 macOS 줄).
+
+### F단계 ④ macOS: macOS 앱을 공유 Root로 전환 (2026-11-21)
+
+| 항목 | 내용 |
+| :--- | :--- |
+| `apple-session` | iOS·macOS 공용 코드(`appleMain`: 진입점, 설정 저장소, 네트워크 상태, 기기 기록 파일, 키체인 생체 키)와 플랫폼 코드로 나눴다. 플랫폼이 다른 포트 넷(클립보드, 백업 파일, 생체 키, 기기 기록)은 `ApplePlatformPorts`로 묶어 `iosPlatformPorts(presenter)`·`macosPlatformPorts()`가 만든다. 운영용 묶음에 `macos-arm64`가 더해졌다 |
+| macOS 포트 | 클립보드는 `NSPasteboard`(마지막으로 쓴 값일 때만 비움), 백업은 저장·열기 패널, 기기 기록은 Application Support 아래 `com.keymanage.macos` 폴더(샌드박스가 없어 다른 앱과 폴더를 함께 쓰므로) |
+| macOS 생체 해제 | 아직 열지 않는다. 생체 전용 키체인 항목(데이터 보호 키체인)은 서명한 앱의 키체인 권한이 있어야 만들 수 있다. 설정 스위치와 잠금 화면 버튼이 보이지 않는다. 서명·권한을 정한 뒤 `KeychainBiometricKeyStore`로 바꾼다 |
+| Swift 뷰 | iOS 전용 입력 수정자를 `Core/SharedUI`의 `plainTextInput`·`emailInput`·`inlineNavigationTitle`로 감싸 같은 피처 뷰를 macOS에서도 컴파일한다. 뷰 팩토리와 루트 뷰는 `App/Sources/AppleShared`에 둔다 |
+| 앱 타깃 | `KeyManageMac`도 옛 Swift RIB 대신 공유 트리로 돈다. 사용자 조작은 키 입력·클릭 이벤트를 보기만 하는 감시로 알린다. 앱 UI 테스트 파일(`UITests/Shared`)을 iOS·macOS가 함께 쓴다 |
+| 테스트 | `apple-session` 테스트 9건을 iOS·macOS에서 각각 통과. 설정 저장소 테스트는 테스트마다 다른 UserDefaults 묶음을 쓰게 고쳤다(같은 묶음을 쓰면 순서에 따라 앞 테스트 값이 남았다) |
+
+- 확인: macOS 앱 빌드, 실행 뒤 프로세스 유지와 시스템 로그 오류 없음. iOS 앱 UI 테스트(로컬 백엔드)와 뷰 테스트 16건 재통과.
+- 확인하지 못한 것: macOS 화면 흐름. UI 테스트 러너가 "자동화 모드"를 켜지 못했다(이 Mac에서 사용자가 한 번 허용해야 한다). 창 내용 읽기도 보조 접근 권한이 없어 하지 못했다.
+- 남은 것: ⑤ 옛 Swift RIB·도메인·MicroRIBs 삭제.

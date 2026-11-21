@@ -30,3 +30,10 @@ final class RootScreen: NSObject, @preconcurrency RootViewControllable, SwiftUIR
 		AnyView(RIBSlotView(slot: slot))
 	}
 }
+
+/// Foundation으로 메인 스레드 여부를 알려 주는 검사기. 어느 스레드에서 불려도 안전하다
+final class FoundationMainThreadChecker: NSObject, MainThreadChecker {
+	func isMainThread() -> Bool {
+		Thread.isMainThread
+	}
+}

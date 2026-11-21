@@ -85,10 +85,7 @@ private struct AuthScreen: View {
 				.accessibilityIdentifier("auth.notice")
 		}
 		TextField("이메일", text: Binding(get: { state.email }, set: { view.send(AuthViewActionUpdateEmail(email: $0)) }))
-			.keyboardType(.emailAddress)
-			.textContentType(.username)
-			.textInputAutocapitalization(.never)
-			.autocorrectionDisabled()
+			.emailInput()
 			.kmFieldContainer()
 			.disabled(state.isLoading)
 			.accessibilityIdentifier("auth.email")

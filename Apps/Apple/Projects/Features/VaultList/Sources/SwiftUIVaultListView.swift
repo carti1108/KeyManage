@@ -83,8 +83,7 @@ private struct ItemListScreen: View {
 						.font(DesignToken.Typography.title.weight(.bold))
 						.accessibilityAddTraits(.isHeader)
 					TextField("서비스 이름이나 아이디", text: Binding(get: { state.query }, set: { send(VaultListViewActionSearch(query: $0)) }))
-						.textInputAutocapitalization(.never)
-						.autocorrectionDisabled()
+						.plainTextInput()
 						.kmFieldContainer()
 						.accessibilityLabel("검색")
 						.accessibilityIdentifier("vault.search")
@@ -265,8 +264,7 @@ private struct ItemFormScreen: View {
 
 	private func input(_ label: String, _ value: String, field: VaultItemFormField) -> some View {
 		TextField(label, text: binding(value, field: field))
-			.textInputAutocapitalization(.never)
-			.autocorrectionDisabled()
+			.plainTextInput()
 			.kmFieldContainer()
 			.disabled(state.isSaving)
 			.accessibilityIdentifier("vault.form.\(field.name.lowercased())")

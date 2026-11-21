@@ -5,35 +5,29 @@ let project = Project(
 	name: "KeyManageApp",
 	settings: .swift6Settings,
 	targets: [
+		// macOS 앱도 공유 Kotlin RIB 트리로 돈다. 뷰는 iOS와 같은 피처 뷰를 함께 컴파일한다 (modularization-plan F단계 ④ macOS)
 		.target(
 			name: "KeyManageMac",
 			destinations: [.mac],
 			product: .app,
 			bundleId: "com.keymanage.macos",
 			deploymentTargets: .macOS("14.0"),
-			infoPlist: .default,
-			sources: ["Sources/macOS/**", "Sources/Shared/**"],
+			infoPlist: .extendingDefault(with: [
+				"KeyManageServerURL": "$(KEYMANAGE_SERVER_URL)",
+				"NSAppTransportSecurity": ["NSAllowsLocalNetworking": true]
+			]),
+			sources: .sourceFilesList(globs: [
+				"Sources/macOSShared/**",
+				"Sources/AppleShared/**",
+				"../Features/*/Sources/**",
+				"../Core/SharedUI/Sources/**"
+			]),
 			dependencies: [
-				.project(target: "KeyManageDomain", path: "../Core/Domain"),
-				.project(target: "KeyManageData", path: "../Core/Data"),
+				SharedFeature.productionFramework,
 				.project(target: "KeyManageDesignSystem", path: "../Core/DesignSystem"),
-				.project(target: "KeyManageUIAdapter", path: "../Core/UIAdapter"),
-				.project(target: "UnlockFeatureInterface", path: "../Features/Unlock"),
-				.project(target: "UnlockFeatureImplementation", path: "../Features/Unlock"),
-				.project(target: "MainFeatureInterface", path: "../Features/Main"),
-				.project(target: "MainFeatureImplementation", path: "../Features/Main"),
-				.project(target: "VaultListFeatureInterface", path: "../Features/VaultList"),
-				.project(target: "VaultListFeatureImplementation", path: "../Features/VaultList"),
-				.project(target: "SettingsFeatureInterface", path: "../Features/Settings"),
-				.project(target: "SettingsFeatureImplementation", path: "../Features/Settings"),
-				.project(target: "PasswordGeneratorFeatureInterface", path: "../Features/PasswordGenerator"),
-				.project(target: "PasswordGeneratorFeatureImplementation", path: "../Features/PasswordGenerator"),
-				.project(target: "RootFeatureInterface", path: "../Features/Root"),
-				.project(target: "RootFeatureImplementation", path: "../Features/Root"),
-				.project(target: "AuthFeatureInterface", path: "../Features/Auth"),
-				.project(target: "AuthFeatureImplementation", path: "../Features/Auth"),
-				.external(name: "MicroRIBs")
-			]
+				.external(name: "RIBsKMPSwiftUI")
+			],
+			settings: .settings(base: ["KEYMANAGE_SERVER_URL": "http://localhost:8080"])
 		),
 		// iOS 앱은 공유 Kotlin RIB 트리로 돈다. 피처 뷰는 프레임워크로 만들지 않고 여기서 함께 컴파일한다 (modularization-plan F단계 ④)
 		.target(
@@ -51,6 +45,7 @@ let project = Project(
 			]),
 			sources: .sourceFilesList(globs: [
 				"Sources/iOSShared/**",
+				"Sources/AppleShared/**",
 				"../Features/*/Sources/**",
 				"../Core/SharedUI/Sources/**"
 			]),
@@ -67,17 +62,33 @@ let project = Project(
 			product: .uiTests,
 			bundleId: "com.keymanage.ios.uitests",
 			deploymentTargets: .iOS(SharedFeature.iOSVersion),
-			sources: ["UITests/iOS/**"],
+			sources: ["UITests/Shared/**"],
 			dependencies: [.target(name: "KeyManageIOS")]
+		),
+		// iOS와 같은 흐름을 macOS 앱에서 본다
+		.target(
+			name: "KeyManageMacUITests",
+			destinations: [.mac],
+			product: .uiTests,
+			bundleId: "com.keymanage.macos.uitests",
+			deploymentTargets: .macOS("14.0"),
+			sources: ["UITests/Shared/**"],
+			dependencies: [.target(name: "KeyManageMac")]
 		)
 	],
 	schemes: [
-		// 앱과 앱 UI 테스트만 빌드한다. 옛 Swift 피처 타깃은 macOS 앱이 옮겨 갈 때까지만 남는다
+		// 앱과 앱 UI 테스트만 빌드한다
 		.scheme(
 			name: "KeyManageIOS",
 			buildAction: .buildAction(targets: ["KeyManageIOS"]),
 			testAction: .targets(["KeyManageIOSUITests"]),
 			runAction: .runAction(executable: "KeyManageIOS")
+		),
+		.scheme(
+			name: "KeyManageMac",
+			buildAction: .buildAction(targets: ["KeyManageMac"]),
+			testAction: .targets(["KeyManageMacUITests"]),
+			runAction: .runAction(executable: "KeyManageMac")
 		)
 	]
 )

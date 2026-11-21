@@ -42,7 +42,7 @@ final class AppLauncher: NSObject, @preconcurrency ViewHost {
 		let created = AppleKeyManageApp(
 			serverUrl: Self.serverUrl,
 			viewFactory: SwiftUIViewFactory(),
-			presenter: { Self.topViewController() }
+			platform: IosPlatformPortsKt.iosPlatformPorts(presenter: { Self.topViewController() })
 		)
 		app = created
 		created.start(host: self)
@@ -85,12 +85,6 @@ final class AppLauncher: NSObject, @preconcurrency ViewHost {
 	}
 }
 
-/// Foundation으로 메인 스레드 여부를 알려 주는 검사기. 어느 스레드에서 불려도 안전하다
-final class FoundationMainThreadChecker: NSObject, MainThreadChecker {
-	func isMainThread() -> Bool {
-		Thread.isMainThread
-	}
-}
 
 /// 터치가 시작되면 알리고 바로 실패해, 다른 제스처와 버튼의 터치를 막지 않는다
 private final class TouchObserver: UIGestureRecognizer, UIGestureRecognizerDelegate {

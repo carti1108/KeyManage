@@ -2,6 +2,7 @@ package com.keymanage.applesession
 
 import com.keymanage.domain.lock.BiometricSetting
 import com.keymanage.domain.lock.InvalidAutoLockTimeoutException
+import platform.Foundation.NSUUID
 import platform.Foundation.NSUserDefaults
 import kotlin.test.AfterTest
 import kotlin.test.Test
@@ -12,7 +13,7 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
 class UserDefaultsStoresTest {
-    private val suite = "com.keymanage.applesession.test"
+    private val suite = "com.keymanage.applesession.test." + NSUUID().UUIDString
     private val defaults = NSUserDefaults(suiteName = suite)
 
     @AfterTest

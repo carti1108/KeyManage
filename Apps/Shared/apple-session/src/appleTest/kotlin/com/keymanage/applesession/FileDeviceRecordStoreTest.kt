@@ -6,7 +6,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 class FileDeviceRecordStoreTest {
-    private val store = FileDeviceRecordStore("device-record-test.json")
+    private val store = FileDeviceRecordStore("device-record-test.json", directoryName = "com.keymanage.applesession.test")
 
     @Test
     fun saveThenLoad_returnsSameJson() = runTest {

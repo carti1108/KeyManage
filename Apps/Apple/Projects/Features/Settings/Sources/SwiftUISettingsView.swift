@@ -170,7 +170,7 @@ private struct SettingsModalSheet: View {
 				}
 			}
 			.navigationTitle(title(for: state.modal))
-			.navigationBarTitleDisplayMode(.inline)
+			.inlineNavigationTitle()
 			.toolbar {
 				ToolbarItem(placement: .cancellationAction) {
 					Button(cancelTitle(for: state.modal)) { send(SettingsViewActionCancelModal.shared) }

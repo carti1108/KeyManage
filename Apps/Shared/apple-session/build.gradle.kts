@@ -22,7 +22,7 @@ extra["appleExports"] = appleExports
 
 kotlin {
     val xcFramework = XCFramework("KeyManageShared")
-    listOf(iosArm64(), iosSimulatorArm64()).forEach { target ->
+    listOf(iosArm64(), iosSimulatorArm64(), macosArm64()).forEach { target ->
         target.binaries.framework {
             baseName = "KeyManageShared"
             isStatic = true
@@ -40,14 +40,14 @@ kotlin {
     }
 
     sourceSets {
-        iosMain.dependencies {
+        appleMain.dependencies {
             appleExports.forEach { api(project(it)) }
             api("com.carti.ribs:ribs-core")
             api(project(":core:server-http"))
             api(project(":core:secure-store"))
             implementation(libs.kotlinx.coroutines.core)
         }
-        iosTest.dependencies {
+        appleTest.dependencies {
             implementation(kotlin("test"))
             implementation(libs.kotlinx.coroutines.test)
         }
