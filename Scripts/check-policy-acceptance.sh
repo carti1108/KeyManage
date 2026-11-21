@@ -50,141 +50,6 @@ def check_invariants(platform, module_name, combined_text, rules):
 
 
 # ============================================================================
-# 1. Apple 플랫폼 감사 (Apps/Apple/Projects/Core/Domain/Tests)
-# ============================================================================
-apple_tests_dir = os.path.join(root, "Apps", "Apple", "Projects", "Core", "Domain", "Tests")
-apple_sources_dir = os.path.join(root, "Apps", "Apple", "Projects", "Core", "Domain", "Sources")
-
-if os.path.isdir(apple_tests_dir):
-    audited_platforms.append("Apple")
-    apple_test_files = sorted(glob.glob(os.path.join(apple_tests_dir, "*.swift")))
-    apple_tests = "\n".join(open(p, encoding="utf-8").read() for p in apple_test_files)
-
-    apple_crypto_rules = [
-        ("교차 플랫폼 테스트 벡터(crypto-test-vectors.json) 지문 검증", r"7xdxRO7JQgy8EJPSqLNEqSvFBtDU7JwCjdGfgyTYweY="),
-        ("PBKDF2 600,000회 반복 경계값 검증", r"600_?000"),
-        ("HKDF authKey / encryptionKey 도메인 분리 검증", r"HKDFKeySeparator\.separate"),
-        ("AES-GCM AAD 헤더 변조 복호화 거부 검증", r"(XCTAssertThrowsError|#expect\(throws:)"),
-    ]
-    check_invariants("Apple", "1단계: 암호 모듈(vault-spec)", apple_tests, apple_crypto_rules)
-
-    apple_vault_rules = [
-        ("상위 버전 읽기 전용(isReadOnly) 강제 검증", r"\bisReadOnly\b"),
-        ("5MB(5,242,880바이트) 페이로드 상한 검증", r"(5_?242_?880|5\s*\*\s*1024\s*\*\s*1024)"),
-        ("톰스톤(deletedAt) 삭제 및 필드 소거 검증", r"\bdeletedAt\b"),
-        ("서버 revision 역행(Rollback) 거부 검증", r"revisionRollback|Rollback"),
-        ("409 Conflict 최대 3회 재시도 한도 검증", r"(conflictLimitExceeded|409)"),
-    ]
-    check_invariants("Apple", "2단계: 볼트 동기화(VLT-001)", apple_tests, apple_vault_rules)
-
-    has_lock_module = (
-        os.path.isdir(os.path.join(apple_sources_dir, "Lock"))
-        or os.path.isdir(os.path.join(apple_sources_dir, "Session"))
-    )
-    if has_lock_module:
-        apple_autolock_rules = [
-            ("자동 잠금 5종 타임아웃(0, 60, 300, 900, 3600) 경계값 검증", r"3600"),
-            ("백그라운드 가림 화면(isPrivacyCoverActive) 상태 전이 검증", r"isPrivacyCoverActive"),
-            ("잠금 시 민감 키 소거(masterKey == nil, encryptionKey == nil) 검증", r"(encryptionKey\s*==\s*nil|XCTAssertNil\([^\)]*encryptionKey)"),
-            ("생체 인증 14일 재인증 주기 검증", r"(14\s*\*|1_?209_?600|14)"),
-            ("SEC-003 표준 비밀번호 오류 문구('마스터 비밀번호가 올바르지 않습니다.') 검증", r"마스터 비밀번호가 올바르지 않습니다\."),
-            ("SEC-003 빈 볼트 준비 실패 문구('계정은 만들었지만 볼트를 준비하지 못했습니다.') 검증", r"계정은 만들었지만 볼트를 준비하지 못했습니다\."),
-        ]
-        # SEC-003 규칙 8: 기기 암호 해제 시 생체 해제 무효화.
-        # 생체 해제용 키를 WhenPasscodeSet 접근 수준으로 저장하는 구현이 들어오면 테스트를 강제한다.
-        apple_source_text = "\n".join(
-            open(p, encoding="utf-8").read()
-            for p in glob.glob(os.path.join(apple_sources_dir, "**", "*.swift"), recursive=True)
-        )
-        if "WhenPasscodeSet" in apple_source_text:
-            apple_autolock_rules.append(
-                ("SEC-003 기기 암호 해제 시 생체 해제 무효화 검증", r"(?i)(passcode|기기 암호)")
-            )
-        check_invariants("Apple", "3단계: 자동 잠금(SEC-003)", apple_tests, apple_autolock_rules)
-
-    if os.path.isdir(os.path.join(apple_sources_dir, "Generator")):
-        apple_generator_rules = [
-            ("길이 상한(64자) 및 하한(8자) 경계값 검증", r"(minimumLength|maximumLength|64)"),
-            ("거부 샘플링 1,000회 반복 검증", r"1_?000"),
-            ("플랫폼 공통 샘플('123456' -> 19점) 검증", r"123456"),
-            ("플랫폼 공통 샘플('abc~~~~~' -> 40점) 검증", r"abc~~~~~"),
-            ("표준 에러 문구('비밀번호 길이는 최소 8자 이상 64자 이하이어야 합니다.') 검증", r"비밀번호 길이는 최소 8자 이상 64자 이하이어야 합니다\."),
-            ("표준 에러 문구('최소 1개 이상의 문자 종류를 선택해야 합니다.') 검증", r"최소 1개 이상의 문자 종류를 선택해야 합니다\."),
-            ("표준 취약 경고 문구('현재 비밀번호는 보안에 취약합니다. 80점 이상의 강력한 비밀번호로 재생성하세요.') 검증", r"현재 비밀번호는 보안에 취약합니다\. 80점 이상의 강력한 비밀번호로 재생성하세요\."),
-            ("표준 연속 숫자 안내 문구('123처럼 이어지는 숫자가 들어 있어 추측하기 쉽습니다.') 검증", r"123처럼 이어지는 숫자가 들어 있어 추측하기 쉽습니다\."),
-        ]
-        check_invariants("Apple", "4단계: 비밀번호 생성기(GEN-001)", apple_tests, apple_generator_rules)
-
-    if os.path.isdir(os.path.join(apple_sources_dir, "Sync")):
-        apple_pending_sync_rules = [
-            ("VLT-002 재전송 주기(30초) 상수 검증", r"(30|resyncIntervalSeconds)"),
-            ("VLT-002 오프라인 경고 표준 문구('오프라인 상태입니다. 변경 사항이 서버에 동기화되지 않습니다.') 검증", r"오프라인 상태입니다\. 변경 사항이 서버에 동기화되지 않습니다\."),
-            ("VLT-002 대기 중 로그아웃 확인 제목('동기화되지 않은 변경 사항') 검증", r"동기화되지 않은 변경 사항"),
-            ("VLT-002 대기 중 로그아웃 확인 본문('로그아웃하면 서버에 올리지 못한 변경 사항이 사라집니다.') 검증", r"로그아웃하면 서버에 올리지 못한 변경 사항이 사라집니다\."),
-        ]
-        check_invariants("Apple", "5단계: 오프라인 동기화 대기(VLT-002)", apple_tests, apple_pending_sync_rules)
-
-    if os.path.isdir(os.path.join(apple_sources_dir, "Persistence")):
-        apple_device_store_rules = [
-            ("VLT-003 단일 계정 기기 기록 및 복원 검증", r"DeviceVaultRecord"),
-            ("VLT-003 다른 계정 인증 시 이전 기록 삭제 검증", r"handleAuthenticationSuccess"),
-            ("VLT-003 KDF 파라미터 변경 감지 및 대기 폐기 검증", r"evaluateKdfChange"),
-        ]
-        check_invariants("Apple", "6단계: 기기 볼트 보존(VLT-003)", apple_tests, apple_device_store_rules)
-
-    if os.path.isdir(os.path.join(apple_sources_dir, "Clipboard")):
-        apple_clipboard_rules = [
-            ("COM-001 클립보드 유효 시간(30초) 경계값 검증", r"(defaultAutoBurnInterval|30\.0)"),
-            ("COM-001 복사 직후 표준 제목('클립보드 보안 소각') 검증", r"클립보드 보안 소각"),
-            ("COM-001 복사 직후 표준 본문('보안을 위해 복사된 내용이 30초 후 클립보드에서 자동 삭제됩니다.') 검증", r"보안을 위해 복사된 내용이 30초 후 클립보드에서 자동 삭제됩니다\."),
-            ("COM-001 복사 실패 표준 문구('클립보드에 복사하지 못했습니다.') 검증", r"클립보드에 복사하지 못했습니다\."),
-            ("COM-001 비우기 실패 표준 문구('클립보드를 비우지 못했습니다.') 검증", r"클립보드를 비우지 못했습니다\."),
-            ("COM-001 / SEC-003 앱 잠금 시 즉시 비움(handleLock) 검증", r"handleLock"),
-        ]
-        check_invariants("Apple", "7단계: 클립보드 자동 비우기(COM-001)", apple_tests, apple_clipboard_rules)
-
-    if os.path.isdir(os.path.join(apple_sources_dir, "Backup")):
-        apple_backup_rules = [
-            ("VLT-004 파일 이름(keymanage-backup-YYYYMMDD.json) 검증", r"keymanage-backup-"),
-            ("VLT-004 백업 형식 버전(formatVersion) 검증", r"formatVersion"),
-            ("VLT-004 파일 크기 한도(maxBackupFileBytes) 경계값 검증", r"(maxBackupFileBytes|MAX_BACKUP_FILE_BYTES)"),
-            ("VLT-004 복원 규칙(restoreItems: 백업 시점으로 되돌리고 새 항목은 남김) 검증", r"restoreItems"),
-            ("VLT-004 내보내기 전 안내 문구 검증", r"이 파일은 내보낸 시점의 마스터 비밀번호로만 열 수 있습니다\."),
-            ("VLT-004 복원 전 안내 문구 검증", r"백업에 있던 항목은 백업 시점 내용으로 돌아갑니다\."),
-            ("VLT-004 비밀번호 오류·손상 문구('백업을 열 수 없습니다.') 검증", r"백업을 열 수 없습니다\."),
-            ("VLT-004 형식 오류 문구('KeyManage 백업 파일이 아닙니다.') 검증", r"KeyManage 백업 파일이 아닙니다\."),
-            ("VLT-004 새 버전 백업 문구 검증", r"더 새 버전의 앱에서 만든 백업입니다\."),
-            ("VLT-004 복원 완료 문구('백업에서 항목 N개를 복원했습니다.') 검증", r"백업에서 항목 .*복원했습니다"),
-        ]
-        check_invariants("Apple", "8단계: 암호화 백업 내보내기와 복원(VLT-004)", apple_tests, apple_backup_rules)
-
-    if os.path.isdir(os.path.join(apple_sources_dir, "Auth")):
-        apple_password_change_rules = [
-            ("SEC-004 변경 흐름(changeMasterPassword) 검증", r"changeMasterPassword"),
-            ("SEC-004 새 salt 16바이트 경계값 검증", r"16"),
-            ("SEC-004 새 비밀번호 SEC-002 길이 미달 거절(tooShort) 검증", r"\btooShort\b"),
-            ("SEC-004 현재와 같음 거절(samePassword) 검증", r"\bsamePassword\b"),
-            ("SEC-004 오프라인 거절(offline) 검증", r"\boffline\b"),
-            ("SEC-004 변경 전 안내 본문 검증", r"비밀번호를 바꾸면 다른 기기는 모두 로그아웃되고, 새 비밀번호로 다시 로그인해야 합니다\. 다른 기기에서 아직 올리지 못한 변경 사항은 사라집니다\. 예전에 내보낸 백업은 예전 비밀번호로 엽니다\."),
-            ("SEC-004 현재와 같음 문구('새 비밀번호가 지금 비밀번호와 같습니다.') 검증", r"새 비밀번호가 지금 비밀번호와 같습니다\."),
-            ("SEC-004 오프라인 문구('인터넷에 연결된 상태에서만 비밀번호를 바꿀 수 있습니다.') 검증", r"인터넷에 연결된 상태에서만 비밀번호를 바꿀 수 있습니다\."),
-            ("SEC-004 완료 문구('마스터 비밀번호를 바꿨습니다.') 검증", r"마스터 비밀번호를 바꿨습니다\."),
-        ]
-        check_invariants("Apple", "9단계: 마스터 비밀번호 변경(SEC-004)", apple_tests, apple_password_change_rules)
-
-        apple_signup_strength_rules = [
-            ("SEC-002 가입 강도 게이지 59/60 경계값 검증", r"passwordStrengthScore == 59[\s\S]*passwordStrengthScore == 60"),
-            ("SEC-002 가입 비밀번호 취약 문구 검증", r"마스터 비밀번호가 보안에 취약합니다\. 더 길게 만들거나 여러 종류의 문자를 섞어 주세요\."),
-        ]
-        # 가입 화면 상태는 AuthFeature에 있으므로 그 테스트를 함께 읽는다
-        apple_auth_tests_dir = os.path.join(root, "Apps", "Apple", "Projects", "Features", "Auth", "Tests")
-        apple_auth_tests = "\n".join(
-            open(p, encoding="utf-8").read() for p in sorted(glob.glob(os.path.join(apple_auth_tests_dir, "*.swift")))
-        )
-        check_invariants("Apple", "10단계: 가입 강도 게이지(SEC-002)", apple_auth_tests, apple_signup_strength_rules)
-
-
-# ============================================================================
 # 2. Web 플랫폼 감사 (Apps/Web/src/**/*.test.ts*, Apps/Shared/**/src/*Test/**/*.kt)
 # ============================================================================
 web_src_dir = os.path.join(root, "Apps", "Web", "src")
@@ -332,41 +197,37 @@ if os.path.isdir(web_src_dir):
 
 
 # ============================================================================
-# 3. Android 플랫폼 감사
-#    Android 앱은 뷰와 진입점만 있고 도메인·화면 로직·플랫폼 구현은 공유 Kotlin(Apps/Shared)에 있다 (android-migration-plan 4단계).
-#    그래서 테스트 근거는 공유 모듈의 테스트(Apps/Shared/**/src/*Test), 표준 문구 원문은 공유 모듈과 Android 뷰의 소스에서 확인한다.
+# 3. 공유 Kotlin을 쓰는 클라이언트 감사 (Android, Apple)
+#    두 앱은 뷰와 진입점만 있고 도메인·화면 로직·플랫폼 구현은 공유 Kotlin(Apps/Shared)에 있다
+#    (android-migration-plan 4단계, modularization-plan F단계). 그래서 테스트 근거는 공유 모듈의 테스트(Apps/Shared/**/src/*Test),
+#    표준 문구 원문은 공유 모듈과 각 앱 뷰의 소스에서 확인한다. 다른 플랫폼 전용 소스셋은 뺀다
 # ============================================================================
-android_dir = os.path.join(root, "Apps", "Android")
 shared_kotlin_dir = os.path.join(root, "Apps", "Shared")
-if os.path.isdir(android_dir):
-    audited_platforms.append("Android")
 
-    def kotlin_files(base, source_set_pattern):
-        return sorted(
-            p for p in glob.glob(os.path.join(base, "**", "src", source_set_pattern, "**", "*.kt"), recursive=True)
-            if os.sep + "build" + os.sep not in p
-        )
 
-    def read_all(paths):
-        return "\n".join(open(p, encoding="utf-8").read() for p in paths)
-
-    # 웹 전용 소스셋(jsMain·jsTest)은 Android가 쓰지 않으므로 뺀다
-    android_tests = read_all(
-        p for p in kotlin_files(shared_kotlin_dir, "*Test") + kotlin_files(android_dir, "*est")
-        if os.sep + "jsTest" + os.sep not in p
-    )
-    android_sources = read_all(
-        p for p in kotlin_files(shared_kotlin_dir, "*Main") + kotlin_files(android_dir, "main")
-        if os.sep + "jsMain" + os.sep not in p
+def source_files(base, source_set_pattern, extension):
+    return sorted(
+        p for p in glob.glob(os.path.join(base, "**", "src", source_set_pattern, "**", "*." + extension), recursive=True)
+        if os.sep + "build" + os.sep not in p
     )
 
-    check_invariants("Android", "1단계: 암호 모듈(vault-spec)", android_tests, [
+
+def read_all(paths):
+    return "\n".join(open(p, encoding="utf-8").read() for p in paths)
+
+
+def without_source_sets(paths, excluded):
+    return [p for p in paths if not any(os.sep + name + os.sep in p for name in excluded)]
+
+
+def audit_shared_kotlin_client(platform, tests, sources):
+    check_invariants(platform, "1단계: 암호 모듈(vault-spec)", tests, [
         ("교차 플랫폼 테스트 벡터(keyDerivationCases) 검증", r"keyDerivationCases"),
         ("PBKDF2 600,000회 하한 경계값(599_999) 검증", r"599_999"),
         ("AES-GCM 변조 복호화 거부(VaultDecryptException) 검증", r"VaultDecryptException"),
         ("다른 플랫폼과 같은 암호문 테스트 벡터(encryptionCases)를 여는 교차 검증", r"encryptionCases"),
     ])
-    check_invariants("Android", "2단계: 볼트 동기화(VLT-001)", android_tests, [
+    check_invariants(platform, "2단계: 볼트 동기화(VLT-001)", tests, [
         ("상위 버전 읽기 전용(ReadOnlyVault) 검증", r"ReadOnlyVault"),
         ("톰스톤(deletedAt) 삭제 및 병합 검증", r"\bdeletedAt\b"),
         ("서버 revision 역행(RevisionRollback) 검증", r"RevisionRollback"),
@@ -374,87 +235,112 @@ if os.path.isdir(android_dir):
         ("409 충돌 재시도 소진(VaultSyncConflictException) 검증", r"VaultSyncConflictException"),
         ("5MB 용량 상한(MAX_PAYLOAD_BYTES) 경계값 검증", r"MAX_PAYLOAD_BYTES"),
     ])
-    check_invariants("Android", "2단계: 볼트 동기화 표준 문구(VLT-001)", android_sources, [
+    check_invariants(platform, "2단계: 볼트 동기화 표준 문구(VLT-001)", sources, [
         ("상위 버전 읽기 전용 표준 문구", r"새 버전 앱에서 저장한 볼트입니다\. 앱을 업데이트하기 전까지는 읽기만 할 수 있습니다\."),
         ("409 동기화 충돌 표준 문구", r"다른 기기의 변경 사항과 충돌했습니다\. 잠시 후 다시 시도해 주세요\."),
         ("5MB 용량 초과 표준 문구", r"볼트 허용 용량\(5MB\)을 초과했거나 데이터 규격이 올바르지 않습니다\."),
         ("revision 역행 표준 제목", r"서버 볼트가 이전 상태로 돌아감"),
         ("revision 역행 수락 버튼 표준 문구", r"서버 볼트 받아들이기"),
     ])
-    check_invariants("Android", "3단계: 잠금 해제와 생체 해제(SEC-003)", android_tests, [
+    check_invariants(platform, "3단계: 잠금 해제와 생체 해제(SEC-003)", tests, [
         ("생체 해제 14일 경계값(14.days) 검증", r"14\.days"),
         ("생체 키 무효화(BiometricError.Invalidated) 검증", r"BiometricError\.Invalidated"),
         ("14일 만료(BiometricError.Expired) 검증", r"BiometricError\.Expired"),
         ("비밀번호 오류 문구('마스터 비밀번호가 올바르지 않습니다.') 검증", r"마스터 비밀번호가 올바르지 않습니다\."),
     ])
-    check_invariants("Android", "3단계: 잠금 해제 표준 문구(SEC-003)", android_sources, [
+    check_invariants(platform, "3단계: 잠금 해제 표준 문구(SEC-003)", sources, [
         ("비밀번호 오류 표준 문구", r"마스터 비밀번호가 올바르지 않습니다\."),
         ("빈 볼트 준비 실패 표준 문구", r"계정은 만들었지만 볼트를 준비하지 못했습니다\."),
         ("가입 직후 생체 인증 안내 제목", r"생체 인증으로 잠금을 풀까요\?"),
     ])
-    check_invariants("Android", "4단계: 비밀번호 생성기(GEN-001)", android_tests, [
+    check_invariants(platform, "4단계: 비밀번호 생성기(GEN-001)", tests, [
         ("길이 상한(64자) 검증", r"\b64\b"),
         ("거부 샘플링 1,000회 반복 검증", r"\b1_?000\b"),
         ("연속 숫자 감지(hasSequentialDigits) 검증", r"hasSequentialDigits"),
         ("문자군 미선택(Messages.NO_CHARSET) 검증", r"Messages\.NO_CHARSET"),
     ])
-    check_invariants("Android", "4단계: 비밀번호 생성기 표준 문구(GEN-001)", android_sources, [
+    check_invariants(platform, "4단계: 비밀번호 생성기 표준 문구(GEN-001)", sources, [
         ("표준 길이 에러 문구", r"비밀번호 길이는 최소 8자 이상 64자 이하이어야 합니다\."),
         ("표준 문자군 에러 문구", r"최소 1개 이상의 문자 종류를 선택해야 합니다\."),
     ])
-    check_invariants("Android", "5·6단계: 동기화 대기와 기기 볼트(VLT-002·003)", android_tests, [
+    check_invariants(platform, "5·6단계: 동기화 대기와 기기 볼트(VLT-002·003)", tests, [
         ("오프라인 대기 재시도(retryPending) 검증", r"retryPending"),
         ("대기 변경 표시(pendingSync) 검증", r"pendingSync"),
         ("기기 볼트 기록(DeviceRecordStore) 검증", r"DeviceRecordStore"),
     ])
-    check_invariants("Android", "5·6단계: 동기화 대기와 기기 볼트 표준 문구(VLT-002·003)", android_sources, [
+    check_invariants(platform, "5·6단계: 동기화 대기와 기기 볼트 표준 문구(VLT-002·003)", sources, [
         ("대기 중 로그아웃 확인 제목", r"동기화되지 않은 변경 사항"),
         ("오프라인 경고 표준 문구", r"오프라인 상태입니다\. 변경 사항이 서버에 동기화되지 않습니다\."),
         ("마스터 비밀번호 변경 감지 표준 문구", r"마스터 비밀번호가 바뀌었습니다\. 새 비밀번호로 로그인해 주세요\."),
     ])
-    check_invariants("Android", "7단계: 클립보드 자동 비우기(COM-001)", android_tests, [
+    check_invariants(platform, "7단계: 클립보드 자동 비우기(COM-001)", tests, [
         ("클립보드 30초(30_000ms) 타이머 검증", r"30_000"),
     ])
-    check_invariants("Android", "7단계: 클립보드 자동 비우기 표준 문구(COM-001)", android_sources, [
+    check_invariants(platform, "7단계: 클립보드 자동 비우기 표준 문구(COM-001)", sources, [
         ("복사 직후 표준 제목", r"클립보드 보안 소각"),
         ("복사 직후 표준 본문", r"보안을 위해 복사된 내용이 30초 후 클립보드에서 자동 삭제됩니다\."),
     ])
-    check_invariants("Android", "8단계: 암호화 백업(VLT-004)", android_tests, [
+    check_invariants(platform, "8단계: 암호화 백업(VLT-004)", tests, [
         ("파일 이름(keymanage-backup-YYYYMMDD.json) 검증", r"keymanage-backup-\d{8}\.json"),
         ("백업 형식 버전(formatVersion) 검증", r"formatVersion"),
         ("파일 크기 한도(MAX_BACKUP_FILE_BYTES) 경계값 검증", r"MAX_BACKUP_FILE_BYTES"),
         ("새 버전 백업 거절(NewerVersion) 검증", r"NewerVersion"),
         ("비밀번호 오류·손상(CannotOpen) 검증", r"CannotOpen"),
     ])
-    check_invariants("Android", "8단계: 암호화 백업 표준 문구(VLT-004)", android_sources, [
+    check_invariants(platform, "8단계: 암호화 백업 표준 문구(VLT-004)", sources, [
         ("내보내기 전 안내 문구", r"이 파일은 내보낸 시점의 마스터 비밀번호로만 열 수 있습니다\."),
         ("복원 전 안내 문구", r"백업에 있던 항목은 백업 시점 내용으로 돌아갑니다\."),
         ("비밀번호 오류·손상 문구", r"백업을 열 수 없습니다\."),
         ("형식 오류 문구", r"KeyManage 백업 파일이 아닙니다\."),
         ("새 버전 백업 문구", r"더 새 버전의 앱에서 만든 백업입니다\."),
     ])
-    check_invariants("Android", "9단계: 마스터 비밀번호 변경(SEC-004)", android_tests, [
+    check_invariants(platform, "9단계: 마스터 비밀번호 변경(SEC-004)", tests, [
         ("현재와 같음 거절(SAME_MASTER_PASSWORD) 검증", r"SAME_MASTER_PASSWORD"),
         ("오프라인 거절(PASSWORD_CHANGE_OFFLINE) 검증", r"PASSWORD_CHANGE_OFFLINE"),
         ("SEC-002 미달 새 비밀번호 거절('마스터 비밀번호는 12자 이상이어야 합니다.') 검증", r"마스터 비밀번호는 12자 이상이어야 합니다\.|NewMasterPasswordProblem\.TOO_SHORT"),
         ("완료 문구(PASSWORD_CHANGE_DONE) 검증", r"PASSWORD_CHANGE_DONE"),
     ])
-    check_invariants("Android", "9단계: 마스터 비밀번호 변경 표준 문구(SEC-004)", android_sources, [
+    check_invariants(platform, "9단계: 마스터 비밀번호 변경 표준 문구(SEC-004)", sources, [
         ("현재와 같음 문구", r"새 비밀번호가 지금 비밀번호와 같습니다\."),
         ("오프라인 문구", r"인터넷에 연결된 상태에서만 비밀번호를 바꿀 수 있습니다\."),
         ("완료 문구", r"마스터 비밀번호를 바꿨습니다\."),
     ])
-    check_invariants("Android", "10단계: 가입 강도·계정 삭제(SEC-002·005)", android_tests, [
+    check_invariants(platform, "10단계: 가입 강도·계정 삭제(SEC-002·005)", tests, [
         ("SEC-002 강도 59/60 경계값 검증", r"\b59\b"),
         ("SEC-005 오프라인 거절(ACCOUNT_DELETION_OFFLINE) 검증", r"ACCOUNT_DELETION_OFFLINE"),
         ("SEC-005 완료 문구(ACCOUNT_DELETED) 검증", r"ACCOUNT_DELETED"),
     ])
-    check_invariants("Android", "10단계: 가입 강도·계정 삭제 표준 문구(SEC-002·005)", android_sources, [
+    check_invariants(platform, "10단계: 가입 강도·계정 삭제 표준 문구(SEC-002·005)", sources, [
         ("SEC-002 가입 비밀번호 취약 문구", r"마스터 비밀번호가 보안에 취약합니다\."),
         ("SEC-005 오프라인 문구", r"인터넷에 연결된 상태에서만 계정을 삭제할 수 있습니다\."),
         ("SEC-005 확인 문구 입력 칸 문구", r"확인을 위해 '계정 삭제'를 입력해 주세요\."),
         ("SEC-005 완료 문구", r"계정을 삭제했습니다\."),
     ])
+
+
+
+android_dir = os.path.join(root, "Apps", "Android")
+if os.path.isdir(android_dir):
+    audited_platforms.append("Android")
+    audit_shared_kotlin_client(
+        "Android",
+        read_all(without_source_sets(source_files(shared_kotlin_dir, "*Test", "kt"), ["jsTest", "appleTest", "iosTest", "macosTest"])
+                 + source_files(android_dir, "*est", "kt")),
+        read_all(without_source_sets(source_files(shared_kotlin_dir, "*Main", "kt"), ["jsMain", "appleMain", "iosMain", "macosMain"])
+                 + source_files(android_dir, "main", "kt")),
+    )
+
+apple_dir = os.path.join(root, "Apps", "Apple", "Projects")
+if os.path.isdir(apple_dir):
+    audited_platforms.append("Apple")
+    apple_swift_sources = sorted(
+        p for p in glob.glob(os.path.join(apple_dir, "**", "Sources", "**", "*.swift"), recursive=True)
+    )
+    audit_shared_kotlin_client(
+        "Apple",
+        read_all(without_source_sets(source_files(shared_kotlin_dir, "*Test", "kt"), ["jsTest", "androidDeviceTest"])),
+        read_all(without_source_sets(source_files(shared_kotlin_dir, "*Main", "kt"), ["jsMain", "androidMain"]) + apple_swift_sources),
+    )
 
 if not audited_platforms:
     print("오류: 감사할 플랫폼 테스트 디렉터리(Apps/Apple, Apps/Web 또는 Apps/Android)를 찾을 수 없습니다.", file=sys.stderr)

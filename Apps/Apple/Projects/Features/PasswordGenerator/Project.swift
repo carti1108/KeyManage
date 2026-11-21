@@ -1,14 +1,9 @@
 import ProjectDescription
 import ProjectDescriptionHelpers
 
-let project = Project.makeFeature(
+// 공유 Kotlin PasswordGenerator RIB의 SwiftUI 뷰, Example 앱, 뷰 테스트 (modularization-plan F단계)
+let project = Project(
 	name: "PasswordGeneratorFeature",
-	interfaceDependencies: [
-		.project(target: "KeyManageDomain", path: "../../Core/Domain")
-	],
-	implementationDependencies: [
-		.project(target: "KeyManageDomain", path: "../../Core/Domain"),
-		.project(target: "KeyManageDesignSystem", path: "../../Core/DesignSystem")
-	],
-	extraTargets: SharedFeature.targets(name: "PasswordGenerator")
+	settings: .swift6Settings,
+	targets: SharedFeature.targets(name: "PasswordGenerator")
 )

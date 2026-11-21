@@ -34,77 +34,56 @@ bash "${ROOT_DIR}/Scripts/check-policy-acceptance.sh" "${ROOT_DIR}"
 bash "${ROOT_DIR}/Scripts/check-api-contract.sh" "${ROOT_DIR}"
 bash "${ROOT_DIR}/Scripts/verify-tdd-integrity.sh"
 
-# 4. Tuist 외부 의존성 설치 및 프로젝트 생성
-echo ">> [4/6] Tuist 의존성 확인 및 프로젝트 생성..."
+# 4. 공유 Kotlin 묶음 프레임워크(운영용·테스트용)와 Tuist 프로젝트 생성 (modularization-plan F단계)
+#    Apps/Shared는 carti-RIBs-KMP를 형제 폴더 또는 CARTI_RIBS_DIR에서 가져온다
+echo ">> [4/6] 공유 Kotlin 묶음 프레임워크 빌드·Apple 포트 테스트, Tuist 프로젝트 생성..."
+(
+  cd "${ROOT_DIR}/Apps/Shared"
+  ./gradlew --console=plain -q \
+    :apple-session:macosArm64Test \
+    :apple-session:assembleKeyManageSharedDebugXCFramework \
+    :apple-example:assembleKeyManageSharedDebugXCFramework
+)
 cd "${APPLE_DIR}"
-if [ ! -d "Tuist/.build/checkouts" ]; then
-  "${TUIST_BIN}" install
-fi
-# Xcode 16.4(Swift 6.1 프로덕션 컴파일러)에서 거부되는 미사용 실험 플래그(IsolatedDeinit) 제거
-if [ -f "Tuist/.build/checkouts/MicroRIBs/Package.swift" ]; then
-  chmod u+w "Tuist/.build/checkouts/MicroRIBs/Package.swift"
-  python3 -c '
-p = "Tuist/.build/checkouts/MicroRIBs/Package.swift"
-with open(p, encoding="utf-8") as f: c = f.read()
-c = c.replace(".enableExperimentalFeature(\"IsolatedDeinit\")", "")
-with open(p, "w", encoding="utf-8") as f: f.write(c)
-'
-fi
+"${TUIST_BIN}" install
 "${TUIST_BIN}" generate --no-open
 
-# 5. macOS 빌드 검증 (Swift 6 Strict Concurrency 포함)
-echo ">> [5/6] KeyManageMac 빌드 검증..."
+# 5. iOS·macOS 앱 빌드 검증 (Swift 6 Strict Concurrency 포함)
+echo ">> [5/6] KeyManageMac·KeyManageIOS 빌드 검증..."
 xcodebuild -workspace KeyManageApple.xcworkspace \
   -scheme KeyManageMac \
   -destination 'platform=macOS' \
   build CODE_SIGNING_ALLOWED=NO -quiet
 
-# 6. 단위 테스트 전수 검증
-echo ">> [6/6] Apple 타깃 단위 테스트 실행..."
 xcodebuild -workspace KeyManageApple.xcworkspace \
-  -scheme KeyManageDomain \
-  -destination 'platform=macOS' \
-  test CODE_SIGNING_ALLOWED=NO -quiet
+  -scheme KeyManageIOS \
+  -destination 'generic/platform=iOS Simulator' \
+  build CODE_SIGNING_ALLOWED=NO ARCHS=arm64 -quiet  # 공유 Kotlin 묶음은 arm64 시뮬레이터만 낸다
 
-xcodebuild -workspace KeyManageApple.xcworkspace \
-  -scheme KeyManageData \
-  -destination 'platform=macOS' \
-  test CODE_SIGNING_ALLOWED=NO -quiet
-
-xcodebuild -workspace KeyManageApple.xcworkspace \
-  -scheme UnlockFeature \
-  -destination 'platform=macOS' \
-  test CODE_SIGNING_ALLOWED=NO -quiet
-
+# 6. 단위 테스트: 디자인 시스템(macOS), 피처 뷰 테스트(iOS 시뮬레이터)
+#    앱 UI 테스트(가입→잠금 해제)는 로컬 백엔드가 필요해 여기서 돌리지 않는다. 백엔드를 띄우고 KeyManageIOS 스킴의 test로 돌린다
+echo ">> [6/6] Apple 단위 테스트·피처 뷰 테스트 실행..."
 xcodebuild -workspace KeyManageApple.xcworkspace \
   -scheme KeyManageDesignSystem \
   -destination 'platform=macOS' \
   test CODE_SIGNING_ALLOWED=NO -quiet
 
-xcodebuild -workspace KeyManageApple.xcworkspace \
-  -scheme KeyManageUIAdapter \
-  -destination 'platform=macOS' \
-  test CODE_SIGNING_ALLOWED=NO -quiet
-
-xcodebuild -workspace KeyManageApple.xcworkspace \
-  -scheme MainFeature \
-  -destination 'platform=macOS' \
-  test CODE_SIGNING_ALLOWED=NO -quiet
-
-xcodebuild -workspace KeyManageApple.xcworkspace \
-  -scheme VaultListFeature \
-  -destination 'platform=macOS' \
-  test CODE_SIGNING_ALLOWED=NO -quiet
-
-xcodebuild -workspace KeyManageApple.xcworkspace \
-  -scheme SettingsFeature \
-  -destination 'platform=macOS' \
-  test CODE_SIGNING_ALLOWED=NO -quiet
-
-xcodebuild -workspace KeyManageApple.xcworkspace \
-  -scheme PasswordGeneratorFeature \
-  -destination 'platform=macOS' \
-  test CODE_SIGNING_ALLOWED=NO -quiet
+SIMULATOR_ID="${APPLE_SIMULATOR_ID:-$(xcrun simctl list devices available -j | python3 -c '
+import json, sys
+devices = json.load(sys.stdin)["devices"]
+ids = [d["udid"] for runtime, items in sorted(devices.items(), reverse=True) if "iOS" in runtime for d in items if d["name"].startswith("iPhone")]
+print(ids[0] if ids else "")
+')}"
+if [ -z "${SIMULATOR_ID}" ]; then
+  echo "오류: 피처 뷰 테스트를 돌릴 iPhone 시뮬레이터가 없습니다." >&2
+  exit 2
+fi
+for feature in Unlock Auth PasswordGenerator VaultList Settings Main; do
+  xcodebuild -workspace KeyManageApple.xcworkspace \
+    -scheme "${feature}ViewTests" \
+    -destination "id=${SIMULATOR_ID}" \
+    test CODE_SIGNING_ALLOWED=NO -quiet
+done
 
 echo "=========================================="
 echo " ✔ 모든 Apple 플랫폼 6중 기계적 검증 통과!"

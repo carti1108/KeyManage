@@ -251,3 +251,18 @@ Mac에서 진행한다. 출발점은 `origin/research/kmp-migration`(`1c8aa3b`)�
 - 확인: macOS 앱 빌드, 실행 뒤 프로세스 유지와 시스템 로그 오류 없음. iOS 앱 UI 테스트(로컬 백엔드)와 뷰 테스트 16건 재통과.
 - 확인하지 못한 것: macOS 화면 흐름. UI 테스트 러너가 "자동화 모드"를 켜지 못했다(이 Mac에서 사용자가 한 번 허용해야 한다). 창 내용 읽기도 보조 접근 권한이 없어 하지 못했다.
 - 남은 것: ⑤ 옛 Swift RIB·도메인·MicroRIBs 삭제.
+
+### F단계 ⑤: 옛 Swift RIB·도메인 삭제 (2026-11-21)
+
+| 항목 | 내용 |
+| :--- | :--- |
+| 지운 것 | `Core/Domain`·`Core/Data`·`Core/UIAdapter`, `Features/Root`, 피처의 `Interface`·`Implementation`·`Testing`·`Tests`, 옛 앱 소스, MicroRIBs 패키지와 그 의존성 설정, `makeFeature` 템플릿 |
+| 정책 감사 | `check-policy-acceptance.sh`의 Apple 부분이 지운 Swift 도메인 테스트를 읽었다. Android와 같은 함수로 바꿔 공유 Kotlin 테스트·소스와 Apple Swift 뷰를 본다. 규칙 목록은 바꾸지 않았다 |
+| 검증 스크립트 | `verify-apple.sh`: 공유 Kotlin 묶음 빌드·macOS 포트 테스트 → Tuist 생성 → macOS·iOS 앱 빌드 → 디자인 시스템 테스트·피처 뷰 테스트 6개 |
+| 훅·CI | pre-commit의 정책 감사 조건을 공유 Kotlin·Apple 뷰 소스로 바꿨다. CI Apple 작업은 JDK 21과 carti-RIBs-KMP(고정 커밋)를 받고, `Apps/Shared` 변경에도 돈다 |
+| 문서 | [ADR-APL-002](../../../Apps/Apple/docs/adr/ADR-APL-002-shared-kotlin-ribs.md) 채택, ADR-0014·0015는 대체됨. `Apps/Apple/README.md`를 새 구조로 고쳤다 |
+
+- 확인: 정적 검사 4종·문서 검사, 공유 묶음 빌드·macOS 포트 테스트, macOS·iOS 앱 빌드, 디자인 시스템·피처 뷰 테스트 통과.
+- TDD 무결성 검사는 옛 Swift 테스트 13개 파일이 코드와 함께 지워져 걸린다. 사용자 확인 뒤 `ALLOW_TEST_EDIT=1`로 돌린다.
+- CI 변경은 아직 돌지 않았다(CARTI_RIBS_TOKEN 필요, 기존과 같다).
+- F단계는 여기서 끝난다. 남은 것: macOS 생체 해제(서명·키체인 권한), macOS 화면 흐름 확인(UI 자동화 권한), 공통 ADR(main에 올릴 때).

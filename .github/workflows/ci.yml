@@ -52,7 +52,8 @@ jobs:
           # Android와 웹은 화면 로직·도메인을 공유 Kotlin(Apps/Shared)에서 가져온다
           out android 'Apps/Android/|Apps/Shared/|Tools/design-tokens/'
           out web 'Apps/Web/|Apps/Shared/|Tools/design-tokens/'
-          out apple 'Apps/Apple/|Tools/design-tokens/|Scripts/(verify-apple|check-apple-lint|check-swift-architecture)\.sh'
+          # Apple 앱도 화면 로직·도메인·플랫폼 구현을 공유 Kotlin(Apps/Shared)에서 가져온다 (modularization-plan F단계)
+          out apple 'Apps/Apple/|Apps/Shared/|Tools/design-tokens/|Scripts/(verify-apple|check-apple-lint|check-swift-architecture)\.sh'
 
   backend:
     needs: changes
@@ -333,6 +334,25 @@ jobs:
       - name: Tuist 전역 버전 활성화
         run: mise use -g tuist@4.191.5
 
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # 공유 Kotlin 묶음 프레임워크를 만들 때 carti-RIBs-KMP를 composite build로 가져온다. 버전 고정은 android 작업과 같다
+      # RIBsKMPSwiftUI(Swift 패키지)도 같은 폴더에서 가져오므로 Tuist가 찾는 형제 위치(저장소 바깥)에도 링크를 둔다
+      - uses: actions/checkout@v4
+        with:
+          repository: carti1108/carti-RIBs-KMP
+          ref: b2b652c790c9d9d70be8baed293b1c2b3bc175f8
+          path: carti-RIBs-KMP
+          token: ${{ secrets.CARTI_RIBS_TOKEN }}
+
+      - name: carti-RIBs-KMP를 형제 폴더 위치에 연결
+        run: ln -sfn "${{ github.workspace }}/carti-RIBs-KMP" "${{ github.workspace }}/../carti-RIBs-KMP"
+
       - name: Tuist 외부 의존성 캐시
         uses: actions/cache@v4
         with:
@@ -342,4 +362,6 @@ jobs:
           key: tuist-${{ runner.os }}-${{ hashFiles('Apps/Apple/Tuist/Package.resolved', 'Apps/Apple/Tuist/Package.swift') }}
 
       - name: Apple 6중 기계적 통합 검증
+        env:
+          CARTI_RIBS_DIR: ${{ github.workspace }}/carti-RIBs-KMP
         run: bash Scripts/verify-apple.sh

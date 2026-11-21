@@ -2,68 +2,68 @@
 
 iOS 및 macOS 멀티플랫폼을 지원하는 네이티브 영지식(Zero-Knowledge) 패스워드 매니저 클라이언트입니다.
 
-Tuist 4 마이크로 피처(Micro-Features) 모듈화 아키텍처([ADR-0015](docs/adr/ADR-0015-tuist-micro-features-modularization.md))와 Uber microRIBs + SwiftUI 단방향 `State`/`Action`(`request(action:)` / `update(state:)`) 패턴([ADR-0014](docs/adr/ADR-0014-apple-multiplatform-microribs.md))을 적용하여 화면 계층 간 강한 격리와 높은 테스트 가능성을 확보했습니다.
+화면 로직(RIB)·도메인·플랫폼 구현은 웹·Android와 함께 쓰는 공유 Kotlin(`Apps/Shared`)에 있고, 이 폴더에는 SwiftUI 뷰와 앱 진입점만 둡니다([ADR-APL-002](docs/adr/ADR-APL-002-shared-kotlin-ribs.md)).
 
 ---
 
 ## 🛠️ 기술 스택
 
-| 분류 | 기술 규격 및 사양 |
+| 분류 | 내용 |
 | :--- | :--- |
-| **Language** | Swift 6 (Strict Concurrency) |
-| **Architecture** | Uber microRIBs (Router, Interactor, Builder) + `ViewState`/`ViewAction` 단방향 바인딩 |
-| **UI Framework** | SwiftUI (`UIHostingController` / `NSHostingController` 어댑터) |
-| **Modularization** | Tuist 4 (`Interface`, `Implementation`, `Testing`, `Tests` 타깃 분리) |
-| **Security & Crypto** | CommonCrypto (`PBKDF2-HMAC-SHA256`), CryptoKit (`HKDF-SHA256`, `AES-256-GCM`), LocalAuthentication (Face ID / Touch ID), Keychain |
-| **Testing** | Swift Testing (`@Suite`, `@Test`, `#expect`) |
+| **Language** | Swift 6 (Strict Concurrency), 공유 코드는 Kotlin Multiplatform |
+| **Architecture** | 공유 Kotlin RIB(carti-RIBs-KMP). Swift 뷰는 RIB의 `ViewContract`를 구현하고 `RIBsKMPSwiftUI`의 `RIBScreenSlot`으로 자식 화면을 붙인다 |
+| **공유 코드 연결** | 정적 XCFramework `KeyManageShared` 두 벌: 운영용(`apple-session`), 테스트용(`apple-example`, 시나리오·가짜 세션 포함) |
+| **Modularization** | Tuist 4. 피처마다 `Sources`(뷰)·`Example`(시나리오 앱)·`ViewTests` |
+| **Security & Crypto** | 공유 Kotlin 도메인. iOS 생체 해제는 LocalAuthentication과 생체 전용 Keychain 항목 |
+| **최소 버전** | iOS 17, macOS 14 |
+| **Testing** | Swift Testing(뷰 테스트), XCTest UI 테스트(앱 흐름), 공유 Kotlin 테스트 |
 
 ---
 
 ## 🧩 모듈 구조
 
-각 Feature 모듈은 `Interface`, `Implementation`, `Testing`, `Tests` 4개 타깃으로 분리되어 상위/형제 RIB가 구체 구현체에 직접 의존하지 않도록 강제합니다.
-
 ```text
 Apps/Apple/
 ├── Projects/
-│   ├── App/                        # 애플리케이션 진입점 (KeyManageiOS, KeyManageMac, AppRootAdapter)
-│   ├── Features/                   # 화면 단위 기능 모듈 (microRIBs 4-Target 구조)
-│   │   ├── Root/                   # 세션·잠금 상태 감시 및 Auth / Unlock / Main 루트 라우팅
-│   │   ├── Auth/                   # 원격 계정 회원가입 및 마스터 키 유도 로그인 (SEC-002)
-│   │   ├── Unlock/                 # 마스터 비밀번호·생체 인증 잠금 해제 및 원격 KDF 변경 감지 (SEC-003, SEC-004)
-│   │   ├── Main/                   # iOS TabView / macOS NavigationSplitView 메인 대시보드 셸
-│   │   ├── VaultList/              # 볼트 항목 CRUD, 검색, 클립보드 복사, 원격 볼트 동기화 및 오프라인 배너 (VLT-001, VLT-002)
-│   │   ├── PasswordGenerator/      # CSPRNG 비밀번호 생성기 및 엔트로피 진단기 (GEN-001, COM-001)
-│   │   └── Settings/               # 자동 잠금 설정, 암호화 백업 내보내기/복원, 비밀번호 변경, 계정 삭제 (SEC-003~005, VLT-004)
-│   └── Core/                       # 플랫폼 공통 비즈니스 코어 및 인프라
-│       ├── Domain/                 # 영지식 암호 엔진, 볼트 3-way 병합, 잠금·동기화 매니저, 클립보드 30초 자동 소각
-│       ├── Data/                   # Keychain·파일 기반 암호화 기기 볼트 저장소 어댑터 (VLT-003)
-│       ├── DesignSystem/           # shadcn/ui 기반 시멘틱 디자인 토큰 및 5대 핵심 UI 컴포넌트
-│       └── UIAdapter/              # microRIBs 플랫폼 호스팅 어댑터
-├── Tuist/                          # Tuist 프로젝트 설정 및 로컬 패키지 매니페스트
-└── docs/                           # Apple 플랫폼 전용 ADR 및 바인딩 명세
+│   ├── App/
+│   │   ├── Sources/iOSShared/      # iOS 진입점(AppleKeyManageApp 시작, 생명주기·터치 알림)
+│   │   ├── Sources/macOSShared/    # macOS 진입점
+│   │   ├── Sources/AppleShared/    # 두 앱이 함께 쓰는 뷰 팩토리와 루트 화면
+│   │   └── UITests/Shared/         # 가입 → 항목 추가 → 잠금 → 잠금 해제 흐름 (로컬 백엔드 필요)
+│   ├── Features/<Name>/            # Unlock, Auth, PasswordGenerator, VaultList, Settings, Main
+│   │   ├── Sources/                # SwiftUI 뷰 (앱·Example·뷰 테스트가 직접 컴파일)
+│   │   ├── Example/                # 시나리오 목록 → 그 피처의 RIB 하나만 띄우는 앱
+│   │   └── ViewTests/              # 상태를 그리는가, 입력을 보내는가
+│   └── Core/
+│       ├── DesignSystem/           # 디자인 토큰과 공용 컴포넌트
+│       ├── FeatureExample/         # Example 앱의 시나리오 목록 틀
+│       └── SharedUI/               # 여러 뷰가 함께 쓰는 SwiftUI 조각(오류 문구, 대화상자 바인딩, 입력 수정자)
+├── Tuist/                          # Tuist 설정과 RIBsKMPSwiftUI(형제 폴더 carti-RIBs-KMP) 패키지
+└── docs/                           # Apple 플랫폼 전용 ADR
 ```
 
 ---
 
 ## 🧪 빌드 및 검증
 
-macOS 환경에서 Tuist 워크스페이스를 생성한 뒤 통합 검증 스크립트(`Scripts/verify-apple.sh`) 또는 `xcodebuild`를 실행합니다.
+JDK 21과 carti-RIBs-KMP(저장소 옆 폴더 `../carti-RIBs-KMP` 또는 환경 변수 `CARTI_RIBS_DIR`)가 필요합니다.
 
 ```bash
-# 1. 정적 아키텍처·보안 불변식·단위 테스트 통합 검증
+# 1. 정적 검사, 공유 Kotlin 묶음 빌드, 앱 빌드, 뷰 테스트 통합 검증
 bash Scripts/verify-apple.sh
 
-# 2. 워크스페이스 생성 및 macOS 타깃 단독 빌드
-cd Apps/Apple
-tuist generate --no-open
-xcodebuild -workspace KeyManage.xcworkspace -scheme KeyManageMac -destination 'platform=macOS' build
+# 2. 묶음 프레임워크만 만들고 워크스페이스 생성
+cd Apps/Shared && ./gradlew :apple-session:assembleKeyManageSharedDebugXCFramework :apple-example:assembleKeyManageSharedDebugXCFramework
+cd ../Apple && tuist install && tuist generate --no-open
 ```
+
+앱 UI 테스트는 로컬 백엔드(`Back`에서 `./gradlew :app:bootRun`)를 띄운 뒤 `KeyManageIOS` 스킴의 test로 돌립니다.
 
 ---
 
 ## 🔧 트러블 슈팅
 
-- **Swift 6 비동기 컨텍스트 내 `NSLock` 컴파일 오류 및 데드락 방지**: `async` 메서드 내부에서 `NSLock.lock()`/`unlock()`을 직접 호출하면 Swift 6 Strict Concurrency 컴파일 오류가 발생하므로, 공유 상태 변경을 동기 헬퍼 메서드(`prepareSync`, `applySyncSuccess` 등)로 분리해 락 점유 구간을 동기 블록 내부로만 제한했습니다.
-- **비동기 동기화 중 자동 잠금 시 평문 메모리 부활 차단**: 네트워크 요청 진행 중 유휴 타임아웃이나 수동 잠금이 발생한 경우, 응답 도착 시 `isLocked == true`이면 복호화된 평문 볼트를 메모리에 적재하지 않고 암호문과 리비전만 갱신하도록 방어했습니다.
-- **iOS/macOS 멀티플랫폼 네비게이션 뷰포트 왜곡 해결**: iOS에서는 `TabView` 내부 각 탭에 `NavigationStack`을 배치하고, macOS에서는 `NavigationSplitView`/사이드바 레이아웃을 분리하여 플랫폼별 네비게이션 바 중복 및 여백 왜곡을 해결했습니다.
+- **설정 화면 버튼이 눌리지 않음**: 자동 잠금 시간을 다시 재려고 루트 뷰에 SwiftUI 탭 제스처를 걸면 `List` 안 버튼의 탭을 가로챈다. 창에 터치를 보기만 하고 바로 실패하는 UIKit 인식기를 단다(macOS는 `NSEvent` 로컬 감시).
+- **`KeyManageShared.framework`를 두 번 만든다는 빌드 오류**: 운영용·테스트용 묶음은 이름이 같아, 앱과 Example을 한 번에 빌드하면 같은 결과 폴더에 겹친다. 테스트용을 쓰는 타깃은 `SharedTesting/` 결과 폴더를 쓴다(`SharedFeature.testingBundleSettings`).
+- **"모든 iOS 시뮬레이터" 빌드의 링크 오류**: 공유 Kotlin 묶음은 arm64 시뮬레이터만 낸다. `ARCHS=arm64`로 빌드한다.
+- **`render(state____:)` 같은 Swift 이름**: 피처마다 같은 이름의 메서드가 Objective-C로 내보내질 때 선언 순서에 따라 이름이 바뀐다. 공유 interface 매개변수에 `@ObjCName`을 붙여 `render(unlockState:)`처럼 고정한다.

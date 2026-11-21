@@ -1,5 +1,5 @@
 ### ADR-0014 microRIBs 기반 Apple 멀티플랫폼(iOS·macOS) 아키텍처 및 형제 계층 구조 채택
-- 상태: 채택
+- 상태: 대체됨 (→ ADR-APL-002)
 - 날짜: 2026-10-30
 - 배경: ADR-0010에서는 iOS 네이티브 구현을 확정하고 macOS 구현 방식(웹 코드 공유 vs 네이티브)의 결정을 보류하였다. 그러나 패스워드 매니저의 핵심 사용자 경험인 상단 메뉴바 상주(Status Item), 글로벌 단축키, 네이티브 키체인 연동, 클립보드 30초 자동 소각(COM-001)을 데스크톱 환경에서 완벽히 보장하고 iOS 네이티브 코드와의 시너지를 극대화하기 위해 macOS 역시 Swift 네이티브로 구현하기로 결정하였다. 또한 기존 모바일 중심 RIBs를 macOS 다중 윈도우 환경에 결합할 때 발생하는 윈도우 수명주기 및 UI 렌더링 충돌 문제를 체계적으로 해결해야 한다.
 - 결정: (1) iOS와 macOS를 하나의 Swift 멀티플랫폼 모듈(`Apps/Apple`)로 통합하여 비즈니스 로직(Domain, Data, Interactor)을 100% 공유한다. (2) 비즈니스 결정 및 화면 상태 제어 엔진으로 Swift 6 Strict Concurrency 기반의 `microRIBs`를 채택한다. (3) macOS 데스크톱 환경의 특수성을 고려하여 `LoggedInRIB` 하위에 `MenuBarRIB`(상단 메뉴바 상주)과 `MainWindowRIB`(3단 메인 창)을 동등한 형제(Sibling) 관계로 분리 배치한다. 메인 창을 닫아도 메뉴바 팝오버는 유지되나, SEC-003(5분 자동 잠금, 화면 잠금/절전 진입) 격발 시에는 `LoggedInRIB` 트리가 detach되며 메모리 내 볼트 암호화 키를 즉시 제로화(Zeroize)하고 잠금 상태로 복귀한다. (4) 화면 렌더링은 SwiftUI를 채택하며, `NSHostingController` 및 `UIHostingController`를 래핑하는 `SwiftUIViewControllable` 어댑터를 통해 RIBs 라우터에 바인딩한다. (5) 타이머 기반 비동기 워커(AutoLock, ClipboardBurn)에는 태스크 교체형 캔슬레이션 패턴을 적용하여 좀비 타이머로 인한 데이터 레이스를 차단한다.

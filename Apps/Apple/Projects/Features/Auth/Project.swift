@@ -1,14 +1,9 @@
 import ProjectDescription
 import ProjectDescriptionHelpers
 
-let project = Project.makeFeature(
+// 공유 Kotlin Auth RIB의 SwiftUI 뷰, Example 앱, 뷰 테스트 (modularization-plan F단계)
+let project = Project(
 	name: "AuthFeature",
-	interfaceDependencies: [
-		.project(target: "KeyManageDomain", path: "../../Core/Domain")
-	],
-	implementationDependencies: [
-		.project(target: "KeyManageDomain", path: "../../Core/Domain"),
-		.project(target: "KeyManageDesignSystem", path: "../../Core/DesignSystem")
-	],
-	extraTargets: SharedFeature.targets(name: "Auth")
+	settings: .swift6Settings,
+	targets: SharedFeature.targets(name: "Auth")
 )
