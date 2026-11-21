@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "kotlin": "node scripts/buildKotlin.ts",
+    "kotlin:example": "node scripts/buildKotlin.ts example",
+    "example": "npm run kotlin:example && vite --config vite.example.config.ts",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
