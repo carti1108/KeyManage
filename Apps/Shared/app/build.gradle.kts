@@ -26,7 +26,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            api(project(":domain"))
+            api(project(":core:domain"))
             api(project(":core:feature-base"))
             // 나눈 피처. 부모 RIB(Root)은 interface만 보고, 구현 Builder는 여기서 넣는다 (modularization-plan 3장 1번)
             api(project(":features:unlock:implementation"))

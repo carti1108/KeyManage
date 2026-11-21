@@ -1,4 +1,4 @@
-// 마스터 비밀번호 → 마스터 키 → 암호화 키·인증 해시 유도(vault-spec 2장, ADR-0008, ADR-0011)는 공유 Kotlin(Apps/Shared/crypto)이 한다.
+// 마스터 비밀번호 → 마스터 키 → 암호화 키·인증 해시 유도(vault-spec 2장, ADR-0008, ADR-0011)는 공유 Kotlin(Apps/Shared/core/crypto)이 한다.
 // 웹에는 기기 기록 검사(deviceRecord)가 쓰는 KDF 한계값과 화면이 오류 종류를 구분하는 데 쓰는 오류 정의만 남긴다
 
 export const MIN_ITERATIONS = 600_000

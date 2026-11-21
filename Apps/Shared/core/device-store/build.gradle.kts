@@ -34,11 +34,11 @@ kotlin {
         val fileSources = "src/fileMain/kotlin"
         jvmMain {
             kotlin.srcDir(fileSources)
-            dependencies { api(project(":domain")) }
+            dependencies { api(project(":core:domain")) }
         }
         androidMain {
             kotlin.srcDir(fileSources)
-            dependencies { api(project(":domain")) }
+            dependencies { api(project(":core:domain")) }
         }
     }
 }

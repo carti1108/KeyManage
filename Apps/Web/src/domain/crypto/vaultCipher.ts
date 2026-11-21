@@ -1,4 +1,4 @@
-// 볼트 평문 JSON ↔ 암호화 페이로드 변환(vault-spec 3장, ADR-0011)은 공유 Kotlin(Apps/Shared/crypto)이 한다.
+// 볼트 평문 JSON ↔ 암호화 페이로드 변환(vault-spec 3장, ADR-0011)은 공유 Kotlin(Apps/Shared/core/crypto)이 한다.
 // 웹에는 페이로드 타입과 화면이 오류 종류를 구분하는 데 쓰는 오류 정의만 남긴다
 
 /** 서버와 기기에 저장되는 암호화 볼트. 평문 헤더(version, cipher)는 AAD로 인증된다 */

@@ -17,13 +17,13 @@ dependencyResolutionManagement {
     }
 }
 
-include(":crypto")
-include(":secure-store")
-include(":device-store")
-include(":domain")
-include(":server-http")
+include(":core:crypto")
+include(":core:secure-store")
+include(":core:device-store")
+include(":core:domain")
+include(":core:server-http")
 include(":web-session")
-include(":feature")
+include(":app")
 
 // 피처가 함께 쓰는 것 (modularization-plan 2장)
 include(":core:feature-base")

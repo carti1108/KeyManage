@@ -6,7 +6,7 @@ plugins {
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            api(project(":domain"))
+            api(project(":core:domain"))
         }
         commonTest.dependencies {
             implementation(kotlin("test"))

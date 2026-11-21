@@ -21,10 +21,10 @@ kotlin {
 
     sourceSets {
         jsMain.dependencies {
-            api(project(":domain"))
-            api(project(":server-http"))
+            api(project(":core:domain"))
+            api(project(":core:server-http"))
             // 공유 RIB과 웹 어댑터(ViewStore·ScreenSlot). 웹 뷰 구현(WebXxxView)과 진입점 WebKeyManageApp이 쓴다 (domain-migration-plan 11장)
-            api(project(":feature"))
+            api(project(":app"))
             api("com.carti.ribs:ribs-web")
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.serialization.json)

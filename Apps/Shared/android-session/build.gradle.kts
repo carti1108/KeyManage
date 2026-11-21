@@ -22,10 +22,10 @@ kotlin {
 
     sourceSets {
         androidMain.dependencies {
-            api(project(":feature"))
-            api(project(":server-http"))
-            api(project(":device-store"))
-            api(project(":secure-store"))
+            api(project(":app"))
+            api(project(":core:server-http"))
+            api(project(":core:device-store"))
+            api(project(":core:secure-store"))
             implementation(libs.kotlinx.coroutines.android)
             implementation(libs.androidx.fragment)
             implementation(libs.androidx.biometric)

@@ -1,10 +1,10 @@
 // 웹 TypeScript 도메인이 만든 볼트 JSON을 Kotlin 테스트 상수로 저장한다 (domain-migration-plan.md 1단계)
 // Kotlin(VaultCompatTest)은 같은 입력·같은 편집 순서로 만든 결과가 바이트 단위로 같은지 비교한다.
-// 실행: node Apps/Shared/domain/compat/generate-vault-fixtures.ts (Node 23.6 이상, TypeScript 직접 실행)
+// 실행: node Apps/Shared/core/domain/compat/generate-vault-fixtures.ts (Node 23.6 이상, TypeScript 직접 실행)
 import { writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { addItem, deleteItem, emptyVault, parseVaultData, updateItem } from '../../../Web/src/domain/vault/vaultData.ts'
-import { mergeVaults } from '../../../Web/src/domain/vault/mergeVaults.ts'
+import { addItem, deleteItem, emptyVault, parseVaultData, updateItem } from '../../../../Web/src/domain/vault/vaultData.ts'
+import { mergeVaults } from '../../../../Web/src/domain/vault/mergeVaults.ts'
 
 const TS = '2026-10-29T00:00:00Z'
 const tricky = 'q"uote \\back\nline\ttab \u0001 \u2028 </script> 이모지😀 $dollar'
@@ -45,7 +45,7 @@ const escaped = JSON.stringify(outputs).replaceAll('\\', '\\\\').replaceAll('"',
 const target = fileURLToPath(new URL('../src/commonTest/kotlin/com/keymanage/domain/vault/VaultCompatFixtures.kt', import.meta.url))
 writeFileSync(
   target,
-  `package com.keymanage.domain.vault\n\n// 생성 파일. 직접 고치지 않는다. 다시 만들기: node Apps/Shared/domain/compat/generate-vault-fixtures.ts\n` +
+  `package com.keymanage.domain.vault\n\n// 생성 파일. 직접 고치지 않는다. 다시 만들기: node Apps/Shared/core/domain/compat/generate-vault-fixtures.ts\n` +
     `internal const val VAULT_COMPAT_JSON = "${escaped}"\n`,
 )
 console.log(`wrote ${target}`)

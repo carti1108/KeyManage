@@ -2,7 +2,7 @@
 # API 명세(docs/api-spec.md) ↔ 백엔드·클라이언트 코드 계약 드리프트 정적 감사 (API Contract Drift Gate)
 #
 # docs/api-spec.md에 정의된 REST 엔드포인트(메서드·경로) 및 표준 오류 코드·메시지를 추출하여
-# Back/api 및 클라이언트(Apps/Web이 쓰는 공유 Kotlin Apps/Shared/server-http, 그리고 HTTP 어댑터가 구현된 Apps/Apple·Apps/Android)와
+# Back/api 및 클라이언트(Apps/Web이 쓰는 공유 Kotlin Apps/Shared/core/server-http, 그리고 HTTP 어댑터가 구현된 Apps/Apple·Apps/Android)와
 # 불일치(Drift)가 없는지 0초 만에 기계적으로 대조한다.
 
 set -euo pipefail
@@ -131,7 +131,7 @@ if os.path.isdir(back_api_dir):
         violations.append(f"[Back/api] Controller에만 존재하고 docs/api-spec.md에 없는 엔드포인트: {extra_ep_back}")
 
 # 4. Apps/Web 계약 대조
-# 웹이 실제로 쓰는 서버 통신 구현은 공유 Kotlin(Apps/Shared/server-http의 HttpAdapters.kt, domain의 ServerErrors.kt)이다.
+# 웹이 실제로 쓰는 서버 통신 구현은 공유 Kotlin(Apps/Shared/core/server-http의 HttpAdapters.kt, domain의 ServerErrors.kt)이다.
 # 옛 TS 구현(Apps/Web/src/adapters/http, domain/server/serverErrors.ts)이 남아 있으면 그쪽도 같은 기준으로 대조한다.
 web_src_dir = os.path.join(root, "Apps", "Web", "src")
 shared_dir = os.path.join(root, "Apps", "Shared")
@@ -139,7 +139,7 @@ if os.path.isdir(web_src_dir) or os.path.isdir(shared_dir):
     # 4-1. 오류 코드 대조 (Kotlin ServerErrorCode enum, 옛 TS SERVER_ERROR_CODES)
     web_code_sources = []  # (표시 이름, 코드 집합)
     kt_error_files = glob.glob(
-        os.path.join(shared_dir, "domain", "src", "commonMain", "**", "ServerErrors.kt"), recursive=True
+        os.path.join(shared_dir, "core", "domain", "src", "commonMain", "**", "ServerErrors.kt"), recursive=True
     )
     for kpath in kt_error_files:
         with open(kpath, encoding="utf-8") as f:
@@ -163,7 +163,7 @@ if os.path.isdir(web_src_dir) or os.path.isdir(shared_dir):
 
     if not web_code_sources:
         violations.append(
-            "[Apps/Web] 서버 오류 코드 정의(Apps/Shared/domain ServerErrors.kt 또는 src/domain/server/serverErrors.ts)를 찾을 수 없습니다."
+            "[Apps/Web] 서버 오류 코드 정의(Apps/Shared/core/domain ServerErrors.kt 또는 src/domain/server/serverErrors.ts)를 찾을 수 없습니다."
         )
     for source_name, web_codes in web_code_sources:
         missing_in_web = sorted(spec_error_codes - web_codes)
@@ -181,7 +181,7 @@ if os.path.isdir(web_src_dir) or os.path.isdir(shared_dir):
 
     kt_http_files = [
         p
-        for p in glob.glob(os.path.join(shared_dir, "server-http", "src", "commonMain", "**", "*.kt"), recursive=True)
+        for p in glob.glob(os.path.join(shared_dir, "core", "server-http", "src", "commonMain", "**", "*.kt"), recursive=True)
         if os.path.isfile(p)
     ]
     if kt_http_files:
@@ -191,7 +191,7 @@ if os.path.isdir(web_src_dir) or os.path.isdir(shared_dir):
                 ktext = f.read()
             for m in re.finditer(r'client\.request\(\s*HttpMethod\.(Get|Post|Put|Delete|Patch)\s*,\s*"(/[^"]*)"', ktext):
                 kt_endpoints.add((m.group(1).upper(), to_full_path(m.group(2))))
-        web_endpoint_sources.append(("Apps/Shared/server-http HTTP 어댑터", kt_endpoints))
+        web_endpoint_sources.append(("Apps/Shared/core/server-http HTTP 어댑터", kt_endpoints))
 
     http_dir = os.path.join(web_src_dir, "adapters", "http")
     ts_http_files = [p for p in glob.glob(os.path.join(http_dir, "*.ts")) if not p.endswith(".test.ts")]
@@ -206,7 +206,7 @@ if os.path.isdir(web_src_dir) or os.path.isdir(shared_dir):
         web_endpoint_sources.append(("Apps/Web HTTP 어댑터(TS)", ts_endpoints))
 
     if not web_endpoint_sources:
-        violations.append("[Apps/Web] HTTP 어댑터(Apps/Shared/server-http HttpAdapters.kt)를 찾을 수 없습니다.")
+        violations.append("[Apps/Web] HTTP 어댑터(Apps/Shared/core/server-http HttpAdapters.kt)를 찾을 수 없습니다.")
     for source_name, web_endpoints in web_endpoint_sources:
         missing_ep_web = sorted(spec_endpoints - web_endpoints)
         extra_ep_web = sorted(web_endpoints - spec_endpoints)
