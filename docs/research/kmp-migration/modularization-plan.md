@@ -36,6 +36,7 @@ Apps/Shared/                          Gradle, Kotlin 공유
     tests/                            Interactor·Router·Builder 테스트
   app/                                Root에서 트리를 조립하는 진입점(KeyManageApp)
   android-session/ web-session/       플랫폼 포트 구현과 앱 진입점
+  web-example/                        웹 피처 Example용 번들. 시나리오로 RIB 하나를 웹 뷰에 붙인다
 
 Apps/Android/feature/<name>/
   ui/                                 Compose 뷰. 공유 interface와 designsystem에만 의존한다
@@ -159,3 +160,18 @@ A~C는 [android-migration-plan.md](android-migration-plan.md)의 3단계(공유 
 - 이 문서와 다른 조사 문서의 앞선 기록에 나오는 `Apps/Shared/domain`, `Apps/Shared/feature` 같은 경로는 그때의 위치다. 고치지 않았다.
 - `Scripts/check-api-contract.sh`의 Android 구역은 지운 옛 Android 어댑터 경로를 본다. 파일이 없으면 건너뛰므로 지금은 아무것도 검사하지 않는다. Android가 쓰는 서버 통신은 공유 `core/server-http`라 같은 스크립트의 공유 Kotlin 검사가 대신한다.
 - 남은 것: E(웹 Example), F(iOS).
+
+### E단계: 웹 Example (2026-11-21)
+
+| 항목 | 내용 |
+| :--- | :--- |
+| 공유 모듈 | `Apps/Shared/web-example`(JS 전용). `exampleFeatures()`가 피처와 시나리오 이름을 주고, `launchExample(피처, 번호, onEvent)`가 그 시나리오의 가짜 세션으로 공유 RIB 하나를 만들어 웹 뷰(`WebXxxView`)에 붙인다. Android의 `feature/<이름>/example`과 같은 조립이다 |
+| 번들 분리 | 가짜 세션과 시나리오가 배포 번들에 들어가지 않게 `web-session`과 따로 빌드한다. `web-example`은 `web-session`에 의존하므로 결과 폴더에 같은 `web-session` 모듈이 함께 나온다 |
+| 웹 페이지 | `Apps/Web/example.html`과 `src/example/`. 피처별 시나리오 목록을 보이고, 고르면 실제 화면(`ui/rib/*RibScreen`)을 띄운다. 아래에 RIB이 부모에 알린 결과를 보인다 |
+| 실행 | `Apps/Web`에서 `npm run example`. Example 번들을 빌드한 뒤 `vite.example.config.ts`로 5174 포트에 연다. 이 설정은 `keymanage-web-session`도 Example 번들 폴더의 것으로 돌려 Kotlin 런타임이 한 벌만 뜬다 |
+| 타입 | Example 번들은 `npm run check` 때 없을 수 있어, 페이지가 쓰는 두 함수의 타입을 `src/example/exampleModule.d.ts`에 손으로 적었다. Kotlin 쪽을 고치면 함께 맞춘다 |
+
+- 확인: 헤드리스 Chrome으로 목록의 시나리오 52개를 하나씩 눌러 화면이 뜨고 콘솔 오류가 없는 것을 보았다. 웹 `npm run check` 505건 통과. 시나리오 안의 동작(입력, 버튼)은 눌러 보지 않았다.
+- 웹 잠금 화면은 생체 해제를 그리지 않으므로 Unlock의 생체 시나리오는 웹에서 보통 잠금 화면으로 보인다.
+- 배포 빌드(`vite build`)의 입력은 `index.html`뿐이라 Example 페이지는 들어가지 않는다.
+- 남은 것: F(iOS).
