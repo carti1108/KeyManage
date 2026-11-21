@@ -1,32 +1,30 @@
 # Android 클라이언트 문서
 
-> **요약** Android 클라이언트는 `Apps/Android`의 단독 Gradle 프로젝트다. 구조는 [ADR-AND-001](adr/ADR-AND-001-android-architecture.md)을 따른다. 공통 정책과 공통 ADR은 루트 [`docs/`](../../../docs/README.md)를 따른다.
+> **요약** Android 클라이언트는 Compose 뷰와 앱 진입점만 갖고, 도메인과 RIB은 `Apps/Shared`의 공유 Kotlin 모듈을 composite build로 가져온다. 구조는 [ADR-AND-003](adr/ADR-AND-003-shared-kotlin-ribs.md)을 따른다. 공통 정책과 공통 ADR은 루트 [`docs/`](../../../docs/README.md)를 따른다.
 
 ## 빌드와 검사
 
-`Apps/Android`에서 실행한다. JDK 21과 Android SDK가 필요하고, SDK 위치는 `local.properties`의 `sdk.dir`에 적는다(커밋하지 않는다).
+`Apps/Android`에서 실행한다. JDK 21과 Android SDK가 필요하다. `Apps/Shared`가 쓰는 carti-RIBs-KMP 소스도 필요한데, 저장소 옆 폴더(`../carti-RIBs-KMP`)에 두거나 `CARTI_RIBS_DIR` 환경 변수로 위치를 알린다. SDK 위치는 `local.properties`의 `sdk.dir`에 적는다(커밋하지 않는다).
 
 ```bash
 ./gradlew test lint assembleDebug
 ```
 
-CI의 `android` 잡이 같은 명령을 돌린다.
+CI의 `android` 잡이 공유 모듈 JVM 테스트와 같은 명령을 돌린다.
 
 ## 모듈
 
 | 모듈 | 내용 |
 | :--- | :--- |
-| `:app` | Activity와 앱 조립. 피처 implementation에 의존하는 유일한 모듈 |
-| `:core:domain` | 순수 Kotlin. 엔티티, 유스케이스, 포트 인터페이스 |
-| `:core:data` | 포트 구현(javax.crypto, Keystore, 네트워크, 저장) |
+| `:app` | `MainActivity`와 프로세스 단위 조립(`KeyManageProcess`) |
 | `:core:designsystem` | 테마와 KM 컴포넌트 |
-| `:core:rib` | uber/RIBs와 ViewState/ViewAction 연결(`ViewStateStore`, `ViewActionStream`) |
-| `:feature:<이름>:interface` | Buildable, Dependency, Listener |
-| `:feature:<이름>:implementation` | Builder, Interactor, Router, View, ViewState/ViewAction |
-| `:feature:<이름>:testing` | 다른 모듈이 쓰는 테스트 더블 |
-| `:feature:<이름>:tests` | 그 피처의 단위 테스트 |
+| `:core:example` | 피처 Example 앱이 함께 쓰는 틀(`FeatureExample`) |
+| `:feature:<이름>:ui` | 공유 ViewContract를 구현하는 Compose 뷰 |
+| `:feature:<이름>:example` | 공유 Testing 시나리오로 그 피처 화면만 띄우는 앱 |
 
-빌드 설정은 `build-logic`의 convention 플러그인(`km.jvm.library`, `km.android.library`, `km.android.compose`, `km.android.application`)으로 모은다. 버전은 `gradle/libs.versions.toml`에서만 바꾼다.
+도메인, 피처 RIB(interface·implementation·testing·tests), Android 플랫폼 구현(`android-session`)은 `Apps/Shared`에 있다. 공유 모듈 테스트는 `Apps/Shared`에서 `./gradlew jvmTest`로 돌린다.
+
+빌드 설정은 `build-logic`의 convention 플러그인(`km.android.library`, `km.android.compose`, `km.android.application`)으로 모은다. 버전은 `gradle/libs.versions.toml`에서만 바꾼다.
 
 ## 문서
 
