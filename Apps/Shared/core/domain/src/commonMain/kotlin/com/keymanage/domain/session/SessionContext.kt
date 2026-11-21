@@ -29,6 +29,8 @@ internal class SessionContext(val deps: VaultSessionDeps) {
     val lockListeners = mutableSetOf<() -> Unit>()
     val unlockListeners = mutableSetOf<() -> Unit>()
     val remoteListeners = mutableSetOf<() -> Unit>()
+    /** 열린 볼트의 동기화 대기 여부가 바뀔 때(저장이 대기가 됨, 재전송으로 풀림) */
+    val pendingListeners = mutableSetOf<() -> Unit>()
 
     val device = DevicePersistence(deps.deviceStore) { error -> notifySync(this, error) }
     var account: Account? = null
@@ -87,6 +89,12 @@ internal fun isUnauthorized(error: Throwable): Boolean = error is ServerError &&
 
 internal fun notify(listeners: Set<() -> Unit>) {
     for (listener in listeners.toList()) listener()
+}
+
+/** [before]와 지금의 동기화 대기 여부가 다르면 알린다 */
+internal fun notifyIfPendingChanged(ctx: SessionContext, before: Boolean) {
+    val now = ctx.unlocked?.pendingSync ?: return
+    if (now != before) notify(ctx.pendingListeners)
 }
 
 internal fun notifySync(ctx: SessionContext, error: Throwable?) {

@@ -60,6 +60,8 @@ class MainInteractor(
         unsubscribes = listOf(
             session.onSyncChange { error -> post { handleSyncChange(error) } },
             session.onRemoteChange { post { refreshSession() } },
+            // 서버에 닿지 못해 저장이 대기가 되면 네트워크가 연결돼 있어도 오프라인 안내를 보인다 (VLT-002)
+            session.onPendingSyncChange { post { refreshSession() } },
             environment.subscribeNetwork { post { refreshSession() } },
             // 복사하면 비울 시각을, 비웠거나 다른 것을 복사했으면 null을 받는다 (COM-001)
             clipboard.subscribeBurn { at -> post { update { copy(clipboardBurnAt = at) } } },

@@ -41,6 +41,9 @@ interface SessionPort {
     fun onUnlock(listener: () -> Unit): () -> Unit
     fun onSyncChange(listener: SyncChangeListener): () -> Unit
 
+    /** 열린 볼트의 동기화 대기 여부가 바뀔 때(저장이 대기가 됨, 재전송으로 풀림) (VLT-002). 알림이 없는 구현은 아무것도 하지 않는다 */
+    fun onPendingSyncChange(listener: () -> Unit): () -> Unit = {}
+
     // 생체 해제 (SEC-003 규칙 4·8). 생체 인증이 없는 플랫폼(웹)은 기본 구현 그대로 두면 화면에 나오지 않는다
 
     /** 이 기기에서 생체 해제를 켤 수 있는지 */
@@ -88,6 +91,7 @@ class SessionPortAdapter(private val session: VaultSession) : SessionPort {
     override fun onLock(listener: () -> Unit) = session.onLock(listener)
     override fun onUnlock(listener: () -> Unit) = session.onUnlock(listener)
     override fun onSyncChange(listener: SyncChangeListener) = session.onSyncChange(listener)
+    override fun onPendingSyncChange(listener: () -> Unit) = session.onPendingSyncChange(listener)
     override val isBiometricUnlockAvailable: Boolean get() = session.isBiometricUnlockAvailable
     override val isBiometricUnlockEnabled: Boolean get() = session.isBiometricUnlockEnabled
     override val isBiometricPasswordRequired: Boolean get() = session.isBiometricPasswordRequired

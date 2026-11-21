@@ -307,7 +307,11 @@ class VaultSession(private val deps: VaultSessionDeps) : RestoreTarget {
         // 기준 revision은 마지막으로 서버와 맞춘 값 그대로다. 서버가 앞서 있으면 보낼 때 병합한다
         open(ctx, latestAccount.email, latestAccount.accessToken, latestAccount.kdf, latest.sync, SyncedVault(vault.revision, data, readOnly = false, payload = payload), pendingSync = true)
         ctx.retryBlocked = false
-        enqueuePush(ctx)
+        try {
+            enqueuePush(ctx)
+        } finally {
+            notifyIfPendingChanged(ctx, before = opened.pendingSync)
+        }
     }
 
     /**
@@ -382,7 +386,10 @@ class VaultSession(private val deps: VaultSessionDeps) : RestoreTarget {
         val opened = ctx.unlocked
         if (ctx.retryBlocked || opened == null || !opened.pendingSync) return
         try {
-            if (enqueuePush(ctx) == PushResult.SYNCED) notifySync(ctx, null)
+            if (enqueuePush(ctx) == PushResult.SYNCED) {
+                notifyIfPendingChanged(ctx, before = true)
+                notifySync(ctx, null)
+            }
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
@@ -463,6 +470,9 @@ class VaultSession(private val deps: VaultSessionDeps) : RestoreTarget {
 
     /** 다른 탭 때문에 상태가 바뀌었을 때(병합, 잠금, 로그아웃) 부를 함수를 등록한다. 화면이 상태를 다시 읽는다. @return 해제 함수 */
     fun onRemoteChange(listener: () -> Unit): () -> Unit = subscribe(ctx.remoteListeners, listener)
+
+    /** 열린 볼트의 동기화 대기 여부가 바뀔 때(저장이 서버에 닿지 못해 대기가 됨, 재전송으로 풀림) 부를 함수를 등록한다. 화면이 상태를 다시 읽는다 (VLT-002) */
+    fun onPendingSyncChange(listener: () -> Unit): () -> Unit = subscribe(ctx.pendingListeners, listener)
 
     /** 볼트가 닫힐 때(잠금, 잠금 해제 상태에서 로그아웃) 부를 함수를 등록한다. 클립보드 비우기 등 (COM-001) */
     fun onLock(listener: () -> Unit): () -> Unit = subscribe(ctx.lockListeners, listener)

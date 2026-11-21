@@ -96,8 +96,9 @@ class FakeSession : SessionPort {
     val lockListeners = mutableSetOf<() -> Unit>()
     val unlockListeners = mutableSetOf<() -> Unit>()
     val remoteListeners = mutableSetOf<() -> Unit>()
+    val pendingListeners = mutableSetOf<() -> Unit>()
     val syncListeners = mutableSetOf<SyncChangeListener>()
-    val listenerCount: Int get() = lockListeners.size + unlockListeners.size + remoteListeners.size + syncListeners.size
+    val listenerCount: Int get() = lockListeners.size + unlockListeners.size + remoteListeners.size + syncListeners.size + pendingListeners.size
 
     fun unlockedState(): SessionState.Unlocked = SessionState.Unlocked(
         email = email,
@@ -132,6 +133,7 @@ class FakeSession : SessionPort {
 
     fun fireLock() = lockListeners.toList().forEach { it() }
     fun fireRemote() = remoteListeners.toList().forEach { it() }
+    fun firePendingChange() = pendingListeners.toList().forEach { it() }
     fun fireSync(error: Throwable?) = syncListeners.toList().forEach { it(error) }
 
     /** 이 탭이 잠긴다 */
@@ -238,6 +240,11 @@ class FakeSession : SessionPort {
     override fun onRemoteChange(listener: () -> Unit): () -> Unit {
         remoteListeners += listener
         return { remoteListeners -= listener }
+    }
+
+    override fun onPendingSyncChange(listener: () -> Unit): () -> Unit {
+        pendingListeners += listener
+        return { pendingListeners -= listener }
     }
 
     override fun onLock(listener: () -> Unit): () -> Unit {
