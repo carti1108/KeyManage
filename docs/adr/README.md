@@ -24,7 +24,7 @@
 | 번호 | 제목 | 상태 | 날짜 |
 |---|---|---|---|
 | [ADR-0001](ADR-0001-zero-knowledge-security-architecture.md) | 영지식(Zero-Knowledge) 클라이언트 암호화 아키텍처 채택 | 채택 | 2026-10-27 |
-| [ADR-0004](ADR-0004-complete-boundary-isolation-and-dependency-inversion.md) | 영역 간 완전 격리 및 백엔드 교체형 DIP 아키텍처 채택 | 채택 | 2026-10-28 |
+| [ADR-0004](ADR-0004-complete-boundary-isolation-and-dependency-inversion.md) | 영역 간 완전 격리 및 백엔드 교체형 DIP 아키텍처 채택 | 대체됨 (→ ADR-0029) | 2026-10-28 |
 | [ADR-0005](ADR-0005-client-only-password-generation-and-audit.md) | 비밀번호 생성·진단의 클라이언트 전용 수행 | 채택 | 2026-10-28 |
 | [ADR-0006](ADR-0006-optimistic-locking-vault-sync.md) | 볼트 동기화 충돌 해결을 낙관적 잠금과 클라이언트 병합으로 전환 | 채택 | 2026-10-28 |
 | [ADR-0008](ADR-0008-auth-hash-and-server-session.md) | 마스터 키 분리 기반 인증 해시와 서버 저장형 세션 채택 | 채택 | 2026-10-28 |
@@ -39,3 +39,4 @@
 | [ADR-0026](ADR-0026-design-token-generation.md) | 디자인 토큰은 JSON 원본 하나에서 플랫폼 코드를 생성한다 | 채택 | 2026-11-14 |
 | [ADR-0027](ADR-0027-typography-role-tokens.md) | 타이포그래피는 역할 토큰으로 공유하고 크기는 플랫폼 단위로 매핑한다 | 채택 | 2026-11-14 |
 | [ADR-0028](ADR-0028-ktor-client-for-shared-kotlin.md) | 공유 Kotlin 모듈의 HTTP 클라이언트로 Ktor Client를 쓴다 | 채택 | 2026-11-12 |
+| [ADR-0029](ADR-0029-shared-kotlin-clients.md) | 클라이언트는 뷰만 플랫폼별로 두고 나머지는 Kotlin 공유 모듈을 쓴다 | 채택 | 2026-11-22 |
