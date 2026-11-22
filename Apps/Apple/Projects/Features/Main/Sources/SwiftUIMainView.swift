@@ -26,6 +26,21 @@ public final class SwiftUIMainView: NSObject, @preconcurrency MainViewContract, 
 		tabSlot.hide(anyView: view)
 	}
 
+	/// macOS는 사이드바 아래 상자에 설정 화면을 늘 둔다(데스크톱 시안)
+	public var usesSidebarSettings: Bool {
+		#if os(macOS)
+		true
+		#else
+		false
+		#endif
+	}
+
+	private(set) var sidebarSettings: SwiftUISettingsView?
+
+	public func showSidebarSettings(view: any ViewControllable) {
+		sidebarSettings = view as? SwiftUISettingsView
+	}
+
 	func send(_ action: MainViewAction) {
 		listener?.handle(mainAction: action)
 	}
@@ -41,12 +56,7 @@ private struct MainScreen: View {
 
 	var body: some View {
 		if let state = view.state {
-			VStack(spacing: 0) {
-				MainNotices(state: state, send: view.send)
-				RIBSlotView(slot: view.tabSlot)
-					.frame(maxWidth: .infinity, maxHeight: .infinity)
-				TabBar(selected: state.selectedTab) { view.send(MainViewActionSelectTab(tab: $0)) }
-			}
+			layout(state)
 			.background(DesignToken.View.background)
 			.alert(RollbackWarning.shared.TITLE, isPresented: sharedStateBinding(state.isConfirmingReconnectRollback) {
 				view.send(MainViewActionCancelReconnectRollback.shared)
@@ -77,6 +87,96 @@ private struct MainScreen: View {
 		}
 	}
 }
+
+extension MainScreen {
+	/// iPhone은 아래 탭 바, macOS는 왼쪽 사이드바(데스크톱 시안, 웹 MainRibScreen과 같은 틀)
+	@ViewBuilder
+	private func layout(_ state: MainViewState) -> some View {
+		#if os(macOS)
+		HStack(spacing: 0) {
+			Sidebar(state: state, settings: view.sidebarSettings, send: view.send)
+			Divider()
+			VStack(spacing: 0) {
+				MainNotices(state: state, send: view.send)
+				RIBSlotView(slot: view.tabSlot)
+					.frame(maxWidth: .infinity, maxHeight: .infinity)
+			}
+		}
+		#else
+		VStack(spacing: 0) {
+			MainNotices(state: state, send: view.send)
+			RIBSlotView(slot: view.tabSlot)
+				.frame(maxWidth: .infinity, maxHeight: .infinity)
+			TabBar(selected: state.selectedTab) { view.send(MainViewActionSelectTab(tab: $0)) }
+		}
+		#endif
+	}
+}
+
+#if os(macOS)
+/// 위에는 브랜드·이메일과 메뉴, 아래에는 잠그기·로그아웃
+private struct Sidebar: View {
+	static let width: CGFloat = 240
+	let state: MainViewState
+	let settings: SwiftUISettingsView?
+	let send: (MainViewAction) -> Void
+
+	var body: some View {
+		VStack(alignment: .leading, spacing: DesignToken.Spacing.space4) {
+			VStack(alignment: .leading, spacing: DesignToken.Spacing.space1) {
+				Text("KeyManage")
+					.font(DesignToken.Typography.heading.weight(.bold))
+					.accessibilityAddTraits(.isHeader)
+				Text(state.email)
+					.font(DesignToken.Typography.caption)
+					.foregroundColor(DesignToken.View.mutedForeground)
+					.lineLimit(1)
+					.truncationMode(.middle)
+			}
+			VStack(spacing: DesignToken.Spacing.space1) {
+				ForEach(MainTab.entries, id: \.self) { tab in
+					menuButton(tab)
+				}
+			}
+			Spacer()
+			Divider()
+			if let settings {
+				settings.makeSidebarView()
+			}
+			HStack(spacing: DesignToken.Spacing.space2) {
+				KMButton("잠그기", variant: .outline, size: .sm, icon: "lock", isFullWidth: true) { send(MainViewActionRequestLock.shared) }
+					.accessibilityIdentifier("main.lock")
+				KMButton("로그아웃", variant: .ghost, size: .sm, icon: "rectangle.portrait.and.arrow.right", isFullWidth: true) { send(MainViewActionRequestLogout.shared) }
+					.accessibilityIdentifier("main.logout")
+			}
+		}
+		.padding(DesignToken.Spacing.space4)
+		.frame(width: Self.width)
+		.frame(maxHeight: .infinity, alignment: .top)
+		.background(DesignToken.View.card)
+	}
+
+	private func menuButton(_ tab: MainTab) -> some View {
+		let isSelected = tab == state.selectedTab
+		return Button { send(MainViewActionSelectTab(tab: tab)) } label: {
+			HStack(spacing: DesignToken.Spacing.space3) {
+				Image(systemName: tab.icon).frame(width: 16)
+				Text(tab.label).font(DesignToken.Typography.label.weight(isSelected ? .semibold : .medium))
+				Spacer()
+			}
+			.padding(.horizontal, DesignToken.Spacing.space3)
+			.frame(height: 33)
+			.foregroundColor(isSelected ? DesignToken.View.accentForeground : DesignToken.View.mutedForeground)
+			.background(isSelected ? DesignToken.View.accent : Color.clear)
+			.clipShape(RoundedRectangle(cornerRadius: DesignToken.Radius.md))
+			.contentShape(Rectangle())
+		}
+		.buttonStyle(.plain)
+		.accessibilityAddTraits(isSelected ? .isSelected : [])
+		.accessibilityIdentifier("main.tab.\(tab.name.lowercased())")
+	}
+}
+#endif
 
 private struct MainNotices: View {
 	let state: MainViewState

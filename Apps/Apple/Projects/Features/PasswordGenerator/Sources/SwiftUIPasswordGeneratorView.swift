@@ -22,7 +22,11 @@ public final class SwiftUIPasswordGeneratorView: NSObject, @preconcurrency Passw
 	}
 
 	public func makeView() -> AnyView {
+		#if os(macOS)
+		AnyView(DesktopGeneratorScreen(view: self))
+		#else
 		AnyView(PasswordGeneratorScreen(view: self))
+		#endif
 	}
 }
 

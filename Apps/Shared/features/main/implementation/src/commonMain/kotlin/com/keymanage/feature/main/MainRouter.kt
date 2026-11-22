@@ -38,6 +38,13 @@ class MainRouter(
         shown = screen
     }
 
+    /** 사이드바에 설정을 두는 화면이면 설정 RIB을 붙여 사이드바에 넘긴다. 설정 탭은 이 RIB 화면을 다시 쓴다 */
+    fun showSidebarSettingsIfNeeded() {
+        if (!viewController.usesSidebarSettings || settings != null) return
+        val screen = attachSettings().also { settings = it }
+        viewController.showSidebarSettings(screen)
+    }
+
     /** 세션이 알림 없이 볼트를 바꿨을 수 있을 때 볼트 목록이 붙어 있으면 세션에서 다시 읽게 한다 (복원·재연결·탭 전환) */
     fun refreshVaultList() {
         vaultList?.refreshFromSession()

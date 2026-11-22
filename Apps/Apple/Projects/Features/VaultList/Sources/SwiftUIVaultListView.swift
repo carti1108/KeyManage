@@ -30,7 +30,11 @@ public final class SwiftUIVaultListView: NSObject, @preconcurrency VaultListView
 	}
 
 	public func makeView() -> AnyView {
+		#if os(macOS)
+		AnyView(DesktopVaultListScreen(view: self))
+		#else
 		AnyView(VaultListContent(view: self))
+		#endif
 	}
 }
 

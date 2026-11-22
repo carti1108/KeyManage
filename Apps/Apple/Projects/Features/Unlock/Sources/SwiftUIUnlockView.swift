@@ -25,7 +25,11 @@ public final class SwiftUIUnlockView: NSObject, @preconcurrency UnlockViewContra
 	}
 
 	public func makeView() -> AnyView {
+		#if os(macOS)
+		AnyView(DesktopUnlockScreen(view: self))
+		#else
 		AnyView(UnlockScreen(view: self))
+		#endif
 	}
 }
 

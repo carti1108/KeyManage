@@ -11,7 +11,10 @@ class FakeMainViews {
     val generatorViews = mutableListOf<FakeGeneratorView>()
     val settingsViews = mutableListOf<FakeSettingsView>()
 
-    fun makeMainView() = FakeMainView().also { mainViews += it }
+    /** 이후 만드는 Main 가짜 뷰가 사이드바에 설정을 두는지 */
+    var usesSidebarSettings = false
+
+    fun makeMainView() = FakeMainView(usesSidebarSettings).also { mainViews += it }
     fun makeVaultListView() = FakeVaultListView().also { vaultListViews += it }
     fun makePasswordGeneratorView() = FakeGeneratorView().also { generatorViews += it }
     fun makeSettingsView() = FakeSettingsView().also { settingsViews += it }

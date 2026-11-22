@@ -21,7 +21,11 @@ public final class SwiftUIAuthView: NSObject, @preconcurrency AuthViewContract, 
 	}
 
 	public func makeView() -> AnyView {
+		#if os(macOS)
+		AnyView(DesktopAuthScreen(view: self))
+		#else
 		AnyView(AuthScreen(view: self))
+		#endif
 	}
 }
 

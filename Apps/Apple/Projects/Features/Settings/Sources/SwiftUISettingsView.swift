@@ -23,6 +23,13 @@ public final class SwiftUISettingsView: NSObject, @preconcurrency SettingsViewCo
 	public func makeView() -> AnyView {
 		AnyView(SettingsScreen(view: self))
 	}
+
+	#if os(macOS)
+	/// 사이드바 아래 상자(자동 잠금·백업·비밀번호 변경·계정 삭제). 확인 창과 시트는 늘 보이는 이 상자가 띄운다
+	func makeSidebarView() -> AnyView {
+		AnyView(SidebarSettingsBox(view: self))
+	}
+	#endif
 }
 
 /// 설정 화면(목업 7단계)
@@ -35,7 +42,47 @@ private struct SettingsScreen: View {
 		}
 	}
 
+	@ViewBuilder
 	private func content(_ state: SettingsViewState) -> some View {
+		#if os(macOS)
+		// 확인 창과 시트는 사이드바 상자가 띄운다. 두 화면이 함께 띄우면 같은 창이 두 번 뜬다
+		layout(state)
+		#else
+		settingsModals(layout(state).navigationTitle("설정"), state: state, view: view)
+		#endif
+	}
+}
+
+/// 내보내기 확인 창과 비밀번호를 받는 시트. iPhone은 설정 화면이, macOS는 사이드바 상자가 붙인다
+@MainActor
+func settingsModals(_ content: some View, state: SettingsViewState, view: SwiftUISettingsView) -> some View {
+	let cancel = { view.send(SettingsViewActionCancelModal.shared) }
+	let isSheet = state.modal == .restorePassword || state.modal == .changePassword || state.modal == .deleteAccount
+	return content
+		.alert(ExportNotice.shared.TITLE, isPresented: sharedStateBinding(state.modal == .exportConfirm) { cancel() }) {
+			Button(ExportNotice.shared.CONFIRM) { view.send(SettingsViewActionConfirmExport.shared) }
+			Button(ExportNotice.shared.CANCEL, role: .cancel) { cancel() }
+		} message: {
+			Text(ExportNotice.shared.BODY)
+		}
+		.sheet(isPresented: sharedStateBinding(isSheet) { cancel() }) {
+			SettingsModalSheet(state: state, send: view.send)
+				.interactiveDismissDisabled(state.inProgress)
+		}
+}
+
+extension SettingsScreen {
+	/// iPhone은 묶음 목록, macOS는 웹 SettingsRibScreen과 같은 카드 구역
+	@ViewBuilder
+	private func layout(_ state: SettingsViewState) -> some View {
+		#if os(macOS)
+		DesktopSettingsBody(state: state, send: view.send)
+		#else
+		listBody(state)
+		#endif
+	}
+
+	private func listBody(_ state: SettingsViewState) -> some View {
 		List {
 			// 결과 안내·오류는 맨 위에 둔다. 목록 아래에 두면 화면 밖이라 보이지 않는다. 모달이 열려 있으면 오류는 모달 안에 보인다
 			if state.modal == .none, state.error != nil || state.notice != nil {
@@ -97,25 +144,6 @@ private struct SettingsScreen: View {
 				}
 			}
 		}
-		.navigationTitle("설정")
-		.alert(ExportNotice.shared.TITLE, isPresented: sharedStateBinding(state.modal == .exportConfirm) { cancel() }) {
-			Button(ExportNotice.shared.CONFIRM) { view.send(SettingsViewActionConfirmExport.shared) }
-			Button(ExportNotice.shared.CANCEL, role: .cancel) { cancel() }
-		} message: {
-			Text(ExportNotice.shared.BODY)
-		}
-		.sheet(isPresented: sharedStateBinding(isSheetModal(state.modal)) { cancel() }) {
-			SettingsModalSheet(state: state, send: view.send)
-				.interactiveDismissDisabled(state.inProgress)
-		}
-	}
-
-	private func cancel() {
-		view.send(SettingsViewActionCancelModal.shared)
-	}
-
-	private func isSheetModal(_ modal: SettingsModal) -> Bool {
-		modal == .restorePassword || modal == .changePassword || modal == .deleteAccount
 	}
 
 	private func row(_ label: String, _ value: String) -> some View {

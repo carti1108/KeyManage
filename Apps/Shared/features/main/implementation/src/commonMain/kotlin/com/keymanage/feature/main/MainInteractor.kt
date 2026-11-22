@@ -73,6 +73,7 @@ class MainInteractor(
         // 화면이 다시 붙어도 다시 묻지 않는다
         offerBiometricUnlock = false
         refreshSession()
+        router?.showSidebarSettingsIfNeeded()
         router?.routeTo(MainTab.VAULT)
     }
 
