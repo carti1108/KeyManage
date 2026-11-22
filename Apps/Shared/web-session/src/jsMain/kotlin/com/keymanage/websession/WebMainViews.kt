@@ -103,6 +103,12 @@ class WebMainView : MainViewContract, WebViewControllable {
     /** 고른 탭의 화면(볼트 목록·생성기·설정)이 들어온다 */
     val slot: ScreenSlot = ScreenSlot()
 
+    /** 사이드바 아래 상자에 늘 두는 설정 화면(자동 잠금·백업·비밀번호 변경·계정 삭제). 설정 탭과 같은 RIB 화면이다 */
+    val sidebarSlot: ScreenSlot = ScreenSlot()
+
+    @JsExport.Ignore
+    override val usesSidebarSettings: Boolean = true
+
     @JsExport.Ignore
     override var listener: MainPresentableListener? = null
 
@@ -129,4 +135,7 @@ class WebMainView : MainViewContract, WebViewControllable {
 
     @JsExport.Ignore
     override fun hideScreen(view: ViewControllable) = slot.hide(view.asWeb())
+
+    @JsExport.Ignore
+    override fun showSidebarSettings(view: ViewControllable) = sidebarSlot.show(view.asWeb())
 }

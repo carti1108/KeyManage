@@ -189,6 +189,23 @@ class WebViewsTest {
     }
 
     @Test
+    fun mainViewKeepsSettingsInSidebarSlot() {
+        val view = WebMainView()
+        val settings = WebSettingsView()
+        assertTrue(view.usesSidebarSettings)
+        assertNull(view.sidebarSlot.getSnapshot())
+
+        view.showSidebarSettings(settings)
+        assertEquals("settings", view.sidebarSlot.getSnapshot()?.screenKey)
+
+        // 설정 탭을 보였다 내려도 사이드바의 설정은 남는다
+        view.showScreen(settings)
+        view.hideScreen(settings)
+        assertEquals("settings", view.sidebarSlot.getSnapshot()?.screenKey)
+        assertNull(view.slot.getSnapshot())
+    }
+
+    @Test
     fun vaultListStateMapsItemsAndDerivedFields() {
         val now = Clock.System.now()
         val vault = addItem(emptyVault(now), ItemFields("GitHub", "octocat", "pw-1"), now, "item-1")
