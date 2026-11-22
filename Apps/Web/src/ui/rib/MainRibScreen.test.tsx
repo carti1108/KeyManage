@@ -8,6 +8,7 @@ import { asState, PENDING_LOGOUT_TEXT, RECONNECT_PROMPT_TEXT, ROLLBACK_WARNING_T
 vi.mock('./VaultListRibScreen', () => ({ VaultListRibScreen: () => <div>볼트 목록 화면</div> }))
 vi.mock('./GeneratorRibScreen', () => ({ GeneratorRibScreen: () => <div>생성기 화면</div> }))
 vi.mock('./SettingsRibScreen', () => ({ SettingsRibScreen: () => <div>설정 화면</div> }))
+vi.mock('./SettingsSidebarBox', () => ({ SettingsSidebarBox: () => <div>설정 상자</div> }))
 
 type Plain = Omit<WebMainState, 'copy' | 'hashCode' | 'equals'>
 
@@ -53,12 +54,14 @@ function fakeStore<S>(initial: S) {
   }
 }
 
-function setup(overrides: Partial<Plain> = {}, screenKey: string | null = 'vaultList') {
+function setup(overrides: Partial<Plain> = {}, screenKey: string | null = 'vaultList', sidebarView: unknown = null) {
   const store = fakeStore<Plain>({ ...BASE, ...overrides })
   const slot = fakeStore<{ screenKey: string; view: unknown } | null>(screenKey === null ? null : { screenKey, view: {} })
+  const sidebarSlot = fakeStore<{ screenKey: string; view: unknown } | null>(sidebarView === null ? null : { screenKey: 'settings', view: sidebarView })
   const view = {
     store,
     slot,
+    sidebarSlot,
     selectTab: vi.fn(),
     requestLock: vi.fn(),
     requestLogout: vi.fn(),
@@ -97,6 +100,16 @@ describe('MainRibScreen', () => {
   it('슬롯의 screenKey에 맞는 화면을 그린다', () => {
     setup({ selectedTab: 'settings' }, 'settings')
     expect(screen.getByText('설정 화면')).toBeInTheDocument()
+  })
+
+  it('사이드바 슬롯에 설정 화면이 오면 사이드바 아래에 설정 상자를 그린다', () => {
+    setup({}, 'vaultList', {})
+    expect(within(screen.getByRole('complementary', { name: '사이드바' })).getByText('설정 상자')).toBeInTheDocument()
+  })
+
+  it('사이드바 슬롯이 비어 있으면 설정 상자를 그리지 않는다', () => {
+    setup()
+    expect(screen.queryByText('설정 상자')).not.toBeInTheDocument()
   })
 
   it('슬롯이 비어 있으면 탭 내용 없이 틀만 그린다', () => {

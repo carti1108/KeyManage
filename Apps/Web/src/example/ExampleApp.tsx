@@ -5,6 +5,7 @@ import { GeneratorRibScreen } from '../ui/rib/GeneratorRibScreen'
 import { MainRibScreen } from '../ui/rib/MainRibScreen'
 import type { ScreenRenderers } from '../ui/rib/ribsReact'
 import { SettingsRibScreen } from '../ui/rib/SettingsRibScreen'
+import { SettingsSidebarBox } from '../ui/rib/SettingsSidebarBox'
 import { UnlockRibScreen } from '../ui/rib/UnlockRibScreen'
 import { VaultListRibScreen } from '../ui/rib/VaultListRibScreen'
 
@@ -19,7 +20,13 @@ const SCREENS: ScreenRenderers = {
   main: (view) => <MainRibScreen view={view} />,
   vaultList: (view) => <VaultListRibScreen view={view} />,
   passwordGenerator: (view) => <GeneratorRibScreen view={view} />,
-  settings: (view) => <SettingsRibScreen view={view} />,
+  // 앱에서는 사이드바 상자와 설정 탭으로 나뉜다. 설정 RIB만 띄우는 Example은 둘을 함께 보인다
+  settings: (view) => (
+    <div className="mx-auto flex max-w-xl flex-col gap-6 p-4">
+      <SettingsSidebarBox view={view} />
+      <SettingsRibScreen view={view} />
+    </div>
+  ),
 }
 
 interface Running {

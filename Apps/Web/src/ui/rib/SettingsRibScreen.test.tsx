@@ -18,6 +18,7 @@ import {
   withFields,
 } from './policyTextFixtures'
 import { SettingsRibScreen } from './SettingsRibScreen'
+import { SettingsSidebarBox } from './SettingsSidebarBox'
 
 type Plain = Omit<WebSettingsState, 'copy' | 'hashCode' | 'equals'>
 
@@ -97,7 +98,13 @@ function setup(overrides: Partial<Plain> = {}) {
     cancelModal: vi.fn(),
     dismissMessage: vi.fn(),
   }
-  render(<SettingsRibScreen view={view as unknown as WebSettingsView} />)
+  // 앱은 같은 뷰를 사이드바 상자와 설정 탭 두 곳에 그린다
+  render(
+    <>
+      <SettingsSidebarBox view={view as unknown as WebSettingsView} />
+      <SettingsRibScreen view={view as unknown as WebSettingsView} />
+    </>,
+  )
   return { view, update: (next: Partial<Plain>) => act(() => store.set({ ...store.getSnapshot(), ...next })) }
 }
 

@@ -11,6 +11,7 @@ import { PasswordField } from '../components/PasswordField'
 import { GeneratorRibScreen } from './GeneratorRibScreen'
 import { RibSlot, useViewStore } from './ribsReact'
 import { SettingsRibScreen } from './SettingsRibScreen'
+import { SettingsSidebarBox } from './SettingsSidebarBox'
 import { VaultListRibScreen } from './VaultListRibScreen'
 
 const TABS: readonly { readonly key: string; readonly label: string; readonly Icon: LucideIcon }[] = [
@@ -54,6 +55,7 @@ export function MainRibScreen({ view }: { view: WebMainView }) {
         </div>
 
         <div className="flex flex-col gap-3 border-t border-border/80 pt-3">
+          <RibSlot slot={view.sidebarSlot} screens={{ settings: (v) => <SettingsSidebarBox view={v} /> }} />
           <div className="grid grid-cols-2 gap-2">
             <Button
               variant="outline"
