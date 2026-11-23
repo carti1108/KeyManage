@@ -7,7 +7,7 @@
 
 #### 배경
 
-[KMP 도메인 이전 계획](../research/kmp-migration/domain-migration-plan.md)은 플랫폼마다 뷰만 남기고 도메인·RIB을 Kotlin `commonMain` 하나로 공유한다. 0~5단계에서 도메인과 세션을 옮겼고, 세션은 서버를 `AuthApi`·`VaultApi` 포트로만 쓴다. 이제 이 포트를 실제 HTTP로 구현해야 한다.
+KMP 도메인 이전 계획은 플랫폼마다 뷰만 남기고 도메인·RIB을 Kotlin `commonMain` 하나로 공유한다. 0~5단계에서 도메인과 세션을 옮겼고, 세션은 서버를 `AuthApi`·`VaultApi` 포트로만 쓴다. 이제 이 포트를 실제 HTTP로 구현해야 한다.
 
 지금 서버 통신은 플랫폼마다 따로 있다. 웹은 `fetch`로 쓴 `Apps/Web/src/adapters/http/`, Apple은 `URLSession`으로 쓴 코드다. 응답 형식 검사, 오류를 `ServerError`(코드·상태·`Retry-After`)·`NetworkError`·`UnexpectedResponseError`로 바꾸는 규칙, 30초 시간 초과, 리다이렉트 거절, 쿠키 없이 Bearer 토큰만 보내기는 플랫폼마다 같아야 한다. 같은 규칙을 플랫폼 수만큼 다시 쓰면 어긋나기 쉽다.
 
@@ -39,4 +39,4 @@
 
 #### 관련
 
-[ADR-0004](ADR-0004-complete-boundary-isolation-and-dependency-inversion.md)(DIP), [ADR-0008](ADR-0008-auth-hash-and-server-session.md)(인증 해시와 서버 세션), [api-spec](../api-spec.md) 1장·2장, [KMP 도메인 이전 계획](../research/kmp-migration/domain-migration-plan.md) 6단계
+[ADR-0004](ADR-0004-complete-boundary-isolation-and-dependency-inversion.md)(DIP), [ADR-0008](ADR-0008-auth-hash-and-server-session.md)(인증 해시와 서버 세션), [api-spec](../api-spec.md) 1장·2장

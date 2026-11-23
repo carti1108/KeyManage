@@ -7,7 +7,7 @@
 
 #### 배경
 
-Apple 앱은 MicroRIBs와 Swift 도메인으로 따로 구현돼 있었다([ADR-0014](ADR-0014-apple-multiplatform-microribs.md), [ADR-0015](ADR-0015-tuist-micro-features-modularization.md)). 웹과 Android는 이미 공유 Kotlin RIB(carti-RIBs-KMP)과 공유 도메인으로 옮겼다([modularization-plan](../../../../docs/research/kmp-migration/modularization-plan.md)). 같은 정책을 세 번 구현하고 세 번 검증하는 비용이 컸고, Apple 구현만 정책 변경을 따로 따라가야 했다.
+Apple 앱은 MicroRIBs와 Swift 도메인으로 따로 구현돼 있었다([ADR-0014](ADR-0014-apple-multiplatform-microribs.md), [ADR-0015](ADR-0015-tuist-micro-features-modularization.md)). 웹과 Android는 이미 공유 Kotlin RIB(carti-RIBs-KMP)과 공유 도메인으로 옮겼다. 같은 정책을 세 번 구현하고 세 번 검증하는 비용이 컸고, Apple 구현만 정책 변경을 따로 따라가야 했다.
 
 #### 결정
 
@@ -34,4 +34,4 @@ Apple 앱은 MicroRIBs와 Swift 도메인으로 따로 구현돼 있었다([ADR-
 
 #### 관련
 
-ADR-0014·ADR-0015(대체됨), ADR-APL-001(세션 토큰 보관 부분), SEC-003, VLT-002, VLT-003, [modularization-plan F단계](../../../../docs/research/kmp-migration/modularization-plan.md)
+ADR-0014·ADR-0015(대체됨), ADR-APL-001(세션 토큰 보관 부분), SEC-003, VLT-002, VLT-003

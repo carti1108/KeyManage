@@ -13,7 +13,7 @@
 
 ADR-0004가 지키려던 것은 두 가지다. 백엔드 변경이 클라이언트로 번지지 않을 것, 화면이 네트워크 구현을 모를 것. 클라이언트끼리 코드를 나누는 것은 이 둘을 해치지 않는다.
 
-실험 브랜치(`research/kmp-migration`)에서 네 플랫폼을 모두 옮겨 확인했다. 과정과 결과는 [조사 문서](../research/kmp-migration/)에 있다.
+실험 브랜치(`research/kmp-migration`)에서 네 플랫폼을 모두 옮겨 확인했다.
 
 #### 결정
 
@@ -35,7 +35,7 @@ ADR-0004가 지키려던 것은 두 가지다. 백엔드 변경이 클라이언�
 | 뷰까지 공유(Compose Multiplatform) | 플랫폼 디자인 지침을 따르는 화면을 플랫폼마다 만든다는 방침(ADR-0025)과 맞지 않는다. 웹은 React 화면과 디자인 토큰을 버려야 한다 |
 | 플랫폼 기능을 앱이 구현해 주입 | 키체인·생체 인증 코드와 그 보안 규칙(SEC-003)이 플랫폼 언어로 다시 흩어진다 |
 | 백엔드와도 모델 공유 | ADR-0004의 기각 이유가 그대로다. 백엔드 빌드와 클라이언트 빌드가 묶인다 |
-| 암호를 플랫폼별 `expect`/`actual`로 직접 구현 | 규격 구현이 플랫폼 수만큼 남는다. 조사 결과는 [crypto-options](../research/kmp-migration/crypto-options.md) |
+| 암호를 플랫폼별 `expect`/`actual`로 직접 구현 | 규격 구현이 플랫폼 수만큼 남는다 |
 
 #### 결과
 
@@ -54,4 +54,4 @@ ADR-0004가 지키려던 것은 두 가지다. 백엔드 변경이 클라이언�
 
 #### 관련
 
-ADR-0004(대체), [ADR-0001](ADR-0001-zero-knowledge-security-architecture.md), [ADR-0010](ADR-0010-client-composition-ios-and-shared-web.md), [ADR-0011](ADR-0011-password-preprocessing-and-header-aad.md), [ADR-0025](ADR-0025-design-system-shared-contract-platform-expression.md), [ADR-0028](ADR-0028-ktor-client-for-shared-kotlin.md), ADR-AND-003, ADR-APL-002, SEC-003, COM-001, VLT-001~004, [KMP 조사 문서](../research/kmp-migration/)
+ADR-0004(대체), [ADR-0001](ADR-0001-zero-knowledge-security-architecture.md), [ADR-0010](ADR-0010-client-composition-ios-and-shared-web.md), [ADR-0011](ADR-0011-password-preprocessing-and-header-aad.md), [ADR-0025](ADR-0025-design-system-shared-contract-platform-expression.md), [ADR-0028](ADR-0028-ktor-client-for-shared-kotlin.md), ADR-AND-003, ADR-APL-002, SEC-003, COM-001, VLT-001~004
