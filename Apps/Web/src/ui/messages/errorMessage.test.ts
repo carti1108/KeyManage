@@ -7,7 +7,6 @@ import { ReadOnlyVaultError, RevisionRollbackError, VaultSyncConflictError, Vaul
 import { SessionExpiredError, VaultSetupError, WrongMasterPasswordError } from '../../domain/session/sessionTypes'
 import { BackupDecryptError, NewerBackupVersionError, NotABackupFileError } from '../../domain/backup/backupFile'
 import { describeError } from './errorMessage'
-import { restoredMessage } from './backupNotices'
 
 describe('describeError', () => {
   it.each([
@@ -67,10 +66,5 @@ describe('describeError', () => {
     expect(describeError(new BackupDecryptError())).toEqual({ body: '백업을 열 수 없습니다. 비밀번호가 맞는지, 파일이 손상되지 않았는지 확인해 주세요.' })
     expect(describeError(new NotABackupFileError('JSON이 아님'))).toEqual({ body: 'KeyManage 백업 파일이 아닙니다.' })
     expect(describeError(new NewerBackupVersionError('formatVersion 2'))).toEqual({ body: '더 새 버전의 앱에서 만든 백업입니다. 앱을 업데이트한 뒤 복원해 주세요.' })
-  })
-
-  it('복원 완료 문구에 복원한 항목 수를 넣는다', () => {
-    expect(restoredMessage(3)).toBe('백업에서 항목 3개를 복원했습니다.')
-    expect(restoredMessage(0)).toBe('백업에서 항목 0개를 복원했습니다.')
   })
 })

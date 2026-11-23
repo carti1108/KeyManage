@@ -6,7 +6,6 @@ import {
   addItem,
   deleteItem,
   emptyVault,
-  isReadOnly,
   parseVaultData,
   updateItem,
   type VaultData,
@@ -86,11 +85,6 @@ describe('평문 볼트 해석 (vault-spec 4장)', () => {
     const item = { id: 'a', serviceName: 'S', username: 'u', password: 'p', createdAt: TS, updatedAt: TS }
 
     expect(() => parseVaultData(JSON.stringify(vaultWith(item, item)))).toThrow(InvalidVaultDataError)
-  })
-
-  it('앱이 아는 것보다 높은 스키마 버전은 읽기 전용이다', () => {
-    expect(isReadOnly(parseVaultData(JSON.stringify({ version: 2, updatedAt: TS, items: [] })))).toBe(true)
-    expect(isReadOnly(emptyVault(T0))).toBe(false)
   })
 })
 

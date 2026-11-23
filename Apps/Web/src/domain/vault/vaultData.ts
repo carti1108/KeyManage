@@ -96,10 +96,6 @@ export function parseVaultData(json: string): VaultData {
   return { ...raw, items } as unknown as VaultData
 }
 
-export function isReadOnly(data: VaultData): boolean {
-  return data.version > VAULT_SCHEMA_VERSION
-}
-
 export function emptyVault(now: Date): VaultData {
   return { version: VAULT_SCHEMA_VERSION, updatedAt: formatTime(now), items: [] }
 }
