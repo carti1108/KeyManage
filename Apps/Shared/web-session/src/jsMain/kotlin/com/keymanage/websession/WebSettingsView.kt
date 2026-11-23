@@ -160,9 +160,6 @@ class WebSettingsView : SettingsViewContract, WebViewControllable {
     /** 모달을 닫고 입력을 비운다. 진행 중에는 무시한다 */
     fun cancelModal() = send(SettingsViewAction.CancelModal)
 
-    /** 오류·안내를 지운다 */
-    fun dismissMessage() = send(SettingsViewAction.DismissMessage)
-
     private fun send(action: SettingsViewAction) {
         listener?.handle(action)
     }

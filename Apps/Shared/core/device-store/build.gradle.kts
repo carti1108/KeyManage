@@ -13,14 +13,6 @@ kotlin {
         compileSdk = 37
         minSdk = 26
     }
-    // 웹은 IndexedDB 구현을 쓴다. Apple 구현은 이후 같은 포트로 추가한다
-    js {
-        browser {
-            testTask {
-                useKarma { useChromeHeadless() }
-            }
-        }
-    }
 
     sourceSets {
         commonMain.dependencies {

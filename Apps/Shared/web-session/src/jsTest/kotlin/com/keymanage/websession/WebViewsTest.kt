@@ -369,7 +369,6 @@ class WebViewsTest {
         view.confirmExport()
         view.editDeletionPhrase("계정 삭제")
         view.cancelModal()
-        view.dismissMessage()
         assertEquals(
             listOf(
                 SettingsViewAction.SelectAutoLock(1.minutes),
@@ -377,7 +376,6 @@ class WebViewsTest {
                 SettingsViewAction.ConfirmExport,
                 SettingsViewAction.EditDeletionPhrase("계정 삭제"),
                 SettingsViewAction.CancelModal,
-                SettingsViewAction.DismissMessage,
             ),
             recorder.actions,
         )
