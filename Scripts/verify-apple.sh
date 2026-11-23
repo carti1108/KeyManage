@@ -34,7 +34,7 @@ bash "${ROOT_DIR}/Scripts/check-policy-acceptance.sh" "${ROOT_DIR}"
 bash "${ROOT_DIR}/Scripts/check-api-contract.sh" "${ROOT_DIR}"
 bash "${ROOT_DIR}/Scripts/verify-tdd-integrity.sh"
 
-# 4. 공유 Kotlin 묶음 프레임워크(운영용·테스트용)와 Tuist 프로젝트 생성 (modularization-plan F단계)
+# 4. 공유 Kotlin 묶음 프레임워크(운영용·테스트용)와 Tuist 프로젝트 생성
 #    Apps/Shared는 carti-RIBs-KMP를 형제 폴더 또는 CARTI_RIBS_DIR에서 가져온다
 echo ">> [4/6] 공유 Kotlin 묶음 프레임워크 빌드·Apple 포트 테스트, Tuist 프로젝트 생성..."
 (

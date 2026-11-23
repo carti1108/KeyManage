@@ -1,7 +1,7 @@
 import ProjectDescription
 import ProjectDescriptionHelpers
 
-// 피처 Example 앱의 공통 틀. Kotlin 프레임워크에 의존하지 않는다 (modularization-plan F단계 설계)
+// 피처 Example 앱의 공통 틀. Kotlin 프레임워크에 의존하지 않는다
 let project = Project(
 	name: "KeyManageFeatureExample",
 	settings: .swift6Settings,

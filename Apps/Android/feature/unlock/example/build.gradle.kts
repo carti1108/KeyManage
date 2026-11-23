@@ -1,4 +1,4 @@
-// Unlock 피처만 띄우는 Example 앱. 공유 testing 모듈의 시나리오로 RIB을 만들어 실제 뷰에 붙이고, 기기에서 눈으로 확인한다 (modularization-plan 3장 5번)
+// Unlock 피처만 띄우는 Example 앱. 공유 testing 모듈의 시나리오로 RIB을 만들어 실제 뷰에 붙이고, 기기에서 눈으로 확인한다
 plugins {
     alias(libs.plugins.km.android.application)
     alias(libs.plugins.km.android.compose)

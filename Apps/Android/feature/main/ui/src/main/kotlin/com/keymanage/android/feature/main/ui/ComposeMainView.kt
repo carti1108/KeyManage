@@ -54,7 +54,7 @@ import kotlin.time.Instant
 
 /**
  * 볼트를 연 뒤의 화면 틀(탭, 안내, 다시 연결)의 Compose 뷰. 공유 Main RIB이 [render]로 상태를 넘기고, 입력은 [listener]로 돌려보낸다.
- * 탭 안의 화면은 자식 RIB의 화면이라 Router가 [showScreen]으로 붙이는 것을 그린다 (modularization-plan 2장)
+ * 탭 안의 화면은 자식 RIB의 화면이라 Router가 [showScreen]으로 붙이는 것을 그린다
  */
 class ComposeMainView : MainViewContract, ComposeRenderable {
     override var listener: MainPresentableListener? = null

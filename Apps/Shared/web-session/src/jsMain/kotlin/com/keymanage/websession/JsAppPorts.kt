@@ -17,7 +17,7 @@ import kotlin.js.Promise
 import kotlin.time.Clock
 import kotlin.time.Duration
 
-// 공유 RIB(feature)이 쓰는 바깥 기능을 TypeScript 객체로 받는 포트와 어댑터 (domain-migration-plan 11.2)
+// 공유 RIB(feature)이 쓰는 바깥 기능을 TypeScript 객체로 받는 포트와 어댑터
 // 실패는 Promise reject(또는 throw)로 알린다. 시간 값은 밀리초 숫자다
 
 /** 클립보드. 복사하고 정해진 시간 뒤 비우는 일(COM-001)까지 맡는다. 실패하면 reject */

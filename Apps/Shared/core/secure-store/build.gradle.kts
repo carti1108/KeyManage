@@ -1,4 +1,4 @@
-// 기기 보안 저장소(키체인 등). 앱이 주입하지 않고 플랫폼별 소스에서 Kotlin으로 구현한다 (target-architecture.md)
+// 기기 보안 저장소(키체인 등). 앱이 주입하지 않고 플랫폼별 소스에서 Kotlin으로 구현한다
 plugins {
     id("org.jetbrains.kotlin.multiplatform")
     id("com.android.kotlin.multiplatform.library")

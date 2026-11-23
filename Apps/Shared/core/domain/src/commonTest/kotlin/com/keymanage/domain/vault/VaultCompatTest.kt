@@ -7,7 +7,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Instant
 
-// 웹 TypeScript 도메인과 바이트 단위로 같은 볼트 JSON을 만드는지 확인한다 (domain-migration-plan.md 1단계)
+// 웹 TypeScript 도메인과 바이트 단위로 같은 볼트 JSON을 만드는지 확인한다
 // 기대값은 compat/generate-vault-fixtures.ts가 실제 웹 코드로 만든 것이다. 편집 순서도 그 스크립트와 같다
 class VaultCompatTest {
     private val expected = Json.parseToJsonElement(VAULT_COMPAT_JSON).jsonObject.mapValues { it.value.jsonPrimitive.content }

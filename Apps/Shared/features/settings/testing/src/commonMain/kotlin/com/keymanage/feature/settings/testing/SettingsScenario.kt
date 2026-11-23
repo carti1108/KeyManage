@@ -9,7 +9,7 @@ import kotlinx.coroutines.CompletableDeferred
 
 /**
  * 설정 화면을 한 가지 상황으로 띄우는 시나리오. Android·iOS·웹의 Example 앱이 같은 목록을 보여 주고,
- * 고른 시나리오의 [session]·[backupFiles]·[environment]로 Settings RIB을 만든다 (modularization-plan 3장 3번)
+ * 고른 시나리오의 [session]·[backupFiles]·[environment]로 Settings RIB을 만든다
  */
 enum class SettingsScenario(val title: String) {
     NORMAL("정상 (내보내기·복원·비밀번호 변경·계정 삭제 성공)"),

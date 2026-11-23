@@ -57,7 +57,7 @@ import com.keymanage.websession.WebUnlockView
 import com.keymanage.websession.WebVaultListView
 import kotlin.time.Clock
 
-// 웹 피처 Example (modularization-plan E단계). Android의 feature/<이름>/example과 같은 일을 한다:
+// 웹 피처 Example. Android의 feature/<이름>/example과 같은 일을 한다:
 // 시나리오를 고르면 공유 RIB 하나를 가짜 세션으로 만들어 실제 웹 뷰에 붙인다. 서버와 실제 세션은 쓰지 않는다
 
 /** 피처 하나와 그 시나리오 이름들. 시나리오는 [scenarios]의 순서 번호로 고른다 */

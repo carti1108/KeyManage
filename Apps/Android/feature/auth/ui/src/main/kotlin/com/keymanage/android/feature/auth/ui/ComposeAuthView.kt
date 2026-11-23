@@ -47,7 +47,7 @@ import com.keymanage.feature.messages.WEAK_MASTER_PASSWORD_WARNING
 
 /**
  * 로그인·가입 화면의 Compose 뷰. 공유 Auth RIB이 [render]로 상태를 넘기고, 입력은 [listener]로 돌려보낸다.
- * 상태와 흐름은 공유 Kotlin이 맡고 여기에는 그리는 일만 둔다 (modularization-plan 2장)
+ * 상태와 흐름은 공유 Kotlin이 맡고 여기에는 그리는 일만 둔다
  */
 class ComposeAuthView : AuthViewContract, ComposeRenderable {
     override var listener: AuthPresentableListener? = null

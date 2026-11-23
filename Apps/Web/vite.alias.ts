@@ -2,7 +2,7 @@
 import { fileURLToPath } from 'node:url'
 
 export const kotlinSessionAliases = [
-  // 공유 Kotlin 세션(Apps/Shared/web-session)의 빌드 결과. 먼저 npm run kotlin으로 만든다 (domain-migration-plan 10장)
+  // 공유 Kotlin 세션(Apps/Shared/web-session)의 빌드 결과. 먼저 npm run kotlin으로 만든다
   {
     find: 'keymanage-web-session',
     replacement: fileURLToPath(

@@ -9,7 +9,7 @@ import { SettingsSidebarBox } from '../ui/rib/SettingsSidebarBox'
 import { UnlockRibScreen } from '../ui/rib/UnlockRibScreen'
 import { VaultListRibScreen } from '../ui/rib/VaultListRibScreen'
 
-// 피처 Example 페이지 (modularization-plan E단계). Android의 feature/<이름>/example 앱과 같은 일을 한다:
+// 피처 Example 페이지. Android의 feature/<이름>/example 앱과 같은 일을 한다:
 // 시나리오를 고르면 공유 RIB 하나를 가짜 세션으로 만들어 실제 화면에 붙인다. 서버와 실제 세션은 쓰지 않는다.
 // 사람이 브라우저에서 화면을 확인하는 용도라 배포 빌드에는 들어가지 않는다
 

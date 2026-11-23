@@ -2,7 +2,7 @@ import KeyManageShared
 import Testing
 @testable import UnlockExample
 
-/// 뷰는 "상태를 그리는가, 입력을 보내는가"만 확인한다. 동작은 공유 Kotlin 테스트가 맡는다 (android-migration-plan 6장 3번)
+/// 뷰는 "상태를 그리는가, 입력을 보내는가"만 확인한다. 동작은 공유 Kotlin 테스트가 맡는다
 @MainActor
 struct SwiftUIUnlockViewTests {
 	@Test

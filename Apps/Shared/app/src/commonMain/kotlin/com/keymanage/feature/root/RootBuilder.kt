@@ -43,7 +43,7 @@ class RootComponent(dependency: RootDependency) :
     override val backupFiles: BackupFilesPort get() = dependency.backupFiles
     override val randomBytes: RandomBytes get() = dependency.randomBytes
 
-    // Main과 그 자식이 쓸 구현 Builder. 피처는 서로의 interface만 보므로 구현은 여기서 넣는다 (modularization-plan 3장 1번)
+    // Main과 그 자식이 쓸 구현 Builder. 피처는 서로의 interface만 보므로 구현은 여기서 넣는다
     override fun vaultListBuilder(dependency: VaultListDependency): VaultListBuildable = VaultListBuilder(dependency)
     override fun passwordGeneratorBuilder(dependency: PasswordGeneratorDependency): PasswordGeneratorBuildable =
         PasswordGeneratorBuilder(dependency)

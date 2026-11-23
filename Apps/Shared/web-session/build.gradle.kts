@@ -1,5 +1,5 @@
 // 웹 앱(Apps/Web)이 가져다 쓰는 Kotlin/JS 내보내기 모듈. domain의 VaultSession과 server-http를 묶어 @JsExport 퍼사드로 낸다
-// 설계: docs/research/kmp-migration/domain-migration-plan.md 10·11장. 브라우저 포트(기기 저장소·탭 잠금·탭 채널·탭 기억)는 TypeScript 객체를 받는다
+// 브라우저 포트(기기 저장소·탭 잠금·탭 채널·탭 기억)는 TypeScript 객체를 받는다
 plugins {
     id("org.jetbrains.kotlin.multiplatform")
 }
@@ -23,7 +23,7 @@ kotlin {
         jsMain.dependencies {
             api(project(":core:domain"))
             api(project(":core:server-http"))
-            // 공유 RIB과 웹 어댑터(ViewStore·ScreenSlot). 웹 뷰 구현(WebXxxView)과 진입점 WebKeyManageApp이 쓴다 (domain-migration-plan 11장)
+            // 공유 RIB과 웹 어댑터(ViewStore·ScreenSlot). 웹 뷰 구현(WebXxxView)과 진입점 WebKeyManageApp이 쓴다
             api(project(":app"))
             api("com.carti.ribs:ribs-web")
             implementation(libs.kotlinx.coroutines.core)

@@ -1,4 +1,4 @@
-// 조립 지점(Composition Root): 브라우저 어댑터를 JS 포트로 바꿔 공유 RIB 앱(WebKeyManageApp)을 만든다 (ADR-0004, domain-migration-plan 11.4)
+// 조립 지점(Composition Root): 브라우저 어댑터를 JS 포트로 바꿔 공유 RIB 앱(WebKeyManageApp)을 만든다 (ADR-0004)
 // 화면 로직은 Kotlin RIB에 있고, 여기서는 포트를 잇고 앱 배선(*Wiring.ts)이 쓸 세션을 감싸는 일만 한다
 import type { JsBackupFiles, JsClipboard, JsEnvironment, WebKeyManageApp } from 'keymanage-web-session'
 import { browserBackupFiles } from '../adapters/browser/browserBackupFiles'

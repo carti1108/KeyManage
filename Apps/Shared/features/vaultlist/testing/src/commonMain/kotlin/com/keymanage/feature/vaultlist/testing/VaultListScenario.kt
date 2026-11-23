@@ -24,7 +24,7 @@ private fun threeItems(): VaultData = sampleVault(
 
 /**
  * 볼트 목록 화면을 한 가지 상황으로 띄우는 시나리오. Android·iOS·웹의 Example 앱이 같은 목록을 보여 주고,
- * 고른 시나리오의 [session]과 [clipboard]로 VaultList RIB을 만든다 (modularization-plan 3장 3번)
+ * 고른 시나리오의 [session]과 [clipboard]로 VaultList RIB을 만든다
  */
 enum class VaultListScenario(val title: String) {
     ITEMS("항목 3개 (추가·수정·삭제·복사)"),

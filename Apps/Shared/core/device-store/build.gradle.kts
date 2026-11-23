@@ -1,4 +1,4 @@
-// 기기 볼트 기록 저장소(VLT-002·VLT-003). 기록 형식은 공통, 저장 위치만 플랫폼별이다 (target-architecture.md)
+// 기기 볼트 기록 저장소(VLT-002·VLT-003). 기록 형식은 공통, 저장 위치만 플랫폼별이다
 plugins {
     id("org.jetbrains.kotlin.multiplatform")
     id("com.android.kotlin.multiplatform.library")
@@ -6,7 +6,7 @@ plugins {
 
 kotlin {
     jvmToolchain(21)
-    // 파일 구현(FileDeviceRecordStore)은 java.io만 쓴다. Android가 쓰고, 테스트는 JVM에서 돈다 (android-migration-plan 4장 1단계)
+    // 파일 구현(FileDeviceRecordStore)은 java.io만 쓴다. Android가 쓰고, 테스트는 JVM에서 돈다
     jvm()
     android {
         namespace = "com.keymanage.devicestore"

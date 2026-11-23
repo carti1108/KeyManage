@@ -1,4 +1,4 @@
-# 웹이 쓰는 공유 Kotlin 세션(Apps/Shared/web-session)을 JS 라이브러리로 빌드한다 (domain-migration-plan 10장)
+# 웹이 쓰는 공유 Kotlin 세션(Apps/Shared/web-session)을 JS 라이브러리로 빌드한다
 # 웹의 타입 검사·번들·통합 테스트가 모두 이 빌드 결과(keymanage-web-session 별칭)를 먼저 요구한다.
 # 호출하는 job은 이 저장소를 먼저 actions/checkout 해 두어야 한다
 name: Kotlin 웹 세션 빌드

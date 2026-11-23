@@ -25,7 +25,7 @@ import platform.UniformTypeIdentifiers.UTTypePlainText
 
 /**
  * macOS 포트. 기기 기록은 다른 앱과 섞이지 않게 Application Support 아래 앱 폴더에 둔다.
- * 생체 해제는 아직 열지 않는다: 생체 전용 키체인 항목은 서명한 앱의 키체인 권한이 있어야 만들 수 있다 (modularization-plan F단계 ④ macOS)
+ * 생체 해제는 아직 열지 않는다: 생체 전용 키체인 항목은 서명한 앱의 키체인 권한이 있어야 만들 수 있다
  */
 fun macosPlatformPorts(): ApplePlatformPorts = ApplePlatformPorts(
     clipboardWriter = GeneralPasteboardClipboardWriter(),

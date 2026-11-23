@@ -1,5 +1,5 @@
 // iOS 앱(Apps/Apple)이 가져다 쓰는 모듈. 공유 RIB·세션에 넣을 iOS 쪽 포트 구현과 앱 진입점을 둔다 (android-session의 짝)
-// 운영용 묶음 프레임워크 KeyManageShared를 만든다. 테스트용 묶음은 apple-example이 같은 이름으로 만든다 (modularization-plan F단계 설계)
+// 운영용 묶음 프레임워크 KeyManageShared를 만든다. 테스트용 묶음은 apple-example이 같은 이름으로 만든다
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
 
 plugins {

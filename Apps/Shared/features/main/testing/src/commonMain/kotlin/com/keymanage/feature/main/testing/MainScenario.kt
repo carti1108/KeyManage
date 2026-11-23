@@ -7,7 +7,7 @@ import com.keymanage.feature.testing.testVault
 
 /**
  * 볼트를 연 뒤의 화면(탭과 안내)을 한 가지 상황으로 띄우는 시나리오. Android·iOS·웹의 Example 앱이 같은 목록을 보여 주고,
- * 고른 시나리오의 [session]·[environment]·[offline]으로 Main RIB을 만든다 (modularization-plan 3장 3번).
+ * 고른 시나리오의 [session]·[environment]·[offline]으로 Main RIB을 만든다.
  * 탭 안의 화면(볼트 목록·생성기·설정)은 진짜 자식 RIB이다. 설정 탭의 백업·비밀번호 변경은 이 가짜 세션이 지원하지 않는다
  *
  * @param offline 잠금 해제를 서버에 닿지 못해 기기에 저장한 볼트로 열었다

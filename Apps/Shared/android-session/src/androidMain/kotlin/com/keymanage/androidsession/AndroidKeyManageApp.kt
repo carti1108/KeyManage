@@ -47,7 +47,7 @@ import kotlin.time.Instant
 /**
  * Android 앱의 진입점(web-session의 WebKeyManageApp에 해당한다). 공유 세션과 Android 쪽 포트를 조립해 RIB 트리를 띄운다.
  * 앱(Apps/Android)은 화면을 만드는 [viewFactory]와 지금 화면([activity])만 넘기고, 생명주기를 [onForeground]·[onBackground]·[onUserInteraction]으로 알린다.
- * 모든 호출은 메인 스레드에서 한다 (target-architecture 2장, android-migration-plan 4장)
+ * 모든 호출은 메인 스레드에서 한다
  *
  * @param serverUrl 서버 주소. localhost가 아니면 HTTPS만 받는다
  * @param activity 생체 인증 창과 파일 선택 창을 띄울 화면. 화면이 없으면 null

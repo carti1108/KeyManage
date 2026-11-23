@@ -1,4 +1,4 @@
-// npm run kotlin이 실행한다: 공유 Kotlin 세션(Apps/Shared/web-session)을 웹이 쓰는 JS 라이브러리로 빌드한다 (domain-migration-plan 10장)
+// npm run kotlin이 실행한다: 공유 Kotlin 세션(Apps/Shared/web-session)을 웹이 쓰는 JS 라이브러리로 빌드한다
 // Windows cmd는 `cd ../Shared && ./gradlew`를 못 돌리므로, 운영체제에 맞는 Gradle 래퍼(gradlew.bat 또는 gradlew)를 직접 부른다
 // 첫 인자가 example이면 피처 Example용 번들(Apps/Shared/web-example)을 빌드한다 (npm run kotlin:example)
 // 나머지 인자는 Gradle에 그대로 넘긴다 (예: npm run kotlin -- --console=plain)

@@ -1,4 +1,4 @@
-// 웹 피처 Example이 가져다 쓰는 Kotlin/JS 모듈. 피처의 Testing 시나리오로 공유 RIB 하나를 웹 뷰에 붙인다 (modularization-plan E단계)
+// 웹 피처 Example이 가져다 쓰는 Kotlin/JS 모듈. 피처의 Testing 시나리오로 공유 RIB 하나를 웹 뷰에 붙인다
 // 가짜 세션과 시나리오가 들어 있어 배포 번들(web-session)과 따로 빌드한다. web-session의 내보내기를 그대로 포함한다
 plugins {
     id("org.jetbrains.kotlin.multiplatform")

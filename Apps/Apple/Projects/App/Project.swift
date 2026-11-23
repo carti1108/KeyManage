@@ -5,7 +5,7 @@ let project = Project(
 	name: "KeyManageApp",
 	settings: .swift6Settings,
 	targets: [
-		// macOS 앱도 공유 Kotlin RIB 트리로 돈다. 뷰는 iOS와 같은 피처 뷰를 함께 컴파일한다 (modularization-plan F단계 ④ macOS)
+		// macOS 앱도 공유 Kotlin RIB 트리로 돈다. 뷰는 iOS와 같은 피처 뷰를 함께 컴파일한다
 		.target(
 			name: "KeyManageMac",
 			destinations: [.mac],
@@ -29,7 +29,7 @@ let project = Project(
 			],
 			settings: .settings(base: ["KEYMANAGE_SERVER_URL": "http://localhost:8080"])
 		),
-		// iOS 앱은 공유 Kotlin RIB 트리로 돈다. 피처 뷰는 프레임워크로 만들지 않고 여기서 함께 컴파일한다 (modularization-plan F단계 ④)
+		// iOS 앱은 공유 Kotlin RIB 트리로 돈다. 피처 뷰는 프레임워크로 만들지 않고 여기서 함께 컴파일한다
 		.target(
 			name: "KeyManageIOS",
 			destinations: [.iPhone, .iPad],

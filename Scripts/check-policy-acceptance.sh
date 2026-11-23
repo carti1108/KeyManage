@@ -58,7 +58,7 @@ if os.path.isdir(web_src_dir):
     web_test_files = sorted(
         glob.glob(os.path.join(web_src_dir, "**", "*.test.ts"), recursive=True)
         + glob.glob(os.path.join(web_src_dir, "**", "*.test.tsx"), recursive=True)
-        # 웹 화면 로직은 공유 RIB(Kotlin)으로 옮겼다. 그 테스트도 웹 정책 근거로 본다 (domain-migration-plan 11.4)
+        # 웹 화면 로직은 공유 RIB(Kotlin)으로 옮겼다. 그 테스트도 웹 정책 근거로 본다
         + glob.glob(os.path.join(root, "Apps", "Shared", "**", "src", "*Test", "**", "*.kt"), recursive=True)
     )
     web_tests = "\n".join(open(p, encoding="utf-8").read() for p in web_test_files)
@@ -198,8 +198,8 @@ if os.path.isdir(web_src_dir):
 
 # ============================================================================
 # 3. 공유 Kotlin을 쓰는 클라이언트 감사 (Android, Apple)
-#    두 앱은 뷰와 진입점만 있고 도메인·화면 로직·플랫폼 구현은 공유 Kotlin(Apps/Shared)에 있다
-#    (android-migration-plan 4단계, modularization-plan F단계). 그래서 테스트 근거는 공유 모듈의 테스트(Apps/Shared/**/src/*Test),
+#    두 앱은 뷰와 진입점만 있고 도메인·화면 로직·플랫폼 구현은 공유 Kotlin(Apps/Shared)에 있다.
+#    그래서 테스트 근거는 공유 모듈의 테스트(Apps/Shared/**/src/*Test),
 #    표준 문구 원문은 공유 모듈과 각 앱 뷰의 소스에서 확인한다. 다른 플랫폼 전용 소스셋은 뺀다
 # ============================================================================
 shared_kotlin_dir = os.path.join(root, "Apps", "Shared")

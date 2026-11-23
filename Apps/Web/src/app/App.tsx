@@ -11,7 +11,7 @@ import { startPendingSync } from './pendingSyncWiring'
 import { useAutoLockSetting } from './useAutoLockSetting'
 import { usePageHidden } from './usePageHidden'
 
-// 조립 지점(Composition Root): 화면 상태는 공유 RIB(Kotlin)이 정하고, React는 rootSlot의 화면을 그린다 (ADR-0004, domain-migration-plan 11.4)
+// 조립 지점(Composition Root): 화면 상태는 공유 RIB(Kotlin)이 정하고, React는 rootSlot의 화면을 그린다 (ADR-0004)
 // 앱 수명주기 배선(자동 잠금·클립보드 소각·대기 재전송·탭 가림)은 RIB이 아니라 여기서 같은 세션에 붙인다
 const rootScreens = {
   auth: (view: Parameters<typeof AuthRibScreen>[0]['view']) => <AuthRibScreen view={view} />,

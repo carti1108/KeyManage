@@ -14,7 +14,7 @@ import com.keymanage.domain.vault.VaultData
 import kotlin.time.Clock
 import kotlin.time.Instant
 
-// 공유 RIB이 쓰는 바깥 기능. 테스트는 가짜를, 앱은 실제 구현을 넣는다 (domain-migration-plan 11.2)
+// 공유 RIB이 쓰는 바깥 기능. 테스트는 가짜를, 앱은 실제 구현을 넣는다
 
 /** 화면이 쓰는 세션 기능. 실제 구현은 [VaultSession]을 감싼 [SessionPortAdapter] */
 interface SessionPort {

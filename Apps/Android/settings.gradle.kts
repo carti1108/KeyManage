@@ -21,10 +21,10 @@ include(":app")
 
 // 뷰가 함께 쓰는 것
 include(":core:designsystem")
-// 피처 Example 앱의 공통 틀 (modularization-plan 3장 5번)
+// 피처 Example 앱의 공통 틀
 include(":core:example")
 
-// 피처마다 ui(공유 RIB에 붙는 Compose 뷰)와 example(그 피처만 띄우는 앱). RIB·도메인은 Apps/Shared에 있다 (modularization-plan 2장)
+// 피처마다 ui(공유 RIB에 붙는 Compose 뷰)와 example(그 피처만 띄우는 앱). RIB·도메인은 Apps/Shared에 있다
 include(":feature:auth:ui")
 include(":feature:auth:example")
 include(":feature:unlock:ui")
@@ -38,7 +38,7 @@ include(":feature:settings:example")
 include(":feature:main:ui")
 include(":feature:main:example")
 
-// 공유 Kotlin 모듈(Apps/Shared). 화면 로직·도메인·플랫폼 구현을 여기서 가져온다 (android-migration-plan 4장 1단계)
+// 공유 Kotlin 모듈(Apps/Shared). 화면 로직·도메인·플랫폼 구현을 여기서 가져온다
 includeBuild("../Shared") {
     dependencySubstitution {
         substitute(module("com.keymanage.shared:android-session")).using(project(":android-session"))

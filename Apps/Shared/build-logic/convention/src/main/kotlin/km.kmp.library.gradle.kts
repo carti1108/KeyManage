@@ -1,5 +1,5 @@
 // 공유 Kotlin 모듈의 공통 설정: 대상(JVM·Android·JS·iOS·macOS), 툴체인, 컴파일 옵션.
-// 모듈의 build.gradle.kts에는 의존성만 적는다 (modularization-plan 3장 7번)
+// 모듈의 build.gradle.kts에는 의존성만 적는다
 plugins {
     id("org.jetbrains.kotlin.multiplatform")
     id("com.android.kotlin.multiplatform.library")

@@ -50,7 +50,7 @@ import com.keymanage.feature.vaultlist.VaultListViewState
 
 /**
  * 볼트 목록·상세·폼의 Compose 뷰. 공유 VaultList RIB이 [render]로 상태를 넘기고, 입력은 [listener]로 돌려보낸다.
- * 폼 안의 비밀번호 생성기는 자식 RIB의 화면이라 Router가 [showGenerator]로 붙이면 그 화면을 대신 그린다 (modularization-plan 2장)
+ * 폼 안의 비밀번호 생성기는 자식 RIB의 화면이라 Router가 [showGenerator]로 붙이면 그 화면을 대신 그린다
  */
 class ComposeVaultListView : VaultListViewContract, ComposeRenderable {
     override var listener: VaultListPresentableListener? = null

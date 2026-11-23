@@ -1,4 +1,4 @@
-// 실제 Kotlin 빌드 결과(keymanage-web-session)에 대고 어댑터를 확인한다 (domain-migration-plan 10.2).
+// 실제 Kotlin 빌드 결과(keymanage-web-session)에 대고 어댑터를 확인한다.
 // 서버는 가짜 fetch, 기기 저장소·탭·탭 기억은 메모리다. Kotlin 빌드가 없으면 npm run kotlin을 먼저 돌린다
 import * as kotlin from 'keymanage-web-session'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'

@@ -4,7 +4,7 @@ import RIBsKMPSwiftUI
 import SwiftUI
 
 /// macOS 앱 진입점. 공유 Kotlin의 `AppleKeyManageApp`이 세션과 RIB 트리를 맡고, 여기서는 루트 화면을 창에 붙이고 생명주기를 알린다
-/// (modularization-plan F단계 ④ macOS, iOS KeyManageIOSApp의 짝)
+/// (iOS KeyManageIOSApp의 짝)
 @main
 struct KeyManageMacApp: App {
 	@State private var launcher = MacAppLauncher()

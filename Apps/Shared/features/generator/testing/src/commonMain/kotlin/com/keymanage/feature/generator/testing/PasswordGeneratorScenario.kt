@@ -1,7 +1,7 @@
 package com.keymanage.feature.generator.testing
 
 /**
- * 비밀번호 생성기를 한 가지 상황으로 띄우는 시나리오. Android·iOS·웹의 Example 앱이 같은 목록을 보여 준다 (modularization-plan 3장 3번)
+ * 비밀번호 생성기를 한 가지 상황으로 띄우는 시나리오. Android·iOS·웹의 Example 앱이 같은 목록을 보여 준다
  *
  * @param allowCopy 복사 버튼을 둘지(생성기 탭)
  * @param insideForm 항목 폼 안에서 쓰는 경우. 부모가 결과를 받으므로 사용·닫기 버튼이 생긴다

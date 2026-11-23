@@ -55,7 +55,7 @@ import com.keymanage.feature.vaultlist.testing.VaultListScenario
 import com.keymanage.feature.main.MainViewContract
 import kotlin.time.Clock
 
-// iOS 피처 Example (modularization-plan F단계). 웹 web-example, Android feature/<이름>/example과 같은 조립이다:
+// iOS 피처 Example. 웹 web-example, Android feature/<이름>/example과 같은 조립이다:
 // 시나리오 번호로 공유 RIB 하나를 가짜 세션으로 만들어 Swift가 넘긴 뷰에 붙인다. Swift는 뷰만 만들고 결과로 받은 RibMount를 내린다
 
 /** Swift Example이 고를 피처 */

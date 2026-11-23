@@ -12,7 +12,7 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * 잠금 화면을 한 가지 상황으로 띄우는 시나리오. Android·iOS·웹의 Example 앱이 같은 목록을 보여 주고,
- * 고른 시나리오의 [session]으로 Unlock RIB을 만든다 (modularization-plan 3장 3번)
+ * 고른 시나리오의 [session]으로 Unlock RIB을 만든다
  */
 enum class UnlockScenario(val title: String) {
     SUCCESS("성공 (잠금 해제)"),

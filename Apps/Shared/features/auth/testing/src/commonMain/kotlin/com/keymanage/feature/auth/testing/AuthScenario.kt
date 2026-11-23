@@ -10,7 +10,7 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * 로그인·가입 화면을 한 가지 상황으로 띄우는 시나리오. Android·iOS·웹의 Example 앱이 같은 목록을 보여 주고,
- * 고른 시나리오의 [session]과 [notice]로 Auth RIB을 만든다 (modularization-plan 3장 3번)
+ * 고른 시나리오의 [session]과 [notice]로 Auth RIB을 만든다
  *
  * @param notice 화면을 열 때 보일 안내(부모가 넘기는 값)
  */

@@ -1,4 +1,4 @@
-// carti-RIBs-KMP react/ribs-react/src/index.tsx 복사본 (npm 패키지가 아니라 파일 하나). 고치면 원본과 맞춘다 (domain-migration-plan 11.4)
+// carti-RIBs-KMP react/ribs-react/src/index.tsx 복사본 (npm 패키지가 아니라 파일 하나). 고치면 원본과 맞춘다
 // 원본 그대로 두려고 훅과 컴포넌트를 한 파일에 둔다
 /* eslint-disable react/only-export-components */
 // carti-RIBs-KMP React 어댑터(ADR-0009). ribs-web의 ViewStore·ScreenSlot을 React에서 구독한다.

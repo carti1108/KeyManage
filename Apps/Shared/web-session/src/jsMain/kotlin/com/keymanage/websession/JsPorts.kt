@@ -2,7 +2,7 @@ package com.keymanage.websession
 
 import kotlin.js.Promise
 
-// 웹(TypeScript)이 구현해 createKotlinSession에 넘기는 포트. 모양은 docs/research/kmp-migration의 web-session 계약과 같다
+// 웹(TypeScript)이 구현해 createKotlinSession에 넘기는 포트
 // 기록·메시지는 JSON 문자열로 주고받고, 실패는 Promise reject(또는 throw)로 알린다
 
 /** 기기 저장소(IndexedDB). load는 기록이 없으면 null */

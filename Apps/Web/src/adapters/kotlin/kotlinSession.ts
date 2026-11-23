@@ -1,4 +1,4 @@
-// Kotlin 공유 세션(Apps/Shared/web-session)을 웹 SessionPort로 감싼다 (docs/research/kmp-migration/domain-migration-plan.md 10장)
+// Kotlin 공유 세션(Apps/Shared/web-session)을 웹 SessionPort로 감싼다
 // 웹은 세션 로직을 갖지 않는다. 포트·상태·오류·백업 파일만 웹 모양과 Kotlin(JS 내보내기) 모양 사이에서 바꾼다
 import { BACKUP_FORMAT, backupFileName, type BackupFile, type VaultBackup } from '../../domain/backup/backupFile'
 import type { DeviceStore } from '../../domain/device/deviceRecord'
@@ -65,7 +65,7 @@ export function createKotlinSession(kotlin: KotlinModule, deps: KotlinSessionDep
 
 /**
  * 이미 만든 Kotlin 세션(예: WebKeyManageApp.session)을 웹 VaultSession으로 감싼다.
- * RIB 화면과 앱 배선(*Wiring.ts)이 같은 세션을 쓰게 한다 (domain-migration-plan 11.4)
+ * RIB 화면과 앱 배선(*Wiring.ts)이 같은 세션을 쓰게 한다
  */
 export function wrapKotlinSession(kotlin: Pick<KotlinModule, 'errorInfo'>, session: KotlinVaultSession): VaultSession {
   const { translate, translateSyncError } = createErrorTranslator(kotlin.errorInfo)

@@ -1,5 +1,5 @@
 // 세션이 밖으로 내보내는 오류·상태 타입과 화면이 쓰는 세션 포트(VaultSession)의 모양 (SEC-002, SEC-003)
-// 세션 로직은 Kotlin 공유 세션(Apps/Shared/web-session)에 있고, 웹은 어댑터(adapters/kotlin)로 이 포트에 맞춘다 (domain-migration-plan 10장)
+// 세션 로직은 Kotlin 공유 세션(Apps/Shared/web-session)에 있고, 웹은 어댑터(adapters/kotlin)로 이 포트에 맞춘다
 import type { BackupFile, VaultBackup } from '../backup/backupFile'
 import type { VaultData } from '../vault/vaultData'
 import type { SyncedVault } from '../vault/vaultSync'

@@ -54,7 +54,7 @@ jobs:
           # Android와 웹은 화면 로직·도메인을 공유 Kotlin(Apps/Shared)에서 가져온다
           out android 'Apps/Android/|Apps/Shared/|Tools/design-tokens/'
           out web 'Apps/Web/|Apps/Shared/|Tools/design-tokens/'
-          # Apple 앱도 화면 로직·도메인·플랫폼 구현을 공유 Kotlin(Apps/Shared)에서 가져온다 (modularization-plan F단계)
+          # Apple 앱도 화면 로직·도메인·플랫폼 구현을 공유 Kotlin(Apps/Shared)에서 가져온다
           out apple 'Apps/Apple/|Apps/Shared/|Tools/design-tokens/|Scripts/(verify-apple|check-apple-lint|check-swift-architecture)\.sh'
 
   backend:
@@ -95,7 +95,7 @@ jobs:
             Back/domain/build/reports/pitest
           if-no-files-found: ignore
 
-  # Android 클라이언트. 뷰와 진입점만 있고 도메인·RIB은 공유 Kotlin(Apps/Shared)을 composite build로 가져온다 (android-migration-plan).
+  # Android 클라이언트. 뷰와 진입점만 있고 도메인·RIB은 공유 Kotlin(Apps/Shared)을 composite build로 가져온다.
   # 러너에 설치된 Android SDK를 쓰고, 없는 SDK 플랫폼은 AGP가 받는다
   android:
     needs: changes

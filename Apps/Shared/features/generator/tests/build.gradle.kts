@@ -1,4 +1,4 @@
-// PasswordGenerator 피처의 테스트. Tuist의 Tests 타깃처럼 구현과 따로 둔다 (modularization-plan 3장 4번)
+// PasswordGenerator 피처의 테스트. Tuist의 Tests 타깃처럼 구현과 따로 둔다
 plugins {
     id("km.kmp.library")
 }

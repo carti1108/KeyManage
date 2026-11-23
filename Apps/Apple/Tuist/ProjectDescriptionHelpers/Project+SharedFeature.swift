@@ -1,6 +1,6 @@
 import ProjectDescription
 
-/// 공유 Kotlin RIB을 쓰는 피처의 Swift 타깃 (modularization-plan F단계 설계).
+/// 공유 Kotlin RIB을 쓰는 피처의 Swift 타깃.
 /// 뷰(`Sources`)는 프레임워크로 만들지 않고 쓰는 곳이 직접 컴파일한다. 앱은 운영용, Example·뷰 테스트는 테스트용 묶음을 링크한다.
 /// 두 묶음은 이름(KeyManageShared)이 같아 뷰 코드는 그대로 컴파일된다
 public enum SharedFeature {

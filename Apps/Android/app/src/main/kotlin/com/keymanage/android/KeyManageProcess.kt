@@ -24,7 +24,7 @@ import java.lang.ref.WeakReference
 
 /**
  * 프로세스에 하나 있는 앱 조립. 공유 진입점([AndroidKeyManageApp])에 화면을 만드는 팩토리와 지금 화면만 넘긴다.
- * 도메인·세션·플랫폼 구현은 공유 모듈에 있고 여기에는 뷰 연결만 둔다 (target-architecture 2장)
+ * 도메인·세션·플랫폼 구현은 공유 모듈에 있고 여기에는 뷰 연결만 둔다
  */
 class KeyManageProcess private constructor(context: Context) {
     private var activity = WeakReference<FragmentActivity>(null)

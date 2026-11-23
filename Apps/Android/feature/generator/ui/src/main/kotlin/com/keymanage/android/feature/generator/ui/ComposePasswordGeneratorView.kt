@@ -42,7 +42,7 @@ import kotlin.math.roundToInt
 
 /**
  * 비밀번호 생성기의 Compose 뷰. 공유 PasswordGenerator RIB이 [render]로 상태를 넘기고, 입력은 [listener]로 돌려보낸다.
- * 상태와 흐름은 공유 Kotlin이 맡고 여기에는 그리는 일만 둔다 (modularization-plan 2장)
+ * 상태와 흐름은 공유 Kotlin이 맡고 여기에는 그리는 일만 둔다
  */
 class ComposePasswordGeneratorView : PasswordGeneratorViewContract, ComposeRenderable {
     override var listener: PasswordGeneratorPresentableListener? = null

@@ -1,4 +1,4 @@
-// Kotlin/JS(Apps/Shared/web-session)가 내보내는 것과 웹이 넘기는 포트의 모양 (docs/research/kmp-migration/domain-migration-plan.md 10장)
+// Kotlin/JS(Apps/Shared/web-session)가 내보내는 것과 웹이 넘기는 포트의 모양
 // Kotlin 빌드 결과(.d.mts)가 생기면 이 파일의 KotlinModule을 빌드 결과의 타입으로 바꿀 수 있다
 
 /** 웹이 Kotlin에 넘기는 기기 저장소. 기록은 JSON 문자열이다. 실패는 reject */

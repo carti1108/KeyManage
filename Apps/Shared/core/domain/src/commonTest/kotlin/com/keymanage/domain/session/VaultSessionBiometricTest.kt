@@ -26,7 +26,7 @@ import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
-// 세션의 생체 해제 (SEC-003 규칙 4·8, ADR-AND-002). 설계: docs/research/kmp-migration/android-migration-plan.md 7장 2단계
+// 세션의 생체 해제 (SEC-003 규칙 4·8, ADR-AND-002)
 
 private const val EMAIL = "user@example.com"
 private const val NEW_PASSWORD = "new-master-password-1"

@@ -1,4 +1,4 @@
-// 공유 도메인(볼트·인증·기기·세션). 웹 도메인(Apps/Web/src/domain)을 원본으로 옮긴다 (domain-migration-plan.md)
+// 공유 도메인(볼트·인증·기기·세션). 웹 도메인(Apps/Web/src/domain)을 원본으로 옮긴다
 // commonMain에는 플랫폼 타입을 두지 않고, 시간·난수·저장소·서버는 모두 인터페이스로 받는다
 plugins {
     id("org.jetbrains.kotlin.multiplatform")

@@ -13,7 +13,7 @@ import kotlin.time.Instant
 
 // 백업 항목을 백업 시점 내용으로 되돌린다 (VLT-004 규칙 5~10, ADR-0022 결정 5). 원본: Apps/Web/src/domain/backup/restoreBackup.ts
 // 동기화 병합과 달리 복원은 사용자의 명시적 되돌리기이므로, 되돌린 항목의 수정 시각을 복원 시각으로 올려 병합에서도 이기게 한다.
-// 세션 상태를 쓰는 restoreBackupInto는 세션과 함께 옮긴다(domain-migration-plan.md 5단계)
+// 세션 상태를 쓰는 restoreBackupInto는 세션과 함께 옮긴다
 
 data class RestoredVault(
     val data: VaultData,

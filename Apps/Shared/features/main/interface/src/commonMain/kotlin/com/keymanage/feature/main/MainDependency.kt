@@ -29,7 +29,7 @@ interface MainDependency : Dependency {
     val passwordGeneratorViewFactory: PasswordGeneratorViewFactory
     val settingsViewFactory: SettingsViewFactory
 
-    // 자식 RIB의 Builder. 이 RIB이 만든 dependency(세션을 감싼 것)를 받아 조립하는 곳이 구현을 넣는다 (modularization-plan 3장 1번)
+    // 자식 RIB의 Builder. 이 RIB이 만든 dependency(세션을 감싼 것)를 받아 조립하는 곳이 구현을 넣는다
     fun vaultListBuilder(dependency: VaultListDependency): VaultListBuildable
     fun passwordGeneratorBuilder(dependency: PasswordGeneratorDependency): PasswordGeneratorBuildable
     fun settingsBuilder(dependency: SettingsDependency): SettingsBuildable

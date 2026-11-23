@@ -15,7 +15,7 @@ public struct RunningExample {
 
 /// 피처 Example 앱의 공통 틀(Android core/example의 FeatureExample 짝).
 /// 시나리오 목록을 보이고, 고르면 `launch`로 RIB 하나를 띄운다. 아래에는 RIB이 부모에 알린 결과를 쌓아 보인다.
-/// Kotlin 프레임워크에 의존하지 않아 피처마다 `launch`만 쓴다 (modularization-plan 3장 5번)
+/// Kotlin 프레임워크에 의존하지 않아 피처마다 `launch`만 쓴다
 public struct FeatureExample: View {
 	private let title: String
 	private let scenarios: [String]

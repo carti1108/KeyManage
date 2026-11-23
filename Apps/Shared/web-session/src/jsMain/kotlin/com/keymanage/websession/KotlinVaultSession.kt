@@ -29,7 +29,7 @@ import kotlin.js.Promise
 import kotlin.time.Clock
 import kotlin.time.Instant
 
-// 웹이 부르는 세션 퍼사드 (domain-migration-plan.md 10장). VaultSession과 server-http를 묶고,
+// 웹이 부르는 세션 퍼사드. VaultSession과 server-http를 묶고,
 // suspend 함수는 Promise로, 상태는 JS 객체로, 볼트는 encodeVaultData JSON 문자열로 넘긴다. Long은 내보내지 않는다
 // Promise가 reject할 때 값은 Kotlin 예외 그대로다. TypeScript는 errorInfo(e)로 읽는다
 

@@ -1,4 +1,4 @@
-// 웹 TypeScript 도메인이 만든 볼트 JSON을 Kotlin 테스트 상수로 저장한다 (domain-migration-plan.md 1단계)
+// 웹 TypeScript 도메인이 만든 볼트 JSON을 Kotlin 테스트 상수로 저장한다
 // Kotlin(VaultCompatTest)은 같은 입력·같은 편집 순서로 만든 결과가 바이트 단위로 같은지 비교한다.
 // 실행: node Apps/Shared/core/domain/compat/generate-vault-fixtures.ts (Node 23.6 이상, TypeScript 직접 실행)
 import { writeFileSync } from 'node:fs'

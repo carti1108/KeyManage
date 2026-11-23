@@ -25,7 +25,7 @@ import com.keymanage.feature.vaultlist.VaultListViewContract
 import com.keymanage.serverhttp.keyManageHttpClient
 import io.ktor.client.HttpClient
 
-// 웹 진입점 (domain-migration-plan 11.3, carti ADR-0009). 세션 퍼사드를 만들어 RIB 트리에 붙이고, 루트 화면을 rootSlot에 보인다
+// 웹 진입점 (carti ADR-0009). 세션 퍼사드를 만들어 RIB 트리에 붙이고, 루트 화면을 rootSlot에 보인다
 
 /** 화면마다 웹 뷰를 하나씩 만든다. 루트 뷰는 [rootSlot]에 자식 화면을 보인다 */
 internal class WebViewFactory(private val rootSlot: ScreenSlot) : KeyManageViewFactory {

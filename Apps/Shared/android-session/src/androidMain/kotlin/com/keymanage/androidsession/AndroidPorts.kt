@@ -25,7 +25,7 @@ import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.toJavaInstant
 
-// 공유 세션·RIB에 넣는 Android 쪽 포트 구현. 앱(Apps/Android)은 이것들을 구현하지 않고 화면 정보만 넘긴다 (target-architecture 2장)
+// 공유 세션·RIB에 넣는 Android 쪽 포트 구현. 앱(Apps/Android)은 이것들을 구현하지 않고 화면 정보만 넘긴다
 
 /** 코루틴으로 도는 지연 실행. 세션과 같은 메인 스레드 범위에서 돌린다 */
 class CoroutineScheduler(private val scope: CoroutineScope) : Scheduler {

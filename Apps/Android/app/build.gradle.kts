@@ -18,7 +18,7 @@ android {
     }
 }
 
-// 공유 진입점(android-session)에 Compose 뷰를 넘겨 조립한다. 도메인·RIB·플랫폼 구현은 Apps/Shared에 있다 (target-architecture 2장)
+// 공유 진입점(android-session)에 Compose 뷰를 넘겨 조립한다. 도메인·RIB·플랫폼 구현은 Apps/Shared에 있다
 dependencies {
     implementation("com.keymanage.shared:android-session")
     implementation(project(":feature:auth:ui"))
