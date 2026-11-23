@@ -2,11 +2,13 @@
 # PR과 main 푸시마다 백엔드(빌드·테스트·격리 검사·뮤테이션), Android(테스트·lint·빌드), 웹 클라이언트(타입·lint·테스트·빌드),
 # 플랫폼 간 암호 테스트 벡터, 문서 검사를 돌린다
 # 웹은 공유 Kotlin 세션(Apps/Shared/web-session) 빌드 결과를 쓰므로, 웹을 다루는 job은 먼저 .github/actions/build-web-session으로 만든다
-# 그 action은 비공개 저장소 carti1108/carti-RIBs-KMP를 받으므로, 이 저장소의 시크릿 CARTI_RIBS_TOKEN(그 저장소 읽기 권한)이 필요하다
+# 그 action은 공개 저장소 carti1108/carti-RIBs-KMP를 고정한 커밋으로 받는다. 토큰은 필요 없다
 name: CI
 
 on:
   pull_request:
+  # main에 올리기 전인 브랜치를 PR 없이 돌려 볼 때 쓴다 (gh workflow run ci.yml --ref <브랜치>)
+  workflow_dispatch:
   push:
     branches: [main]
 
@@ -119,7 +121,6 @@ jobs:
           # 버전 고정: 검증한 커밋만 받는다. 라이브러리를 올릴 때 두 곳(ci.yml, build-web-session/action.yml)을 함께 바꾼다
           ref: b2b652c790c9d9d70be8baed293b1c2b3bc175f8
           path: carti-RIBs-KMP
-          token: ${{ secrets.CARTI_RIBS_TOKEN }}
 
       - name: 공유 Kotlin 모듈 테스트 (도메인·RIB)
         working-directory: Apps/Shared
@@ -156,8 +157,6 @@ jobs:
 
       # 타입 검사·번들이 읽는 Kotlin 세션 빌드 결과(keymanage-web-session)를 먼저 만든다
       - uses: ./.github/actions/build-web-session
-        with:
-          ribs-token: ${{ secrets.CARTI_RIBS_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
@@ -184,8 +183,6 @@ jobs:
 
       # JDK 21·Gradle 준비와 Kotlin 세션 빌드. 통합 테스트도 이 결과로 앱을 만들고, 아래 백엔드 빌드가 같은 JDK·Gradle을 쓴다
       - uses: ./.github/actions/build-web-session
-        with:
-          ribs-token: ${{ secrets.CARTI_RIBS_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
@@ -233,8 +230,6 @@ jobs:
 
       # 웹 빌드가 Kotlin 세션 빌드 결과를 번들에 담는다
       - uses: ./.github/actions/build-web-session
-        with:
-          ribs-token: ${{ secrets.CARTI_RIBS_TOKEN }}
 
       # Tauri가 Linux에서 쓰는 웹뷰(WebKitGTK)와 빌드 도구
       - name: 시스템 의존성
@@ -348,7 +343,6 @@ jobs:
           repository: carti1108/carti-RIBs-KMP
           ref: b2b652c790c9d9d70be8baed293b1c2b3bc175f8
           path: carti-RIBs-KMP
-          token: ${{ secrets.CARTI_RIBS_TOKEN }}
 
       - name: carti-RIBs-KMP를 형제 폴더 위치에 연결
         run: ln -sfn "${{ github.workspace }}/carti-RIBs-KMP" "${{ github.workspace }}/../carti-RIBs-KMP"

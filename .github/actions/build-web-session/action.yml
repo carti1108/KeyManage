@@ -4,11 +4,6 @@
 name: Kotlin 웹 세션 빌드
 description: JDK 21과 공유 RIB 라이브러리(carti-RIBs-KMP)를 준비하고 web-session을 JS 라이브러리로 빌드한다
 
-inputs:
-  ribs-token:
-    description: 비공개 저장소 carti1108/carti-RIBs-KMP를 읽을 수 있는 토큰(secrets.CARTI_RIBS_TOKEN)
-    required: true
-
 runs:
   using: composite
   steps:
@@ -27,7 +22,6 @@ runs:
         # 버전 고정: 검증한 커밋만 받는다. 라이브러리를 올릴 때 두 곳(ci.yml, build-web-session/action.yml)을 함께 바꾼다
         ref: b2b652c790c9d9d70be8baed293b1c2b3bc175f8
         path: carti-RIBs-KMP
-        token: ${{ inputs.ribs-token }}
 
     - name: web-session JS 라이브러리 빌드
       shell: bash
