@@ -1,37 +1,5 @@
 import SwiftUI
 
-@MainActor
-public final class KMBurnBadgeModel: ObservableObject {
-    @Published public var remainingSeconds: Int
-    public let totalSeconds: Int
-    public var onBurned: (() -> Void)?
-    private var hasBurned: Bool = false
-
-    public init(
-        remainingSeconds: Int = 30,
-        totalSeconds: Int = 30,
-        onBurned: (() -> Void)? = nil
-    ) {
-        self.remainingSeconds = remainingSeconds
-        self.totalSeconds = totalSeconds
-        self.onBurned = onBurned
-    }
-
-    public var progress: Double {
-        return Double(max(0, remainingSeconds)) / Double(max(1, totalSeconds))
-    }
-
-    public func tick() {
-        if remainingSeconds > 0 {
-            remainingSeconds -= 1
-        }
-        if remainingSeconds == 0 && !hasBurned {
-            hasBurned = true
-            onBurned?()
-        }
-    }
-}
-
 public struct KMBurnBadge: View {
     public let remainingSeconds: Int
     public let totalSeconds: Int
