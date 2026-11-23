@@ -337,15 +337,16 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       # 공유 Kotlin 묶음 프레임워크를 만들 때 carti-RIBs-KMP를 composite build로 가져온다. 버전 고정은 android 작업과 같다
-      # RIBsKMPSwiftUI(Swift 패키지)도 같은 폴더에서 가져오므로 Tuist가 찾는 형제 위치(저장소 바깥)에도 링크를 둔다
+      # RIBsKMPSwiftUI(Swift 패키지)도 같은 폴더에서 가져오므로 Tuist가 찾는 형제 위치(저장소 바깥)로 옮긴다.
+      # 저장소 안에 두면 문서 검사가 라이브러리의 ADR까지 읽어 번호가 겹친다고 본다
       - uses: actions/checkout@v4
         with:
           repository: carti1108/carti-RIBs-KMP
           ref: b2b652c790c9d9d70be8baed293b1c2b3bc175f8
           path: carti-RIBs-KMP
 
-      - name: carti-RIBs-KMP를 형제 폴더 위치에 연결
-        run: ln -sfn "${{ github.workspace }}/carti-RIBs-KMP" "${{ github.workspace }}/../carti-RIBs-KMP"
+      - name: carti-RIBs-KMP를 형제 폴더 위치로 옮김
+        run: mv "$GITHUB_WORKSPACE/carti-RIBs-KMP" "$(dirname "$GITHUB_WORKSPACE")/carti-RIBs-KMP"
 
       - name: Tuist 외부 의존성 캐시
         uses: actions/cache@v4
@@ -356,6 +357,4 @@ jobs:
           key: tuist-${{ runner.os }}-${{ hashFiles('Apps/Apple/Tuist/Package.resolved', 'Apps/Apple/Tuist/Package.swift') }}
 
       - name: Apple 6중 기계적 통합 검증
-        env:
-          CARTI_RIBS_DIR: ${{ github.workspace }}/carti-RIBs-KMP
-        run: bash Scripts/verify-apple.sh
+        run: CARTI_RIBS_DIR="$(dirname "$GITHUB_WORKSPACE")/carti-RIBs-KMP" bash Scripts/verify-apple.sh
