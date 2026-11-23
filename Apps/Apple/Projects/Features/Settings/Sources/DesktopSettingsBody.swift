@@ -171,7 +171,7 @@ struct DesktopSettingsBody: View {
 
 	private var sessionCard: some View {
 		HStack(spacing: DesignToken.Spacing.space3) {
-			VStack(alignment: .leading, spacing: 2) {
+			VStack(alignment: .leading, spacing: DesignToken.Spacing.space1) {
 				Text("세션 제어").font(DesignToken.Typography.label.weight(.medium))
 				Text("볼트를 잠그거나 계정에서 로그아웃합니다.")
 					.font(DesignToken.Typography.caption)
@@ -230,7 +230,7 @@ struct SidebarSettingsBox: View {
 					Text(state.autoLockTimeoutLabel)
 						.font(DesignToken.Typography.caption.weight(.medium))
 						.padding(.horizontal, DesignToken.Spacing.space2)
-						.padding(.vertical, 2)
+						.padding(.vertical, DesignToken.Spacing.space1)
 						.background(DesignToken.View.background)
 						.clipShape(RoundedRectangle(cornerRadius: DesignToken.Radius.sm))
 				}

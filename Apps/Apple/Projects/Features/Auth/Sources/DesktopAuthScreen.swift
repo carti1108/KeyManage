@@ -24,7 +24,7 @@ struct DesktopAuthScreen: View {
 		VStack(alignment: .leading, spacing: DesignToken.Spacing.space4) {
 			VStack(alignment: .leading, spacing: DesignToken.Spacing.space1) {
 				Text("KeyManage")
-					.font(.system(size: 28, weight: .bold))
+					.font(DesignToken.Typography.display)
 					.accessibilityAddTraits(.isHeader)
 				Text(state.isRegistering ? "새 계정 만들기" : "볼트에 로그인")
 					.font(DesignToken.Typography.label)

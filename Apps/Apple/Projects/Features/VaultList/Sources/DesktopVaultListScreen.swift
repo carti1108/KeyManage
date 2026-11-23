@@ -80,7 +80,7 @@ private struct ListPane: View {
 		let isOpen = item.id == state.selected?.id && state.screen != .list
 		return HStack(spacing: DesignToken.Spacing.space2) {
 			Button { send(VaultListViewActionOpenItem(id: item.id)) } label: {
-				VStack(alignment: .leading, spacing: 2) {
+				VStack(alignment: .leading, spacing: DesignToken.Spacing.space1) {
 					Text(name).font(DesignToken.Typography.body.weight(.medium))
 					if !username.isEmpty {
 						Text(username)
